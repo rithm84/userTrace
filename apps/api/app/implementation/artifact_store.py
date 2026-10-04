@@ -41,7 +41,7 @@ __all__ = ["ARTIFACT_BUCKET", "ArtifactStore", "ArtifactStoreError", "digest_of"
 _logger = structlog.get_logger(__name__)
 
 ARTIFACT_BUCKET = "utrace-artifacts"
-"""The private bucket the implementation migration creates."""
+"""The private bucket the storage buckets migration creates."""
 
 _UPLOAD_TIMEOUT_SECONDS = 60.0
 

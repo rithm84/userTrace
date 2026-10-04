@@ -70,6 +70,10 @@ repository's own migration runner and recorded in the applied-migration table, s
 a deployed database and a checkout agree on what has run. Nothing applies schema
 from an editor session or a linked CLI push.
 
+The history starts from one baseline generated from the declarative schema,
+followed by the hand-written migration that creates the Storage buckets. Every
+later change adds a migration after them.
+
 Workers tolerate adjacent schema versions while active lifecycles drain. Destructive constraints and column removal wait until all pinned readers and writers have moved. Migration evidence includes RLS and tenant-isolation probes and event/projection reconciliation.
 
 ### Declarative schema
