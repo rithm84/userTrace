@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/browser-observation/payload-target-registry-change/v1",
+  "title": "Target registry change payload",
+  "description": "A mounted, updated, unmounted, layout-only, or rejected registry change. A rejected annotation is counted, never carried as a value.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "change",
+    "registry_revision"
+  ],
+  "properties": {
+    "change": {
+      "enum": [
+        "mounted",
+        "updated",
+        "unmounted",
+        "layout",
+        "rejected"
+      ]
+    },
+    "registry_revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "target": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/target_summary"
+    },
+    "rejected_annotation": {
+      "type": "string"
+    }
+  }
+}

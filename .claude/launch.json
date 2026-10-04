@@ -1,0 +1,73 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "api",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "set -a && source ../../.env.local && set +a && exec uv run uvicorn --factory app.main:create_default_app --host 127.0.0.1 --port 8000"
+      ],
+      "cwd": "apps/api",
+      "port": 8000
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "cwd": "apps/web",
+      "port": 3000,
+      "autoPort": true
+    },
+    {
+      "name": "web-product",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev:product"
+      ],
+      "cwd": "apps/web",
+      "port": 3100
+    },
+    {
+      "name": "web-product-fixture-participant",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "UTRACE_CONTROL_PLANE_FIXTURES=1",
+        "UTRACE_PARTICIPANT_FIXTURE=1",
+        "npm",
+        "run",
+        "dev:product"
+      ],
+      "cwd": "apps/web",
+      "port": 3100
+    },
+    {
+      "name": "web-product-fixture-staff",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "UTRACE_CONTROL_PLANE_FIXTURES=1",
+        "npm",
+        "run",
+        "dev:product"
+      ],
+      "cwd": "apps/web",
+      "port": 3100
+    },
+    {
+      "name": "rive-viewer",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8765",
+        "--directory",
+        "."
+      ],
+      "port": 8765
+    }
+  ]
+}

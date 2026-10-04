@@ -1,0 +1,13 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/voice-connection-state/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Lifecycle of one provider voice connection.",
+  "enum": [
+    "connecting",
+    "active",
+    "reconnecting",
+    "closed"
+  ],
+  "title": "VoiceConnectionState",
+  "type": "string"
+}

@@ -1,0 +1,17 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/outreach-attempt-state/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Delivery lifecycle of one logical outreach attempt.",
+  "enum": [
+    "scheduled",
+    "dispatching",
+    "awaiting_response",
+    "claimed",
+    "declined",
+    "expired",
+    "unreached",
+    "revoked"
+  ],
+  "title": "OutreachAttemptState",
+  "type": "string"
+}

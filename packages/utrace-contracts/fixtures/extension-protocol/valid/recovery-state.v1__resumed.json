@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "kind": "recovery_state",
+  "message_id": "0199a0c0-0000-7aaa-8000-00000000000a",
+  "sent_at": "2026-10-03T17:04:14Z",
+  "sequence": 21,
+  "payload": {
+    "disposition": "resumed",
+    "next_sequence": 22,
+    "session_id": "0199a0c0-0000-7aaa-8000-0000000055e1",
+    "protocol_version": "1.0"
+  }
+}

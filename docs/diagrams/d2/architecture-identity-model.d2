@@ -1,0 +1,71 @@
+...@_style
+
+cells: "Identity · one person, distinct authorization lanes" {
+  class: grid
+  grid-rows: 3
+  grid-columns: 3
+  horizontal-gap: 200
+  vertical-gap: 80
+
+  _s1: "" {width: 304; height: 8; style: {opacity: 0}}
+  utrace_user: |md
+    ### uTrace User
+  
+    - Global identity
+    - Supabase Auth subject
+  | {class: [card; people]}
+
+  key: "" {
+    class: legend
+    grid-rows: 2
+    grid-columns: 2
+    horizontal-gap: 8
+    vertical-gap: 6
+    k_people: "People · customer surfaces" {class: [key; people]}
+    k_runtime: "uTrace control plane" {class: [key; runtime]}
+    k_observation: "SDKs · previews" {class: [key; observation]}
+    k_neutral: "Neutral · closed" {class: [key; neutral]}
+  }
+  client_staff: |md
+    ### Client staff
+  
+    - client_member_id
+    - Owner / admin membership
+  | {class: [card; runtime]}
+
+  _s3: "" {width: 304; height: 8; style: {opacity: 0}}
+  customer_participation: |md
+    ### Customer participation
+  
+    - client_user_id
+    - customer_membership_id
+    - customer_account_id
+  | {class: [card; people]}
+
+  client_dashboard: |md
+    ### Client dashboard
+  
+    - Account and member controls
+    - Authorized records + case stop
+  | {class: [card; people]}
+
+  customer_account_model: |md
+    ### Customer account model
+  
+    - B2B customer organization
+    - Client-scoped membership
+    - Isolated client product data
+  | {class: [card; neutral]}
+
+  interview_session: |md
+    ### Interview Session
+  
+    - Invited Discord identity
+    - Exact client and signal
+  | {class: [card; observation]}
+
+  utrace_user -> client_staff: "membership" {class: edge}
+  utrace_user -> customer_participation: "client scope" {class: edge}
+  client_staff -> client_dashboard: "authorize" {class: edge}
+  customer_participation -> interview_session: "claim invite" {class: edge}
+}

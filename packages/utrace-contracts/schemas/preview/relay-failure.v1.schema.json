@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/preview/relay-failure/v1",
+  "title": "Preview relay failure",
+  "description": "Body the front door returns to the browser SDK when a relay is refused. It never discloses the control plane's typed reason.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "reason"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "utrace_preview_relay_failure_v1"
+    },
+    "reason": {
+      "type": "string",
+      "enum": [
+        "unauthorized",
+        "invalid_request",
+        "unavailable"
+      ]
+    }
+  }
+}

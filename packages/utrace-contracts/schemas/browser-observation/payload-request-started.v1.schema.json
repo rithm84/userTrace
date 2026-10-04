@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/browser-observation/payload-request-started/v1",
+  "title": "Request started payload",
+  "description": "The first half of a paired product request. Raw headers, query strings, and bodies are excluded.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "browser_request_id",
+    "transport",
+    "method",
+    "route",
+    "same_origin",
+    "trace_context_injected",
+    "actor"
+  ],
+  "properties": {
+    "browser_request_id": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+    },
+    "transport": {
+      "enum": [
+        "fetch",
+        "xhr"
+      ]
+    },
+    "method": {
+      "type": "string",
+      "pattern": "^[A-Z]+$"
+    },
+    "route": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/route_state"
+    },
+    "same_origin": {
+      "type": "boolean"
+    },
+    "trace_context_injected": {
+      "type": "boolean"
+    },
+    "operation_id": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/opaque_id"
+    },
+    "actor": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/actor"
+    }
+  }
+}

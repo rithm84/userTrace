@@ -1,0 +1,10 @@
+{
+  "apiBaseUrl": "http://localhost:8411",
+  "controlSocketBaseUrl": "ws://localhost:8411",
+  "accountLinkOrigin": "http://localhost:8410",
+  "sessionTabOrigins": [
+    "http://localhost:8410"
+  ],
+  "hostPermissions": "required",
+  "manifestKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlXx7WZVzgMBHHnrNs6otsGbqJrVc4fJN04RdFPaEL2R9kAIasuM/PiSSaEFxjrOxhf0RKzFHdAMXU/1CgGNFWrc+F1LRTrdMeefLrCZe55OqogCTUb+JCCygjUY4HkWVm0R+iH1CKch71AtGhiAmqf+UvjfZz/G4kVzAXCdSgASZaH586TLfQR21dS14djSCLn7Xvxp3kpVObHWSVWRqXfuzJjaOolXwodaqda5TV/FrSvH8Rc4sqfyGIZhWhreJvvuN8vVBz3sLbNqHDyfMP5RX/vHru3NlP5cTQMmrkRa4Ekp57mDTm3hsikjumHAH3n9FGqi9CiVZ6wVZz5Yj2wIDAQAB"
+}

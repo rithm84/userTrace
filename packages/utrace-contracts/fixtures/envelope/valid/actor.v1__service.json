@@ -1,0 +1,4 @@
+{
+  "kind": "service",
+  "service": "telemetry_worker"
+}

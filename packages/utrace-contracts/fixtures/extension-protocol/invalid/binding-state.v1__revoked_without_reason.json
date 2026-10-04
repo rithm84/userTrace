@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "kind": "binding_state",
+  "message_id": "0199a0c0-0000-7aaa-8000-000000000302",
+  "sent_at": "2026-10-03T17:04:05Z",
+  "sequence": 13,
+  "payload": {
+    "binding_revision": 5,
+    "session_id": "0199a0c0-0000-7aaa-8000-0000000055e1",
+    "status": "revoked"
+  }
+}

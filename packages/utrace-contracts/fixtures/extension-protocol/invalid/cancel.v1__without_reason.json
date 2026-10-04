@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "kind": "cancel",
+  "message_id": "0199a0c0-0000-7aaa-8000-000000000008",
+  "sent_at": "2026-10-03T17:04:12Z",
+  "sequence": 19,
+  "payload": {
+    "command_id": "0199a0c0-0000-7aaa-8000-0000000cd001"
+  }
+}

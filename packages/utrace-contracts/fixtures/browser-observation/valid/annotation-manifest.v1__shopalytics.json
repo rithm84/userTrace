@@ -1,0 +1,110 @@
+{
+  "manifest_version": "2026.09.20-1",
+  "client_release_id": "shopalytics-main-8f21",
+  "surfaces": [
+    {
+      "surface_id": "conversion_dashboard",
+      "sensitive": false
+    },
+    {
+      "surface_id": "billing_settings",
+      "sensitive": true
+    }
+  ],
+  "entities": [
+    {
+      "entity_definition_id": "conversion_view",
+      "instance_ref_rule_id": "safe.view_ref"
+    }
+  ],
+  "targets": [
+    {
+      "definition_id": "saved_view_save_button",
+      "effects": [
+        "observe",
+        "visual_guidance"
+      ],
+      "detail_fields": [
+        "role",
+        "label",
+        "semantic_state"
+      ],
+      "route_templates": [
+        "/dashboard/conversions"
+      ]
+    }
+  ],
+  "visual_targets": [
+    {
+      "definition_id": "saved_view_list",
+      "effects": [
+        "visual_guidance"
+      ],
+      "detail_fields": [],
+      "route_templates": [
+        "/dashboard/conversions"
+      ]
+    }
+  ],
+  "milestones": [
+    {
+      "milestone_id": "saved_view_created",
+      "attribute_rule_ids": [
+        "safe.view_name"
+      ]
+    }
+  ],
+  "severities": [
+    "info",
+    "warning",
+    "critical"
+  ],
+  "priorities": [
+    "low",
+    "normal",
+    "high"
+  ],
+  "route_templates": [
+    "/dashboard/conversions",
+    "/dashboard/conversions/:viewId"
+  ],
+  "approved_trace_origins": [],
+  "redaction": {
+    "redaction_version": "r-3",
+    "policy_version": "p-7",
+    "safe_value_rules": [
+      {
+        "rule_id": "safe.button_label",
+        "allowed_kinds": [
+          "accessible_label"
+        ],
+        "output_class": "bounded_safe_value",
+        "max_length": 60
+      },
+      {
+        "rule_id": "safe.view_name",
+        "allowed_kinds": [
+          "form_value",
+          "annotation_attribute"
+        ],
+        "output_class": "bounded_safe_value",
+        "max_length": 60,
+        "allowed_pattern": "[\\w ,'-]{1,60}"
+      },
+      {
+        "rule_id": "safe.view_ref",
+        "allowed_kinds": [
+          "annotation_attribute"
+        ],
+        "output_class": "pseudonymized",
+        "max_length": 64
+      }
+    ],
+    "sensitive_surfaces": [
+      "billing_settings"
+    ],
+    "sensitive_fields": [
+      "billing_card"
+    ]
+  }
+}

@@ -1,0 +1,154 @@
+{
+  "version": 1,
+  "skills": {
+    "a11y-debugging": {
+      "source": "ChromeDevTools/chrome-devtools-mcp",
+      "sourceType": "github",
+      "skillPath": "skills/a11y-debugging/SKILL.md",
+      "computedHash": "0cfdaa59d1a21f94509d2633a81735f57812c06661b1645a7a7b9dc778e6e0f7"
+    },
+    "agent-browser": {
+      "source": "./vercel:agent-browser",
+      "sourceType": "local",
+      "computedHash": "ee301ca36a7f5fe6e1ed4a0e0c5276ed07779c9173ac337a76160cd18ee301df"
+    },
+    "chrome-devtools": {
+      "source": "ChromeDevTools/chrome-devtools-mcp",
+      "sourceType": "github",
+      "skillPath": "skills/chrome-devtools/SKILL.md",
+      "computedHash": "d71d3a3271c6eb6170da33d153a52742ac69efeeee68ef526d9d98dbe19ce0b5"
+    },
+    "debug-optimize-lcp": {
+      "source": "ChromeDevTools/chrome-devtools-mcp",
+      "sourceType": "github",
+      "skillPath": "skills/debug-optimize-lcp/SKILL.md",
+      "computedHash": "dd3ee7c42f0f4c5c12f852188ad7f04ca4289129dc5e3d9bd0cc25e3f2e4c68c"
+    },
+    "deployments-cicd": {
+      "source": "vercel/vercel-plugin",
+      "sourceType": "github",
+      "skillPath": "skills/deployments-cicd/SKILL.md",
+      "computedHash": "47bd1ba5a9a77f2262d18bca4174d9d572e89b0b568e1c5b0c018b66e45fa08a"
+    },
+    "discord": {
+      "source": "local",
+      "sourceType": "local",
+      "skillPath": ".agents/skills/utrace-providers/discord/SKILL.md",
+      "computedHash": "a962fd708a6aff04cf6b19ae74f68eb4bce0063780d95451681b4f3872694f07"
+    },
+    "env-vars": {
+      "source": "vercel/vercel-plugin",
+      "sourceType": "github",
+      "skillPath": "skills/env-vars/SKILL.md",
+      "computedHash": "22dfd08ebf9c2f9b6370253f2081a91139c6d0059e1bd42fb612ad25b32fe7ef"
+    },
+    "gh-cli": {
+      "source": "./local",
+      "sourceType": "local",
+      "skillDir": ".agents/skills/general/gh-cli",
+      "computedHash": "cbe644b0c6760ae2a1eaafa39133920d889331327065d92a131675a665273e56"
+    },
+    "memory-leak-debugging": {
+      "source": "ChromeDevTools/chrome-devtools-mcp",
+      "sourceType": "github",
+      "skillPath": "skills/memory-leak-debugging/SKILL.md",
+      "computedHash": "b62abc901d998b48c36b0cd8739f407c5504dbfd5d53d4373b6099c0e00abb0f"
+    },
+    "otel-collector": {
+      "source": "dash0hq/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/otel-collector/SKILL.md",
+      "computedHash": "b7d40afc945e4e5a97e2f671b4cae440896303b93ee15290285fbf7e27b27c5e"
+    },
+    "otel-instrumentation": {
+      "source": "dash0hq/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/otel-instrumentation/SKILL.md",
+      "computedHash": "f34dc69178aaa4c6d91e54de54c1a98f8bfc38c98f6d26b89b18bf5a8cadfa11"
+    },
+    "otel-ottl": {
+      "source": "dash0hq/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/otel-ottl/SKILL.md",
+      "computedHash": "902cee5f17d580ff581f340c65db29b7346d6b6be100d3f4c02b5addf295e0be"
+    },
+    "otel-semantic-conventions": {
+      "source": "dash0hq/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/otel-semantic-conventions/SKILL.md",
+      "computedHash": "d8210824e4b984f888e6fd828f5ec2425018b170fb8f7e25f538bcbc04271176"
+    },
+    "stripe-apps": {
+      "source": "stripe/ai",
+      "sourceType": "github",
+      "skillPath": "skills/stripe-apps/SKILL.md",
+      "computedHash": "264aefc35ac90ee6df5adb8d7cd34f5536f02b4471d61ba18e100cd9ca317d46"
+    },
+    "stripe-best-practices": {
+      "source": "stripe/ai",
+      "sourceType": "github",
+      "skillPath": "skills/stripe-best-practices/SKILL.md",
+      "computedHash": "e9a13a7c87c67701153ab993815e64ce1af8c92702ce036bb89ac8e467f16a85"
+    },
+    "stripe-docs": {
+      "source": "stripe/ai",
+      "sourceType": "github",
+      "skillPath": "skills/stripe-docs/SKILL.md",
+      "computedHash": "ee4a51d34f11386fe6c9f991d5b2d32da69c851124a78a01403412bcf87e73d7"
+    },
+    "supabase": {
+      "source": "supabase-community/supabase-plugin",
+      "sourceType": "github",
+      "skillPath": "skills/supabase/SKILL.md",
+      "computedHash": "17ee0fac5225bb5311e6b7ac9b35b4eb51535146444383a3047d21b191a4f240"
+    },
+    "supabase-postgres-best-practices": {
+      "source": "supabase-community/supabase-plugin",
+      "sourceType": "github",
+      "skillPath": "skills/supabase-postgres-best-practices/SKILL.md",
+      "computedHash": "e14e276241805c97dbcfe40dcbea1a3035269cc7293cac4b1832dda41a835e60"
+    },
+    "troubleshooting": {
+      "source": "ChromeDevTools/chrome-devtools-mcp",
+      "sourceType": "github",
+      "skillPath": "skills/troubleshooting/SKILL.md",
+      "computedHash": "0c516080764f283e1869cc91c269e7e23e3609efe0fa024e43ed0a14718bdf3e"
+    },
+    "typesafe-ai": {
+      "source": "typesafe-ai/skills",
+      "sourceType": "github",
+      "skillPath": "skills/typesafe-ai/SKILL.md",
+      "computedHash": "9cd84c5e535dec8dec59917c110f9c00b4a61faadb86b432ec7e41051170af12"
+    },
+    "upgrade-stripe": {
+      "source": "stripe/ai",
+      "sourceType": "github",
+      "skillPath": "skills/upgrade-stripe/SKILL.md",
+      "computedHash": "fca59477f6e276880d64b8fb0963e7cf3067e04e332d96b15811061b4d7847cb"
+    },
+    "utrace-d2": {
+      "source": "local",
+      "sourceType": "local",
+      "skillPath": ".agents/skills/general/utrace-d2/SKILL.md",
+      "computedHash": "50e634b6ff1bbe009dcc310be580dd15b59e2f4f882d763edafdc2bf157ff7fd"
+    },
+    "vercel-cli": {
+      "source": "vercel/vercel-plugin",
+      "sourceType": "github",
+      "skillPath": "skills/vercel-cli/SKILL.md",
+      "computedHash": "060522d6a4bba510ce3df84d182c8a95468fdac46ae3afcbd5aa096be53bd388"
+    },
+    "vercel-react-best-practices": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/react-best-practices/SKILL.md",
+      "computedHash": "3219a1944e404ffc14d1d9d6aef6dd2e3855b81387ee0a044ccbfe14d34c2357"
+    },
+    "web-design-guidelines": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/web-design-guidelines/SKILL.md",
+      "computedHash": "a6a44d5498f7e8f68289902f3dedfc6f38ae0cee1e96527c80724cf27f727c2a"
+    }
+  }
+}

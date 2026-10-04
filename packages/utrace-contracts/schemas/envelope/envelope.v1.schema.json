@@ -1,0 +1,308 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/envelope/envelope/v1",
+  "title": "Domain message envelope",
+  "description": "The common envelope every uTrace domain message carries. Envelope and payload have independent positive major versions. Every producer and consumer runtime-validates both. Optional values are omitted, never null.",
+  "type": "object",
+  "properties": {
+    "message_id": {
+      "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+      "description": "Identity of this message. Events and Results deduplicate by it; Commands deduplicate by domain_ids.command_id."
+    },
+    "envelope_version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Major version of this envelope contract. Removed, renamed, newly required, or semantically changed fields require a new major."
+    },
+    "family": {
+      "enum": [
+        "event",
+        "command",
+        "result"
+      ],
+      "description": "Event is an immutable past-tense fact, Command is one immutable single-purpose request, Result is accepted, progress, or one canonical terminal outcome for a Command."
+    },
+    "payload_type": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "maxLength": 128,
+      "description": "Area-namespaced payload name, for example product_signal.created. Selects the payload schema document."
+    },
+    "payload_version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Major version of the payload contract, independent of envelope_version."
+    },
+    "producer": {
+      "$ref": "#/$defs/producer",
+      "description": "The software that emitted the message, distinct from the actor it acted for."
+    },
+    "actor": {
+      "$ref": "https://utrace.dev/schemas/envelope/actor/v1",
+      "description": "Who or what the producer acted for. Omitted for messages with no actor. Model roles never impersonate a person whose evidence informed their proposal."
+    },
+    "client_scope": {
+      "$ref": "#/$defs/client_scope",
+      "description": "Tenant scope. One client must never see another client's records."
+    },
+    "domain_ids": {
+      "$ref": "https://utrace.dev/schemas/ids/identifiers/v1",
+      "description": "Typed domain identifiers establishing the message's explicit relationships."
+    },
+    "authority": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/authority_reference"
+      },
+      "maxItems": 16,
+      "description": "The pinned records this message relies on for authority. Knowledge of an identifier grants nothing; the control plane rechecks each reference."
+    },
+    "causation": {
+      "$ref": "#/$defs/causation",
+      "description": "Message lineage preserved through historical replay."
+    },
+    "occurred_at": {
+      "$ref": "#/$defs/timestamp",
+      "description": "When the fact happened or the request was created, as stated by the producer. Producer timestamps never decide workflow order."
+    },
+    "recorded_at": {
+      "$ref": "#/$defs/timestamp",
+      "description": "When the control plane accepted the message. Assigned on acceptance, so it is absent on the producing side."
+    },
+    "trace_context": {
+      "$ref": "#/$defs/trace_context",
+      "description": "W3C trace context describing technical execution only. It is never product identity or permission."
+    },
+    "stream": {
+      "$ref": "#/$defs/stream_position",
+      "description": "The primary lifecycle stream this message belongs to, its expected revision, and the sequence the control plane assigns after acceptance."
+    },
+    "payload": {
+      "type": "object",
+      "description": "The payload described by payload_type and payload_version. Area schemas constrain it.",
+      "$comment": "extension-point: the area schema named by payload_type constrains this object."
+    },
+    "digest": {
+      "$ref": "#/$defs/payload_digest",
+      "description": "Digest of the payload, computed identically in every binding."
+    }
+  },
+  "required": [
+    "message_id",
+    "envelope_version",
+    "family",
+    "payload_type",
+    "payload_version",
+    "producer",
+    "client_scope",
+    "domain_ids",
+    "occurred_at",
+    "stream",
+    "payload",
+    "digest"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?Z$",
+      "description": "RFC 3339 instant in UTC with a literal Z offset."
+    },
+    "producer": {
+      "type": "object",
+      "description": "The emitting runtime. Client-installed extension and SDK components advertise their contract versions during authenticated readiness.",
+      "properties": {
+        "component": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "maxLength": 64,
+          "description": "Deployed component name, for example control_plane_api, telemetry_worker, browser_sdk."
+        },
+        "component_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Build or release identity of the component."
+        },
+        "instance_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Process or task instance, for operational diagnosis only."
+        }
+      },
+      "required": [
+        "component",
+        "component_version"
+      ],
+      "additionalProperties": false
+    },
+    "client_scope": {
+      "description": "Either one client tenant or the platform itself. Platform scope carries no client records.",
+      "oneOf": [
+        {
+          "type": "object",
+          "title": "Client scope",
+          "properties": {
+            "scope": {
+              "const": "client"
+            },
+            "client_id": {
+              "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1"
+            }
+          },
+          "required": [
+            "scope",
+            "client_id"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "title": "Platform scope",
+          "properties": {
+            "scope": {
+              "const": "platform"
+            }
+          },
+          "required": [
+            "scope"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "authority_reference": {
+      "type": "object",
+      "description": "One pinned authority record. A Product Signal pins its configuration release; a gate approval freezes scope; only an active fenced Environment Lease grants workspace mutation.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "configuration_release",
+            "implementation_gate_decision",
+            "async_authorization",
+            "environment_lease",
+            "invitation",
+            "validation_result",
+            "outreach_offer_reservation"
+          ]
+        },
+        "reference_id": {
+          "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The revision this message was built against. A mismatch rejects before side effects."
+        },
+        "fencing_token": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Monotonic lease fencing token. Stale tokens are rejected before the provider call and again when the Result returns."
+        }
+      },
+      "required": [
+        "kind",
+        "reference_id"
+      ],
+      "additionalProperties": false
+    },
+    "causation": {
+      "type": "object",
+      "description": "Lineage only. Causation never confers authority and never substitutes for a typed domain identifier.",
+      "properties": {
+        "caused_by_message_id": {
+          "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1"
+        },
+        "root_message_id": {
+          "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "trace_context": {
+      "type": "object",
+      "description": "W3C trace context. The traceparent version is 00 and neither the trace ID nor the parent ID may be all zeros.",
+      "properties": {
+        "traceparent": {
+          "type": "string",
+          "pattern": "^00-(?!0{32})[0-9a-f]{32}-(?!0{16})[0-9a-f]{16}-[0-9a-f]{2}$"
+        },
+        "tracestate": {
+          "type": "string",
+          "maxLength": 512
+        }
+      },
+      "required": [
+        "traceparent"
+      ],
+      "additionalProperties": false
+    },
+    "stream_position": {
+      "type": "object",
+      "description": "Position in one primary lifecycle stream. Job, Job Run, and Command are execution lifecycles, never product outcomes.",
+      "properties": {
+        "stream_type": {
+          "enum": [
+            "intake_item",
+            "product_signal",
+            "outreach_attempt",
+            "interview_session",
+            "preview_runtime_allocation",
+            "environment_lease",
+            "implementation_attempt",
+            "preview_version",
+            "validation_attempt",
+            "case_file",
+            "delivery",
+            "job",
+            "job_run",
+            "command"
+          ]
+        },
+        "stream_id": {
+          "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1"
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Declared by state-sensitive messages. A mismatch rejects before side effects."
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Monotonic sequence the control plane assigns within the stream after acceptance. Absent on the producing side."
+        }
+      },
+      "required": [
+        "stream_type",
+        "stream_id"
+      ],
+      "additionalProperties": false
+    },
+    "payload_digest": {
+      "type": "object",
+      "description": "SHA-256 over the RFC 8785 JSON Canonicalization Scheme form of the payload, encoded as lowercase hexadecimal.",
+      "properties": {
+        "algorithm": {
+          "const": "sha256"
+        },
+        "canonicalization": {
+          "const": "jcs"
+        },
+        "value": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "algorithm",
+        "canonicalization",
+        "value"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

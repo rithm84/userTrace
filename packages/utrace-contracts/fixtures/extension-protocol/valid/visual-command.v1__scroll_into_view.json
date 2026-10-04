@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "kind": "visual_command",
+  "message_id": "0199a0c0-0000-7aaa-8000-000000000007",
+  "sent_at": "2026-10-03T17:04:11Z",
+  "sequence": 18,
+  "payload": {
+    "command_id": "0199a0c0-0000-7aaa-8000-0000000cd002",
+    "client_id": "0199a0c0-0000-7aaa-8000-00000000c101",
+    "session_id": "0199a0c0-0000-7aaa-8000-0000000055e1",
+    "extension_binding_id": "0199a0c0-0000-7aaa-8000-0000000b1d01",
+    "document_attachment_id": "0199a0c0-0000-7aaa-8000-0000000a7701",
+    "expected_lifecycle_revision": 22,
+    "deadline_at": "2026-10-03T17:04:21Z",
+    "command": {
+      "type": "scroll_into_view",
+      "target_id": "tgt_saved_views_list",
+      "target_revision": 2,
+      "alignment": "center"
+    }
+  }
+}

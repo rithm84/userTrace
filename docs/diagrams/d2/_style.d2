@@ -1,0 +1,48 @@
+# Shared uTrace diagram style. Every diagram starts with `...@_style` and may
+# override `vars.d2-config.layout-engine` (elk by default, tala when edges
+# cannot live in a grid). Roles map to the same palette the docs have always
+# used; pick a class by what a node IS, never by how it should look.
+
+vars: {
+  d2-config: {
+    layout-engine: elk
+    sketch: true
+    theme-id: 0
+    pad: 32
+  }
+}
+
+classes: {
+  # Role fills and strokes
+  people: {style: {fill: "#e7f5ff"; stroke: "#1971c2"}}
+  runtime: {style: {fill: "#eee8ff"; stroke: "#7048e8"}}
+  reasoning: {style: {fill: "#f8e7fc"; stroke: "#9c36b5"}}
+  observation: {style: {fill: "#e3fafc"; stroke: "#0c8599"}}
+  external: {style: {fill: "#fff0ed"; stroke: "#c44d41"}}
+  outcome: {style: {fill: "#e5f5e8"; stroke: "#2f9e44"}}
+  async: {style: {fill: "#ffd8a8"; stroke: "#e8590c"}}
+  neutral: {style: {fill: "#f2f4f6"; stroke: "#5c6770"}}
+  gate: {style: {fill: "#fff4d6"; stroke: "#b37c00"}}
+  client: {style: {fill: "#ffffff"; stroke: "#1e1e1e"}}
+
+  # Structural patterns
+  card: {shape: rectangle; style: {border-radius: 6; font-size: 19; font-color: "#24303a"}}
+  node: {style: {border-radius: 6; font-size: 19; font-color: "#24303a"; bold: true}}
+  state: {style: {border-radius: 12; font-size: 18; font-color: "#24303a"}}
+  decision: {shape: diamond; style: {fill: "#fff4d6"; stroke: "#b37c00"; font-color: "#7a5500"; font-size: 18}}
+  store: {shape: cylinder; style: {fill: "#e5f5e8"; stroke: "#2f9e44"; font-color: "#24303a"; font-size: 18}}
+  zone: {label.near: top-left; style: {fill: "#f7f8fa"; stroke: "#5c6770"; stroke-dash: 5; border-radius: 8; font-size: 20; font-color: "#5c6770"; bold: true}}
+  grid: {label.near: top-center; style: {stroke: transparent; fill: transparent; font-size: 30; bold: true; font-color: "#24303a"}}
+  title: {shape: text; near: top-center; style: {font-size: 30; bold: true; font-color: "#24303a"}}
+  note: {shape: text; style: {font-size: 17; font-color: "#4a5560"; italic: true}}
+  legend: {style: {stroke: transparent; fill: transparent}}
+  key: {shape: rectangle; height: 36; style: {border-radius: 6; font-size: 16; font-color: "#24303a"}}
+  key-edge: {shape: rectangle; height: 36; style: {fill: "#ffffff"; stroke: "#c9ced4"; border-radius: 6; font-size: 16}}
+
+  # Connections
+  edge: {style: {font-size: 18; font-color: "#4a5560"; stroke: "#596773"}}
+  edge-dashed: {style: {font-size: 18; font-color: "#4a5560"; stroke: "#596773"; stroke-dash: 4}}
+  edge-async: {style: {font-size: 18; font-color: "#b3470a"; stroke: "#e8590c"}}
+  edge-blocked: {style: {font-size: 18; font-color: "#a13a2f"; stroke: "#c44d41"}}
+  edge-ok: {style: {font-size: 18; font-color: "#23783a"; stroke: "#2f9e44"}}
+}

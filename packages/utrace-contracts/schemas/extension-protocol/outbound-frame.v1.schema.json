@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/extension-protocol/outbound-frame/v1",
+  "title": "Outbound control frame",
+  "description": "Every frame the extension may send over WS /v1/extension/control. High-volume product telemetry never travels here; it belongs to the shared browser observation runtime's own export path.",
+  "oneOf": [
+    { "$ref": "https://utrace.dev/schemas/extension-protocol/binding-offer/v1" },
+    { "$ref": "https://utrace.dev/schemas/extension-protocol/command-result/v1" },
+    { "$ref": "https://utrace.dev/schemas/extension-protocol/control-action/v1" },
+    { "$ref": "https://utrace.dev/schemas/extension-protocol/recovery-request/v1" },
+    { "$ref": "https://utrace.dev/schemas/extension-protocol/readiness-report/v1" },
+    { "$ref": "https://utrace.dev/schemas/extension-protocol/preferences-update/v1" },
+    { "$ref": "https://utrace.dev/schemas/extension-protocol/control-ack/v1" },
+    { "$ref": "https://utrace.dev/schemas/extension-protocol/heartbeat/v1" }
+  ]
+}

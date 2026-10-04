@@ -1,0 +1,11 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/routing-outcome/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "The single outcome a routed batch commits.",
+  "enum": [
+    "close_as_noise",
+    "create_product_signal"
+  ],
+  "title": "RoutingOutcome",
+  "type": "string"
+}

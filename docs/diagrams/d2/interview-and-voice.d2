@@ -1,0 +1,77 @@
+...@_style
+
+cells: "Voice runtime · fluid conversation, controlled effects" {
+  class: grid
+  grid-rows: 2
+  grid-columns: 3
+  horizontal-gap: 200
+  vertical-gap: 80
+
+  session_tab: |md
+    ### Session tab
+  
+    - Authenticated originating user
+    - WebRTC audio + controls
+    - Live transcript captions
+  | {class: [card; people]}
+
+  gpt_live: |md
+    ### GPT-Live
+  
+    - OpenAI API
+    - Conversation + interruption
+    - Backend session control
+  | {class: [card; reasoning]}
+
+  backend_delegation: |md
+    ### Backend delegation
+  
+    - Jev attention · GPT-6.1 Sol answers
+    - Coding agent in the workspace
+  | {class: [card; runtime]}
+
+  observed_preview: |md
+    ### Observed preview
+  
+    - Extension + browser SDK
+    - Server SDK correlation
+  | {class: [card; observation]}
+
+  application_context: |md
+    ### Application context
+  
+    - Transcript fragments + criteria
+    - Corrections + verified findings
+  | {class: [card; outcome]}
+
+  control_plane: |md
+    ### Control plane
+  
+    - Evidence · gate · command
+    - Scope · budget
+  | {class: [card; gate]}
+
+  session_tab <-> gpt_live: "audio + captions" {class: edge}
+  gpt_live -> backend_delegation: "delegations +\nits own words" {class: edge}
+  session_tab -> observed_preview: "two tabs" {class: edge}
+  observed_preview -> application_context: "observations" {class: edge}
+  application_context -> backend_delegation: "selected facts" {class: edge}
+  backend_delegation -> control_plane: "proposals" {class: edge}
+  control_plane -> application_context: "verified\nresults" {class: edge}
+  application_context -> gpt_live: "quiet context" {class: edge}
+}
+
+key: "" {
+  near: bottom-center
+  class: legend
+  grid-rows: 1
+  grid-columns: 6
+  horizontal-gap: 16
+  vertical-gap: 12
+  k_people: "People · customer surfaces" {class: [key; people]}
+  k_runtime: "uTrace control plane" {class: [key; runtime]}
+  k_reasoning: "Reasoning models" {class: [key; reasoning]}
+  k_observation: "SDKs · previews" {class: [key; observation]}
+  k_outcome: "Validated · durable" {class: [key; outcome]}
+  k_gate: "Gates · checks" {class: [key; gate]}
+}

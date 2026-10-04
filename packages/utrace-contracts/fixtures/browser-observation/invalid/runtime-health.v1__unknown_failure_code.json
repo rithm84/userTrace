@@ -1,0 +1,42 @@
+{
+  "state": "failed",
+  "browser_stream_id": "0199a4c1-0007-7000-8000-000000000007",
+  "runtime_id": "0199a4c1-0002-7000-8000-000000000002",
+  "document_attachment_id": "0199a4c1-0003-7000-8000-000000000003",
+  "latest_source_sequence": 1,
+  "latest_export_sequence": 1,
+  "acknowledged_export_sequence": 0,
+  "buffer_utilization": 0,
+  "dropped_range_count": 0,
+  "components": {
+    "attestation_current": false,
+    "credential_current": false,
+    "protocol_compatible": false,
+    "schema_compatible": false,
+    "single_top_coordinator": false,
+    "required_frames_connected": false,
+    "required_workers_connected": false,
+    "hooks_installed_once": false,
+    "baseline_accepted": false,
+    "ingestion_acknowledging": false,
+    "trace_probe_passed": false,
+    "registry_consistent": false
+  },
+  "hooks": {
+    "fetch": false,
+    "xhr": false,
+    "history": false,
+    "errors": false,
+    "interactions": false,
+    "mutations": false
+  },
+  "annotation_manifest_version": "",
+  "policy_version": "",
+  "redaction_version": "",
+  "protocol_version": "1",
+  "schema_version": "1",
+  "wall_clock_offset_ms": 0,
+  "failure_code": "something_went_wrong",
+  "failure_detail": "x",
+  "checked_at": "2026-10-03T09:00:00.000Z"
+}

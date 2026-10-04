@@ -1,0 +1,26 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/aggregate-kind/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Primary lifecycle stream kinds. Every Event names exactly one.",
+  "enum": [
+    "intake_item",
+    "product_signal",
+    "outreach_attempt",
+    "invitation",
+    "interview_session",
+    "voice_connection",
+    "preview_runtime_allocation",
+    "environment_lease",
+    "implementation_attempt",
+    "preview_version",
+    "validation_attempt",
+    "case_file",
+    "delivery",
+    "outreach_offer",
+    "job",
+    "job_run",
+    "command"
+  ],
+  "title": "AggregateKind",
+  "type": "string"
+}

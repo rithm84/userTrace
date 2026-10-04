@@ -1,0 +1,175 @@
+{
+  "$defs": {
+    "AgentCharacterState": {
+      "description": "Rive character state projected from durable interview state.\n\nThe values match `public.agent_character_state` and the extension protocol's\n`character_state` frame; `paused` and `reconnecting` are the two states the\nsession controls and connection recovery add to the seven the PRD names.",
+      "enum": [
+        "idle",
+        "listening",
+        "thinking",
+        "speaking",
+        "acknowledgement",
+        "concern",
+        "paused",
+        "reconnecting",
+        "completion"
+      ],
+      "title": "AgentCharacterState",
+      "type": "string"
+    },
+    "ImplementationProgress": {
+      "description": "User-facing implementation progress projection.",
+      "enum": [
+        "not_started",
+        "reproduction_captured",
+        "making_changes",
+        "preparing_preview",
+        "ready_for_validation"
+      ],
+      "title": "ImplementationProgress",
+      "type": "string"
+    },
+    "InterviewPhase": {
+      "description": "Durable interview phase projection shown to the participant.",
+      "enum": [
+        "participant_setup",
+        "greeting",
+        "discovery",
+        "implementation",
+        "validation",
+        "closing"
+      ],
+      "title": "InterviewPhase",
+      "type": "string"
+    },
+    "InterviewSessionState": {
+      "description": "One live encounter for interviewing, validation, or both.",
+      "enum": [
+        "invited",
+        "claimed",
+        "preparing",
+        "live",
+        "closed"
+      ],
+      "title": "InterviewSessionState",
+      "type": "string"
+    },
+    "SessionControlsState": {
+      "additionalProperties": false,
+      "description": "Durable state of the participant's session controls.",
+      "properties": {
+        "muted": {
+          "title": "Muted",
+          "type": "boolean"
+        },
+        "paused": {
+          "title": "Paused",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "muted",
+        "paused"
+      ],
+      "title": "SessionControlsState",
+      "type": "object"
+    },
+    "SessionReadiness": {
+      "additionalProperties": false,
+      "description": "The two readiness boundaries. Connected sockets alone establish neither.",
+      "properties": {
+        "conversational": {
+          "title": "Conversational",
+          "type": "boolean"
+        },
+        "observation": {
+          "title": "Observation",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "conversational",
+        "observation"
+      ],
+      "title": "SessionReadiness",
+      "type": "object"
+    }
+  },
+  "$id": "https://utrace.dev/schemas/domain/interview-session-record/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The durable Interview Session projection the session tab reads.",
+  "properties": {
+    "character_revision": {
+      "title": "Character Revision",
+      "type": "integer"
+    },
+    "character_state": {
+      "$ref": "#/$defs/AgentCharacterState"
+    },
+    "client_id": {
+      "format": "uuid",
+      "title": "Client Id",
+      "type": "string"
+    },
+    "closure_reason": {
+      "title": "Closure Reason",
+      "type": "string"
+    },
+    "controls": {
+      "$ref": "#/$defs/SessionControlsState"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "implementation_progress": {
+      "$ref": "#/$defs/ImplementationProgress"
+    },
+    "phase": {
+      "$ref": "#/$defs/InterviewPhase"
+    },
+    "product_signal_id": {
+      "format": "uuid",
+      "title": "Product Signal Id",
+      "type": "string"
+    },
+    "readiness": {
+      "$ref": "#/$defs/SessionReadiness"
+    },
+    "revision": {
+      "title": "Revision",
+      "type": "integer"
+    },
+    "state": {
+      "$ref": "#/$defs/InterviewSessionState"
+    },
+    "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "client_id",
+    "product_signal_id",
+    "state",
+    "revision",
+    "phase",
+    "readiness",
+    "character_state",
+    "character_revision",
+    "implementation_progress",
+    "controls",
+    "created_at",
+    "updated_at"
+  ],
+  "title": "InterviewSessionRecord",
+  "type": "object"
+}

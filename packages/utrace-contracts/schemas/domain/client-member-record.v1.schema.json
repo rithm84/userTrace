@@ -1,0 +1,58 @@
+{
+  "$defs": {
+    "ClientMemberRole": {
+      "description": "Staff relationship with one client.",
+      "enum": [
+        "owner",
+        "admin"
+      ],
+      "title": "ClientMemberRole",
+      "type": "string"
+    },
+    "MembershipStatus": {
+      "description": "Whether a membership row currently grants access.",
+      "enum": [
+        "active",
+        "revoked"
+      ],
+      "title": "MembershipStatus",
+      "type": "string"
+    }
+  },
+  "$id": "https://utrace.dev/schemas/domain/client-member-record/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A staff relationship with one client. Exactly one active owner per client.",
+  "properties": {
+    "client_id": {
+      "format": "uuid",
+      "title": "Client Id",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "role": {
+      "$ref": "#/$defs/ClientMemberRole"
+    },
+    "status": {
+      "$ref": "#/$defs/MembershipStatus"
+    }
+  },
+  "required": [
+    "id",
+    "client_id",
+    "role",
+    "status",
+    "created_at"
+  ],
+  "title": "ClientMemberRecord",
+  "type": "object"
+}

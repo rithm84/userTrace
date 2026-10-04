@@ -1,0 +1,71 @@
+{
+  "$defs": {
+    "GateDecisionKind": {
+      "description": "What the Implementation Gate decided.",
+      "enum": [
+        "approved_live",
+        "no_implementation"
+      ],
+      "title": "GateDecisionKind",
+      "type": "string"
+    }
+  },
+  "$id": "https://utrace.dev/schemas/domain/gate-decision-record/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "An immutable Implementation Gate decision and its frozen approved scope.",
+  "properties": {
+    "acceptance_criteria_revision": {
+      "title": "Acceptance Criteria Revision",
+      "type": "integer"
+    },
+    "blocker_reason": {
+      "title": "Blocker Reason",
+      "type": "string"
+    },
+    "classification_revision": {
+      "title": "Classification Revision",
+      "type": "integer"
+    },
+    "client_id": {
+      "format": "uuid",
+      "title": "Client Id",
+      "type": "string"
+    },
+    "decided_at": {
+      "format": "date-time",
+      "title": "Decided At",
+      "type": "string"
+    },
+    "decision": {
+      "$ref": "#/$defs/GateDecisionKind"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "pinned_configuration_release_id": {
+      "format": "uuid",
+      "title": "Pinned Configuration Release Id",
+      "type": "string"
+    },
+    "product_signal_id": {
+      "format": "uuid",
+      "title": "Product Signal Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "client_id",
+    "product_signal_id",
+    "decision",
+    "classification_revision",
+    "acceptance_criteria_revision",
+    "pinned_configuration_release_id",
+    "decided_at"
+  ],
+  "title": "GateDecisionRecord",
+  "type": "object"
+}

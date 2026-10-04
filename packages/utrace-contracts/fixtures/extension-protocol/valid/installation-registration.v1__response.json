@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "kind": "installation_registration_response",
+  "installation_id": "0199a0c0-0000-7aaa-8000-000000001457",
+  "account_link_state": "linked",
+  "negotiated_protocol_version": "1.0",
+  "control_socket_path": "/v1/extension/control",
+  "registered_at": "2026-10-03T16:58:00Z"
+}

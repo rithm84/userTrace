@@ -1,0 +1,6 @@
+{
+  "category": "policy_denied",
+  "code": "blocked_code_surface",
+  "message": "The pinned configuration release blocks the payments surface for this flow.",
+  "retry": "never"
+}

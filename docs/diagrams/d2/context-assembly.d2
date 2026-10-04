@@ -1,0 +1,71 @@
+...@_style
+
+cells: "Context assembly · product knowledge and exact code investigation" {
+  class: grid
+  grid-rows: 2
+  grid-columns: 3
+  horizontal-gap: 200
+  vertical-gap: 80
+
+  product_knowledge: |md
+    ### Product knowledge
+  
+    - Approved docs + annotations
+    - Configuration + code findings
+  | {class: [card; people]}
+
+  product_overview: |md
+    ### Product Overview
+  
+    - Active version, source-linked
+    - Small enough to travel whole
+  | {class: [card; outcome]}
+
+  context_bundle: |md
+    ### Context bundle
+  
+    - Purpose + sources + cutoff
+    - Client + user + revision
+  | {class: [card; runtime]}
+
+  sandbox_code_checkout: |md
+    ### Sandbox code checkout
+  
+    - Read-only investigation
+    - Exact revision / path / lines
+  | {class: [card; runtime]}
+
+  live_working_context: |md
+    ### Live working context
+  
+    - Conversation + criteria + gaps
+    - Observations + implementation
+  | {class: [card; observation]}
+
+  appropriate_consumer: |md
+    ### Appropriate consumer
+  
+    - Jev / GPT-6.1 Sol
+    - Concise findings to GPT-Live
+  | {class: [card; reasoning]}
+
+  product_knowledge -> product_overview: "synthesize +\nactivate" {class: edge}
+  product_overview -> context_bundle: "whole overview" {class: edge}
+  sandbox_code_checkout -> live_working_context: "code findings" {class: edge}
+  live_working_context -> context_bundle: "critical facts" {class: edge}
+  context_bundle -> appropriate_consumer: "scoped context" {class: edge}
+}
+
+key: "" {
+  near: bottom-center
+  class: legend
+  grid-rows: 1
+  grid-columns: 5
+  horizontal-gap: 16
+  vertical-gap: 12
+  k_people: "People · customer surfaces" {class: [key; people]}
+  k_runtime: "uTrace control plane" {class: [key; runtime]}
+  k_reasoning: "Reasoning models" {class: [key; reasoning]}
+  k_observation: "SDKs · previews" {class: [key; observation]}
+  k_outcome: "Validated · durable" {class: [key; outcome]}
+}

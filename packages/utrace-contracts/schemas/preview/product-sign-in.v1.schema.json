@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/preview/product-sign-in/v1",
+  "title": "Preview product sign-in",
+  "description": "A one-time token that signs the participant into the client product, and the sign-in path the pinned template declares. The front door posts the token to that path on the routed runtime; it never reaches the browser.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "path",
+    "token"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "utrace_preview_product_sign_in_v1"
+    },
+    "path": {
+      "type": "string",
+      "maxLength": 256,
+      "pattern": "^/(?!/)[A-Za-z0-9._~/-]*$",
+      "description": "Same-origin path of the product's authenticated sign-in endpoint."
+    },
+    "token": {
+      "type": "string",
+      "maxLength": 4096,
+      "pattern": "^v1\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$",
+      "description": "Short-lived product handoff token, signed with the runtime's own secret."
+    }
+  }
+}

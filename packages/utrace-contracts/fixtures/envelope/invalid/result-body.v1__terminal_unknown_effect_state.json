@@ -1,0 +1,11 @@
+{
+  "status": "terminal",
+  "disposition": "failed",
+  "effect_state": "unknown",
+  "failure": {
+    "category": "internal",
+    "code": "unreachable",
+    "message": "unknown is not an effect state.",
+    "retry": "never"
+  }
+}

@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>uTrace agent characters</title>
+<style>
+  :root { --ink: #111111; --grey: #6b6b6b; --line: #e6e6e6; --coral: #FCADA3; }
+  body { margin: 0; background: #fff; color: var(--ink); font: 15px/1.45 "Manrope", "Instrument Sans", system-ui, sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 28px 24px 60px; display: grid; grid-template-columns: 520px 1fr; gap: 32px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  p.lede { color: var(--grey); margin: 0 0 18px; }
+  canvas { width: 520px; height: 520px; display: block; border: 1px solid var(--line); border-radius: 12px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 18px; }
+  button { font: inherit; padding: 8px 14px; border: 1.5px solid var(--ink); border-radius: 999px; background: #fff; color: var(--ink); cursor: pointer; }
+  button.on { background: var(--ink); color: #fff; }
+  button.swatch { width: 40px; height: 40px; padding: 0; border-width: 1.5px; }
+  button.swatch.on { outline: 3px solid var(--coral); outline-offset: 2px; }
+  label { display: grid; grid-template-columns: 120px 1fr 48px; align-items: center; gap: 12px; margin: 8px 0; }
+  input[type=range] { width: 100%; }
+  h2 { font-size: 15px; margin: 22px 0 4px; }
+  .status { color: var(--grey); font-size: 13px; margin-top: 16px; white-space: pre-wrap; }
+  kbd { font: inherit; border: 1px solid var(--line); border-radius: 6px; padding: 0 6px; }
+</style>
+</head>
+<body>
+<main>
+  <div>
+    <canvas id="c" width="1040" height="1040"></canvas>
+    <div class="status" id="status">loading runtime</div>
+  </div>
+  <div>
+    <h1>uTrace agent characters</h1>
+    <p class="lede">The exported .riv files, driven through the view model. Press <kbd>space</kbd> to step to the next state; the buttons set the <code>state</code> enum directly.</p>
+    <h2>Character</h2>
+    <div class="row" id="chars"></div>
+    <h2>States (enum <code>state</code>)</h2>
+    <div class="row" id="states"></div>
+    <div class="row" id="bools" hidden></div>
+    <h2>Numbers</h2>
+    <label>gazeX <input type="range" id="gazeX" min="-1" max="1" step="0.05" value="0"><span>0</span></label>
+    <label>gazeY <input type="range" id="gazeY" min="-1" max="1" step="0.05" value="0"><span>0</span></label>
+    <label>speechEnergy <input type="range" id="speechEnergy" min="0" max="1" step="0.05" value="0"><span>0</span></label>
+    <label>motionScale <input type="range" id="motionScale" min="0" max="1" step="0.05" value="1"><span>1</span></label>
+    <div class="row"><button id="step">Step through all states</button><button id="stop">Stop</button></div>
+  </div>
+</main>
+<script src="/apps/web/node_modules/@rive-app/webgl2/rive.js" onerror="document.getElementById('status').textContent = 'The Rive runtime did not load. Open this page through the local server, http://localhost:8765/packages/utrace-agent-character/rive/viewer.html, not as a file.'"></script>
+<script>
+const CHARS = [["coral", "#FCADA3"], ["black", "#111111"], ["mint", "#97D6A4"], ["sky", "#85CEF9"], ["lilac", "#CDB6F9"], ["peach", "#F5B488"], ["aqua", "#72D8D7"]];
+const STATES = ["idle", "investigating", "listening", "thinking", "speaking", "acknowledgement", "concern", "building", "completion", "ship", "reconnecting", "paused", "sleep", "pointer"];
+const BOOLS = [];
+const status = document.getElementById("status");
+let r = null, vmi = null, current = { char: "coral", state: "idle", bools: {} , timer: null };
+function load(name) {
+  if (typeof rive === "undefined") { status.textContent = "The Rive runtime did not load. Open this page through the local server, http://localhost:8765/packages/utrace-agent-character/rive/viewer.html, not as a file."; return; }
+  if (!load.wasmSet) { rive.RuntimeLoader.setWasmUrl("/apps/web/node_modules/@rive-app/webgl2/rive.wasm"); load.wasmSet = true; }
+  if (r) { r.cleanup(); r = null; vmi = null; }
+  status.textContent = "loading " + name;
+  r = new rive.Rive({
+    src: "/packages/utrace-agent-character/assets/utrace-agent-" + name + ".riv?v=" + Date.now(), canvas: document.getElementById("c"),
+    artboard: "AgentCharacter", stateMachines: "AgentCharacterMachine", autoplay: true, autoBind: true,
+    layout: new rive.Layout({ fit: rive.Fit.Contain, alignment: rive.Alignment.Center }),
+    onLoad: () => { r.resizeDrawingSurfaceToCanvas(); vmi = r.viewModelInstance; apply(); fetch("/packages/utrace-agent-character/assets/utrace-agent-" + name + ".riv?h=" + Date.now(), { method: "HEAD" }).then((res) => { status.textContent = name + " loaded (file dated " + res.headers.get("last-modified") + ", " + res.headers.get("content-length") + " bytes): " + vmi.enum("state").values.join(", "); }).catch(() => { status.textContent = name + " loaded: " + vmi.enum("state").values.join(", "); }); },
+    onLoadError: (e) => { status.textContent = "load error: " + e; },
+  });
+}
+function apply() {
+  if (!vmi) return;
+  for (const b of BOOLS) { const v = vmi.boolean(b); if (v) v.value = !!current.bools[b]; }
+  vmi.enum("state").value = current.state;
+  for (const n of ["gazeX", "gazeY", "speechEnergy", "motionScale"]) vmi.number(n).value = parseFloat(document.getElementById(n).value);
+  document.querySelectorAll("#states button").forEach((el) => el.classList.toggle("on", el.dataset.state === current.state));
+  document.querySelectorAll("#bools button").forEach((el) => el.classList.toggle("on", !!current.bools[el.dataset.bool]));
+  document.querySelectorAll("#chars button").forEach((el) => el.classList.toggle("on", el.dataset.char === current.char));
+}
+const chars = document.getElementById("chars");
+for (const [name, colour] of CHARS) { const b = document.createElement("button"); b.className = "swatch"; b.title = name; b.style.background = colour; b.dataset.char = name; b.onclick = () => { current.char = name; load(name); }; chars.appendChild(b); }
+const states = document.getElementById("states");
+STATES.forEach((s, i) => { const b = document.createElement("button"); b.textContent = s; b.dataset.state = s; b.onclick = () => { current.state = s; apply(); }; states.appendChild(b); });
+const bools = document.getElementById("bools");
+for (const s of BOOLS) { const b = document.createElement("button"); b.textContent = s; b.dataset.bool = s; b.onclick = () => { current.bools[s] = !current.bools[s]; apply(); }; bools.appendChild(b); }
+for (const n of ["gazeX", "gazeY", "speechEnergy", "motionScale"]) { const el = document.getElementById(n); el.oninput = () => { el.nextElementSibling.textContent = el.value; apply(); }; }
+document.addEventListener("keydown", (e) => {
+  if (e.key === " ") { e.preventDefault(); current.state = STATES[(STATES.indexOf(current.state) + 1) % STATES.length]; apply(); }
+});
+document.getElementById("step").onclick = () => {
+  clearInterval(current.timer); const seq = STATES.filter((s) => s !== "idle"); let i = 0;
+  const stepBtn = document.getElementById("step"); stepBtn.classList.add("on");
+  const go = () => { current.bools = {}; current.state = seq[i % seq.length]; apply(); stepBtn.textContent = "Stepping: " + current.state + " (" + ((i % seq.length) + 1) + "/" + seq.length + ")"; i++; };
+  go(); current.timer = setInterval(go, 2600);
+};
+document.getElementById("stop").onclick = () => { clearInterval(current.timer); current.timer = null; const stepBtn = document.getElementById("step"); stepBtn.classList.remove("on"); stepBtn.textContent = "Step through all states"; current.bools = {}; current.state = "idle"; apply(); };
+load("coral");
+</script>
+</body>
+</html>

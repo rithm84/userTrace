@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "kind": "preferences_state",
+  "message_id": "0199a0c0-0000-7aaa-8000-00000000000b",
+  "sent_at": "2026-10-03T17:04:15Z",
+  "sequence": 22,
+  "payload": {
+    "preferences_revision": 3,
+    "visual_guidance_enabled": false,
+    "agent_cursor_enabled": false
+  }
+}

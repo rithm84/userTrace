@@ -1,0 +1,7 @@
+{
+  "category": "policy_denied",
+  "code": "blocked_code_surface",
+  "message": "A denial is never retried, so it carries no delay.",
+  "retry": "never",
+  "retry_after_ms": 1000
+}

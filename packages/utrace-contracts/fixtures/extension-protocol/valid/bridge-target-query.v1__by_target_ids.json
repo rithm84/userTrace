@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "kind": "target_query",
+  "phase": "request",
+  "exchange_id": "0199a0c0-0000-7aaa-8000-000000000203",
+  "payload": {
+    "document_attachment_id": "0199a0c0-0000-7aaa-8000-0000000a7701",
+    "query": {
+      "by": "target_ids",
+      "target_ids": [
+        "tgt_filter_panel",
+        "tgt_save_view_button"
+      ]
+    },
+    "deadline_ms": 250
+  }
+}

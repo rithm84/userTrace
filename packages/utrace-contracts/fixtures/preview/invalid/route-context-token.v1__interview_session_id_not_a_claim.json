@@ -1,0 +1,13 @@
+{
+  "schema_version": "utrace_preview_route_v1",
+  "preview_route_id": "0192f3c4-d345-7b8d-806e-92a3b4c5d6e7",
+  "client_id": "0192f3c4-8a21-7c3e-9b6a-1d2e3f405162",
+  "product_signal_id": "0192f3c4-a012-7e5a-9d3b-6f708192a3b4",
+  "preview_version_id": "0192f3c4-b123-7f6b-ae4c-708192a3b4c5",
+  "preview_runtime_allocation_id": "0192f3c4-c234-7a7c-bf5d-8192a3b4c5d6",
+  "public_preview_host": "k7m2q9x4v1z8.preview.utrace.dev",
+  "route_revision": 4,
+  "issued_at": "2026-10-03T17:04:00Z",
+  "expires_at": "2026-10-03T17:04:30Z",
+  "interview_session_id": "0192f3c4-9b10-7d4f-8c2a-5e6f70819243"
+}

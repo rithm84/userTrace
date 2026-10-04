@@ -1,0 +1,15 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/offer-ledger-entry-kind/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Movement recorded on the append-only offer ledger.",
+  "enum": [
+    "budget_authorized",
+    "reservation_created",
+    "reservation_released",
+    "credit_earned",
+    "credit_issued",
+    "issuance_blocked"
+  ],
+  "title": "OfferLedgerEntryKind",
+  "type": "string"
+}

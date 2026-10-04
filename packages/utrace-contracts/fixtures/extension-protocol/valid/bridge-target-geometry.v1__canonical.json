@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "kind": "target_geometry",
+  "phase": "response",
+  "exchange_id": "0199a0c0-0000-7aaa-8000-000000000203",
+  "payload": {
+    "document_attachment_id": "0199a0c0-0000-7aaa-8000-0000000a7701",
+    "registry_revision": 18,
+    "viewport": {
+      "width": 1280,
+      "height": 760
+    },
+    "targets": [
+      {
+        "target_id": "tgt_filter_panel",
+        "target_revision": 3,
+        "layout_revision": 11,
+        "frame_id": "frm_top",
+        "rect": {
+          "x": 64,
+          "y": 148,
+          "width": 320,
+          "height": 220
+        },
+        "visible_fraction": 1,
+        "occluded": false,
+        "in_viewport": true,
+        "supports_visual_guidance": true
+      },
+      {
+        "target_id": "tgt_save_view_button",
+        "target_revision": 7,
+        "layout_revision": 11,
+        "frame_id": "frm_top",
+        "rect": {
+          "x": 412,
+          "y": 152,
+          "width": 128,
+          "height": 36
+        },
+        "visible_fraction": 0.98,
+        "occluded": false,
+        "in_viewport": true,
+        "supports_visual_guidance": true
+      }
+    ],
+    "not_found": [],
+    "ambiguous": []
+  }
+}

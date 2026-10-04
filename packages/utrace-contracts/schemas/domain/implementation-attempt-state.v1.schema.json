@@ -1,0 +1,23 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/implementation-attempt-state/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Lifecycle and terminal outcomes of one Implementation Attempt.",
+  "enum": [
+    "authorized",
+    "queued",
+    "acquiring_environment",
+    "executing",
+    "checking",
+    "publishing_candidate",
+    "candidate_ready",
+    "scope_change_required",
+    "checks_failed",
+    "unsafe",
+    "infrastructure_blocked",
+    "paused",
+    "canceled",
+    "budget_exhausted"
+  ],
+  "title": "ImplementationAttemptState",
+  "type": "string"
+}

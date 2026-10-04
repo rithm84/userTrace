@@ -1,0 +1,74 @@
+/* Packaged styles for the popup and settings pages, following docs/DESIGN.md:
+   ink borders, one coral accent, hard offset shadows, sentence case. */
+:root {
+  --ink: #000000;
+  --ink-2: #3d3d3d;
+  --ink-3: #7a7a7a;
+  --paper: #ffffff;
+  --paper-2: #f6f6f6;
+  --rule: #e6e6e6;
+  --coral: #fcada3;
+  --coral-strong: #fa8d82;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  padding: 16px;
+}
+
+body.popup { width: 340px; }
+body.settings { max-width: 640px; margin: 0 auto; }
+
+h1 { font-size: 20px; margin-bottom: 4px; }
+h2 { font-size: 15px; margin: 20px 0 8px; }
+p.lede { color: var(--ink-2); margin-bottom: 12px; }
+
+.rows { border: 2px solid var(--ink); box-shadow: 3px 3px 0 0 var(--ink); }
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--rule);
+}
+.row:last-child { border-bottom: none; }
+.row .label { font-weight: 700; }
+.row .value { color: var(--ink-2); text-align: right; }
+.row .value[data-tone="good"] { color: var(--ink); }
+.row .value[data-tone="bad"] { color: #a63a2e; font-weight: 700; }
+
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+
+button {
+  border: 2px solid var(--ink);
+  background: var(--paper);
+  color: var(--ink);
+  font: 700 13px/1.25 system-ui, -apple-system, "Segoe UI", sans-serif;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+button[data-primary="true"] { background: var(--coral); }
+button:hover { background: var(--paper-2); }
+button[data-primary="true"]:hover { background: var(--coral-strong); }
+button:disabled { color: var(--ink-3); border-color: var(--ink-3); cursor: not-allowed; }
+
+label.toggle { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+input[type="range"] { width: 180px; }
+
+.notice {
+  border: 2px solid var(--ink);
+  background: var(--coral);
+  padding: 8px 10px;
+  margin-top: 12px;
+}
+.notice:empty { display: none; }
+
+ul.troubleshooting { margin: 8px 0 0 18px; color: var(--ink-2); }
+ul.troubleshooting li { margin-bottom: 6px; }
+
+footer { margin-top: 20px; color: var(--ink-3); font-size: 12px; }

@@ -1,0 +1,9 @@
+{
+  "actor": "user",
+  "role": "textbox",
+  "edit_class": "keystroke",
+  "length_bucket": "len_4_10",
+  "validity": "valid",
+  "changed": true,
+  "sensitive_field": false
+}

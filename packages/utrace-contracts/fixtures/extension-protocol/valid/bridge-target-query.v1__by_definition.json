@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "kind": "target_query",
+  "phase": "request",
+  "exchange_id": "0199a0c0-0000-7aaa-8000-000000000202",
+  "payload": {
+    "document_attachment_id": "0199a0c0-0000-7aaa-8000-0000000a7701",
+    "query": {
+      "by": "definition",
+      "definition_id": "shopalytics.save_view_button",
+      "effect": "visual_guidance",
+      "visibility": "visible"
+    },
+    "deadline_ms": 400
+  }
+}

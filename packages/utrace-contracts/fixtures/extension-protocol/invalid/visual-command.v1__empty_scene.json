@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "kind": "visual_command",
+  "message_id": "0199a0c0-0000-7aaa-8000-000000000307",
+  "sent_at": "2026-10-03T17:04:10Z",
+  "sequence": 20,
+  "payload": {
+    "command_id": "0199a0c0-0000-7aaa-8000-0000000cd007",
+    "client_id": "0199a0c0-0000-7aaa-8000-00000000c101",
+    "session_id": "0199a0c0-0000-7aaa-8000-0000000055e1",
+    "extension_binding_id": "0199a0c0-0000-7aaa-8000-0000000b1d01",
+    "document_attachment_id": "0199a0c0-0000-7aaa-8000-0000000a7701",
+    "expected_lifecycle_revision": 22,
+    "deadline_at": "2026-10-03T17:04:20Z",
+    "command": {
+      "type": "scene",
+      "scene": {
+        "scene_id": "0199a0c0-0000-7aaa-8000-000000005ce4",
+        "steps": []
+      }
+    }
+  }
+}

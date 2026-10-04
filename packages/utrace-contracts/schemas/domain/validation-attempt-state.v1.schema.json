@@ -1,0 +1,14 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/validation-attempt-state/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Lifecycle of one same-user validation encounter.",
+  "enum": [
+    "pending",
+    "in_progress",
+    "interrupted",
+    "completed",
+    "abandoned"
+  ],
+  "title": "ValidationAttemptState",
+  "type": "string"
+}

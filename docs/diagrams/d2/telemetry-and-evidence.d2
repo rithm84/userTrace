@@ -1,0 +1,69 @@
+...@_style
+
+cells: "Telemetry to evidence · authenticated, correlated, and source-linked" {
+  class: grid
+  grid-rows: 2
+  grid-columns: 3
+  horizontal-gap: 200
+  vertical-gap: 80
+
+  browser_server_sdks: |md
+    ### Browser + server SDKs
+  
+    - Redacted observations / spans
+    - Exact activation scope
+  | {class: [card; observation]}
+
+  durable_ingress: |md
+    ### Durable ingress
+  
+    - Authenticate + validate + dedup
+    - Receipt and accepted watermark
+  | {class: [card; runtime]}
+
+  normalize_and_correlate: |md
+    ### Normalize and correlate
+  
+    - Trace parentage + source order
+    - Completeness and gap detection
+  | {class: [card; runtime]}
+
+  evidence_ledger: |md
+    ### Evidence ledger
+  
+    - Model proposes; control checks
+    - Confirmed / contradicted claims
+  | {class: [card; outcome]}
+
+  evidence_window: |md
+    ### Evidence window
+  
+    - Rolling for live context
+    - Frozen for gate / validation
+  | {class: [card; outcome]}
+
+  supabase_records: |md
+    ### Supabase records
+  
+    - Postgres indexes + receipts
+    - Storage artifacts + hashes
+  | {class: [card; outcome]}
+
+  browser_server_sdks -> durable_ingress: "batch" {class: edge}
+  durable_ingress -> normalize_and_correlate: "accepted" {class: edge}
+  normalize_and_correlate -> supabase_records: "persist" {class: edge}
+  supabase_records -> evidence_window: "scoped query" {class: edge}
+  evidence_window -> evidence_ledger: "promote" {class: edge}
+}
+
+key: "" {
+  near: bottom-center
+  class: legend
+  grid-rows: 1
+  grid-columns: 3
+  horizontal-gap: 16
+  vertical-gap: 12
+  k_runtime: "uTrace control plane" {class: [key; runtime]}
+  k_observation: "SDKs · previews" {class: [key; observation]}
+  k_outcome: "Validated · durable" {class: [key; outcome]}
+}

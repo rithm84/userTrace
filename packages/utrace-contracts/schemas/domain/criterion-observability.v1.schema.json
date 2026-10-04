@@ -1,0 +1,11 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/criterion-observability/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Whether a criterion needs observed evidence or user judgment.",
+  "enum": [
+    "observed",
+    "subjective"
+  ],
+  "title": "CriterionObservability",
+  "type": "string"
+}

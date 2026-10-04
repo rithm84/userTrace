@@ -1,0 +1,37 @@
+...@_style
+
+cells: "The agent cursor: Jev decides what to circle, live" {
+  class: grid
+  grid-rows: 1
+  grid-columns: 4
+  horizontal-gap: 220
+
+  agent: |md
+    ### GPT-Live speaks
+    - "...channel **TikTok**,"
+    - "segment **Women 25 to 34**..."
+  | {class: [card; reasoning]; width: 330}
+
+  jev: |md
+    ### Jev judges each clause
+    - about a control on screen?
+    - which one · how sure
+    - ~0.3 s per clause
+  | {class: [card; reasoning]; width: 330}
+
+  sdk: |md
+    ### Browser SDK
+    - live registry of the
+    - page's annotated controls
+  | {class: [card; observation]; width: 330}
+
+  extension: |md
+    ### Chrome extension
+    - cursor glides over
+    - **circles** the exact control
+  | {class: [card; runtime]; width: 330}
+}
+
+cells.agent -> cells.jev: each clause {class: edge}
+cells.jev -> cells.sdk: resolve target {class: edge-dashed}
+cells.sdk -> cells.extension: confident: circle {class: edge-ok}

@@ -1,0 +1,61 @@
+/* For your users: one crop of Stripe's hosted invoice page on the left, the copy on the right,
+   the Case File's counterpart. The crop wears the page's ink frame and hard shadow; inside it
+   everything is Stripe's own layout, type and palette (read from Stripe Checkout), no coral. */
+.fu-section { padding: 64px 0 140px; background: var(--paper); }
+.fu-section *, .fu-section *::before, .fu-section *::after { box-sizing: border-box; }
+.fu-layout { display: grid; grid-template-columns: minmax(0, 580px) minmax(0, 440px); grid-template-areas: "crop intro"; justify-content: space-between; gap: 72px; align-items: center; }
+.fu-intro { grid-area: intro; }
+.fu-intro .lp-kicker { margin: 0 0 16px; }
+.fu-intro .lp-h2 { font-size: 54px; line-height: 1.04; }
+.fu-intro .lp-lede { margin: 24px 0 0; }
+.fu-promises { list-style: none; display: grid; gap: 14px; margin: 28px 0 0; padding: 0; }
+.fu-promises li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 12px; align-items: start; font: 500 17px/1.4 var(--body); color: var(--ink); }
+.fu-promises li > span { display: grid; place-items: center; width: 22px; height: 22px; margin-top: 1px; border: 2px solid var(--ink); background: var(--coral); box-shadow: 2px 2px 0 var(--ink); }
+.fu-note { margin: 28px 0 0; font: 400 12.5px/1.4 var(--body); color: var(--ink-3); }
+.fu-crop { grid-area: crop; position: relative; margin: 0; border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); }
+
+/* Stripe's hosted invoice page */
+.sp-page {
+  --sp-ink: rgba(26, 26, 26, 0.9);
+  --sp-soft: rgba(26, 26, 26, 0.6);
+  --sp-rule: rgba(26, 26, 26, 0.1);
+  padding: 40px 44px 22px;
+  background: #f6f8fa;
+  color: var(--sp-ink);
+  font: 400 14px/1.3 -apple-system, "system-ui", "Segoe UI", Roboto, "Helvetica Neue", Ubuntu, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.sp-merchant { display: flex; align-items: center; gap: 10px; margin: 0 0 18px; font-size: 16px; font-weight: 600; }
+.sp-card { padding: 22px 24px; border-radius: 8px; background: #fff; box-shadow: 0 0 0 1px rgba(26, 26, 26, 0.06), 0 2px 6px rgba(26, 26, 26, 0.06); }
+.sp-card + .sp-card { margin-top: 12px; }
+.sp-amount { margin: 0 0 4px; font-size: 32px; font-weight: 600; line-height: 1.25; letter-spacing: -0.48px; font-variant-numeric: tabular-nums; }
+.sp-soft { margin: 0; color: var(--sp-soft); }
+.sp-parties { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 6px 0; margin: 18px 0 0; }
+.sp-parties dt { color: var(--sp-soft); }
+.sp-parties dd { margin: 0; font-weight: 500; }
+.sp-number { margin-bottom: 8px; font-size: 13px; }
+.sp-line { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 10px 0; font-weight: 500; }
+.sp-line small { display: block; margin-top: 5px; font-size: 12px; font-weight: 400; color: var(--sp-soft); }
+.sp-line > span:last-child { white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: -0.2px; }
+.sp-rule { margin-top: 4px; padding-top: 14px; border-top: 1px solid var(--sp-rule); }
+.sp-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border-radius: 6px; background: rgba(26, 26, 26, 0.1); font-weight: 400; }
+.sp-total { font-weight: 600; }
+.sp-pay { display: grid; place-items: center; height: 44px; margin-top: 12px; border-radius: 6px; background: #1a1a1a; color: #fff; font-size: 15px; font-weight: 600; }
+.sp-footer { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 18px 0 0; font-size: 12px; color: rgba(26, 26, 26, 0.45); }
+.sp-footer b { color: rgba(26, 26, 26, 0.55); font-weight: 700; letter-spacing: -0.02em; }
+.sp-footer i { width: 1px; height: 12px; margin: 0 6px; background: rgba(26, 26, 26, 0.2); }
+
+@media (max-width: 1100px) {
+  .fu-layout { grid-template-columns: minmax(0, 1fr); grid-template-areas: "intro" "crop"; gap: 56px; }
+  .fu-intro { max-width: 620px; }
+  .fu-crop { max-width: 580px; }
+}
+
+@media (max-width: 640px) {
+  .fu-section { padding: 16px 0 88px; }
+  .fu-section > .lp-wrap { width: calc(100% - 40px); }
+  .fu-intro .lp-h2 { font-size: 40px; }
+  .fu-promises li { font-size: 16px; }
+  .sp-page { padding: 32px 16px 18px; }
+  .sp-card { padding: 18px 16px; }
+}

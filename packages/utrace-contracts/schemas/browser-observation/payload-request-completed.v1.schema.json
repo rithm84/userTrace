@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/browser-observation/payload-request-completed/v1",
+  "title": "Request completed payload",
+  "description": "The second half of a paired product request, joined by browser_request_id.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "browser_request_id",
+    "transport",
+    "method",
+    "route",
+    "duration_ms",
+    "outcome"
+  ],
+  "properties": {
+    "browser_request_id": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+    },
+    "transport": {
+      "enum": [
+        "fetch",
+        "xhr"
+      ]
+    },
+    "method": {
+      "type": "string",
+      "pattern": "^[A-Z]+$"
+    },
+    "route": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/route_state"
+    },
+    "status_code": {
+      "type": "integer",
+      "minimum": 100,
+      "maximum": 599
+    },
+    "duration_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "response_bytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "outcome": {
+      "enum": [
+        "completed",
+        "network_error",
+        "aborted"
+      ]
+    },
+    "error_class": {
+      "type": "string"
+    }
+  }
+}

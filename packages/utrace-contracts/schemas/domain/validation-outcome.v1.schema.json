@@ -1,0 +1,13 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/validation-outcome/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "The structured validation result recorded for a candidate.",
+  "enum": [
+    "validated",
+    "partially_validated",
+    "not_validated",
+    "unclear"
+  ],
+  "title": "ValidationOutcome",
+  "type": "string"
+}

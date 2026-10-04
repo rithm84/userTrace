@@ -1,0 +1,15 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/preview-runtime-allocation-state/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Lifecycle of one full preview runtime allocation.",
+  "enum": [
+    "pending",
+    "seeding",
+    "ready",
+    "bound",
+    "released",
+    "terminated"
+  ],
+  "title": "PreviewRuntimeAllocationState",
+  "type": "string"
+}

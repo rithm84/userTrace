@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/browser-observation/payload-focus-change/v1",
+  "title": "Focus change payload",
+  "description": "An explicit focus change.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "actor",
+    "role"
+  ],
+  "properties": {
+    "actor": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/actor"
+    },
+    "role": {
+      "type": "string"
+    },
+    "label": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/safe_value"
+    },
+    "surface": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/opaque_id"
+    }
+  }
+}

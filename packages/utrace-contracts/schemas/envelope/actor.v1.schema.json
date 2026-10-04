@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/envelope/actor/v1",
+  "title": "Message actor",
+  "description": "Who or what a producer acted for. Customer participants never inherit client-staff access, and model roles never impersonate a person whose evidence informed their proposal.",
+  "oneOf": [
+    {
+      "type": "object",
+      "title": "Customer participant",
+      "description": "The client-scoped participant. Validation always requires the original client_user_id; no colleague, client staff member, or second account may substitute.",
+      "properties": {
+        "kind": {
+          "const": "customer_participant"
+        },
+        "client_user_id": {
+          "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1"
+        },
+        "customer_account_id": {
+          "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1"
+        },
+        "customer_membership_id": {
+          "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1"
+        }
+      },
+      "required": [
+        "kind",
+        "client_user_id"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "title": "Client member",
+      "description": "Client staff. Owners and admins configure policy and may invoke the deny-only case stop; they cannot edit, approve, or resume product lifecycle state.",
+      "properties": {
+        "kind": {
+          "const": "client_member"
+        },
+        "client_member_id": {
+          "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1"
+        },
+        "role": {
+          "enum": [
+            "owner",
+            "admin"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "client_member_id",
+        "role"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "title": "uTrace agent role",
+      "description": "A cognitive role whose results are advisory. The pinned versioned model identity travels with the message, never a bare model alias.",
+      "properties": {
+        "kind": {
+          "const": "utrace_agent_role"
+        },
+        "role": {
+          "enum": [
+            "gpt_live",
+            "terra",
+            "sol",
+            "jev"
+          ],
+          "description": "GPT-Live handles voice, Terra interactive reasoning and retrieval, Sol deep investigation and coding, Jev intake decisions and concurrent semantic attention."
+        },
+        "model_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "The pinned versioned model or deployment identity used for this result."
+        }
+      },
+      "required": [
+        "kind",
+        "role",
+        "model_version"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "title": "Provider identity",
+      "description": "An external provider identity. Provider identifiers stay scoped strings and never become primary product identity.",
+      "properties": {
+        "kind": {
+          "const": "provider_identity"
+        },
+        "provider": {
+          "$ref": "https://utrace.dev/schemas/envelope/failure/v1#/$defs/provider_name"
+        },
+        "external_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "description": "The provider's own identifier for the acting principal or resource."
+        },
+        "installation_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "description": "The provider installation this identity belongs to."
+        },
+        "resource_type": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "kind",
+        "provider",
+        "external_id"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "title": "Service",
+      "description": "An internal uTrace service acting under its own scoped identity. No shared all-powerful credential exists.",
+      "properties": {
+        "kind": {
+          "const": "service"
+        },
+        "service": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "kind",
+        "service"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "title": "System",
+      "description": "The platform itself: scheduled maintenance, lease scans, reconciliation, and expiry. It carries no delegated human or provider identity.",
+      "properties": {
+        "kind": {
+          "const": "system"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/outbox-state/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Dispatch state of one transactional outbox row.",
+  "enum": [
+    "pending",
+    "enqueued",
+    "dispatched",
+    "failed"
+  ],
+  "title": "OutboxState",
+  "type": "string"
+}

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/envelope/result/v1",
+  "title": "Result message",
+  "description": "An authenticated typed answer to one Command, carrying that Command's identity in domain_ids. Results deduplicate by message_id. Only an accepted Result advances product state; a provider acknowledgement, Realtime notification, transcript fragment, or model claim never does.",
+  "type": "object",
+  "$ref": "https://utrace.dev/schemas/envelope/envelope/v1",
+  "properties": {
+    "family": {
+      "const": "result"
+    },
+    "domain_ids": {
+      "description": "The Command identity this message is bound to.",
+      "properties": {
+        "command_id": {
+          "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1"
+        }
+      },
+      "required": [
+        "command_id"
+      ]
+    },
+    "payload": {
+      "$ref": "https://utrace.dev/schemas/envelope/result-body/v1"
+    }
+  },
+  "required": [
+    "family",
+    "domain_ids"
+  ],
+  "unevaluatedProperties": false
+}

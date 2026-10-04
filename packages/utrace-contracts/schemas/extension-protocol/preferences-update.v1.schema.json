@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/extension-protocol/preferences-update/v1",
+  "title": "preferences_update",
+  "description": "Extension to control plane. Requests a change to the control-plane-owned global action preferences from the settings page.",
+  "type": "object",
+  "properties": {
+    "schema_version": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/schema_version" },
+    "kind": { "type": "string", "const": "preferences_update" },
+    "message_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid" },
+    "sent_at": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/timestamp" },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "expected_preferences_revision": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/revision" },
+        "visual_guidance_enabled": { "type": "boolean" },
+        "agent_cursor_enabled": { "type": "boolean" }
+      },
+      "required": [
+        "expected_preferences_revision",
+        "visual_guidance_enabled",
+        "agent_cursor_enabled"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": ["schema_version", "kind", "message_id", "sent_at", "payload"],
+  "additionalProperties": false
+}

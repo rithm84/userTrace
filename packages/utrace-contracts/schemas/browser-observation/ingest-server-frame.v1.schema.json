@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/browser-observation/ingest-server-frame/v1",
+  "title": "Browser ingestion server frame",
+  "description": "Frames ingestion sends back. Acknowledgement advances only to the highest contiguous accepted export_sequence; an impossible acknowledgement is an integrity failure, not a reconnect hint.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/stream_accepted"
+    },
+    {
+      "$ref": "#/$defs/ack"
+    },
+    {
+      "$ref": "#/$defs/flow_control"
+    },
+    {
+      "$ref": "#/$defs/error"
+    }
+  ],
+  "$defs": {
+    "stream_accepted": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "browser_stream_id",
+        "accepted_through_export_sequence"
+      ],
+      "properties": {
+        "kind": {
+          "const": "stream.accepted"
+        },
+        "browser_stream_id": {
+          "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+        },
+        "accepted_through_export_sequence": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "ack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "browser_stream_id",
+        "accepted_through_export_sequence"
+      ],
+      "properties": {
+        "kind": {
+          "const": "ack"
+        },
+        "browser_stream_id": {
+          "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+        },
+        "accepted_through_export_sequence": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "flow_control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "state",
+        "retry_after_ms"
+      ],
+      "properties": {
+        "kind": {
+          "const": "flow_control"
+        },
+        "state": {
+          "enum": [
+            "pause",
+            "resume"
+          ]
+        },
+        "retry_after_ms": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "code",
+        "message",
+        "retryable"
+      ],
+      "properties": {
+        "kind": {
+          "const": "error"
+        },
+        "code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "type": "string"
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "batch_id": {
+          "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+        }
+      }
+    }
+  }
+}

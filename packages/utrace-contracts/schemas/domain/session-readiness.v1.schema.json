@@ -1,0 +1,22 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/session-readiness/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The two readiness boundaries. Connected sockets alone establish neither.",
+  "properties": {
+    "conversational": {
+      "title": "Conversational",
+      "type": "boolean"
+    },
+    "observation": {
+      "title": "Observation",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "conversational",
+    "observation"
+  ],
+  "title": "SessionReadiness",
+  "type": "object"
+}

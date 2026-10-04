@@ -1,0 +1,15 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/interview-phase/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Durable interview phase projection shown to the participant.",
+  "enum": [
+    "participant_setup",
+    "greeting",
+    "discovery",
+    "implementation",
+    "validation",
+    "closing"
+  ],
+  "title": "InterviewPhase",
+  "type": "string"
+}

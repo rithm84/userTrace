@@ -1,0 +1,31 @@
+{
+  "message_id": "01930a9c-1000-7000-8000-000000000005",
+  "envelope_version": 1,
+  "family": "event",
+  "payload_type": "platform.retention_sweep_completed",
+  "payload_version": 1,
+  "producer": {
+    "component": "control_plane_api",
+    "component_version": "0.1.0"
+  },
+  "client_scope": {
+    "scope": "platform"
+  },
+  "domain_ids": {},
+  "occurred_at": "2026-10-03T09:15:00Z",
+  "stream": {
+    "stream_type": "job",
+    "stream_id": "01930a9c-1000-7000-8000-000000000007"
+  },
+  "payload": {
+    "swept": 12
+  },
+  "digest": {
+    "algorithm": "sha256",
+    "canonicalization": "jcs",
+    "value": "4ecae2fa61bd81d6efde65dcb27876ed43f9e26ecbb248fae5f46535753c5722"
+  },
+  "actor": {
+    "kind": "system"
+  }
+}

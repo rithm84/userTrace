@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/server-activation/server-sdk-failure/v1",
+  "title": "Server SDK typed failure",
+  "description": "A safe, operational-metadata-only failure record. It never contains product content or a rejected raw value.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["code", "detected_at", "retry", "readiness_consequence", "detail"],
+  "properties": {
+    "code": { "$ref": "#/$defs/failure_code" },
+    "detected_at": { "type": "string", "format": "date-time" },
+    "retry": {
+      "type": "string",
+      "description": "Retry advice, using the shared failure contract's closed set.",
+      "enum": ["never", "after_delay", "after_condition_change"]
+    },
+    "readiness_consequence": {
+      "type": "string",
+      "enum": ["none", "withdraw_readiness", "fail_stream", "terminate_stream"]
+    },
+    "detail": {
+      "type": "object",
+      "description": "Redacted, structured diagnostic fields. Keys are stable field names; values are safe scalars only.",
+      "additionalProperties": { "type": ["string", "number", "integer", "boolean"] },
+      "maxProperties": 32
+    },
+    "batch_id": { "type": "string", "format": "uuid" },
+    "batch_sequence": { "type": "integer", "minimum": 1 },
+    "trace_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" }
+  },
+  "$defs": {
+    "failure_code": {
+      "type": "string",
+      "enum": [
+        "invalid_activation",
+        "credential_rejected",
+        "incompatible_runtime_or_contract",
+        "duplicate_provider_or_hook",
+        "required_adapter_missing",
+        "resource_mismatch",
+        "redaction_or_schema_failure",
+        "propagation_failure",
+        "unauthorized_destination",
+        "ingestion_unavailable",
+        "partial_acceptance",
+        "acknowledgement_integrity_failure",
+        "buffer_exhaustion",
+        "unclean_stream_end",
+        "route_not_registered",
+        "manifest_signature_invalid",
+        "control_connection_lost"
+      ]
+    }
+  }
+}

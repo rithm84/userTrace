@@ -1,0 +1,25 @@
+{
+  "component": {
+    "component": "browser_sdk"
+  },
+  "generated_at": "2026-10-03T08:00:00Z",
+  "envelope": {
+    "supported_majors": [
+      {
+        "major": 1
+      }
+    ]
+  },
+  "payloads": [
+    {
+      "payload_type": "browser_observation.batch",
+      "support": {
+        "supported_majors": [
+          {
+            "major": 1
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "status": "terminal",
+  "disposition": "partially_succeeded",
+  "effect_state": "partial",
+  "failure": {
+    "category": "internal",
+    "code": "unreachable",
+    "message": "partially_succeeded is not a terminal disposition.",
+    "retry": "never"
+  }
+}

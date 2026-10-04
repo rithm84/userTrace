@@ -1,0 +1,11 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/client-member-role/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Staff relationship with one client.",
+  "enum": [
+    "owner",
+    "admin"
+  ],
+  "title": "ClientMemberRole",
+  "type": "string"
+}

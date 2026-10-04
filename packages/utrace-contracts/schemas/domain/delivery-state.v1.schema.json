@@ -1,0 +1,15 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/delivery-state/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Lifecycle of the one authorized draft PR delivery.",
+  "enum": [
+    "reserved",
+    "preflighting",
+    "creating",
+    "reconciling",
+    "delivered",
+    "blocked"
+  ],
+  "title": "DeliveryState",
+  "type": "string"
+}

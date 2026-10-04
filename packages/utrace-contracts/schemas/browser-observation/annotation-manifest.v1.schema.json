@@ -1,0 +1,260 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/browser-observation/annotation-manifest/v1",
+  "title": "Signed annotation manifest payload",
+  "description": "Annotation definitions built for one client release. The attestation pins its version and digest. Unknown definitions fail closed.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "manifest_version",
+    "client_release_id",
+    "surfaces",
+    "entities",
+    "targets",
+    "visual_targets",
+    "milestones",
+    "severities",
+    "priorities",
+    "route_templates",
+    "approved_trace_origins",
+    "redaction"
+  ],
+  "$defs": {
+    "target_definition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "definition_id",
+        "effects",
+        "detail_fields",
+        "route_templates"
+      ],
+      "properties": {
+        "definition_id": {
+          "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/opaque_id"
+        },
+        "effects": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "observe",
+              "visual_guidance"
+            ]
+          },
+          "minItems": 1
+        },
+        "detail_fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "route_templates": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "safe_value_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "allowed_kinds",
+        "output_class",
+        "max_length"
+      ],
+      "properties": {
+        "rule_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "allowed_kinds": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "enum": [
+              "user_text",
+              "form_value",
+              "accessible_label",
+              "field_name",
+              "route_param",
+              "operational",
+              "annotation_attribute"
+            ]
+          }
+        },
+        "output_class": {
+          "enum": [
+            "bounded_safe_value",
+            "structural_operational_safe",
+            "pseudonymized"
+          ]
+        },
+        "max_length": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 120
+        },
+        "allowed_values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "allowed_pattern": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "properties": {
+    "manifest_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "client_release_id": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/opaque_id"
+    },
+    "surfaces": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "surface_id",
+          "sensitive"
+        ],
+        "properties": {
+          "surface_id": {
+            "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/opaque_id"
+          },
+          "sensitive": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "entities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "entity_definition_id",
+          "instance_ref_rule_id"
+        ],
+        "properties": {
+          "entity_definition_id": {
+            "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/opaque_id"
+          },
+          "instance_ref_rule_id": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "targets": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/target_definition"
+      }
+    },
+    "visual_targets": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/target_definition"
+      }
+    },
+    "milestones": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "milestone_id",
+          "attribute_rule_ids"
+        ],
+        "properties": {
+          "milestone_id": {
+            "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/opaque_id"
+          },
+          "attribute_rule_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "severities": {
+      "type": "array",
+      "items": {
+        "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/opaque_id"
+      }
+    },
+    "priorities": {
+      "type": "array",
+      "items": {
+        "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/opaque_id"
+      }
+    },
+    "route_templates": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^/"
+      }
+    },
+    "approved_trace_origins": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uri"
+      },
+      "description": "Origins the signed release manifest approves as server-SDK endpoints for W3C trace-context injection."
+    },
+    "redaction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "redaction_version",
+        "policy_version",
+        "safe_value_rules",
+        "sensitive_surfaces",
+        "sensitive_fields"
+      ],
+      "properties": {
+        "redaction_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "policy_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "safe_value_rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/safe_value_rule"
+          }
+        },
+        "sensitive_surfaces": {
+          "type": "array",
+          "items": {
+            "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/opaque_id"
+          }
+        },
+        "sensitive_fields": {
+          "type": "array",
+          "items": {
+            "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/opaque_id"
+          }
+        }
+      }
+    }
+  }
+}

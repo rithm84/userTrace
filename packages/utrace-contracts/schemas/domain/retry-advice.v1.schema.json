@@ -1,0 +1,12 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/retry-advice/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Whether and when a failed operation may be retried.",
+  "enum": [
+    "never",
+    "after_delay",
+    "after_condition_change"
+  ],
+  "title": "RetryAdvice",
+  "type": "string"
+}

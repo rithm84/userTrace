@@ -1,0 +1,57 @@
+/* The comic page: white panels on a grey screentone that shows only in the gutters, 2px ink
+   borders that draw on, captions that pop, and motion held on twos. Everything sits in a
+   1200 x 800 box that the journey scales to the stage. */
+[data-landing] .strip-page { position: absolute; left: 0; top: 0; background-color: #fff; background-image: radial-gradient(#c9c9c9 0.95px, transparent 1.05px); background-size: 6px 6px; background-position: 0 0; font-family: var(--body); color: var(--ink); user-select: none; }
+[data-landing] .strip-intro { position: absolute; inset: 0; display: flex; align-items: center; padding: 20px 46px; }
+[data-landing] .strip-cast { margin: 0; font: 500 16px/1.4 var(--body); color: #555; }
+[data-landing] .strip-cast b { font-weight: 700; color: #000; }
+[data-landing] .strip-caret { display: inline-block; width: 2px; height: 12px; margin-left: 1px; vertical-align: -2px; background: #000; animation: strip-caret 0.6s steps(2, end) infinite; }
+@keyframes strip-caret { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+[data-landing] .strip-panel { position: absolute; background: #fff; overflow: hidden; }
+[data-landing] .strip-panel-inner { position: absolute; inset: 0; opacity: 0; }
+/* Release the entrance's composited layer so held product text stays sharp. */
+[data-landing] .strip-panel-inner.is-on { opacity: 1; animation: strip-pop 0.24s steps(3, end) backwards; }
+[data-landing] .strip-borders { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+@keyframes strip-pop { 0% { transform: scale(0.965); } 34% { transform: scale(1.02); } 67%, 100% { transform: none; } }
+
+/* narration and lettering */
+[data-landing] .strip-caption { position: absolute; z-index: 3; padding: 6px 9px 7px; background: #fff; border: 2px solid #000; font: 700 13px/1.25 var(--body); letter-spacing: -0.005em; color: #000; opacity: 0; box-sizing: border-box; }
+[data-landing] .strip-caption.is-on { opacity: 1; animation: strip-pop 0.2s steps(2, end) both; }
+[data-landing] .strip-sfx { font: 400 34px/1 var(--sfx); color: var(--coral-strong); -webkit-text-stroke: 1.6px #000; paint-order: stroke fill; letter-spacing: 0.02em; rotate: -6deg; }
+[data-landing] .strip-pop { animation: strip-pop 0.2s steps(2, end) both; }
+
+/* the reset: chips fall out of the bar on held frames and break up */
+[data-landing] .strip-tumble { animation: strip-tumble 1s steps(7, end) both; }
+@keyframes strip-tumble { 0% { transform: translate(0, 0) rotate(0deg); opacity: 1; } 70% { opacity: 1; } 100% { transform: translate(var(--dx), 250px) rotate(var(--rot)); opacity: 0; } }
+
+/* the echoes */
+/* the echoes: a flat board, and each clipping pasted on it with an ink edge and a hard shadow like the rest of the page */
+[data-landing] .strip-echo-ground { position: absolute; inset: 0; background: #ededed; }
+[data-landing] .strip-clip { position: absolute; opacity: 0; transform-origin: 50% 50%; border: 1.5px solid #111; border-radius: 14px; overflow: hidden; background: #fff; box-shadow: 4px 4px 0 #111; }
+[data-landing] .strip-clip.is-on { opacity: 1; animation: strip-pop 0.22s steps(3, end) both; }
+
+/* the cast on the frame */
+[data-landing] .strip-burst { position: absolute; z-index: 5; width: 176px; height: 176px; opacity: 0; }
+[data-landing] .strip-burst.is-on { opacity: 1; }
+[data-landing] .strip-burst.is-on .strip-burst-shape { animation: strip-burst 0.26s steps(3, end) both; transform-origin: 50% 50%; }
+@keyframes strip-burst { 0% { transform: scale(0.5); } 40% { transform: scale(1.12); } 75%, 100% { transform: none; } }
+[data-landing] .strip-cameo { position: absolute; z-index: 5; opacity: 0; }
+[data-landing] .strip-cameo.is-on { opacity: 1; animation: strip-fade 0.2s steps(2, end) both; }
+/* containers only fade: a rig inside a scaling box sizes its canvas while small and stays blurry */
+[data-landing] .strip-badge { position: absolute; z-index: 5; box-sizing: border-box; display: grid; place-items: center; border-radius: 50%; background: #fff; border: 2.5px solid #000; box-shadow: 3px 3px 0 #000; opacity: 0; }
+[data-landing] .strip-badge.is-on { opacity: 1; animation: strip-fade 0.2s steps(2, end) both; }
+[data-landing] .strip-badge.is-square { border-radius: 20px; }
+@keyframes strip-fade { 0% { opacity: 0; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+/* the last panel: the invitation, close, and the reader's button */
+[data-landing] .strip-click-ground { position: absolute; inset: 0; background: var(--dc-bg); }
+[data-landing] .strip-click-embed { position: absolute; left: 76px; top: 16px; transform-origin: 0 0; }
+[data-landing] .strip-click-embed .dc-embed { max-width: 330px; margin-top: 0; }
+[data-landing] .strip-join { cursor: pointer; transition: background-color 0.12s var(--ease-out), transform 0.08s var(--ease-out); }
+[data-landing] .strip-join:hover, [data-landing] .strip-join.is-hover { background: var(--dc-blurple-hover); }
+[data-landing] .strip-join:active { background: var(--dc-blurple-hover); transform: translateY(1px); }
+/* the receipt: Discord's grey for a used button, not a control any more; the way through is scrolling */
+[data-landing] .strip-join.is-joined, [data-landing] .strip-join.is-joined:hover { background: var(--dc-secondary); color: #fff; cursor: default; pointer-events: none; opacity: 1; transform: none; }
+[data-landing] .strip-join:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+/* the scroll presses the button: the receipt pops in on twos */
+[data-landing] .strip-join.is-joined { animation: strip-pop 0.2s steps(2, end) both; }

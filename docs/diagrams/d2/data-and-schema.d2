@@ -1,0 +1,63 @@
+...@_style
+
+cells: "Data ownership · one authoritative record per fact" {
+  class: grid
+  grid-rows: 3
+  grid-columns: 3
+  horizontal-gap: 200
+  vertical-gap: 80
+
+  _s1: "" {width: 304; height: 8; style: {opacity: 0}}
+  control_plane: |md
+    ### Control plane
+  
+    - Validated state transitions
+    - Atomic event + outbox
+  | {class: [card; runtime]}
+
+  key: "" {
+    class: legend
+    grid-rows: 2
+    grid-columns: 2
+    horizontal-gap: 8
+    vertical-gap: 6
+    k_people: "People · customer surfaces" {class: [key; people]}
+    k_runtime: "uTrace control plane" {class: [key; runtime]}
+    k_outcome: "Validated · durable" {class: [key; outcome]}
+  }
+  supabase_storage: |md
+    ### Supabase Storage
+  
+    - Immutable scoped artifacts
+    - Hash / type / size verification
+  | {class: [card; outcome]}
+
+  supabase_postgres: |md
+    ### Supabase Postgres
+  
+    - Identity · lifecycle · evidence
+    - Reports · jobs
+    - Offer ledger + credit issuance
+  | {class: [card; outcome]}
+
+  queues_cron: |md
+    ### Queues + Cron
+  
+    - Delivery / work dispatch
+    - Scheduling and reconciliation
+  | {class: [card; runtime]}
+
+  _s3: "" {width: 304; height: 8; style: {opacity: 0}}
+  supabase_realtime: |md
+    ### Supabase Realtime
+  
+    - Private authorized channels
+    - Committed updates only
+  | {class: [card; people]}
+
+  _s4: "" {width: 304; height: 8; style: {opacity: 0}}
+  control_plane -> supabase_postgres: "commit" {class: edge}
+  supabase_postgres -> supabase_storage: "references" {class: edge}
+  supabase_postgres -> queues_cron: "dispatch" {class: edge}
+  supabase_postgres -> supabase_realtime: "notify" {class: edge}
+}

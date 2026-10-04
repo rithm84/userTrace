@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "kind": "target_geometry",
+  "phase": "response",
+  "exchange_id": "0199a4c1-0016-7000-8000-000000000016",
+  "payload": {
+    "document_attachment_id": "0199a4c1-0016-7000-8000-0000000a7701",
+    "registry_revision": 18,
+    "viewport": {
+      "width": 1280,
+      "height": 800
+    },
+    "targets": [],
+    "not_found": [],
+    "ambiguous": [
+      "conversion_filter_channel"
+    ]
+  }
+}

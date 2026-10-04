@@ -1,0 +1,14 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/command-disposition/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "The single terminal disposition of a Command.",
+  "enum": [
+    "succeeded",
+    "rejected",
+    "failed",
+    "canceled",
+    "expired"
+  ],
+  "title": "CommandDisposition",
+  "type": "string"
+}

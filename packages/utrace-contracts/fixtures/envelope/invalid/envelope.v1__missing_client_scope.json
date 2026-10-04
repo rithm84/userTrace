@@ -1,0 +1,28 @@
+{
+  "message_id": "01930a9c-1000-7000-8000-000000000005",
+  "envelope_version": 1,
+  "family": "event",
+  "payload_type": "product_signal.created",
+  "payload_version": 1,
+  "producer": {
+    "component": "control_plane_api",
+    "component_version": "0.1.0"
+  },
+  "domain_ids": {
+    "product_signal_id": "01930a9c-1000-7000-8000-000000000002"
+  },
+  "occurred_at": "2026-10-03T09:15:00Z",
+  "stream": {
+    "stream_type": "product_signal",
+    "stream_id": "01930a9c-1000-7000-8000-000000000002"
+  },
+  "payload": {
+    "flow_type": "feature_request",
+    "summary": "Saved Conversion Views"
+  },
+  "digest": {
+    "algorithm": "sha256",
+    "canonicalization": "jcs",
+    "value": "ad82d2fa192fcb8a987459bb59b79722fce2084bdff87b60437f8e0005a0cf7d"
+  }
+}

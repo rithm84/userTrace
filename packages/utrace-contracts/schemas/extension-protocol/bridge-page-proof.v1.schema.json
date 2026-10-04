@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/extension-protocol/bridge-page-proof/v1",
+  "title": "page_proof bridge message",
+  "description": "Main-world bridge. The extension probes a focused document; a compatible embedded SDK answers with its signed page proof. A document that does not answer is left untouched.",
+  "oneOf": [{ "$ref": "#/$defs/request" }, { "$ref": "#/$defs/response" }],
+  "$defs": {
+    "request": {
+      "type": "object",
+      "properties": {
+        "schema_version": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/schema_version" },
+        "kind": { "type": "string", "const": "page_proof" },
+        "phase": { "type": "string", "const": "request" },
+        "exchange_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid" },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "extension_protocol_version": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/protocol_version" }
+          },
+          "required": ["extension_protocol_version"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["schema_version", "kind", "phase", "exchange_id", "payload"],
+      "additionalProperties": false
+    },
+    "response": {
+      "type": "object",
+      "properties": {
+        "schema_version": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/schema_version" },
+        "kind": { "type": "string", "const": "page_proof" },
+        "phase": { "type": "string", "const": "response" },
+        "exchange_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid" },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "page_proof": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/page_proof" },
+            "document_attachment_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid" },
+            "registry_revision": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/revision" }
+          },
+          "required": ["page_proof", "document_attachment_id", "registry_revision"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["schema_version", "kind", "phase", "exchange_id", "payload"],
+      "additionalProperties": false
+    }
+  }
+}

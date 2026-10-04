@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/browser-observation/payload-route-change/v1",
+  "title": "Committed route change payload",
+  "description": "A committed route transition, normalized to a registered route template.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "actor",
+    "transition",
+    "route",
+    "committed"
+  ],
+  "properties": {
+    "actor": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/actor"
+    },
+    "transition": {
+      "enum": [
+        "push",
+        "replace",
+        "pop",
+        "load"
+      ]
+    },
+    "route": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/route_state"
+    },
+    "previous_route_template": {
+      "type": "string"
+    },
+    "committed": {
+      "const": true
+    }
+  }
+}

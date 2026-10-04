@@ -1,0 +1,54 @@
+{
+  "$defs": {
+    "CriterionObservability": {
+      "description": "Whether a criterion needs observed evidence or user judgment.",
+      "enum": [
+        "observed",
+        "subjective"
+      ],
+      "title": "CriterionObservability",
+      "type": "string"
+    }
+  },
+  "$id": "https://utrace.dev/schemas/domain/validation-criterion-record/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One frozen acceptance criterion at a criteria revision.",
+  "properties": {
+    "criteria_revision": {
+      "title": "Criteria Revision",
+      "type": "integer"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "observability": {
+      "$ref": "#/$defs/CriterionObservability"
+    },
+    "ordinal": {
+      "title": "Ordinal",
+      "type": "integer"
+    },
+    "product_signal_id": {
+      "format": "uuid",
+      "title": "Product Signal Id",
+      "type": "string"
+    },
+    "statement": {
+      "title": "Statement",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "product_signal_id",
+    "criteria_revision",
+    "ordinal",
+    "statement",
+    "observability"
+  ],
+  "title": "ValidationCriterionRecord",
+  "type": "object"
+}

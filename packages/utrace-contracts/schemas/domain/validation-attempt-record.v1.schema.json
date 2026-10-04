@@ -1,0 +1,112 @@
+{
+  "$defs": {
+    "ValidationAttemptState": {
+      "description": "Lifecycle of one same-user validation encounter.",
+      "enum": [
+        "pending",
+        "in_progress",
+        "interrupted",
+        "completed",
+        "abandoned"
+      ],
+      "title": "ValidationAttemptState",
+      "type": "string"
+    },
+    "ValidationOutcome": {
+      "description": "The structured validation result recorded for a candidate.",
+      "enum": [
+        "validated",
+        "partially_validated",
+        "not_validated",
+        "unclear"
+      ],
+      "title": "ValidationOutcome",
+      "type": "string"
+    }
+  },
+  "$id": "https://utrace.dev/schemas/domain/validation-attempt-record/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Binds one originating user to one exact candidate and dataset.",
+  "properties": {
+    "acceptance_criteria_revision": {
+      "title": "Acceptance Criteria Revision",
+      "type": "integer"
+    },
+    "client_id": {
+      "format": "uuid",
+      "title": "Client Id",
+      "type": "string"
+    },
+    "client_user_id": {
+      "format": "uuid",
+      "title": "Client User Id",
+      "type": "string"
+    },
+    "completed_at": {
+      "format": "date-time",
+      "title": "Completed At",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "dataset_manifest_digest": {
+      "title": "Dataset Manifest Digest",
+      "type": "string"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "implementation_attempt_id": {
+      "format": "uuid",
+      "title": "Implementation Attempt Id",
+      "type": "string"
+    },
+    "interview_session_id": {
+      "format": "uuid",
+      "title": "Interview Session Id",
+      "type": "string"
+    },
+    "outcome": {
+      "$ref": "#/$defs/ValidationOutcome"
+    },
+    "preview_version_id": {
+      "format": "uuid",
+      "title": "Preview Version Id",
+      "type": "string"
+    },
+    "product_signal_id": {
+      "format": "uuid",
+      "title": "Product Signal Id",
+      "type": "string"
+    },
+    "revision": {
+      "title": "Revision",
+      "type": "integer"
+    },
+    "state": {
+      "$ref": "#/$defs/ValidationAttemptState"
+    }
+  },
+  "required": [
+    "id",
+    "client_id",
+    "product_signal_id",
+    "implementation_attempt_id",
+    "preview_version_id",
+    "interview_session_id",
+    "client_user_id",
+    "state",
+    "revision",
+    "dataset_manifest_digest",
+    "acceptance_criteria_revision",
+    "created_at"
+  ],
+  "title": "ValidationAttemptRecord",
+  "type": "object"
+}

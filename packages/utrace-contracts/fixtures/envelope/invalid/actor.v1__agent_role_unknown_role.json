@@ -1,0 +1,5 @@
+{
+  "kind": "utrace_agent_role",
+  "role": "moss",
+  "model_version": "moss-1"
+}

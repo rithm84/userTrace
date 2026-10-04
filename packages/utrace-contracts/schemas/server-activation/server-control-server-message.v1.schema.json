@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/server-activation/server-control-server-message/v1",
+  "title": "Server SDK control message (control plane to SDK)",
+  "description": "Frames the control plane sends on `WS /v1/server-sdk/control`. `pause`, `resume`, and `terminate` are commands the SDK acknowledges with `command_ack`.",
+  "type": "object",
+  "required": ["type"],
+  "unevaluatedProperties": false,
+  "oneOf": [
+    { "$ref": "#/$defs/activated" },
+    { "$ref": "#/$defs/rotated" },
+    { "$ref": "#/$defs/health_ack" },
+    { "$ref": "#/$defs/pause" },
+    { "$ref": "#/$defs/resume" },
+    { "$ref": "#/$defs/terminate" },
+    { "$ref": "#/$defs/error" }
+  ],
+  "$defs": {
+    "activated": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "request_id", "activation"],
+      "properties": {
+        "type": { "const": "activated" },
+        "request_id": { "type": "string", "format": "uuid" },
+        "activation": { "$ref": "https://utrace.dev/schemas/server-activation/server-activation/v1" }
+      }
+    },
+    "rotated": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "request_id", "credential"],
+      "properties": {
+        "type": { "const": "rotated" },
+        "request_id": { "type": "string", "format": "uuid" },
+        "credential": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["token", "expires_at"],
+          "properties": {
+            "token": { "type": "string", "minLength": 1, "maxLength": 4096 },
+            "expires_at": { "type": "string", "format": "date-time" }
+          }
+        }
+      }
+    },
+    "health_ack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "request_id"],
+      "properties": {
+        "type": { "const": "health_ack" },
+        "request_id": { "type": "string", "format": "uuid" }
+      }
+    },
+    "pause": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "command_id", "reason"],
+      "properties": {
+        "type": { "const": "pause" },
+        "command_id": { "type": "string", "format": "uuid" },
+        "reason": {
+          "type": "string",
+          "enum": ["session_paused", "policy_hold", "ingestion_backpressure", "operator_stop"]
+        }
+      }
+    },
+    "resume": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "command_id"],
+      "properties": {
+        "type": { "const": "resume" },
+        "command_id": { "type": "string", "format": "uuid" }
+      }
+    },
+    "terminate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "command_id", "reason"],
+      "properties": {
+        "type": { "const": "terminate" },
+        "command_id": { "type": "string", "format": "uuid" },
+        "reason": {
+          "type": "string",
+          "enum": ["session_ended", "activation_superseded", "credential_revoked", "client_case_stop"]
+        }
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "failure"],
+      "properties": {
+        "type": { "const": "error" },
+        "request_id": { "type": "string", "format": "uuid" },
+        "failure": { "$ref": "https://utrace.dev/schemas/server-activation/server-sdk-failure/v1" }
+      }
+    }
+  }
+}

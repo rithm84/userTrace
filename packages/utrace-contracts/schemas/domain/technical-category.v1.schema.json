@@ -1,0 +1,27 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/technical-category/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Closed technical cause of a failure.",
+  "enum": [
+    "authentication",
+    "authorization",
+    "policy_denied",
+    "validation",
+    "incompatible_version",
+    "not_found",
+    "conflict",
+    "integrity",
+    "timeout",
+    "rate_limited",
+    "payload_too_large",
+    "provider_unavailable",
+    "provider_rejected",
+    "budget_exhausted",
+    "capacity_exhausted",
+    "readiness_incomplete",
+    "configuration",
+    "internal"
+  ],
+  "title": "TechnicalCategory",
+  "type": "string"
+}

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/preview/handoff-exchange-request/v1",
+  "title": "Preview handoff exchange request",
+  "description": "Body of POST /v1/preview/handoffs/{code}/exchange, sent by the front door with its service token.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "public_preview_host"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "utrace_preview_handoff_exchange_request_v1"
+    },
+    "public_preview_host": {
+      "type": "string",
+      "maxLength": 253,
+      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$",
+      "description": "Lowercase public preview host, without port."
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/extension-protocol/character-state/v1",
+  "title": "character_state",
+  "description": "Control plane to extension. The monotonically revisioned semantic character state both surfaces render; older revisions are ignored.",
+  "type": "object",
+  "properties": {
+    "schema_version": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/schema_version" },
+    "kind": { "type": "string", "const": "character_state" },
+    "message_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid" },
+    "sent_at": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/timestamp" },
+    "sequence": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/sequence" },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "character_revision": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/revision" },
+        "session_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid" },
+        "state": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/character_state" },
+        "gaze_x": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/signed_unit_interval" },
+        "gaze_y": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/signed_unit_interval" },
+        "speech_energy": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/unit_interval" },
+        "motion_scale": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/unit_interval" }
+      },
+      "required": [
+        "character_revision",
+        "session_id",
+        "state",
+        "gaze_x",
+        "gaze_y",
+        "speech_energy",
+        "motion_scale"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": ["schema_version", "kind", "message_id", "sent_at", "sequence", "payload"],
+  "additionalProperties": false
+}

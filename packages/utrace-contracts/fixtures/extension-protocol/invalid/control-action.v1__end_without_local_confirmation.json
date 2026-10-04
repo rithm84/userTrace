@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "kind": "control_action",
+  "message_id": "0199a0c0-0000-7aaa-8000-000000000403",
+  "sent_at": "2026-10-03T17:09:12Z",
+  "payload": {
+    "action_id": "0199a0c0-0000-7aaa-8000-0000000ac703",
+    "session_id": "0199a0c0-0000-7aaa-8000-0000000055e1",
+    "action": "end",
+    "expected_session_control_revision": 7,
+    "requested_at": "2026-10-03T17:09:12Z",
+    "locally_confirmed": false
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "kind": "installation_registration_request",
+  "link_code": "bGlua19jb2RlX2V4YW1wbGVfdmFsdWVfMDE",
+  "device_public_key_spki_b64u": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEexampleexampleexampleexampleexampleexampleexampleexampleQ",
+  "extension_version": "0.1.0",
+  "supported_protocol_versions": [
+    "1.0"
+  ],
+  "proof_of_possession": {
+    "algorithm": "ES256",
+    "challenge_b64u": "eyJhdWQiOiJodHRwczovL2FwaS51dHJhY2UuZGV2IiwibmJmIjoxfQ",
+    "signature_b64u": "MEUCIQDexamplesignaturevaluethatislongenoughforthepattern0123456789"
+  }
+}

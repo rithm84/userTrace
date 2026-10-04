@@ -1,0 +1,27 @@
+{
+  "name": "@utrace/e2e-browser",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The cross-package browser journey: the uTrace session tab, the packaged extension, the preview front door, and a preview-profile Shopalytics, driven together in one real Chrome.",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "24.13.6",
+    "@types/ws": "8.18.1",
+    "eslint": "10.11.0",
+    "playwright-core": "1.63.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.70.0",
+    "vitest": "4.1.11",
+    "ws": "8.21.3",
+    "zod": "4.6.5"
+  }
+}

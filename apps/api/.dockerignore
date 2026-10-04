@@ -1,0 +1,30 @@
+# Ignore file for the control-plane image build.
+#
+# The build context is the repository root and the Dockerfile copies only the
+# paths it needs, so this file exists to keep credentials, virtualenvs, and
+# caches out of the context even when the context is produced by something
+# other than `git archive`.
+
+**/.env
+**/.env.*
+!**/.env.example
+
+**/.venv/
+**/node_modules/
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+
+apps/api/tests/
+packages/utrace-contracts/python/tests/
+packages/utrace-contracts/python/scripts/
+packages/utrace-contracts/fixtures/
+
+**/.git/
+**/.vercel/
+**/dist/
+**/build/
+**/.next/
+**/.turbo/

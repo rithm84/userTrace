@@ -1,0 +1,16 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/job-state/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Scheduling state of one durable Job.",
+  "enum": [
+    "pending",
+    "ready",
+    "leased",
+    "succeeded",
+    "failed",
+    "canceled",
+    "expired"
+  ],
+  "title": "JobState",
+  "type": "string"
+}

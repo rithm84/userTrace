@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/extension-protocol/inbound-frame/v1",
+  "title": "Inbound control frame",
+  "description": "Every frame the control plane may send over WS /v1/extension/control. Control-plane messages are schema-validated data: they cannot carry code, selectors, CSS, or expressions for the extension to interpret.",
+  "oneOf": [
+    { "$ref": "https://utrace.dev/schemas/extension-protocol/binding-state/v1" },
+    { "$ref": "https://utrace.dev/schemas/extension-protocol/readiness/v1" },
+    { "$ref": "https://utrace.dev/schemas/extension-protocol/character-state/v1" },
+    { "$ref": "https://utrace.dev/schemas/extension-protocol/visual-command/v1" },
+    { "$ref": "https://utrace.dev/schemas/extension-protocol/cancel/v1" },
+    { "$ref": "https://utrace.dev/schemas/extension-protocol/control-action-result/v1" },
+    { "$ref": "https://utrace.dev/schemas/extension-protocol/recovery-state/v1" },
+    { "$ref": "https://utrace.dev/schemas/extension-protocol/preferences-state/v1" },
+    { "$ref": "https://utrace.dev/schemas/extension-protocol/heartbeat/v1" }
+  ]
+}

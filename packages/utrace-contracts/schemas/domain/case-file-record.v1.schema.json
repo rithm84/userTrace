@@ -1,0 +1,92 @@
+{
+  "$defs": {
+    "CaseFileStage": {
+      "description": "Assembly stage of a Case File.",
+      "enum": [
+        "draft",
+        "verified",
+        "delivery_resolved",
+        "ready",
+        "published"
+      ],
+      "title": "CaseFileStage",
+      "type": "string"
+    },
+    "CaseFileVariant": {
+      "description": "Which Case File variant an outcome produces.",
+      "enum": [
+        "validated_implementation",
+        "no_implementation",
+        "blocked"
+      ],
+      "title": "CaseFileVariant",
+      "type": "string"
+    }
+  },
+  "$id": "https://utrace.dev/schemas/domain/case-file-record/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The client-facing output record. Its published core is immutable.",
+  "properties": {
+    "client_id": {
+      "format": "uuid",
+      "title": "Client Id",
+      "type": "string"
+    },
+    "core_digest": {
+      "title": "Core Digest",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "delivery_id": {
+      "format": "uuid",
+      "title": "Delivery Id",
+      "type": "string"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "product_signal_id": {
+      "format": "uuid",
+      "title": "Product Signal Id",
+      "type": "string"
+    },
+    "published_at": {
+      "format": "date-time",
+      "title": "Published At",
+      "type": "string"
+    },
+    "revision": {
+      "title": "Revision",
+      "type": "integer"
+    },
+    "sealed_at": {
+      "format": "date-time",
+      "title": "Sealed At",
+      "type": "string"
+    },
+    "stage": {
+      "$ref": "#/$defs/CaseFileStage"
+    },
+    "variant": {
+      "$ref": "#/$defs/CaseFileVariant"
+    }
+  },
+  "required": [
+    "id",
+    "client_id",
+    "product_signal_id",
+    "variant",
+    "stage",
+    "revision",
+    "created_at"
+  ],
+  "title": "CaseFileRecord",
+  "type": "object"
+}

@@ -1,0 +1,71 @@
+...@_style
+
+cells: "Preview front door · stable session origin, exact candidate route" {
+  class: grid
+  grid-rows: 2
+  grid-columns: 3
+  horizontal-gap: 200
+  vertical-gap: 80
+
+  preview_tab: |md
+    ### Preview tab
+  
+    - uTrace-issued session access
+    - Separate preview apex
+  | {class: [card; people]}
+
+  vercel_front_door: |md
+    ### Vercel front door
+  
+    - Validate identity + route
+    - Constrain product port
+  | {class: [card; runtime]}
+
+  sandbox_product_port: |md
+    ### Sandbox product port
+  
+    - Public port URL, never shown
+    - Middleware checks claim + token
+  | {class: [card; observation]}
+
+  sdk_attachment: |md
+    ### SDK attachment
+  
+    - Signed document proof
+    - Session + runtime + revision
+  | {class: [card; observation]}
+
+  route_record: |md
+    ### Route record
+  
+    - Current allocation / version
+    - Atomic revision + expiry
+  | {class: [card; outcome]}
+
+  candidate_readiness: |md
+    ### Candidate readiness
+  
+    - Exact build + dataset
+    - Health and correlation checks
+  | {class: [card; gate]}
+
+  preview_tab -> vercel_front_door: "HTTPS" {class: edge}
+  vercel_front_door -> sandbox_product_port: "scoped\nupstream" {class: edge}
+  route_record -> vercel_front_door: "authorize route" {class: edge}
+  candidate_readiness -> route_record: "ready revision" {class: edge}
+  vercel_front_door -> sdk_attachment: "signed attestation" {class: edge}
+}
+
+key: "" {
+  near: bottom-center
+  class: legend
+  grid-rows: 1
+  grid-columns: 5
+  horizontal-gap: 16
+  vertical-gap: 12
+  k_people: "People · customer surfaces" {class: [key; people]}
+  k_runtime: "uTrace control plane" {class: [key; runtime]}
+  k_observation: "SDKs · previews" {class: [key; observation]}
+  k_outcome: "Validated · durable" {class: [key; outcome]}
+  k_gate: "Gates · checks" {class: [key; gate]}
+}

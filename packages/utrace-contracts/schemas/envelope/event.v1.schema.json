@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/envelope/event/v1",
+  "title": "Event message",
+  "description": "An immutable past-tense fact. Events deduplicate by message_id. A replayed Event preserves identity, versions, causation, timestamps, and sequence, and can never resend outreach, run code, publish a candidate, create a PR, or issue invoice credits.",
+  "type": "object",
+  "$ref": "https://utrace.dev/schemas/envelope/envelope/v1",
+  "properties": {
+    "family": {
+      "const": "event"
+    }
+  },
+  "required": [
+    "family"
+  ],
+  "unevaluatedProperties": false
+}

@@ -1,0 +1,68 @@
+...@_style
+vars: {d2-config: {layout-engine: tala}}
+direction: down
+
+title: "Deployment · web, persistent services, and isolated compute" {class: title}
+
+customer_browser: |md
+  ### Customer browser
+
+  - utrace.dev session UI
+  - Separate preview origin
+| {class: [card; people]}
+
+vercel: |md
+  ### Vercel
+
+  - Web application
+  - Preview front door
+| {class: [card; people]}
+
+vercel_sandbox: |md
+  ### Vercel Sandbox
+
+  - Port-scoped product previews
+  - Workspaces + Codex coding agent
+| {class: [card; observation]}
+
+supabase_compute: |md
+  ### Supabase Compute
+
+  - API · Discord · telemetry
+  - Coordinator and workers
+| {class: [card; runtime]}
+
+openai_api: |md
+  ### OpenAI API
+
+  - GPT-Live voice · WebRTC
+  - GPT-6.1 Sol: every reasoning role
+| {class: [card; reasoning]}
+
+supabase: |md
+  ### Supabase
+
+  - Postgres + Auth + Storage
+  - Queues / Cron / Realtime
+| {class: [card; outcome]}
+
+customer_browser -> vercel: "HTTPS" {class: edge}
+vercel -> vercel_sandbox: "scoped proxy" {class: edge}
+customer_browser -> openai_api: "audio" {class: edge}
+vercel -> supabase_compute: "API" {class: edge}
+supabase_compute -> openai_api: "voice sideband + reasoning" {class: edge}
+vercel_sandbox -> openai_api: "coding agent" {class: edge}
+supabase_compute -> supabase: "durable state" {class: edge}
+
+key: "" {
+  class: legend
+  grid-rows: 5
+  grid-columns: 1
+  horizontal-gap: 16
+  vertical-gap: 12
+  k_people: "People · customer surfaces" {class: [key; people]}
+  k_runtime: "uTrace control plane" {class: [key; runtime]}
+  k_reasoning: "Reasoning models" {class: [key; reasoning]}
+  k_observation: "SDKs · previews" {class: [key; observation]}
+  k_outcome: "Validated · durable" {class: [key; outcome]}
+}

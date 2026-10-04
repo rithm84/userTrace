@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/preview/handoff-exchange/v1",
+  "title": "Preview handoff exchange",
+  "description": "Successful exchange of a one-time front-door handoff code for the session credential the front door stores in its origin-bound cookie.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "public_preview_host",
+    "client_id",
+    "interview_session_id",
+    "session_credential"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "utrace_preview_handoff_exchange_v1"
+    },
+    "public_preview_host": {
+      "type": "string",
+      "maxLength": 253,
+      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$",
+      "description": "Lowercase public preview host, without port."
+    },
+    "client_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "interview_session_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "session_credential": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "expires_at"
+      ],
+      "properties": {
+        "value": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._~-]{32,2048}$"
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

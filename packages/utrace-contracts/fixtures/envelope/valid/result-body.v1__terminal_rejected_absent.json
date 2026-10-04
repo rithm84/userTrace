@@ -1,0 +1,11 @@
+{
+  "status": "terminal",
+  "disposition": "rejected",
+  "effect_state": "absent",
+  "failure": {
+    "category": "conflict",
+    "code": "expected_revision_mismatch",
+    "message": "Implementation Attempt revision 5 was expected; the stream is at revision 7.",
+    "retry": "never"
+  }
+}

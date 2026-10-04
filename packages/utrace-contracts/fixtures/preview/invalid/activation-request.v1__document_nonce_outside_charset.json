@@ -1,0 +1,9 @@
+{
+  "sdk_installation_id": "shopalytics-preview",
+  "environment_name": "preview",
+  "client_release_id": "shopalytics-main-8f21",
+  "schema_version": "1",
+  "protocol_version": "1",
+  "document_nonce": "nonce with spaces!!",
+  "document_origin": "https://k7m2q9x4v1z8.preview.utrace.dev"
+}

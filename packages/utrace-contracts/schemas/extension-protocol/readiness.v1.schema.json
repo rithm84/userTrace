@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/extension-protocol/readiness/v1",
+  "title": "readiness",
+  "description": "Control plane to extension. Readiness is a revisioned control-plane record; the extension never computes it locally.",
+  "type": "object",
+  "properties": {
+    "schema_version": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/schema_version" },
+    "kind": { "type": "string", "const": "readiness" },
+    "message_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid" },
+    "sent_at": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/timestamp" },
+    "sequence": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/sequence" },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "readiness_revision": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/revision" },
+        "session_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid" },
+        "extension_readiness": {
+          "type": "string",
+          "enum": ["ready", "recovering", "withdrawn"]
+        },
+        "combined_readiness": { "type": "string", "enum": ["ready", "blocked"] },
+        "blockers": {
+          "type": "array",
+          "items": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/reason_code" },
+          "maxItems": 16,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "readiness_revision",
+        "session_id",
+        "extension_readiness",
+        "combined_readiness",
+        "blockers"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": ["schema_version", "kind", "message_id", "sent_at", "sequence", "payload"],
+  "additionalProperties": false
+}

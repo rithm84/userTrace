@@ -1,0 +1,27 @@
+{
+  "kind": "observation.batch",
+  "batch_id": "0199a4c1-0006-7000-8000-000000000006",
+  "browser_stream_id": "0199a4c1-0007-7000-8000-000000000007",
+  "first_export_sequence": 7,
+  "last_export_sequence": 7,
+  "observations": [
+    {
+      "observation_id": "0199a4c1-0001-7000-8000-000000000001",
+      "runtime_id": "0199a4c1-0002-7000-8000-000000000002",
+      "document_attachment_id": "0199a4c1-0003-7000-8000-000000000003",
+      "frame_id": "top",
+      "source_sequence": 12,
+      "export_sequence": 7,
+      "occurred_at": "2026-10-03T09:00:00.000Z",
+      "monotonic_offset": 4821.5,
+      "route_revision": 2,
+      "visibility_state": "visible",
+      "observation_type": "interaction.activation",
+      "payload": {
+        "actor": "user",
+        "activation_kind": "keyboard",
+        "role": "button"
+      }
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "component": {
+    "component": "browser_sdk",
+    "component_version": "0.1.0"
+  },
+  "generated_at": "2026-10-03T08:00:00Z",
+  "envelope": {
+    "supported_majors": [
+      {
+        "major": 1
+      }
+    ]
+  }
+}

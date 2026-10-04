@@ -1,0 +1,40 @@
+{
+  "name": "@utrace/browser-extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "uTrace Manifest V3 Chrome extension: the agent character, controls, cursor, and visual scenes inside the bound preview tab.",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "build": "node scripts/build.ts",
+    "build:e2e": "node scripts/build.ts --origins config/build-origins.e2e.json --out dist-e2e",
+    "build:e2e-browser": "node scripts/build.ts --origins config/build-origins.e2e-browser.json --out dist-e2e-browser",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint .",
+    "test": "npm run test:unit && npm run test:chrome",
+    "test:unit": "vitest run --project unit",
+    "test:chrome": "npm run build:e2e && vitest run --project chrome"
+  },
+  "dependencies": {
+    "@rive-app/canvas": "2.38.5",
+    "@utrace/agent-character": "file:../../packages/utrace-agent-character",
+    "lucide": "0.575.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/chrome": "0.3.0",
+    "@types/node": "24.13.6",
+    "@types/ws": "8.18.1",
+    "ajv": "8.20.0",
+    "eslint": "10.11.0",
+    "playwright-core": "1.63.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.70.0",
+    "vite": "7.3.6",
+    "vitest": "4.1.11",
+    "ws": "8.21.3"
+  }
+}

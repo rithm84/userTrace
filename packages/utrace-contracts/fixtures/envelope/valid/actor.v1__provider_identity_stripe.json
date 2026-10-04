@@ -1,0 +1,7 @@
+{
+  "kind": "provider_identity",
+  "provider": "stripe",
+  "external_id": "cus_QxR2t9LmNpZ",
+  "installation_ref": "acct_1PZq0mQ",
+  "resource_type": "customer"
+}

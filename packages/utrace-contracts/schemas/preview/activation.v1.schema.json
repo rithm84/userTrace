@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/preview/activation/v1",
+  "title": "Preview activation",
+  "description": "The control plane's answer to POST /v1/preview/activations, returned to the browser SDK bootstrap unchanged. It is the browser-observation activation response: browser-observation/activation-response/v1 owns the payload and the SDK verifies all three envelopes with a packaged public key. The door never mints, inspects, or caches them, and carries no envelope discriminator of its own because the document is the browser's.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "attestation",
+    "annotation_manifest",
+    "page_proof"
+  ],
+  "properties": {
+    "attestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Detached Ed25519 signature over a base64url JSON payload, relayed to the browser exactly as the control plane issued it. Owned by browser-observation/common/v1#/$defs/signed_envelope.",
+      "required": [
+        "algorithm",
+        "key_id",
+        "payload_b64url",
+        "signature_b64url"
+      ],
+      "properties": {
+        "algorithm": {
+          "type": "string",
+          "const": "ed25519"
+        },
+        "key_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.:-]{1,128}$"
+        },
+        "payload_b64url": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]+$"
+        },
+        "signature_b64url": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{86}$"
+        }
+      }
+    },
+    "annotation_manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Detached Ed25519 signature over a base64url JSON payload, relayed to the browser exactly as the control plane issued it. Owned by browser-observation/common/v1#/$defs/signed_envelope.",
+      "required": [
+        "algorithm",
+        "key_id",
+        "payload_b64url",
+        "signature_b64url"
+      ],
+      "properties": {
+        "algorithm": {
+          "type": "string",
+          "const": "ed25519"
+        },
+        "key_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.:-]{1,128}$"
+        },
+        "payload_b64url": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]+$"
+        },
+        "signature_b64url": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{86}$"
+        }
+      }
+    },
+    "page_proof": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Detached Ed25519 signature over a base64url JSON payload, relayed to the browser exactly as the control plane issued it. Owned by browser-observation/common/v1#/$defs/signed_envelope.",
+      "required": [
+        "algorithm",
+        "key_id",
+        "payload_b64url",
+        "signature_b64url"
+      ],
+      "properties": {
+        "algorithm": {
+          "type": "string",
+          "const": "ed25519"
+        },
+        "key_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.:-]{1,128}$"
+        },
+        "payload_b64url": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]+$"
+        },
+        "signature_b64url": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{86}$"
+        }
+      }
+    }
+  }
+}

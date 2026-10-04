@@ -1,0 +1,94 @@
+{
+  "$defs": {
+    "ImplementationAttemptState": {
+      "description": "Lifecycle and terminal outcomes of one Implementation Attempt.",
+      "enum": [
+        "authorized",
+        "queued",
+        "acquiring_environment",
+        "executing",
+        "checking",
+        "publishing_candidate",
+        "candidate_ready",
+        "scope_change_required",
+        "checks_failed",
+        "unsafe",
+        "infrastructure_blocked",
+        "paused",
+        "canceled",
+        "budget_exhausted"
+      ],
+      "title": "ImplementationAttemptState",
+      "type": "string"
+    }
+  },
+  "$id": "https://utrace.dev/schemas/domain/implementation-attempt-record/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The one authorized attempt a Product Signal may have.",
+  "properties": {
+    "base_revision": {
+      "title": "Base Revision",
+      "type": "string"
+    },
+    "client_id": {
+      "format": "uuid",
+      "title": "Client Id",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "gate_decision_id": {
+      "format": "uuid",
+      "title": "Gate Decision Id",
+      "type": "string"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "outcome_reason": {
+      "title": "Outcome Reason",
+      "type": "string"
+    },
+    "product_signal_id": {
+      "format": "uuid",
+      "title": "Product Signal Id",
+      "type": "string"
+    },
+    "repository_ref": {
+      "title": "Repository Ref",
+      "type": "string"
+    },
+    "revision": {
+      "title": "Revision",
+      "type": "integer"
+    },
+    "state": {
+      "$ref": "#/$defs/ImplementationAttemptState"
+    },
+    "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "client_id",
+    "product_signal_id",
+    "gate_decision_id",
+    "state",
+    "revision",
+    "repository_ref",
+    "base_revision",
+    "created_at",
+    "updated_at"
+  ],
+  "title": "ImplementationAttemptRecord",
+  "type": "object"
+}

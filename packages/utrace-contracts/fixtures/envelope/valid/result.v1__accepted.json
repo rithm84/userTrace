@@ -1,0 +1,36 @@
+{
+  "message_id": "01930a9c-1000-7000-8000-000000000005",
+  "envelope_version": 1,
+  "family": "result",
+  "payload_type": "implementation.dispatch_attempt",
+  "payload_version": 1,
+  "producer": {
+    "component": "control_plane_api",
+    "component_version": "0.1.0"
+  },
+  "client_scope": {
+    "scope": "client",
+    "client_id": "01930a9c-1000-7000-8000-000000000001"
+  },
+  "domain_ids": {
+    "product_signal_id": "01930a9c-1000-7000-8000-000000000002",
+    "command_id": "01930a9c-1000-7000-8000-000000000004",
+    "implementation_attempt_id": "01930a9c-1000-7000-8000-000000000007"
+  },
+  "occurred_at": "2026-10-03T09:15:00Z",
+  "stream": {
+    "stream_type": "command",
+    "stream_id": "01930a9c-1000-7000-8000-000000000004"
+  },
+  "payload": {
+    "status": "accepted"
+  },
+  "digest": {
+    "algorithm": "sha256",
+    "canonicalization": "jcs",
+    "value": "0ba7c0356149946bf0642fab4ef85b95e7090f6f785d0fb84323d0c442e5190a"
+  },
+  "causation": {
+    "caused_by_message_id": "01930a9c-1000-7000-8000-000000000004"
+  }
+}

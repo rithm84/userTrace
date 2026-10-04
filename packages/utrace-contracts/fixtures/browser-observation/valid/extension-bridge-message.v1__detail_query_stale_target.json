@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "kind": "detail_query",
+  "phase": "response",
+  "exchange_id": "0199a4c1-0016-7000-8000-000000000017",
+  "payload": {
+    "disposition": "failed",
+    "reason": "stale_target"
+  }
+}

@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/envelope/compatibility-manifest/v1",
+  "title": "Compatibility manifest",
+  "description": "What one component supports, advertised during authenticated readiness. Client-installed extension and SDK components publish their manifest; missing required compatibility fails readiness, and there is no lower-fidelity substitution. Additive optional fields may stay inside a major; removed, renamed, newly required, or semantically changed fields require a new one.",
+  "type": "object",
+  "properties": {
+    "component": {
+      "$ref": "https://utrace.dev/schemas/envelope/envelope/v1#/$defs/producer",
+      "description": "The component this manifest describes."
+    },
+    "generated_at": {
+      "$ref": "https://utrace.dev/schemas/envelope/envelope/v1#/$defs/timestamp"
+    },
+    "envelope": {
+      "$ref": "#/$defs/contract_support",
+      "description": "Envelope majors the component can produce and consume."
+    },
+    "payloads": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 512,
+      "items": {
+        "$ref": "#/$defs/payload_support"
+      },
+      "description": "Per payload type support. A payload type absent from this list is unsupported."
+    }
+  },
+  "required": [
+    "component",
+    "generated_at",
+    "envelope",
+    "payloads"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "contract_support": {
+      "type": "object",
+      "description": "The majors one contract supports, ordered most preferred first. Preference is the ordering rather than a separate field, so a component can never prefer a major it does not support.",
+      "properties": {
+        "supported_majors": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/major_support"
+          }
+        }
+      },
+      "required": [
+        "supported_majors"
+      ],
+      "additionalProperties": false
+    },
+    "major_support": {
+      "type": "object",
+      "description": "One supported major, carrying its deprecation window when one is announced.",
+      "properties": {
+        "major": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "deprecation": {
+          "$ref": "#/$defs/deprecation_window"
+        }
+      },
+      "required": [
+        "major"
+      ],
+      "additionalProperties": false
+    },
+    "payload_support": {
+      "type": "object",
+      "description": "Support for one area-namespaced payload type.",
+      "properties": {
+        "payload_type": {
+          "$ref": "https://utrace.dev/schemas/envelope/envelope/v1#/properties/payload_type"
+        },
+        "support": {
+          "$ref": "#/$defs/contract_support"
+        }
+      },
+      "required": [
+        "payload_type",
+        "support"
+      ],
+      "additionalProperties": false
+    },
+    "deprecation_window": {
+      "type": "object",
+      "description": "One announced window. The major stays accepted until sunset_at, after which peers using it fail readiness with the incompatible_version category.",
+      "properties": {
+        "deprecated_at": {
+          "$ref": "https://utrace.dev/schemas/envelope/envelope/v1#/$defs/timestamp"
+        },
+        "sunset_at": {
+          "$ref": "https://utrace.dev/schemas/envelope/envelope/v1#/$defs/timestamp"
+        },
+        "replacement_major": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "deprecated_at",
+        "sunset_at",
+        "replacement_major"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

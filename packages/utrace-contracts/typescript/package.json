@@ -1,0 +1,28 @@
+{
+  "name": "@utrace/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Versioned uTrace contracts: zod schemas and inferred types over the shared JSON Schemas.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint:schemas": "uv run --project ../python utrace-schema-lint"
+  },
+  "dependencies": {
+    "canonicalize": "^5.1.0",
+    "uuid": "^14.0.2",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "typescript": "^5.9.0",
+    "vitest": "^4.1.0"
+  }
+}

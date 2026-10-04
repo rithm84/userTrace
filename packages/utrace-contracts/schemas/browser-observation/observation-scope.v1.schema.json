@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/browser-observation/observation-scope/v1",
+  "title": "Browser observation scope",
+  "description": "Repeated envelope fields, encoded once in a transport batch header. There is no generic correlation_id.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "client_id",
+    "client_user_id",
+    "customer_account_id",
+    "session_id",
+    "preview_environment_id",
+    "preview_runtime_allocation_id",
+    "browser_stream_id",
+    "schema_version",
+    "policy_version",
+    "redaction_version"
+  ],
+  "properties": {
+    "client_id": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+    },
+    "client_user_id": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+    },
+    "customer_account_id": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+    },
+    "session_id": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+    },
+    "preview_environment_id": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+    },
+    "preview_runtime_allocation_id": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+    },
+    "preview_version_id": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+    },
+    "browser_stream_id": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+    },
+    "schema_version": {
+      "const": "1",
+      "$comment": "fixed-literal: the decimal contract major, not a vocabulary name."
+    },
+    "policy_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "redaction_version": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

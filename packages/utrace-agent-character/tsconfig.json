@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "jsx": "react-jsx",
+    "skipLibCheck": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    "types": [],
+    "typeRoots": ["../../apps/web/node_modules/@types"],
+    "baseUrl": ".",
+    "paths": {
+      "react": ["../../apps/web/node_modules/@types/react/index.d.ts"],
+      "react/jsx-runtime": ["../../apps/web/node_modules/@types/react/jsx-runtime.d.ts"],
+      "@rive-app/react-webgl2": ["../../apps/web/node_modules/@rive-app/react-webgl2/dist/types/index.d.ts"],
+      "@rive-app/webgl2": ["../../apps/web/node_modules/@rive-app/webgl2/rive.d.ts"],
+      "@testing-library/react": ["../../apps/web/node_modules/@testing-library/react"],
+      "vitest": ["../../apps/web/node_modules/vitest"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts", "tests/**/*.tsx"]
+}

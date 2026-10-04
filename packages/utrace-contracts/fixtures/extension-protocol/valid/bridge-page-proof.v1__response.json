@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "kind": "page_proof",
+  "phase": "response",
+  "exchange_id": "0199a0c0-0000-7aaa-8000-000000000201",
+  "payload": {
+    "page_proof": {
+      "algorithm": "ed25519",
+      "key_id": "utrace-browser-2026-09-01",
+      "payload_b64url": "eyJjbGllbnRfaWQiOiIwMTk5YTBjMC0wMDAwLTdhYWEtODAwMC0wMDAwMDAwMGMxMDEiLCJzZXNzaW9uX2lkIjoiMDE5OWEwYzAtMDAwMC03YWFhLTgwMDAtMDAwMDAwMDA1NWUxIiwicHJldmlld19lbnZpcm9ubWVudF9pZCI6IjAxOTlhMGMwLTAwMDAtN2FhYS04MDAwLTAwMDAwMDAwZTExMSIsInByZXZpZXdfcnVudGltZV9hbGxvY2F0aW9uX2lkIjoiMDE5OWEwYzAtMDAwMC03YWFhLTgwMDAtMDAwMDAwMDBhMTEwIiwib3JpZ2luIjoiaHR0cHM6Ly9xN3gyLnByZXZpZXcudXRyYWNlLmRldiIsImRvY3VtZW50X2F0dGFjaG1lbnRfaWQiOiIwMTk5YTBjMC0wMDAwLTdhYWEtODAwMC0wMDAwMDAwYTc3MDEiLCJkb2N1bWVudF9ub25jZSI6ImRvY181ZmE5MWMyYiIsInNka19wcm90b2NvbF92ZXJzaW9uIjoiMS4wIiwiaXNzdWVkX2F0IjoiMjAyNi0wOS0yMFQxNzowMzo0MFoiLCJleHBpcmVzX2F0IjoiMjAyNi0wOS0yMFQxNzowODo0MFoifQ",
+      "signature_b64url": "CxIZICcuNTxDSlFYX2ZtdHuCiZCXnqWss7rByM_W3eTr8vkABw4VHCMqMTg_Rk1UW2JpcHd-hYyTmqGor7a9xA"
+    },
+    "document_attachment_id": "0199a0c0-0000-7aaa-8000-0000000a7701",
+    "registry_revision": 18
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+  "title": "UUIDv7 identifier",
+  "description": "Every first-class uTrace entity has its own opaque UUIDv7, written in lowercase canonical form. Knowledge of an identifier grants no authority. Provider identifiers stay scoped strings inside provider references and never take this shape as product identity.",
+  "type": "string",
+  "format": "uuid",
+  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+}

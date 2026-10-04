@@ -1,0 +1,7 @@
+{
+  "category": "readiness_incomplete",
+  "code": "observation_path_incomplete",
+  "message": "Server span correlation is missing, so observation-dependent probing pauses.",
+  "retry": "after_condition_change",
+  "retry_condition": "observation_path_ready"
+}

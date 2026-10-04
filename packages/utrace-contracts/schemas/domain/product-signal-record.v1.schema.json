@@ -1,0 +1,127 @@
+{
+  "$defs": {
+    "FlowType": {
+      "description": "Which core flow a report belongs to. Only Feature Request Flow runs in the demo.",
+      "enum": [
+        "bugfix_flow",
+        "feature_request_flow"
+      ],
+      "title": "FlowType",
+      "type": "string"
+    },
+    "ProductSignalState": {
+      "description": "Product Signal lifecycle, including the three closed outcomes.",
+      "enum": [
+        "awaiting_interview",
+        "interviewing",
+        "gate_pending",
+        "implementing",
+        "awaiting_validation",
+        "validating",
+        "closed_validated",
+        "closed_no_implementation",
+        "closed_blocked",
+        "canceled"
+      ],
+      "title": "ProductSignalState",
+      "type": "string"
+    }
+  },
+  "$id": "https://utrace.dev/schemas/domain/product-signal-record/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One independently gateable and validatable product outcome.",
+  "properties": {
+    "acceptance_criteria_revision": {
+      "title": "Acceptance Criteria Revision",
+      "type": "integer"
+    },
+    "classification_revision": {
+      "title": "Classification Revision",
+      "type": "integer"
+    },
+    "client_id": {
+      "format": "uuid",
+      "title": "Client Id",
+      "type": "string"
+    },
+    "closure_reason": {
+      "title": "Closure Reason",
+      "type": "string"
+    },
+    "concern_revision": {
+      "title": "Concern Revision",
+      "type": "integer"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "established_flow_type": {
+      "$ref": "#/$defs/FlowType"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "initial_flow_type": {
+      "$ref": "#/$defs/FlowType"
+    },
+    "machine_version": {
+      "title": "Machine Version",
+      "type": "integer"
+    },
+    "originating_client_user_id": {
+      "format": "uuid",
+      "title": "Originating Client User Id",
+      "type": "string"
+    },
+    "originating_customer_account_id": {
+      "format": "uuid",
+      "title": "Originating Customer Account Id",
+      "type": "string"
+    },
+    "pinned_configuration_release_id": {
+      "format": "uuid",
+      "title": "Pinned Configuration Release Id",
+      "type": "string"
+    },
+    "return_deadline_at": {
+      "format": "date-time",
+      "title": "Return Deadline At",
+      "type": "string"
+    },
+    "revision": {
+      "title": "Revision",
+      "type": "integer"
+    },
+    "state": {
+      "$ref": "#/$defs/ProductSignalState"
+    },
+    "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "client_id",
+    "state",
+    "revision",
+    "machine_version",
+    "initial_flow_type",
+    "classification_revision",
+    "concern_revision",
+    "acceptance_criteria_revision",
+    "originating_client_user_id",
+    "originating_customer_account_id",
+    "pinned_configuration_release_id",
+    "created_at",
+    "updated_at"
+  ],
+  "title": "ProductSignalRecord",
+  "type": "object"
+}

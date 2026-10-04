@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/browser-observation/document-attestation/v1",
+  "title": "Signed document attestation claims",
+  "description": "The payload of the activation attestation. Verified with a packaged uTrace Ed25519 public key before any field is read, and immutable for one activation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "attestation_id",
+    "client_id",
+    "client_user_id",
+    "customer_account_id",
+    "session_id",
+    "preview_environment_id",
+    "preview_runtime_allocation_id",
+    "document_attachment_id",
+    "origin",
+    "document_nonce",
+    "sdk_installation_id",
+    "protocol_version",
+    "schema_version",
+    "annotation_manifest_version",
+    "annotation_manifest_digest",
+    "redaction_version",
+    "policy_version",
+    "issued_at",
+    "expires_at"
+  ],
+  "properties": {
+    "attestation_id": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+    },
+    "client_id": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+    },
+    "client_user_id": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+    },
+    "customer_account_id": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+    },
+    "session_id": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+    },
+    "preview_environment_id": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+    },
+    "preview_runtime_allocation_id": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+    },
+    "preview_version_id": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+    },
+    "document_attachment_id": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+    },
+    "origin": {
+      "type": "string",
+      "format": "uri"
+    },
+    "document_nonce": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{48}$"
+    },
+    "sdk_installation_id": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/opaque_id"
+    },
+    "protocol_version": {
+      "const": "1",
+      "$comment": "fixed-literal: the decimal contract major, not a vocabulary name."
+    },
+    "schema_version": {
+      "const": "1",
+      "$comment": "fixed-literal: the decimal contract major, not a vocabulary name."
+    },
+    "annotation_manifest_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "annotation_manifest_digest": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/sha256_digest"
+    },
+    "redaction_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "policy_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "issued_at": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/rfc3339"
+    },
+    "expires_at": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/rfc3339"
+    }
+  }
+}

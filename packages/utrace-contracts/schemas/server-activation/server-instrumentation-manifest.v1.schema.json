@@ -1,0 +1,510 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/server-activation/server-instrumentation-manifest/v1",
+  "title": "Server instrumentation manifest",
+  "description": "Signed per-release declaration of required services and adapters, service identities, registered routes and operations, domain annotation definitions, permitted propagation targets, redaction rules, and policy and schema versions. Application code cannot broaden it at runtime.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "manifest_id",
+    "client_id",
+    "client_release_id",
+    "manifest_version",
+    "policy_version",
+    "utrace_schema_version",
+    "semantic_convention_version",
+    "server_sdk_contract_major",
+    "services",
+    "propagation_targets",
+    "redaction_rules",
+    "annotation_definitions"
+  ],
+  "properties": {
+    "manifest_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "client_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "client_release_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "manifest_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "policy_version": {
+      "$ref": "#/$defs/version_triple"
+    },
+    "utrace_schema_version": {
+      "$ref": "#/$defs/version_triple"
+    },
+    "semantic_convention_version": {
+      "$ref": "#/$defs/version_triple"
+    },
+    "server_sdk_contract_major": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "services": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": {
+        "$ref": "#/$defs/service"
+      }
+    },
+    "propagation_targets": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "$ref": "#/$defs/network_target"
+      }
+    },
+    "redaction_rules": {
+      "$ref": "#/$defs/redaction_rules"
+    },
+    "annotation_definitions": {
+      "type": "array",
+      "maxItems": 512,
+      "items": {
+        "$ref": "#/$defs/annotation_definition"
+      }
+    }
+  },
+  "$defs": {
+    "version_triple": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+      "maxLength": 120
+    },
+    "http_method": {
+      "$comment": "fixed-literal: HTTP method tokens are uppercase and case-sensitive in RFC 9110.",
+      "type": "string",
+      "enum": [
+        "GET",
+        "HEAD",
+        "POST",
+        "PUT",
+        "PATCH",
+        "DELETE",
+        "OPTIONS",
+        "TRACE",
+        "CONNECT"
+      ]
+    },
+    "adapter": {
+      "type": "string",
+      "description": "Instrumentation adapters the SDK may install. Exactly these are supported by the initial Node.js distribution.",
+      "enum": [
+        "node_http",
+        "undici",
+        "pg",
+        "express",
+        "fastify",
+        "next_server"
+      ]
+    },
+    "network_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scheme",
+        "host",
+        "port"
+      ],
+      "properties": {
+        "scheme": {
+          "type": "string",
+          "enum": [
+            "http",
+            "https"
+          ]
+        },
+        "host": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 253
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        }
+      }
+    },
+    "registered_route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "route_template",
+        "methods",
+        "operation_name",
+        "required"
+      ],
+      "properties": {
+        "route_template": {
+          "type": "string",
+          "description": "Low-cardinality template. Literal segments, ':name' parameters, and a single trailing '*'.",
+          "pattern": "^/([A-Za-z0-9._~-]+|:[a-z][a-z0-9_]*|\\*)?(/([A-Za-z0-9._~-]+|:[a-z][a-z0-9_]*|\\*))*$",
+          "maxLength": 200
+        },
+        "methods": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 9,
+          "items": {
+            "$ref": "#/$defs/http_method"
+          }
+        },
+        "operation_name": {
+          "$ref": "#/$defs/identifier"
+        },
+        "required": {
+          "type": "boolean",
+          "description": "True when the route is on a required product path. A required route can never be excluded as operational noise."
+        }
+      }
+    },
+    "operational_noise": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path_pattern",
+        "methods"
+      ],
+      "properties": {
+        "path_pattern": {
+          "type": "string",
+          "description": "Registered operational noise. Same template grammar as a route; a trailing '*' matches the remaining path.",
+          "pattern": "^/([A-Za-z0-9._~-]+|:[a-z][a-z0-9_]*|\\*)?(/([A-Za-z0-9._~-]+|:[a-z][a-z0-9_]*|\\*))*$",
+          "maxLength": 200
+        },
+        "methods": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 9,
+          "items": {
+            "$ref": "#/$defs/http_method"
+          }
+        }
+      }
+    },
+    "service": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "service_key",
+        "service_name",
+        "service_namespace",
+        "service_version",
+        "required",
+        "required_adapters",
+        "registered_routes",
+        "registered_operations",
+        "operational_noise"
+      ],
+      "properties": {
+        "service_key": {
+          "$ref": "#/$defs/identifier"
+        },
+        "service_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "service_namespace": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "service_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "required": {
+          "type": "boolean",
+          "description": "True when combined server readiness requires this service's stream."
+        },
+        "required_adapters": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 6,
+          "items": {
+            "$ref": "#/$defs/adapter"
+          }
+        },
+        "registered_routes": {
+          "type": "array",
+          "maxItems": 512,
+          "items": {
+            "$ref": "#/$defs/registered_route"
+          }
+        },
+        "registered_operations": {
+          "type": "array",
+          "maxItems": 512,
+          "description": "Names of registered product operations and background roots this service may emit. Every name resolves to an annotation definition of kind product_operation or background_root.",
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "operational_noise": {
+          "type": "array",
+          "maxItems": 128,
+          "items": {
+            "$ref": "#/$defs/operational_noise"
+          }
+        }
+      }
+    },
+    "redaction_rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allowed_http_destinations",
+        "allowed_database_classes",
+        "allowed_cache_classes",
+        "allowed_queue_destinations",
+        "allowed_error_types",
+        "sanitized_error_messages",
+        "repository_root",
+        "max_stack_frames",
+        "max_attribute_value_length",
+        "max_span_attribute_count"
+      ],
+      "properties": {
+        "allowed_http_destinations": {
+          "type": "array",
+          "maxItems": 128,
+          "items": {
+            "$ref": "#/$defs/network_target"
+          }
+        },
+        "allowed_database_classes": {
+          "type": "array",
+          "maxItems": 512,
+          "description": "Approved database or collection classes, for example 'public.saved_views'.",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "allowed_cache_classes": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "allowed_queue_destinations": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "allowed_error_types": {
+          "type": "array",
+          "maxItems": 512,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "sanitized_error_messages": {
+          "type": "array",
+          "maxItems": 512,
+          "description": "Exact signed rules approving one stable sanitized message form per error type. No other exception message is ever exported.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "error_type",
+              "sanitized_message"
+            ],
+            "properties": {
+              "error_type": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "sanitized_message": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              }
+            }
+          }
+        },
+        "repository_root": {
+          "type": "string",
+          "description": "Absolute path of the release checkout. Stack frames are emitted relative to it; frames outside it are dropped.",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "max_stack_frames": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 32
+        },
+        "max_attribute_value_length": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2048
+        },
+        "max_span_attribute_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 128
+        }
+      }
+    },
+    "annotation_definition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "definition_id",
+        "definition_ref",
+        "kind",
+        "name",
+        "output_class"
+      ],
+      "properties": {
+        "definition_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "definition_ref": {
+          "type": "string",
+          "description": "Stable manifest reference exported as the utrace.*.definition_ref attribute.",
+          "pattern": "^[a-z][a-z0-9_]*\\.v[1-9][0-9]*$",
+          "maxLength": 120
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "product_operation",
+            "workflow_milestone",
+            "entity_class",
+            "safe_value",
+            "expected_outcome",
+            "background_root"
+          ]
+        },
+        "name": {
+          "$ref": "#/$defs/identifier"
+        },
+        "output_class": {
+          "type": "string",
+          "description": "The permitted output class of the instantiated value. metadata_only records presence without a value.",
+          "enum": [
+            "registered_reference",
+            "bounded_enum",
+            "bounded_integer",
+            "metadata_only"
+          ]
+        },
+        "permitted_values": {
+          "type": "array",
+          "description": "Required when output_class is bounded_enum; forbidden otherwise.",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          }
+        },
+        "value_bounds": {
+          "type": "object",
+          "description": "Required when output_class is bounded_integer; forbidden otherwise.",
+          "additionalProperties": false,
+          "required": [
+            "minimum",
+            "maximum"
+          ],
+          "properties": {
+            "minimum": {
+              "type": "integer"
+            },
+            "maximum": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "output_class": {
+                "const": "bounded_enum"
+              }
+            },
+            "required": [
+              "output_class"
+            ]
+          },
+          "then": {
+            "required": [
+              "permitted_values"
+            ],
+            "properties": {
+              "permitted_values": true
+            }
+          },
+          "else": {
+            "not": {
+              "required": [
+                "permitted_values"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "output_class": {
+                "const": "bounded_integer"
+              }
+            },
+            "required": [
+              "output_class"
+            ]
+          },
+          "then": {
+            "required": [
+              "value_bounds"
+            ],
+            "properties": {
+              "value_bounds": true
+            }
+          },
+          "else": {
+            "not": {
+              "required": [
+                "value_bounds"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

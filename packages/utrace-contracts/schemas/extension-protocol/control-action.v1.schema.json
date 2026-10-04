@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/extension-protocol/control-action/v1",
+  "title": "control_action",
+  "description": "Extension to control plane. Mute, Unmute, Pause, Resume, and End requests from the orb's control pills. Return to session is browser-local and never appears here.",
+  "type": "object",
+  "properties": {
+    "schema_version": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/schema_version" },
+    "kind": { "type": "string", "const": "control_action" },
+    "message_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid" },
+    "sent_at": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/timestamp" },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "action_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid" },
+        "session_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid" },
+        "action": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/control_action" },
+        "expected_session_control_revision": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/revision" },
+        "requested_at": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/timestamp" },
+        "locally_confirmed": {
+          "type": "boolean",
+          "description": "True only for End, which shows a local confirmation before requesting control-plane closure."
+        }
+      },
+      "required": [
+        "action_id",
+        "session_id",
+        "action",
+        "expected_session_control_revision",
+        "requested_at",
+        "locally_confirmed"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": { "action": { "const": "end" } },
+            "required": ["action"]
+          },
+          "then": { "properties": { "locally_confirmed": { "const": true } } }
+        }
+      ]
+    }
+  },
+  "required": ["schema_version", "kind", "message_id", "sent_at", "payload"],
+  "additionalProperties": false
+}

@@ -1,0 +1,6 @@
+{
+  "category": "transient",
+  "code": "something",
+  "message": "transient is not one of the closed technical categories.",
+  "retry": "never"
+}

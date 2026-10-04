@@ -1,0 +1,8 @@
+{
+  "status": "progress",
+  "stage": "checks_running",
+  "detail": {
+    "checks_total": 4,
+    "checks_complete": 1
+  }
+}

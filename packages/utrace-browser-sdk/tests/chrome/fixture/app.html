@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Shopalytics conversion dashboard</title>
+  </head>
+  <body>
+    <header data-utrace-surface="conversion_dashboard">
+      <h1>Conversions</h1>
+    </header>
+    <main data-utrace-surface="conversion_dashboard">
+      <section aria-label="Saved views" data-utrace-visual-target="saved_view_list" id="saved-views">
+        <ul id="saved-view-list"></ul>
+      </section>
+      <form id="save-form">
+        <label for="view-name">View name</label>
+        <input
+          id="view-name"
+          name="view_name"
+          type="text"
+          data-utrace-target="saved_view_name_field"
+          data-utrace-safe-value="safe.view_name"
+        />
+        <button
+          id="save-view"
+          type="button"
+          data-utrace-target="saved_view_save_button"
+          data-utrace-entity="conversion_view:dudulemon-tiktok"
+          data-utrace-safe-value="safe.button_label"
+        >
+          Save view
+        </button>
+      </form>
+      <button id="mutate">Add a row</button>
+      <button id="same-origin-request">Same-origin request</button>
+      <button id="third-party-request">Third-party request</button>
+      <button id="xhr-request">XHR request</button>
+    </main>
+    <section data-utrace-surface="billing_settings" id="billing">
+      <label for="billing-card">Card number</label>
+      <input id="billing-card" name="billing_card" type="text" autocomplete="cc-number" />
+      <p id="billing-note">Dudulemon billing contact: maya@dudulemon.example</p>
+    </section>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/implementation-progress/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "User-facing implementation progress projection.",
+  "enum": [
+    "not_started",
+    "reproduction_captured",
+    "making_changes",
+    "preparing_preview",
+    "ready_for_validation"
+  ],
+  "title": "ImplementationProgress",
+  "type": "string"
+}

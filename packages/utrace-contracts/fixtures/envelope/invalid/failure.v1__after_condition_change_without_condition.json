@@ -1,0 +1,6 @@
+{
+  "category": "readiness_incomplete",
+  "code": "observation_path_incomplete",
+  "message": "after_condition_change advice has to name the condition.",
+  "retry": "after_condition_change"
+}

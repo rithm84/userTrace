@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "kind": "run_script",
+  "message_id": "0199a0c0-0000-7aaa-8000-000000000309",
+  "sent_at": "2026-10-03T17:04:10Z",
+  "sequence": 22,
+  "payload": {
+    "source": "alert(1)"
+  }
+}

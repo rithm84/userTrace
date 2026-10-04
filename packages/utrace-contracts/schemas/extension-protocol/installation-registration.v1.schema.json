@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/extension-protocol/installation-registration/v1",
+  "title": "Installation registration",
+  "description": "POST /v1/extension/installations. Links one installation to the authenticated uTrace User and registers the device public key. The extension keeps the non-exportable private key and proves possession; it never holds a reusable bearer credential.",
+  "oneOf": [{ "$ref": "#/$defs/request" }, { "$ref": "#/$defs/response" }],
+  "$defs": {
+    "proof_of_possession": {
+      "type": "object",
+      "description": "Detached signature over the canonical challenge, in the style of a DPoP proof: the extension mints the challenge, the control plane enforces freshness and single use.",
+      "properties": {
+        "algorithm": {
+          "$comment": "fixed-literal: a JOSE algorithm identifier from the IANA registry in RFC 7518.",
+          "type": "string",
+          "const": "ES256"
+        },
+        "challenge_b64u": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/base64url" },
+        "signature_b64u": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/base64url" }
+      },
+      "required": ["algorithm", "challenge_b64u", "signature_b64u"],
+      "additionalProperties": false
+    },
+    "request": {
+      "type": "object",
+      "properties": {
+        "schema_version": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/schema_version" },
+        "kind": { "type": "string", "const": "installation_registration_request" },
+        "link_code": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/base64url" },
+        "device_public_key_spki_b64u": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/base64url" },
+        "extension_version": { "type": "string", "pattern": "^[0-9]+(\\.[0-9]+){0,3}$" },
+        "supported_protocol_versions": {
+          "type": "array",
+          "items": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/protocol_version" },
+          "minItems": 1,
+          "maxItems": 4,
+          "uniqueItems": true
+        },
+        "proof_of_possession": { "$ref": "#/$defs/proof_of_possession" }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "link_code",
+        "device_public_key_spki_b64u",
+        "extension_version",
+        "supported_protocol_versions",
+        "proof_of_possession"
+      ],
+      "additionalProperties": false
+    },
+    "response": {
+      "type": "object",
+      "properties": {
+        "schema_version": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/schema_version" },
+        "kind": { "type": "string", "const": "installation_registration_response" },
+        "installation_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid" },
+        "account_link_state": { "type": "string", "enum": ["linked", "revoked"] },
+        "negotiated_protocol_version": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/protocol_version" },
+        "control_socket_path": { "type": "string", "pattern": "^/v1/extension/control$" },
+        "registered_at": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/timestamp" }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "installation_id",
+        "account_link_state",
+        "negotiated_protocol_version",
+        "control_socket_path",
+        "registered_at"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

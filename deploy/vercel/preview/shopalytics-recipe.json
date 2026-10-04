@@ -1,0 +1,43 @@
+{
+  "schema_version": "utrace-preview-template-recipe-v1",
+  "template_id": "shopalytics-dudulemon-preview",
+  "template_revision": 8,
+  "image_repository": "shopalytics-preview",
+  "fixture_revision": "9d43d4e80f09326b72655975f81a4037c7cfd4c2",
+  "dockerfile_path": "deploy/vercel/Dockerfile",
+  "supervisor_path": "deploy/vercel/supervisor.sh",
+  "supervisor_command": "/usr/local/bin/shopalytics-supervisor",
+  "seed_manifest_path": "fixtures/dudulemon/manifest.json",
+  "application_port": 3300,
+  "health_path": "/api/health",
+  "handoff_path": "/api/utrace/preview-handoff",
+  "data_api_probe_body": {
+    "action": "dashboardContext"
+  },
+  "data_api_path": "/api/shopalytics",
+  "application_directory": "/srv/shopalytics",
+  "dockerfile_build_args": {
+    "UTRACE_PROFILE": "preview",
+    "UTRACE_SDK_INSTALLATION_ID": "shopalytics-browser-sdk",
+    "UTRACE_CLIENT_RELEASE_ID": "shopalytics-utrace-sdk-integration"
+  },
+  "vcpus": 2,
+  "gating_probes": [
+    "service_health",
+    "data_identity",
+    "authenticated_handoff",
+    "route_resolution",
+    "stale_route_rejection",
+    "server_sdk_activation",
+    "redaction",
+    "side_effect_neutering"
+  ],
+  "advisory_probes": [
+    "browser_observation",
+    "trace_correlation"
+  ],
+  "not_applicable_probes": {
+    "redaction": "The Shopalytics fixture declares no redaction surface: every reviewer name, email and location in fixtures/dudulemon/manifest.json is already a shape-preserving synthetic value on example.com, so there is no client redaction policy for a probe to exercise.",
+    "side_effect_neutering": "The Shopalytics fixture ships no email, payment, webhook, queue or downstream-service adapter, so there is no outbound side effect for a preview sink to replace. The sandbox network policy recorded on the allocation is the only outbound control, and it is asserted separately."
+  }
+}

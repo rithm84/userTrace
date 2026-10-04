@@ -1,0 +1,11 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/outreach-purpose/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Why a private Discord contact is being made.",
+  "enum": [
+    "initial_invitation",
+    "return_reminder"
+  ],
+  "title": "OutreachPurpose",
+  "type": "string"
+}

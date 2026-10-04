@@ -1,0 +1,6 @@
+{
+  "category": "rate_limited",
+  "code": "ingress_byte_rate_exceeded",
+  "message": "after_delay advice has to say how long to wait.",
+  "retry": "after_delay"
+}

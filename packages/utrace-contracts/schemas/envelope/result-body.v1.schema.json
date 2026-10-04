@@ -1,0 +1,185 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/envelope/result-body/v1",
+  "title": "Result body",
+  "description": "A Result is accepted, progress, or exactly one terminal outcome for its Command. A target replays the canonical terminal Result for a repeated Command; a provider acknowledgement or model claim is never a Result.",
+  "oneOf": [
+    {
+      "type": "object",
+      "title": "Accepted",
+      "description": "The target admitted the Command. Acceptance is not proof of any external effect.",
+      "properties": {
+        "status": {
+          "const": "accepted"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "title": "Progress",
+      "description": "A non-terminal observation about an in-flight Command. Any number may be emitted; none of them settles the Command.",
+      "properties": {
+        "status": {
+          "const": "progress"
+        },
+        "stage": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "maxLength": 64,
+          "description": "The stage reached, for example environment_acquired or checks_running."
+        },
+        "detail": {
+          "type": "object",
+          "description": "Structured, redacted progress fields. Never user-facing narration.",
+          "$comment": "extension-point: the owning Command's area defines its progress detail fields."
+        }
+      },
+      "required": [
+        "status",
+        "stage"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "title": "Terminal",
+      "description": "The single canonical terminal outcome. Disposition, side-effect certainty, and any typed failure stay separate fields.",
+      "properties": {
+        "status": {
+          "const": "terminal"
+        },
+        "disposition": {
+          "$ref": "#/$defs/command_disposition"
+        },
+        "effect_state": {
+          "$ref": "#/$defs/effect_state"
+        },
+        "failure": {
+          "$ref": "https://utrace.dev/schemas/envelope/failure/v1",
+          "description": "Required for every disposition except succeeded, and forbidden for succeeded."
+        },
+        "output": {
+          "type": "object",
+          "description": "Typed output of the Command. Area schemas constrain it by payload_type.",
+          "$comment": "extension-point: the owning Command's area defines its typed output fields."
+        }
+      },
+      "required": [
+        "status",
+        "disposition",
+        "effect_state"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "disposition": {
+                "const": "succeeded"
+              }
+            },
+            "required": [
+              "disposition"
+            ]
+          },
+          "then": {
+            "properties": {
+              "effect_state": {
+                "const": "completed"
+              },
+              "failure": false
+            }
+          },
+          "else": {
+            "properties": {
+              "failure": true
+            },
+            "required": [
+              "failure"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "disposition": {
+                "const": "rejected"
+              }
+            },
+            "required": [
+              "disposition"
+            ]
+          },
+          "then": {
+            "properties": {
+              "effect_state": {
+                "const": "absent"
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "$defs": {
+    "command_disposition": {
+      "description": "The five canonical terminal dispositions for a Command.",
+      "oneOf": [
+        {
+          "const": "succeeded",
+          "title": "Succeeded",
+          "description": "The Command completed its intended effect."
+        },
+        {
+          "const": "rejected",
+          "title": "Rejected",
+          "description": "The target refused before any side effect, for example on a revision, policy, permission, or validation check."
+        },
+        {
+          "const": "failed",
+          "title": "Failed",
+          "description": "Execution began or was attempted and did not complete successfully."
+        },
+        {
+          "const": "canceled",
+          "title": "Canceled",
+          "description": "Authority was withdrawn. Cancellation cannot pretend to reverse a completed external effect."
+        },
+        {
+          "const": "expired",
+          "title": "Expired",
+          "description": "A deadline, lease, response window, or contact budget elapsed first. Expiry is terminal."
+        }
+      ]
+    },
+    "effect_state": {
+      "description": "Side-effect certainty, reported independently of the disposition.",
+      "oneOf": [
+        {
+          "const": "absent",
+          "title": "Absent",
+          "description": "No side effect occurred, proven rather than assumed."
+        },
+        {
+          "const": "partial",
+          "title": "Partial",
+          "description": "Some of the intended effect was applied. Reconciliation resolves the remainder."
+        },
+        {
+          "const": "completed",
+          "title": "Completed",
+          "description": "The full intended effect was applied."
+        },
+        {
+          "const": "indeterminate",
+          "title": "Indeterminate",
+          "description": "The effect cannot be proven either way. It enters reconciliation by stable provider identity and is never blindly repeated."
+        }
+      ]
+    }
+  }
+}

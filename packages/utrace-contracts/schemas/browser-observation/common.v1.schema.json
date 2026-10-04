@@ -1,0 +1,330 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/browser-observation/common/v1",
+  "title": "Shared browser observation definitions",
+  "description": "Value objects every browser-observation document composes. Owned by the browser SDK workstream; browser telemetry is not a domain message, so it does not compose the contracts envelope area.",
+  "$defs": {
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "uuid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "rfc3339": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "hex_trace_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{32}$"
+    },
+    "hex_span_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{16}$"
+    },
+    "sha256_digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "output_class": {
+      "enum": [
+        "never_collect",
+        "metadata_only",
+        "pseudonymized",
+        "bounded_safe_value",
+        "structural_operational_safe"
+      ]
+    },
+    "length_bucket": {
+      "enum": [
+        "empty",
+        "len_1_3",
+        "len_4_10",
+        "len_11_30",
+        "len_31_100",
+        "len_101_500",
+        "len_over_500"
+      ]
+    },
+    "actor": {
+      "enum": [
+        "user",
+        "agent"
+      ]
+    },
+    "visibility_state": {
+      "enum": [
+        "visible",
+        "hidden"
+      ]
+    },
+    "observation_priority": {
+      "enum": [
+        "critical",
+        "normal",
+        "low"
+      ]
+    },
+    "safe_value": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "output_class",
+        "length_bucket",
+        "rule_id"
+      ],
+      "properties": {
+        "output_class": {
+          "$ref": "#/$defs/output_class"
+        },
+        "value": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "length_bucket": {
+          "$ref": "#/$defs/length_bucket"
+        },
+        "rule_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "entity_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entity_definition_id",
+        "instance_ref"
+      ],
+      "properties": {
+        "entity_definition_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "instance_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        }
+      }
+    },
+    "target_semantic_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "disabled",
+        "busy",
+        "invalid"
+      ],
+      "properties": {
+        "disabled": {
+          "type": "boolean"
+        },
+        "checked": {
+          "type": "boolean"
+        },
+        "expanded": {
+          "type": "boolean"
+        },
+        "selected": {
+          "type": "boolean"
+        },
+        "busy": {
+          "type": "boolean"
+        },
+        "invalid": {
+          "type": "boolean"
+        }
+      }
+    },
+    "target_geometry": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Clipped top-level viewport geometry with visibility and occlusion state.",
+      "required": [
+        "x",
+        "y",
+        "width",
+        "height",
+        "clipped",
+        "visibility",
+        "occluded",
+        "visible_fraction",
+        "viewport_width",
+        "viewport_height"
+      ],
+      "properties": {
+        "x": {
+          "type": "integer"
+        },
+        "y": {
+          "type": "integer"
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "clipped": {
+          "type": "boolean"
+        },
+        "visibility": {
+          "enum": [
+            "visible",
+            "offscreen",
+            "hidden"
+          ]
+        },
+        "occluded": {
+          "type": "boolean"
+        },
+        "visible_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Fraction of the element's own box inside the viewport."
+        },
+        "viewport_width": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "viewport_height": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "target_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_id",
+        "target_revision",
+        "layout_revision",
+        "visual_only",
+        "role",
+        "semantic_state",
+        "geometry"
+      ],
+      "properties": {
+        "target_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "target_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "layout_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "definition_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "visual_only": {
+          "type": "boolean"
+        },
+        "role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "$ref": "#/$defs/safe_value"
+        },
+        "entity_ref": {
+          "$ref": "#/$defs/entity_ref"
+        },
+        "semantic_state": {
+          "$ref": "#/$defs/target_semantic_state"
+        },
+        "geometry": {
+          "$ref": "#/$defs/target_geometry"
+        }
+      }
+    },
+    "route_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Normalized route. A raw path, query string, or fragment is never exported.",
+      "required": [
+        "unknown_route",
+        "segment_count",
+        "has_query",
+        "has_fragment",
+        "params"
+      ],
+      "properties": {
+        "route_template": {
+          "type": "string",
+          "minLength": 1
+        },
+        "unknown_route": {
+          "type": "boolean"
+        },
+        "segment_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "has_query": {
+          "type": "boolean"
+        },
+        "has_fragment": {
+          "type": "boolean"
+        },
+        "params": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "value"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "value": {
+                "$ref": "#/$defs/safe_value"
+              }
+            }
+          }
+        }
+      }
+    },
+    "signed_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Detached Ed25519 signature over a base64url JSON payload.",
+      "required": [
+        "algorithm",
+        "key_id",
+        "payload_b64url",
+        "signature_b64url"
+      ],
+      "properties": {
+        "algorithm": {
+          "const": "ed25519"
+        },
+        "key_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "payload_b64url": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]+$"
+        },
+        "signature_b64url": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{86}$"
+        }
+      }
+    }
+  }
+}

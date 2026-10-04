@@ -1,0 +1,324 @@
+/* Landing-scoped design tokens and shared comic primitives. Everything on the
+   marketing page hangs off [data-landing]; the app palette in globals.css is
+   untouched. Ground is white, ink is black, coral is the only accent and is
+   always a fill or a stroke with ink text on it. */
+
+[data-landing] {
+  --ink: #000000;
+  --ink-2: #3d3d3d;
+  --ink-3: #7a7a7a;
+  --paper: #ffffff;
+  --paper-2: #f6f6f6;
+  --rule: #e6e6e6;
+  --rule-2: #d4d4d4;
+  --coral: #fcada3;
+  --coral-strong: #fa8d82;
+  --coral-ink: #a63a2e;
+  --coral-tint: #ffd3cc;
+  --peach: #f5b488;
+  --mint: #97d6a4;
+  --aqua: #72d8d7;
+  --sky: #85cef9;
+  --lilac: #cdb6f9;
+  --char-black: #111111;
+  --display: "Bricolage Grotesque Variable", "Bricolage Grotesque", system-ui, sans-serif;
+  --body: "Satoshi", "Helvetica Neue", Arial, sans-serif;
+  /* comic lettering: the hero's rotating word only */
+  --sfx: "Bangers", Impact, sans-serif;
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-quint: cubic-bezier(0.86, 0, 0.07, 1);
+  --nav-h: 72px;
+  --content: 1180px;
+  --gutter: 48px;
+
+  color-scheme: light;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* every <i> on the page is a mark or a dot, never emphasis: set upright, it asks for no italic face (browsers download a face an inline box measures even with no text in it) */
+[data-landing] i { font-style: normal; }
+
+/* anchored sections land just under the sticky bar */
+[data-landing] section[id] { scroll-margin-top: var(--nav-h); }
+
+[data-landing] a {
+  color: inherit;
+}
+
+[data-landing] a.lp-btn { color:var(--ink); }
+[data-landing] a.lp-btn--onblack { color:var(--paper); }
+
+[data-landing] ::selection {
+  background: var(--coral);
+  color: var(--ink);
+}
+
+/* ---------------------------------------------------------------- type */
+
+.lp-display {
+  font-family: var(--display);
+  font-weight: 800;
+  font-stretch: 90%;
+  letter-spacing: -0.035em;
+  line-height: 1.02;
+}
+
+.lp-h2 {
+  font-family: var(--display);
+  font-weight: 800;
+  font-stretch: 92%;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  font-size: 56px;
+  margin: 0;
+}
+
+.lp-h3 {
+  font-family: var(--display);
+  font-weight: 800;
+  font-stretch: 94%;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+  font-size: 26px;
+  margin: 0;
+}
+
+.lp-kicker {
+  font: 500 16px/1.3 var(--body);
+  color: var(--ink-2);
+}
+
+.lp-lede {
+  font: 400 19px/1.5 var(--body);
+  color: var(--ink-2);
+}
+
+/* ---------------------------------------------------------------- layout */
+
+.lp-wrap {
+  width: min(var(--content), calc(100% - 2 * var(--gutter)));
+  margin: 0 auto;
+}
+
+/* ---------------------------------------------------------------- button
+   Hard-shadow press: the face is pre-lifted 1px over a solid 2px ink
+   shadow; hover collapses both so the face drops onto its shadow; active
+   scales from the bottom. The ::before keeps the pointer inside the hit area
+   while the face moves. Coral face always carries ink text. */
+
+.lp-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 20px 1px;
+  font: 700 16px/1 var(--body);
+  color: var(--ink);
+  background: var(--coral);
+  border: 1px solid var(--ink);
+  border-radius: 9px;
+  box-shadow: -2px 2px 0 0 var(--ink);
+  translate: 1px -1px;
+  transform-origin: bottom;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    scale 0.15s var(--ease-out),
+    box-shadow 0.15s var(--ease-out),
+    translate 0.15s var(--ease-out),
+    background-color 0.15s var(--ease-out);
+}
+
+.lp-btn::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  translate: -1px 1px;
+  transition: translate 0.15s var(--ease-out);
+}
+
+.lp-btn:hover {
+  box-shadow: 0 0 0 0 var(--ink);
+  translate: 0 0;
+}
+
+.lp-btn:hover::before {
+  translate: 0 0;
+}
+
+.lp-btn:active:not(:disabled) {
+  scale: 0.98;
+}
+
+.lp-btn:focus-visible {
+  outline: 3px solid var(--coral-ink);
+  outline-offset: 3px;
+}
+
+.lp-btn--lg {
+  height: 52px;
+  padding: 0 26px 1px;
+  font-size: 17px;
+  border-radius: 11px;
+}
+
+.lp-btn--secondary {
+  background: var(--paper);
+}
+
+.lp-btn--onblack {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--paper);
+  box-shadow: -2px 2px 0 0 var(--paper);
+}
+
+.lp-btn--onblack:hover {
+  box-shadow: 0 0 0 0 var(--paper);
+}
+
+.lp-btn--sm {
+  height: 38px;
+  padding: 0 14px 1px;
+  font-size: 14px;
+  border-radius: 8px;
+}
+
+/* ---------------------------------------------------------------- nav links (on black) */
+/* native buttons share the link and button styles */
+button.lp-btn, button.lp-nav-link { appearance: none; margin: 0; font-family: var(--body); }
+button.lp-nav-link { padding: 6px 0; border: 0; background: none; color: rgba(255, 255, 255, 0.92); cursor: pointer; }
+
+.lp-nav-link {
+  position: relative;
+  color: rgba(255, 255, 255, 0.92);
+  text-decoration: none;
+  padding: 6px 0;
+}
+
+.lp-nav-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--coral);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.22s var(--ease-smooth);
+}
+
+.lp-nav-link:hover {
+  color: #fff;
+}
+
+.lp-nav-link:hover::after {
+  transform: scaleX(1);
+}
+
+/* ---------------------------------------------------------------- panels */
+
+.lp-panel {
+  border: 2px solid var(--ink);
+  background: var(--paper);
+}
+
+.lp-panel--float {
+  box-shadow: 8px 8px 0 0 var(--ink);
+}
+
+/* ink-weight border: 1px top/right, 3px bottom/left reads as a cast shadow and
+   survives clip-path and dark grounds */
+.lp-inkw {
+  border: 1px solid var(--ink);
+  border-bottom-width: 3px;
+  border-left-width: 3px;
+  background: var(--paper);
+}
+
+.lp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  font: 600 13px/1 var(--body);
+  color: var(--ink);
+  background: var(--coral-tint);
+  border: 1px solid var(--ink);
+  border-bottom-width: 2px;
+  border-left-width: 2px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.lp-chip--plain {
+  background: var(--paper);
+}
+
+.lp-chip--coral {
+  background: var(--coral);
+}
+
+/* ---------------------------------------------------------------- screentone
+   A 45-degree dot lattice as two offset radial gradients (7px pitch, resolves
+   as dots on 2x and grey on 1x). Clip it with a
+   clip-path where a plate should be a wedge. */
+.lp-tone {
+  background-image:
+    radial-gradient(var(--rule-2) 1.15px, transparent 1.35px),
+    radial-gradient(var(--rule-2) 1.15px, transparent 1.35px);
+  background-size: 7px 7px;
+  background-position:
+    0 0,
+    3.5px 3.5px;
+}
+
+.lp-tone--coral {
+  background-image:
+    radial-gradient(var(--coral) 1.25px, transparent 1.45px),
+    radial-gradient(var(--coral) 1.25px, transparent 1.45px);
+}
+
+.lp-tone--fine {
+  background-image:
+    radial-gradient(var(--rule-2) 0.9px, transparent 1.1px);
+  background-size: 5px 5px;
+  background-position: 0 0;
+}
+
+/* ---------------------------------------------------------------- stamp */
+.lp-stamp {
+  display: inline-block;
+  border: 3px solid var(--coral-ink);
+  color: var(--coral-ink);
+  padding: 6px 12px 5px;
+  font: 900 20px/1 var(--display);
+  font-stretch: 90%;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.86);
+  border-radius: 4px;
+  transform: rotate(-8deg);
+}
+
+/* ---------------------------------------------------------------- reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  [data-landing] *,
+  [data-landing] *::before,
+  [data-landing] *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

@@ -1,0 +1,72 @@
+...@_style
+
+cells: "Security boundaries · authority stays outside model and product code" {
+  class: grid
+  grid-rows: 2
+  grid-columns: 3
+  horizontal-gap: 200
+  vertical-gap: 80
+
+  untrusted_content: |md
+    ### Untrusted content
+  
+    - Speech · docs · DOM · code
+    - Data, never instructions
+  | {class: [card; neutral]}
+
+  model_proposals: |md
+    ### Model proposals
+  
+    - GPT-Live · GPT-6.1 Sol · Jev
+    - Typed, source-linked intent
+  | {class: [card; reasoning]}
+
+  deterministic_checks: |md
+    ### Deterministic checks
+  
+    - Identity · policy · readiness
+    - Freshness · budgets · scope
+  | {class: [card; gate]}
+
+  tenant_records: |md
+    ### Tenant records
+  
+    - Supabase RLS + membership
+    - Scoped artifact resolution
+  | {class: [card; outcome]}
+
+  product_boundary: |md
+    ### Product boundary
+  
+    - Separate apex + signed route
+    - No provider keys in browser
+  | {class: [card; observation]}
+
+  execution_boundary: |md
+    ### Execution boundary
+  
+    - Fenced sandbox lease
+    - No production credentials
+  | {class: [card; runtime]}
+
+  untrusted_content -> model_proposals: "interpret" {class: edge}
+  model_proposals -> deterministic_checks: "propose" {class: edge}
+  deterministic_checks -> execution_boundary: "authorize" {class: edge}
+  execution_boundary -> product_boundary: "checked\nartifact" {class: edge}
+  product_boundary -> tenant_records: "scoped\nevidence" {class: edge}
+}
+
+key: "" {
+  near: bottom-center
+  class: legend
+  grid-rows: 1
+  grid-columns: 6
+  horizontal-gap: 16
+  vertical-gap: 12
+  k_runtime: "uTrace control plane" {class: [key; runtime]}
+  k_reasoning: "Reasoning models" {class: [key; reasoning]}
+  k_observation: "SDKs · previews" {class: [key; observation]}
+  k_outcome: "Validated · durable" {class: [key; outcome]}
+  k_gate: "Gates · checks" {class: [key; gate]}
+  k_neutral: "Neutral · closed" {class: [key; neutral]}
+}

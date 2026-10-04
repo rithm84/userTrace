@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/browser-observation/extension-bridge-message/v1",
+  "title": "Extension bridge frame envelope",
+  "description": "The envelope of every frame on the per-document MessageChannel port between the shared browser observation runtime and the extension's main-world bridge. The per-kind payload contracts are owned by extension-protocol/bridge-page-proof/v1, bridge-target-query/v1, bridge-target-geometry/v1, bridge-detail-query/v1 and bridge-pause-notice/v1; this schema states which envelope the SDK speaks and deliberately does not restate those payloads. A request and its answer share the same kind (except target_query, answered by target_geometry) and the same exchange_id. No credential crosses this port and product telemetry never travels over it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "phase",
+    "exchange_id",
+    "payload"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "$comment": "fixed-literal: the decimal contract major, not a vocabulary name."
+    },
+    "kind": {
+      "enum": [
+        "page_proof",
+        "target_query",
+        "target_geometry",
+        "detail_query",
+        "pause_notice"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "request",
+        "response",
+        "notice"
+      ]
+    },
+    "exchange_id": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+    },
+    "payload": {
+      "type": "object",
+      "$comment": "extension-point: the per-kind payload is owned by the extension-protocol bridge schemas."
+    }
+  }
+}

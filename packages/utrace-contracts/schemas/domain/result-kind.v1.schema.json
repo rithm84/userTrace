@@ -1,0 +1,12 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/result-kind/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Whether a Result is an acceptance, progress, or the terminal outcome.",
+  "enum": [
+    "accepted",
+    "progress",
+    "terminal"
+  ],
+  "title": "ResultKind",
+  "type": "string"
+}

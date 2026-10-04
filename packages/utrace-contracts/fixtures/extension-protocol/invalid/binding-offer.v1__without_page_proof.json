@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "kind": "binding_offer",
+  "message_id": "0199a0c0-0000-7aaa-8000-000000000406",
+  "sent_at": "2026-10-03T17:04:04Z",
+  "payload": {
+    "request": {
+      "kind": "offer",
+      "offer": {
+        "schema_version": 1,
+        "offer_token": "b2ZmZXJfdG9rZW5fZXhhbXBsZV92YWx1ZQ",
+        "session_id": "0199a0c0-0000-7aaa-8000-0000000055e1",
+        "client_id": "0199a0c0-0000-7aaa-8000-00000000c101",
+        "extension_installation_id": "0199a0c0-0000-7aaa-8000-000000001457",
+        "preview_runtime_allocation_id": "0199a0c0-0000-7aaa-8000-00000000a110",
+        "protocol_version": "1.0",
+        "expires_at": "2026-10-03T17:06:04Z"
+      }
+    },
+    "tab_locator": {
+      "tab_id": 41,
+      "frame_id": 0
+    },
+    "document_origin": "https://q7x2.preview.utrace.dev"
+  }
+}

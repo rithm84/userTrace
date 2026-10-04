@@ -1,0 +1,14 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/interview-session-state/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "One live encounter for interviewing, validation, or both.",
+  "enum": [
+    "invited",
+    "claimed",
+    "preparing",
+    "live",
+    "closed"
+  ],
+  "title": "InterviewSessionState",
+  "type": "string"
+}

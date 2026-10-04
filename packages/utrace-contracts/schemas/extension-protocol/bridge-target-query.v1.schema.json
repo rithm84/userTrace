@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/extension-protocol/bridge-target-query/v1",
+  "title": "target_query bridge message",
+  "description": "Main-world bridge, extension to SDK. A structured query over the registered target registry. CSS, XPath, JavaScript, unrestricted text search, and raw coordinates are not representable.",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/schema_version"
+    },
+    "kind": {
+      "type": "string",
+      "const": "target_query"
+    },
+    "phase": {
+      "type": "string",
+      "const": "request"
+    },
+    "exchange_id": {
+      "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid"
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "document_attachment_id": {
+          "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid"
+        },
+        "query": {
+          "$ref": "#/$defs/query"
+        },
+        "deadline_ms": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 5000
+        }
+      },
+      "required": [
+        "document_attachment_id",
+        "query",
+        "deadline_ms"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "kind",
+    "phase",
+    "exchange_id",
+    "payload"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "query": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/by_target_ids"
+        },
+        {
+          "$ref": "#/$defs/by_definition"
+        }
+      ]
+    },
+    "by_target_ids": {
+      "type": "object",
+      "description": "Refreshes the geometry and revision of already registered mounted targets.",
+      "properties": {
+        "by": {
+          "type": "string",
+          "const": "target_ids"
+        },
+        "target_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/opaque_id"
+          },
+          "minItems": 1,
+          "maxItems": 12,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "by",
+        "target_ids"
+      ],
+      "additionalProperties": false
+    },
+    "by_definition": {
+      "type": "object",
+      "description": "Resolves a signed target definition, optionally narrowed by a safe registered entity reference, effect class, route template, or visibility. The effect and visibility vocabularies are the shared runtime's own: observe and visual_guidance are the target effects the annotation manifest declares.",
+      "properties": {
+        "by": {
+          "type": "string",
+          "const": "definition"
+        },
+        "definition_id": {
+          "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/opaque_id"
+        },
+        "entity_ref": {
+          "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/opaque_id"
+        },
+        "effect": {
+          "type": "string",
+          "enum": [
+            "observe",
+            "visual_guidance",
+            "any"
+          ]
+        },
+        "route_template": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "visibility": {
+          "type": "string",
+          "enum": [
+            "visible",
+            "offscreen",
+            "any"
+          ]
+        }
+      },
+      "required": [
+        "by",
+        "definition_id",
+        "effect",
+        "visibility"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

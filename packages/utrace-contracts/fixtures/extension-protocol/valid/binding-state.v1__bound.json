@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "kind": "binding_state",
+  "message_id": "0199a0c0-0000-7aaa-8000-000000000001",
+  "sent_at": "2026-10-03T17:04:05Z",
+  "sequence": 12,
+  "payload": {
+    "binding_revision": 4,
+    "session_id": "0199a0c0-0000-7aaa-8000-0000000055e1",
+    "status": "bound",
+    "client_id": "0199a0c0-0000-7aaa-8000-00000000c101",
+    "extension_binding_id": "0199a0c0-0000-7aaa-8000-0000000b1d01",
+    "document_attachment_id": "0199a0c0-0000-7aaa-8000-0000000a7701",
+    "preview_runtime_allocation_id": "0199a0c0-0000-7aaa-8000-00000000a110"
+  }
+}
