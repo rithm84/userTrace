@@ -1,0 +1,237 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/extension-protocol/common/v1",
+  "title": "Extension protocol common definitions",
+  "description": "Shared field types for the extension control socket and the main-world SDK bridge.",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "uuid": {
+      "type": "string",
+      "format": "uuid",
+      "description": "UUIDv7, per the contract package conventions.",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC.",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?Z$"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "protocol_version": {
+      "type": "string",
+      "pattern": "^1\\.[0-9]{1,3}$"
+    },
+    "reason_code": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{2,63}$"
+    },
+    "opaque_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.:-]{1,128}$"
+    },
+    "base64url": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{16,4096}$"
+    },
+    "origin": {
+      "type": "string",
+      "pattern": "^https?://[^/?#]+$"
+    },
+    "unit_interval": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "signed_unit_interval": {
+      "type": "number",
+      "minimum": -1,
+      "maximum": 1
+    },
+    "tab_locator": {
+      "type": "object",
+      "description": "Chrome-local locator. It is never a durable product identity.",
+      "properties": {
+        "tab_id": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "frame_id": {
+          "type": "integer",
+          "const": 0
+        }
+      },
+      "required": [
+        "tab_id",
+        "frame_id"
+      ],
+      "additionalProperties": false
+    },
+    "target_reference": {
+      "type": "object",
+      "properties": {
+        "target_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "target_revision": {
+          "$ref": "#/$defs/revision"
+        }
+      },
+      "required": [
+        "target_id",
+        "target_revision"
+      ],
+      "additionalProperties": false
+    },
+    "viewport_rect": {
+      "type": "object",
+      "description": "Clipped top-level viewport geometry in CSS pixels, supplied by the shared browser observation runtime.",
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "width": {
+          "type": "number",
+          "minimum": 0
+        },
+        "height": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "width",
+        "height"
+      ],
+      "additionalProperties": false
+    },
+    "page_proof": {
+      "type": "object",
+      "description": "The embedded SDK's signed document proof, forwarded exactly as the control plane issued it: an Ed25519 detached signature over a base64url JSON claim payload. The extension decodes that payload locally to check the document origin; the control plane re-verifies the signature and is the authority. The decoded claim set is page_proof_claims.",
+      "required": [
+        "algorithm",
+        "key_id",
+        "payload_b64url",
+        "signature_b64url"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": {
+          "const": "ed25519"
+        },
+        "key_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "payload_b64url": {
+          "type": "string",
+          "minLength": 16,
+          "maxLength": 8192,
+          "pattern": "^[A-Za-z0-9_-]+$"
+        },
+        "signature_b64url": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{86}$"
+        }
+      }
+    },
+    "character_state": {
+      "type": "string",
+      "enum": [
+        "idle",
+        "listening",
+        "thinking",
+        "speaking",
+        "acknowledgement",
+        "concern",
+        "paused",
+        "reconnecting",
+        "completion"
+      ]
+    },
+    "command_outcome": {
+      "type": "string",
+      "enum": [
+        "applied",
+        "rejected",
+        "failed",
+        "stale_target",
+        "canceled",
+        "timed_out"
+      ]
+    },
+    "control_action": {
+      "type": "string",
+      "enum": [
+        "mute",
+        "unmute",
+        "pause",
+        "resume",
+        "end"
+      ]
+    },
+    "page_proof_claims": {
+      "type": "object",
+      "description": "The claim set inside page_proof.payload_b64url. The extension reads it to match the document origin and attachment before forwarding; it never treats an unverified claim as authority.",
+      "required": [
+        "client_id",
+        "session_id",
+        "preview_environment_id",
+        "preview_runtime_allocation_id",
+        "origin",
+        "document_attachment_id",
+        "document_nonce",
+        "sdk_protocol_version",
+        "issued_at",
+        "expires_at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "client_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "session_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "preview_environment_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "preview_runtime_allocation_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "origin": {
+          "$ref": "#/$defs/origin"
+        },
+        "document_attachment_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "document_nonce": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "sdk_protocol_version": {
+          "$ref": "#/$defs/protocol_version"
+        },
+        "issued_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "expires_at": {
+          "$ref": "#/$defs/timestamp"
+        }
+      }
+    }
+  }
+}

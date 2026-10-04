@@ -1,0 +1,11 @@
+{
+  "name": "utrace-ingestion-control-test-app",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Real Express product service used to drive the control plane's server-SDK control socket.",
+  "dependencies": {
+    "@utrace/server-sdk": "file:../../../../../packages/utrace-server-sdk",
+    "express": "5.2.1",
+    "pg": "8.23.0"
+  }
+}

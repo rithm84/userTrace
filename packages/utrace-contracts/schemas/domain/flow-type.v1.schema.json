@@ -1,0 +1,11 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/flow-type/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Which core flow a report belongs to. Only Feature Request Flow runs in the demo.",
+  "enum": [
+    "bugfix_flow",
+    "feature_request_flow"
+  ],
+  "title": "FlowType",
+  "type": "string"
+}

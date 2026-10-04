@@ -1,0 +1,29 @@
+{
+  "manifest_version": "2026.09.20-1",
+  "client_release_id": "shopalytics-main-8f21",
+  "surfaces": [],
+  "entities": [],
+  "targets": [],
+  "visual_targets": [],
+  "milestones": [],
+  "severities": [],
+  "priorities": [],
+  "route_templates": [],
+  "approved_trace_origins": [],
+  "redaction": {
+    "redaction_version": "r-3",
+    "policy_version": "p-7",
+    "safe_value_rules": [
+      {
+        "rule_id": "bad.rule",
+        "allowed_kinds": [
+          "form_value"
+        ],
+        "output_class": "never_collect",
+        "max_length": 60
+      }
+    ],
+    "sensitive_surfaces": [],
+    "sensitive_fields": []
+  }
+}

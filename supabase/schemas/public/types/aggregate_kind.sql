@@ -1,0 +1,22 @@
+CREATE TYPE "public"."aggregate_kind" AS ENUM (
+  'intake_item',
+  'product_signal',
+  'outreach_attempt',
+  'invitation',
+  'interview_session',
+  'voice_connection',
+  'preview_runtime_allocation',
+  'environment_lease',
+  'implementation_attempt',
+  'preview_version',
+  'validation_attempt',
+  'case_file',
+  'delivery',
+  'outreach_offer',
+  'job',
+  'job_run',
+  'command',
+  'client',
+  'client_user',
+  'customer_account'
+);

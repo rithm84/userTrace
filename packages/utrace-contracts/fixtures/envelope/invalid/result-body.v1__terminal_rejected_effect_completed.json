@@ -1,0 +1,11 @@
+{
+  "status": "terminal",
+  "disposition": "rejected",
+  "effect_state": "completed",
+  "failure": {
+    "category": "conflict",
+    "code": "expected_revision_mismatch",
+    "message": "A rejected Command is refused before any side effect.",
+    "retry": "never"
+  }
+}

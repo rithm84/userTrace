@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/preview/route-record/v1",
+  "title": "Preview route record",
+  "description": "One committed route revision for a session origin, returned by GET /v1/preview/routes/{host}. The front door never caches it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "preview_route_id",
+    "client_id",
+    "interview_session_id",
+    "product_signal_id",
+    "preview_version_id",
+    "preview_runtime_allocation_id",
+    "public_preview_host",
+    "route_revision",
+    "readiness_state",
+    "upstream",
+    "preview_entry_token",
+    "route_context_signing_secret",
+    "expires_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "utrace_preview_route_record_v1"
+    },
+    "preview_route_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "client_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "interview_session_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "product_signal_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "preview_version_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "preview_runtime_allocation_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "public_preview_host": {
+      "type": "string",
+      "maxLength": 253,
+      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$",
+      "description": "Lowercase public preview host, without port."
+    },
+    "route_revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "readiness_state": {
+      "type": "string",
+      "enum": [
+        "ready",
+        "reconnecting"
+      ],
+      "description": "Durable readiness of the route. `reconnecting` serves the reconnecting interstitial instead of routing."
+    },
+    "upstream": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "port_url",
+        "application_port"
+      ],
+      "properties": {
+        "port_url": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https?://",
+          "description": "Server-held public URL of the Vercel Sandbox runtime's application port. It carries no authority of its own: the runtime admits only requests with a valid route claim and entry token. Never distributed to a browser."
+        },
+        "application_port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        }
+      }
+    },
+    "preview_entry_token": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._~-]{16,512}$",
+      "description": "Activation-scoped token the door places in x-utrace-preview-entry on every forwarded request. The Server SDK accepts a remote traceparent only when it matches, so a syntactically valid traceparent that did not enter through the door is never a parent. Issued per activation and rotated with it; never distributed to a browser."
+    },
+    "route_context_signing_secret": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._~+/=-]{32,8192}$",
+      "description": "HMAC-SHA256 secret shared with the preview runtime for this route revision."
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

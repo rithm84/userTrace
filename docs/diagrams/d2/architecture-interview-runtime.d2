@@ -1,0 +1,75 @@
+...@_style
+
+cells: "Live interview · conversation and investigation in parallel" {
+  class: grid
+  grid-rows: 2
+  grid-columns: 3
+  horizontal-gap: 200
+  vertical-gap: 80
+
+  session_tab: |md
+    ### Session tab
+  
+    - Voice + controls
+    - Authentication readiness
+  | {class: [card; people]}
+
+  gpt_live: |md
+    ### GPT-Live
+  
+    - OpenAI API
+    - Natural full-duplex speech
+    - Interruptible conversation
+  | {class: [card; reasoning]}
+
+  backend_delegation: |md
+    ### Backend delegation
+  
+    - Jev + GPT-6.1 Sol
+    - Control plane gates effects
+  | {class: [card; runtime]}
+
+  preview_tab: |md
+    ### Preview tab
+  
+    - Extension character / overlays
+    - Browser + server SDKs
+  | {class: [card; observation]}
+
+  evidence_context: |md
+    ### Evidence context
+  
+    - Agreed criteria + corrections
+    - Selected current observations
+  | {class: [card; outcome]}
+
+  live_implementation: |md
+    ### Live implementation
+  
+    - Coding agent in Vercel Sandbox
+    - Bounded authorized scope
+  | {class: [card; runtime]}
+
+  session_tab -> gpt_live: "WebRTC" {class: edge}
+  gpt_live -> backend_delegation: "delegate" {class: edge}
+  session_tab -> preview_tab: "two tabs" {class: edge}
+  preview_tab -> evidence_context: "correlated\nfacts" {class: edge}
+  evidence_context -> backend_delegation: "context" {class: edge}
+  backend_delegation -> live_implementation: "control-plane gate approval" {class: edge}
+  live_implementation -> evidence_context: "verified\nresults" {class: edge}
+  evidence_context -> gpt_live: "quiet updates" {class: edge}
+}
+
+key: "" {
+  near: bottom-center
+  class: legend
+  grid-rows: 1
+  grid-columns: 5
+  horizontal-gap: 16
+  vertical-gap: 12
+  k_people: "People · customer surfaces" {class: [key; people]}
+  k_runtime: "uTrace control plane" {class: [key; runtime]}
+  k_reasoning: "Reasoning models" {class: [key; reasoning]}
+  k_observation: "SDKs · previews" {class: [key; observation]}
+  k_outcome: "Validated · durable" {class: [key; outcome]}
+}

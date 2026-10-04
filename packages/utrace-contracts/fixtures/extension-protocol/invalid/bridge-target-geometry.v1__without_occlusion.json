@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "kind": "target_geometry",
+  "phase": "response",
+  "exchange_id": "0199a0c0-0000-7aaa-8000-000000000502",
+  "payload": {
+    "document_attachment_id": "0199a0c0-0000-7aaa-8000-0000000a7701",
+    "registry_revision": 18,
+    "viewport": {
+      "width": 1280,
+      "height": 760
+    },
+    "targets": [
+      {
+        "target_id": "tgt_save_view_button",
+        "target_revision": 7,
+        "layout_revision": 11,
+        "frame_id": "frm_top",
+        "rect": {
+          "x": 412,
+          "y": 152,
+          "width": 128,
+          "height": 36
+        },
+        "visible_fraction": 0.98,
+        "in_viewport": true,
+        "supports_visual_guidance": true
+      }
+    ],
+    "not_found": [],
+    "ambiguous": []
+  }
+}

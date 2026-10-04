@@ -1,0 +1,12 @@
+{
+  "name": "utrace-development-tools",
+  "private": true,
+  "scripts": {
+    "stripe": "stripe",
+    "supabase": "supabase"
+  },
+  "devDependencies": {
+    "@stripe/cli": "1.51.0",
+    "supabase": "2.119.0"
+  }
+}

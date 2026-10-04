@@ -1,0 +1,18 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/agent-character-state/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Rive character state projected from durable interview state.",
+  "enum": [
+    "idle",
+    "listening",
+    "thinking",
+    "speaking",
+    "acknowledgement",
+    "concern",
+    "paused",
+    "reconnecting",
+    "completion"
+  ],
+  "title": "AgentCharacterState",
+  "type": "string"
+}

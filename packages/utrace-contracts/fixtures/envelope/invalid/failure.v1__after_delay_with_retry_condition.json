@@ -1,0 +1,8 @@
+{
+  "category": "rate_limited",
+  "code": "ingress_byte_rate_exceeded",
+  "message": "Only after_condition_change carries a condition.",
+  "retry": "after_delay",
+  "retry_after_ms": 1000,
+  "retry_condition": "observation_path_ready"
+}

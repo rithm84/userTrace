@@ -1,0 +1,263 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/envelope/failure/v1",
+  "title": "Typed failure",
+  "description": "The component detecting a failure reports it accurately with redacted actionable detail; the control plane decides lifecycle consequences. Command disposition, side-effect certainty, technical category, and retry advice stay separate. An unknown mapping fails closed as the internal category with retry never.",
+  "type": "object",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "retry": {
+            "const": "after_delay"
+          }
+        },
+        "required": [
+          "retry"
+        ]
+      },
+      "then": {
+        "required": [
+          "retry_after_ms"
+        ],
+        "properties": {
+          "retry_after_ms": true
+        }
+      },
+      "else": {
+        "properties": {
+          "retry_after_ms": false
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "retry": {
+            "const": "after_condition_change"
+          }
+        },
+        "required": [
+          "retry"
+        ]
+      },
+      "then": {
+        "required": [
+          "retry_condition"
+        ],
+        "properties": {
+          "retry_condition": true
+        }
+      },
+      "else": {
+        "properties": {
+          "retry_condition": false
+        }
+      }
+    }
+  ],
+  "properties": {
+    "category": {
+      "$ref": "#/$defs/technical_category",
+      "description": "The closed technical category describing the cause."
+    },
+    "code": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "maxLength": 96,
+      "description": "The stable, area-defined reason code inside the category, for example stale_target or unsupported_participant_environment. Codes are additive within a category."
+    },
+    "message": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000,
+      "description": "Redacted, actionable operator-facing detail. It never contains the rejected product value, a secret, or a credential."
+    },
+    "retry": {
+      "$ref": "#/$defs/retry_advice",
+      "description": "Advice to the caller. Adapters retry only when idempotency, reconciliation, or proof of no side effect makes it safe."
+    },
+    "retry_after_ms": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 86400000,
+      "description": "Minimum delay before another attempt. Required when retry is after_delay, forbidden otherwise; jitter and durable budgets are the caller's."
+    },
+    "retry_condition": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "maxLength": 96,
+      "description": "The condition that must change first, for example observation_path_ready. Required when retry is after_condition_change, forbidden otherwise."
+    },
+    "provider": {
+      "$ref": "#/$defs/provider_error",
+      "description": "Present only when a provider produced the underlying error."
+    },
+    "details": {
+      "type": "object",
+      "description": "Structured, redacted diagnostic fields such as stage, watermark, or affected stream identity.",
+      "$comment": "extension-point: the reporting component defines its own redacted diagnostic fields."
+    }
+  },
+  "required": [
+    "category",
+    "code",
+    "message",
+    "retry"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "technical_category": {
+      "description": "Closed set. Product outcomes such as no implementation, terminal unvalidated completion, cancellation, and Sensitive Account escalation are lifecycle results and never appear here.",
+      "oneOf": [
+        {
+          "const": "authentication",
+          "title": "Authentication",
+          "description": "A credential, token, signature, or webhook authenticity check failed, including ingress credential rejection."
+        },
+        {
+          "const": "authorization",
+          "title": "Authorization",
+          "description": "The authenticated principal lacks the required membership, scope, or lane, including an unauthorized telemetry query."
+        },
+        {
+          "const": "policy_denied",
+          "title": "Policy denied",
+          "description": "A pinned client configuration release, Sensitive Account classification, platform invariant, or case stop denied the work. Deny always wins."
+        },
+        {
+          "const": "validation",
+          "title": "Validation",
+          "description": "An envelope, payload, or normalization check rejected the input as structurally or semantically invalid."
+        },
+        {
+          "const": "incompatible_version",
+          "title": "Incompatible version",
+          "description": "A required envelope, payload, or component contract major is unsupported. There is no lower-fidelity substitution."
+        },
+        {
+          "const": "not_found",
+          "title": "Not found",
+          "description": "A referenced record or artifact is missing, expired, redacted, or deleted."
+        },
+        {
+          "const": "conflict",
+          "title": "Conflict",
+          "description": "An expected revision, fencing token, target revision, uniqueness constraint, or duplicate check lost. The effect is absent."
+        },
+        {
+          "const": "integrity",
+          "title": "Integrity",
+          "description": "Stored or streamed content contradicts its recorded digest, size, type, or sequence, including an unrecoverable source gap."
+        },
+        {
+          "const": "timeout",
+          "title": "Timeout",
+          "description": "A bounded window, deadline, lease, or provider call elapsed without a definitive outcome."
+        },
+        {
+          "const": "rate_limited",
+          "title": "Rate limited",
+          "description": "A transient quota, backpressure limit, or provider rate limit applied. Ingestion never samples or silently drops eligible telemetry to stay under quota."
+        },
+        {
+          "const": "payload_too_large",
+          "title": "Payload too large",
+          "description": "A fixed platform ceiling on bytes, records, spans, nesting, or attribute count was exceeded. This is a permanent rejection, unlike transient backpressure."
+        },
+        {
+          "const": "provider_unavailable",
+          "title": "Provider unavailable",
+          "description": "A provider or backing store is unreachable, degraded, or circuit-broken. Work requiring that role pauses; there is no silent substitute."
+        },
+        {
+          "const": "provider_rejected",
+          "title": "Provider rejected",
+          "description": "A provider definitively refused the operation, mapped from its raw error by the owning adapter."
+        },
+        {
+          "const": "budget_exhausted",
+          "title": "Budget exhausted",
+          "description": "A durable revision, execution, contact, or credit-issuance allowance is spent. Reclassification and recovery never reset consumption."
+        },
+        {
+          "const": "capacity_exhausted",
+          "title": "Capacity exhausted",
+          "description": "No prepared preview runtime, worker slot, or shed-load capacity is currently available. The resource is absent rather than the budget spent."
+        },
+        {
+          "const": "readiness_incomplete",
+          "title": "Readiness incomplete",
+          "description": "A required readiness boundary is unmet: extension binding, SDK path, trace correlation, target freshness, dataset, or exact candidate readiness."
+        },
+        {
+          "const": "configuration",
+          "title": "Configuration",
+          "description": "Local configuration or a client integration setting is missing or incompatible, so no provider call was made. Client onboarding reports these as actionable setup errors rather than provider failures."
+        },
+        {
+          "const": "internal",
+          "title": "Internal",
+          "description": "A uTrace defect or an unmapped provider error. It fails closed and creates an engineering-visible finding."
+        }
+      ]
+    },
+    "retry_advice": {
+      "description": "Retry advice is separate from the disposition and from side-effect certainty.",
+      "oneOf": [
+        {
+          "const": "never",
+          "title": "Never",
+          "description": "Repeating cannot succeed. Uncertain or partially applied external effects go to reconciliation instead of repetition."
+        },
+        {
+          "const": "after_delay",
+          "title": "After delay",
+          "description": "The same request may be repeated after retry_after_ms, under durable budgets, jittered backoff, and the idempotency key."
+        },
+        {
+          "const": "after_condition_change",
+          "title": "After condition change",
+          "description": "Repeating is pointless until retry_condition changes, for example readiness returning or a lease being reacquired."
+        }
+      ]
+    },
+    "provider_name": {
+      "description": "An active provider from the architecture's provider lookup.",
+      "enum": [
+        "aws",
+        "discord",
+        "github",
+        "openai",
+        "opentelemetry",
+        "stripe",
+        "supabase",
+        "typesafe",
+        "vercel"
+      ]
+    },
+    "provider_error": {
+      "type": "object",
+      "description": "The provider's own error identity, kept scoped. Reconciliation uses stable provider identity rather than blind repetition.",
+      "properties": {
+        "provider": {
+          "$ref": "#/$defs/provider_name"
+        },
+        "provider_error_code": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "provider_request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        }
+      },
+      "required": [
+        "provider"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

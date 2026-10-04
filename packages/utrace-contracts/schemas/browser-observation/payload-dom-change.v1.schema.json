@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/browser-observation/payload-dom-change/v1",
+  "title": "Coalesced DOM change payload",
+  "description": "Bounded semantic deltas. Raw HTML, scripts, arbitrary attributes, class lists, computed styles, hidden content, and unrestricted page text are excluded.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "changes",
+    "coalesced_count",
+    "window_start_offset",
+    "window_end_offset",
+    "truncated"
+  ],
+  "properties": {
+    "changes": {
+      "type": "array",
+      "maxItems": 200,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "role"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "added",
+              "removed",
+              "text",
+              "attribute",
+              "state"
+            ]
+          },
+          "role": {
+            "type": "string"
+          },
+          "surface": {
+            "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/opaque_id"
+          },
+          "target_id": {
+            "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/opaque_id"
+          },
+          "label": {
+            "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/safe_value"
+          }
+        }
+      }
+    },
+    "coalesced_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "window_start_offset": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "window_end_offset": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "truncated": {
+      "type": "boolean"
+    }
+  }
+}

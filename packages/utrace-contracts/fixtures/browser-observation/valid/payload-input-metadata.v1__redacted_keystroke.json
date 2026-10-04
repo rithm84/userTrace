@@ -1,0 +1,15 @@
+{
+  "actor": "user",
+  "role": "textbox",
+  "field_name": {
+    "output_class": "bounded_safe_value",
+    "value": "Saved view name",
+    "length_bucket": "len_11_30",
+    "rule_id": "safe.view_name"
+  },
+  "edit_class": "insert",
+  "length_bucket": "len_4_10",
+  "validity": "valid",
+  "changed": true,
+  "sensitive_field": false
+}

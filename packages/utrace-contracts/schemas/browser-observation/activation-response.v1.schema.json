@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/browser-observation/activation-response/v1",
+  "title": "Activation response",
+  "description": "The reserved same-origin /__utrace/activate response. Every envelope is verified with a packaged public key; nothing here is placed in a URL, browser storage, page markup, or an application-visible global.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "attestation",
+    "annotation_manifest",
+    "page_proof"
+  ],
+  "properties": {
+    "attestation": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/signed_envelope"
+    },
+    "annotation_manifest": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/signed_envelope"
+    },
+    "page_proof": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/signed_envelope"
+    }
+  }
+}

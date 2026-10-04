@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/extension-protocol/scene/v1",
+  "title": "Visual scene definition",
+  "description": "One atomic scene: one agent cursor plus ordered target gestures and retained marks. Every gesture addresses an exact registered target revision; freehand coordinates, selectors, and expressions are not representable.",
+  "type": "object",
+  "properties": {
+    "scene_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid" },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 12,
+      "items": { "$ref": "#/$defs/step" }
+    }
+  },
+  "required": ["scene_id", "steps"],
+  "additionalProperties": false,
+  "$defs": {
+    "step": {
+      "oneOf": [
+        { "$ref": "#/$defs/move_step" },
+        { "$ref": "#/$defs/point_step" },
+        { "$ref": "#/$defs/circle_step" },
+        { "$ref": "#/$defs/trace_step" },
+        { "$ref": "#/$defs/label_step" },
+        { "$ref": "#/$defs/clear_step" }
+      ]
+    },
+    "move_step": {
+      "type": "object",
+      "properties": {
+        "step": { "type": "string", "const": "move" },
+        "target_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/opaque_id" },
+        "target_revision": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/revision" }
+      },
+      "required": ["step", "target_id", "target_revision"],
+      "additionalProperties": false
+    },
+    "point_step": {
+      "type": "object",
+      "properties": {
+        "step": { "type": "string", "const": "point" },
+        "target_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/opaque_id" },
+        "target_revision": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/revision" },
+        "dwell_ms": { "type": "integer", "minimum": 0, "maximum": 5000 }
+      },
+      "required": ["step", "target_id", "target_revision", "dwell_ms"],
+      "additionalProperties": false
+    },
+    "circle_step": {
+      "type": "object",
+      "properties": {
+        "step": { "type": "string", "const": "circle" },
+        "target_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/opaque_id" },
+        "target_revision": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/revision" },
+        "retain": { "type": "boolean" }
+      },
+      "required": ["step", "target_id", "target_revision", "retain"],
+      "additionalProperties": false
+    },
+    "trace_step": {
+      "type": "object",
+      "properties": {
+        "step": { "type": "string", "const": "trace" },
+        "target_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/opaque_id" },
+        "target_revision": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/revision" },
+        "edge": { "type": "string", "enum": ["top", "bottom", "leading", "trailing"] },
+        "retain": { "type": "boolean" }
+      },
+      "required": ["step", "target_id", "target_revision", "edge", "retain"],
+      "additionalProperties": false
+    },
+    "label_step": {
+      "type": "object",
+      "properties": {
+        "step": { "type": "string", "const": "label" },
+        "target_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/opaque_id" },
+        "target_revision": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/revision" },
+        "text": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "placement": {
+          "type": "string",
+          "enum": ["above", "below", "leading", "trailing"]
+        },
+        "retain": { "type": "boolean" }
+      },
+      "required": ["step", "target_id", "target_revision", "text", "placement", "retain"],
+      "additionalProperties": false
+    },
+    "clear_step": {
+      "type": "object",
+      "properties": { "step": { "type": "string", "const": "clear" } },
+      "required": ["step"],
+      "additionalProperties": false
+    }
+  }
+}

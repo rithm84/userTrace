@@ -1,0 +1,6 @@
+{
+  "category": "internal",
+  "code": "StaleTarget",
+  "message": "Reason codes are snake_case.",
+  "retry": "never"
+}

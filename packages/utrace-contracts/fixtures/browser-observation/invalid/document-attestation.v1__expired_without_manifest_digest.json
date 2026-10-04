@@ -1,0 +1,20 @@
+{
+  "attestation_id": "0199a4c1-0008-7000-8000-000000000008",
+  "client_id": "0199a4c1-0009-7000-8000-000000000009",
+  "client_user_id": "0199a4c1-0010-7000-8000-000000000010",
+  "customer_account_id": "0199a4c1-0011-7000-8000-000000000011",
+  "session_id": "0199a4c1-0012-7000-8000-000000000012",
+  "preview_environment_id": "0199a4c1-0013-7000-8000-000000000013",
+  "preview_runtime_allocation_id": "0199a4c1-0014-7000-8000-000000000014",
+  "document_attachment_id": "0199a4c1-0003-7000-8000-000000000003",
+  "origin": "https://ab12cd.preview.utrace.dev",
+  "document_nonce": "000000000000000000000000000000000000000000000000",
+  "sdk_installation_id": "shopalytics-preview",
+  "protocol_version": "1",
+  "schema_version": "1",
+  "annotation_manifest_version": "2026.09.20-1",
+  "redaction_version": "r-3",
+  "policy_version": "p-7",
+  "issued_at": "2026-10-03T09:00:00.000Z",
+  "expires_at": "2026-10-03T09:00:00.000Z"
+}

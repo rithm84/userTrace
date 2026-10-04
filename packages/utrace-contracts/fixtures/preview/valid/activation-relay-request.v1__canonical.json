@@ -1,0 +1,13 @@
+{
+  "schema_version": "utrace_preview_activation_relay_request_v1",
+  "public_preview_host": "k7m2q9x4v1z8.preview.utrace.dev",
+  "activation_request": {
+    "sdk_installation_id": "shopalytics-preview",
+    "environment_name": "preview",
+    "client_release_id": "shopalytics-main-8f21",
+    "schema_version": "1",
+    "protocol_version": "1",
+    "document_nonce": "b4f2c9a1d8e30576a7c1e2f30415a6b7",
+    "document_origin": "https://k7m2q9x4v1z8.preview.utrace.dev"
+  }
+}

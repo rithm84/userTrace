@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "kind": "page_proof",
+  "phase": "request",
+  "exchange_id": "0199a0c0-0000-7aaa-8000-000000000201",
+  "payload": {
+    "extension_protocol_version": "1.0"
+  }
+}

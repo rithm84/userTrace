@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/extension-protocol/visual-command/v1",
+  "title": "visual_command",
+  "description": "Control plane to extension. One browser command carrying its authority references, target revisions, and deadline. Scrolling a registered target into view is a separate command type, never a side effect of a scene.",
+  "type": "object",
+  "properties": {
+    "schema_version": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/schema_version" },
+    "kind": { "type": "string", "const": "visual_command" },
+    "message_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid" },
+    "sent_at": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/timestamp" },
+    "sequence": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/sequence" },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "command_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid" },
+        "client_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid" },
+        "session_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid" },
+        "extension_binding_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid" },
+        "document_attachment_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid" },
+        "expected_lifecycle_revision": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/revision" },
+        "deadline_at": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/timestamp" },
+        "command": { "$ref": "#/$defs/command" }
+      },
+      "required": [
+        "command_id",
+        "client_id",
+        "session_id",
+        "extension_binding_id",
+        "document_attachment_id",
+        "expected_lifecycle_revision",
+        "deadline_at",
+        "command"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": ["schema_version", "kind", "message_id", "sent_at", "sequence", "payload"],
+  "additionalProperties": false,
+  "$defs": {
+    "command": {
+      "oneOf": [
+        { "$ref": "#/$defs/scene_command" },
+        { "$ref": "#/$defs/scroll_command" },
+        { "$ref": "#/$defs/clear_command" }
+      ]
+    },
+    "scene_command": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "const": "scene" },
+        "scene": { "$ref": "https://utrace.dev/schemas/extension-protocol/scene/v1" }
+      },
+      "required": ["type", "scene"],
+      "additionalProperties": false
+    },
+    "scroll_command": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "const": "scroll_into_view" },
+        "target_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/opaque_id" },
+        "target_revision": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/revision" },
+        "alignment": { "type": "string", "enum": ["start", "center", "end", "nearest"] }
+      },
+      "required": ["type", "target_id", "target_revision", "alignment"],
+      "additionalProperties": false
+    },
+    "clear_command": {
+      "type": "object",
+      "properties": { "type": { "type": "string", "const": "clear_scene" } },
+      "required": ["type"],
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,98 @@
+...@_style
+
+cells: "Product Signal · lifecycle from invitation to closure" {
+  class: grid
+  grid-rows: 3
+  grid-columns: 3
+  horizontal-gap: 190
+  vertical-gap: 90
+
+  awaiting_interview: |md
+    ### awaiting_interview
+
+    - Private invitation
+    - Participant setup checks
+  | {class: [card; people]}
+
+  interviewing: |md
+    ### interviewing
+
+    - Observe problem + criteria
+    - Confirm flow classification
+  | {class: [card; observation]}
+
+  closed_no_implementation: |md
+    ### closed_no_implementation
+
+    - Publish explanatory Case File, no PR
+  | {class: [card; external]}
+
+  other_terminal_states: |md
+    ### Other terminal states
+
+    - closed_blocked: Case File, no PR
+    - canceled: no Case File
+    - Reachable from any open state
+  | {class: [card; external]}
+
+  gate_pending: |md
+    ### gate_pending
+
+    - Scope · policy · budgets
+    - Live implementation or none
+  | {class: [card; gate]}
+
+  implementing: |md
+    ### implementing
+
+    - Approved live work
+    - Runs during the conversation
+  | {class: [card; runtime]}
+
+  closed_validated: |md
+    ### closed_validated
+
+    - Validated Case File
+    - One draft PR
+  | {class: [card; outcome]}
+
+  validating: |md
+    ### validating
+
+    - Same user + exact candidate
+    - Criterion-level evidence
+  | {class: [card; gate]}
+
+  awaiting_validation: |md
+    ### awaiting_validation
+
+    - Ready immutable candidate
+    - Same live session or a return
+  | {class: [card; observation]}
+
+  awaiting_interview -> interviewing: "setup ready" {class: edge}
+  interviewing -> gate_pending: "sufficient" {class: edge}
+  gate_pending -> implementing: "authorize +\ncheck budget" {class: edge}
+  gate_pending -> closed_no_implementation: "no implementation" {class: edge}
+  implementing -> awaiting_validation: "candidate ready" {class: edge}
+  awaiting_validation -> validating: "user ready" {class: edge}
+  validating -> closed_validated: "validated" {class: edge}
+  validating -> other_terminal_states: "not validated" {class: edge}
+  validating -> gate_pending: "change asked" {class: edge}
+  gate_pending -> awaiting_validation: "change refused" {class: edge}
+}
+
+key: "" {
+  near: bottom-center
+  class: legend
+  grid-rows: 1
+  grid-columns: 6
+  horizontal-gap: 16
+  vertical-gap: 12
+  k_people: "People · customer surfaces" {class: [key; people]}
+  k_runtime: "uTrace control plane" {class: [key; runtime]}
+  k_observation: "SDKs · previews" {class: [key; observation]}
+  k_gate: "Gates · checks" {class: [key; gate]}
+  k_external: "External · blocked" {class: [key; external]}
+  k_outcome: "Validated · durable" {class: [key; outcome]}
+}

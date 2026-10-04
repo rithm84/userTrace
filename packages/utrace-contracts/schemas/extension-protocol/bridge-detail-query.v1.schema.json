@@ -1,0 +1,191 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/extension-protocol/bridge-detail-query/v1",
+  "title": "detail_query bridge message",
+  "description": "Main-world bridge. A control-plane authorized, read-only request for additional redacted fields of one registered target, relayed by the extension and answered by the SDK.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/request"
+    },
+    {
+      "$ref": "#/$defs/response"
+    }
+  ],
+  "$defs": {
+    "request": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/schema_version"
+        },
+        "kind": {
+          "type": "string",
+          "const": "detail_query"
+        },
+        "phase": {
+          "type": "string",
+          "const": "request"
+        },
+        "exchange_id": {
+          "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "document_attachment_id": {
+              "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid"
+            },
+            "expected_registry_revision": {
+              "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/revision"
+            },
+            "target_id": {
+              "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/opaque_id"
+            },
+            "fields": {
+              "type": "array",
+              "items": {
+                "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/opaque_id"
+              },
+              "minItems": 1,
+              "maxItems": 24,
+              "uniqueItems": true
+            },
+            "depth_limit": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4
+            },
+            "size_limit_bytes": {
+              "type": "integer",
+              "minimum": 256,
+              "maximum": 65536
+            },
+            "deadline_ms": {
+              "type": "integer",
+              "minimum": 10,
+              "maximum": 5000
+            }
+          },
+          "required": [
+            "document_attachment_id",
+            "expected_registry_revision",
+            "target_id",
+            "fields",
+            "depth_limit",
+            "size_limit_bytes",
+            "deadline_ms"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "phase",
+        "exchange_id",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "response": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/schema_version"
+        },
+        "kind": {
+          "type": "string",
+          "const": "detail_query"
+        },
+        "phase": {
+          "type": "string",
+          "const": "response"
+        },
+        "exchange_id": {
+          "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "disposition": {
+              "type": "string",
+              "enum": [
+                "resolved",
+                "failed"
+              ]
+            },
+            "target_revision": {
+              "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/revision"
+            },
+            "fields": {
+              "type": "object",
+              "description": "Redacted field values produced by the SDK. The extension relays them without retaining them.",
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 512
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "boolean"
+                  }
+                ]
+              },
+              "maxProperties": 24
+            },
+            "reason": {
+              "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/reason_code"
+            }
+          },
+          "required": [
+            "disposition"
+          ],
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "disposition": {
+                    "const": "resolved"
+                  }
+                },
+                "required": [
+                  "disposition"
+                ]
+              },
+              "then": {
+                "required": [
+                  "target_revision",
+                  "fields"
+                ],
+                "properties": {
+                  "target_revision": true,
+                  "fields": true
+                }
+              },
+              "else": {
+                "required": [
+                  "reason"
+                ],
+                "properties": {
+                  "reason": true
+                }
+              }
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "phase",
+        "exchange_id",
+        "payload"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

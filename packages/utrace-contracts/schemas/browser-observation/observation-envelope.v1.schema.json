@@ -1,0 +1,390 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/browser-observation/observation-envelope/v1",
+  "title": "Browser observation envelope",
+  "description": "Per-record envelope fields. export_sequence is assigned by the top-document exporter; source_sequence is monotonic within one local runtime. The typed payload is selected by observation_type.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "observation_id",
+    "observation_type",
+    "runtime_id",
+    "document_attachment_id",
+    "frame_id",
+    "source_sequence",
+    "export_sequence",
+    "occurred_at",
+    "monotonic_offset",
+    "route_revision",
+    "visibility_state",
+    "payload"
+  ],
+  "properties": {
+    "observation_id": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+    },
+    "observation_type": {
+      "enum": [
+        "baseline.snapshot",
+        "baseline.chunk",
+        "interaction.activation",
+        "interaction.focus_change",
+        "input.metadata",
+        "form.submission",
+        "route.change",
+        "request.started",
+        "request.completed",
+        "error.frontend",
+        "performance.measurement",
+        "product.milestone",
+        "target.registry_change",
+        "dom.change",
+        "observation.gap"
+      ]
+    },
+    "runtime_id": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+    },
+    "document_attachment_id": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+    },
+    "frame_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_sequence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "export_sequence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "occurred_at": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/rfc3339"
+    },
+    "monotonic_offset": {
+      "type": "number",
+      "minimum": 0
+    },
+    "route_revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "visibility_state": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/visibility_state"
+    },
+    "target_id": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/opaque_id"
+    },
+    "target_revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "trace_id": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/hex_trace_id"
+    },
+    "span_id": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/hex_span_id"
+    },
+    "payload": {
+      "type": "object",
+      "$comment": "extension-point: each payload-<observation type> document closes and documents the body it contributes; the allOf branches below bind them by observation_type."
+    }
+  },
+  "dependentRequired": {
+    "target_revision": [
+      "target_id"
+    ],
+    "span_id": [
+      "trace_id"
+    ]
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "observation_type": {
+            "const": "baseline.snapshot"
+          }
+        },
+        "required": [
+          "observation_type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "https://utrace.dev/schemas/browser-observation/payload-baseline-snapshot/v1"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "observation_type": {
+            "const": "baseline.chunk"
+          }
+        },
+        "required": [
+          "observation_type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "https://utrace.dev/schemas/browser-observation/payload-baseline-chunk/v1"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "observation_type": {
+            "const": "interaction.activation"
+          }
+        },
+        "required": [
+          "observation_type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "https://utrace.dev/schemas/browser-observation/payload-interaction-activation/v1"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "observation_type": {
+            "const": "interaction.focus_change"
+          }
+        },
+        "required": [
+          "observation_type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "https://utrace.dev/schemas/browser-observation/payload-focus-change/v1"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "observation_type": {
+            "const": "input.metadata"
+          }
+        },
+        "required": [
+          "observation_type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "https://utrace.dev/schemas/browser-observation/payload-input-metadata/v1"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "observation_type": {
+            "const": "form.submission"
+          }
+        },
+        "required": [
+          "observation_type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "https://utrace.dev/schemas/browser-observation/payload-form-submission/v1"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "observation_type": {
+            "const": "route.change"
+          }
+        },
+        "required": [
+          "observation_type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "https://utrace.dev/schemas/browser-observation/payload-route-change/v1"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "observation_type": {
+            "const": "request.started"
+          }
+        },
+        "required": [
+          "observation_type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "https://utrace.dev/schemas/browser-observation/payload-request-started/v1"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "observation_type": {
+            "const": "request.completed"
+          }
+        },
+        "required": [
+          "observation_type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "https://utrace.dev/schemas/browser-observation/payload-request-completed/v1"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "observation_type": {
+            "const": "error.frontend"
+          }
+        },
+        "required": [
+          "observation_type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "https://utrace.dev/schemas/browser-observation/payload-frontend-error/v1"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "observation_type": {
+            "const": "performance.measurement"
+          }
+        },
+        "required": [
+          "observation_type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "https://utrace.dev/schemas/browser-observation/payload-performance-measurement/v1"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "observation_type": {
+            "const": "product.milestone"
+          }
+        },
+        "required": [
+          "observation_type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "https://utrace.dev/schemas/browser-observation/payload-product-milestone/v1"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "observation_type": {
+            "const": "target.registry_change"
+          }
+        },
+        "required": [
+          "observation_type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "https://utrace.dev/schemas/browser-observation/payload-target-registry-change/v1"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "observation_type": {
+            "const": "dom.change"
+          }
+        },
+        "required": [
+          "observation_type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "https://utrace.dev/schemas/browser-observation/payload-dom-change/v1"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "observation_type": {
+            "const": "observation.gap"
+          }
+        },
+        "required": [
+          "observation_type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "https://utrace.dev/schemas/browser-observation/payload-observation-gap/v1"
+          }
+        }
+      }
+    }
+  ]
+}

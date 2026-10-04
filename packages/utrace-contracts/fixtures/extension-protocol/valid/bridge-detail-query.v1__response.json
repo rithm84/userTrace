@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "kind": "detail_query",
+  "phase": "response",
+  "exchange_id": "0199a0c0-0000-7aaa-8000-000000000204",
+  "payload": {
+    "disposition": "resolved",
+    "target_revision": 3,
+    "fields": {
+      "applied_filters": "tiktok,women_25_34",
+      "displayed_series": "conversion_rate"
+    }
+  }
+}

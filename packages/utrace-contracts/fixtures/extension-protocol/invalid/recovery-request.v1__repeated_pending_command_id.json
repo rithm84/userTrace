@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "kind": "recovery_request",
+  "message_id": "0199a0c0-0000-7aaa-8000-000000000107",
+  "sent_at": "2026-10-03T17:04:02Z",
+  "payload": {
+    "installation_id": "0199a0c0-0000-7aaa-8000-000000001457",
+    "protocol_version": "1.0",
+    "extension_version": "0.1.0",
+    "resume_from_sequence": 11,
+    "session_id": "0199a0c0-0000-7aaa-8000-0000000055e1",
+    "pending_command_ids": [
+      "0199a0c0-0000-7aaa-8000-0000000cd001",
+      "0199a0c0-0000-7aaa-8000-0000000cd001"
+    ]
+  }
+}

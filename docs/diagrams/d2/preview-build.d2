@@ -1,0 +1,71 @@
+...@_style
+
+cells: "Candidate publication · exact artifacts before route activation" {
+  class: grid
+  grid-rows: 2
+  grid-columns: 3
+  horizontal-gap: 200
+  vertical-gap: 80
+
+  workspace_result: |md
+    ### Workspace result
+  
+    - Agent change + exact revision
+    - Scope and patch inspection
+  | {class: [card; runtime]}
+
+  required_checks: |md
+    ### Required checks
+  
+    - Baseline + changed workflow
+    - Pinned policy; real results
+  | {class: [card; gate]}
+
+  artifact_manifest: |md
+    ### Artifact manifest
+  
+    - Source / build hashes
+    - Dependency + template identity
+  | {class: [card; outcome]}
+
+  preview_route: |md
+    ### Preview route
+  
+    - Atomically activate revision
+    - Fresh document binding
+  | {class: [card; people]}
+
+  readiness_proof: |md
+    ### Readiness proof
+  
+    - Health + seed + auth
+    - SDK correlation + smoke
+  | {class: [card; gate]}
+
+  fresh_candidate: |md
+    ### Fresh candidate
+  
+    - Vercel Sandbox product runtime
+    - Exact immutable Preview Version
+  | {class: [card; observation]}
+
+  workspace_result -> required_checks: "run" {class: edge}
+  required_checks -> artifact_manifest: "passes" {class: edge}
+  artifact_manifest -> fresh_candidate: "deploy" {class: edge}
+  fresh_candidate -> readiness_proof: "verify" {class: edge}
+  readiness_proof -> preview_route: "publish" {class: edge}
+}
+
+key: "" {
+  near: bottom-center
+  class: legend
+  grid-rows: 1
+  grid-columns: 5
+  horizontal-gap: 16
+  vertical-gap: 12
+  k_people: "People · customer surfaces" {class: [key; people]}
+  k_runtime: "uTrace control plane" {class: [key; runtime]}
+  k_observation: "SDKs · previews" {class: [key; observation]}
+  k_outcome: "Validated · durable" {class: [key; outcome]}
+  k_gate: "Gates · checks" {class: [key; gate]}
+}

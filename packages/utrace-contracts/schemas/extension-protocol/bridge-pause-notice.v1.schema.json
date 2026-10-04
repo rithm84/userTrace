@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/extension-protocol/bridge-pause-notice/v1",
+  "title": "pause_notice bridge message",
+  "description": "Main-world bridge, extension to SDK. Relays the acknowledged authoritative pause transition so the shared runtime stops session-correlated observation; resume requires fresh readiness and a new baseline.",
+  "type": "object",
+  "properties": {
+    "schema_version": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/schema_version" },
+    "kind": { "type": "string", "const": "pause_notice" },
+    "phase": { "type": "string", "const": "notice" },
+    "exchange_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid" },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "session_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid" },
+        "document_attachment_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid" },
+        "pause_state": { "type": "string", "enum": ["paused", "running", "ended"] },
+        "session_control_revision": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/revision" }
+      },
+      "required": [
+        "session_id",
+        "document_attachment_id",
+        "pause_state",
+        "session_control_revision"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": ["schema_version", "kind", "phase", "exchange_id", "payload"],
+  "additionalProperties": false
+}

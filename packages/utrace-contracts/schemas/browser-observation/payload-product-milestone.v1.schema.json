@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/browser-observation/payload-product-milestone/v1",
+  "title": "Product milestone payload",
+  "description": "An explicit workflow milestone declared through the annotation surface.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "milestone_id",
+    "attributes",
+    "actor"
+  ],
+  "properties": {
+    "milestone_id": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/opaque_id"
+    },
+    "severity": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/opaque_id"
+    },
+    "priority": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/opaque_id"
+    },
+    "entity_ref": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/entity_ref"
+    },
+    "attributes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "value"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "value": {
+            "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/safe_value"
+          }
+        }
+      }
+    },
+    "actor": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/actor"
+    }
+  }
+}

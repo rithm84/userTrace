@@ -1,0 +1,20 @@
+{
+  "name": "@utrace/agent-character",
+  "version": "0.0.0-private",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./contracts": "./src/contracts.ts"
+  },
+  "scripts": {
+    "test": "../../apps/web/node_modules/.bin/vitest run --config vitest.config.mjs",
+    "typecheck": "cd ../../apps/web && npx tsc -p ../../packages/utrace-agent-character/tsconfig.json --noEmit"
+  },
+  "peerDependencies": {
+    "@rive-app/react-webgl2": "4.29.5",
+    "@rive-app/webgl2": "2.38.5",
+    "react": ">=19 <20"
+  },
+  "devDependencies": {}
+}

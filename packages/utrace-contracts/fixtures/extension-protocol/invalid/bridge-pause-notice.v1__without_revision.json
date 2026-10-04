@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "kind": "pause_notice",
+  "phase": "notice",
+  "exchange_id": "0199a0c0-0000-7aaa-8000-000000000504",
+  "payload": {
+    "session_id": "0199a0c0-0000-7aaa-8000-0000000055e1",
+    "document_attachment_id": "0199a0c0-0000-7aaa-8000-0000000a7701",
+    "pause_state": "paused"
+  }
+}

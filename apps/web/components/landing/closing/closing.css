@@ -1,0 +1,202 @@
+/* The closing: a tug of war over coral's drawn magnifying glass, and the
+   headline seen only through it. The numbers that position the parts live in
+   Closing.tsx; this file holds only the styles that do not depend on them. */
+
+.closing-section {
+  position: relative;
+  background: var(--paper);
+  overflow: hidden;
+  padding-top: 8px;
+}
+
+.closing-stage {
+  position: relative;
+}
+
+.closing-headline {
+  position: absolute;
+  margin: 0;
+  white-space: nowrap;
+  text-align: center;
+}
+
+/* the page's own headline is for readers and robots; the eye gets it through the glass */
+.closing-headline-base {
+  color: transparent;
+}
+
+/* the parts that ride the glass; the six tug it on twos until it is settled */
+.closing-assembly {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.closing-assembly.is-tugging {
+  animation: closing-tug 0.36s steps(1, end) infinite;
+}
+
+/* with a hand on the handle the six dig in harder */
+.closing-section[data-phase="pulling"] .closing-assembly.is-tugging {
+  animation-name: closing-tug-hard;
+  animation-duration: 0.3s;
+}
+
+@keyframes closing-tug {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(3px, 1px); }
+}
+
+@keyframes closing-tug-hard {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(5px, 2px); }
+}
+
+/* the clear part of the glass: paper and the magnified copy */
+.closing-lens {
+  position: absolute;
+  left: 0;
+  top: 0;
+  background: var(--paper);
+  clip-path: circle(50%);
+  will-change: transform;
+}
+
+.closing-lens-copy {
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--ink);
+  will-change: transform;
+}
+
+/* each letter of the copy is offset by the bow; relative offsets keep the face's kerning */
+.closing-lens-letter {
+  position: relative;
+}
+
+.closing-cast {
+  position: absolute;
+  left: 0;
+  top: 0;
+  will-change: transform;
+}
+
+.closing-glass {
+  position: absolute;
+  will-change: transform;
+}
+
+.closing-glass img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* the handle is the one thing on the glass the pointer can take hold of */
+.closing-grip {
+  position: absolute;
+  appearance: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 40px;
+  background: transparent;
+  pointer-events: auto;
+  touch-action: none;
+  cursor: grab;
+}
+
+.closing-section[data-phase="pulling"] .closing-grip {
+  cursor: grabbing;
+}
+
+.closing-grip:focus-visible {
+  outline: 3px solid var(--coral-ink);
+  outline-offset: 2px;
+}
+
+/* round hands gripping the handle and the rim, each in its owner's colour */
+.closing-hand,
+.closing-cast-hand {
+  position: absolute;
+  border-radius: 50%;
+  border: 2.5px solid var(--ink);
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.closing-hand {
+  background: var(--coral);
+}
+
+.closing-character {
+  position: absolute;
+  will-change: transform;
+}
+
+/* the buttons exist once the glass is in its spot, and pop on two frames when they do */
+.closing-actions {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+}
+
+.closing-actions[data-shown="false"] {
+  visibility: hidden;
+}
+
+.closing-actions[data-shown="true"] {
+  animation: closing-pop 0.2s steps(2, end) both;
+}
+
+.closing-actions .lp-waitlist { flex-direction:column; }
+.closing-actions .lp-waitlist-bar { flex:none; width:100%; }
+
+/* the cue on the left: a sketched arrow nudging along the handle, and a caption */
+.closing-cue {
+  position: absolute;
+  color: var(--ink);
+  pointer-events: none;
+  animation: closing-pop 0.2s steps(2, end) both;
+}
+
+.closing-cue-arrow {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+  animation: closing-nudge 0.64s steps(1, end) infinite;
+}
+
+.closing-cue-caption {
+  position: absolute;
+  padding: 7px 10px 8px;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  box-shadow: 3px 3px 0 var(--ink);
+  font: 700 15px/1.25 var(--body);
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+}
+
+@keyframes closing-nudge {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-5px, 1px); }
+}
+
+@keyframes closing-pop {
+  0% { transform: scale(0.965); }
+  34% { transform: scale(1.02); }
+  67%, 100% { transform: none; }
+}
+
+.closing-section[data-reduced-motion="true"] .closing-actions {
+  animation: none;
+}

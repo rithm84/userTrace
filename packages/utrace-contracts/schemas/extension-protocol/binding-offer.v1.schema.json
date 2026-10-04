@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/extension-protocol/binding-offer/v1",
+  "title": "binding_offer",
+  "description": "Extension to control plane. Asks the control plane to bind one preview document: either by consuming the session tab's single-use offer, or by transferring an existing binding to another valid tab of the same session. The offer itself reaches the extension only through externally connectable messaging from a uTrace session-tab origin.",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/schema_version"
+    },
+    "kind": {
+      "type": "string",
+      "const": "binding_offer"
+    },
+    "message_id": {
+      "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid"
+    },
+    "sent_at": {
+      "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/timestamp"
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "request": {
+          "$ref": "#/$defs/request"
+        },
+        "page_proof": {
+          "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/page_proof"
+        },
+        "tab_locator": {
+          "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/tab_locator"
+        },
+        "document_origin": {
+          "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/origin"
+        }
+      },
+      "required": [
+        "request",
+        "page_proof",
+        "tab_locator",
+        "document_origin"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "kind",
+    "message_id",
+    "sent_at",
+    "payload"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "offer": {
+      "type": "object",
+      "description": "The single-use, short-lived binding offer the session tab obtains from the control plane.",
+      "properties": {
+        "schema_version": {
+          "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/schema_version"
+        },
+        "offer_token": {
+          "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/base64url"
+        },
+        "session_id": {
+          "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid"
+        },
+        "client_id": {
+          "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid"
+        },
+        "extension_installation_id": {
+          "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid"
+        },
+        "preview_runtime_allocation_id": {
+          "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid"
+        },
+        "protocol_version": {
+          "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/protocol_version"
+        },
+        "expires_at": {
+          "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/timestamp"
+        }
+      },
+      "required": [
+        "schema_version",
+        "offer_token",
+        "session_id",
+        "client_id",
+        "extension_installation_id",
+        "preview_runtime_allocation_id",
+        "protocol_version",
+        "expires_at"
+      ],
+      "additionalProperties": false
+    },
+    "request": {
+      "description": "A first binding consumes the session tab's single-use offer. Focusing another valid tab of the same session rebinds from the current binding instead, so the consumed offer is never replayed.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "offer"
+            },
+            "offer": {
+              "$ref": "#/$defs/offer"
+            }
+          },
+          "required": [
+            "kind",
+            "offer"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "rebind"
+            },
+            "session_id": {
+              "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid"
+            },
+            "extension_binding_id": {
+              "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid"
+            }
+          },
+          "required": [
+            "kind",
+            "session_id",
+            "extension_binding_id"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

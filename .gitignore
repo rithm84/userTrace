@@ -1,0 +1,59 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+
+# Build output
+.next/
+dist/
+build/
+# The extension's build-time sources are code, not build output.
+!apps/browser-extension/src/build/
+out/
+*.tsbuildinfo
+# `build/` above is an output directory everywhere except here, where it is the
+# browser extension's packaging source. Without this the manifest, icon and
+# build-configuration modules are silently untracked and the extension cannot
+# be built from a clean checkout.
+!apps/browser-extension/src/build/
+
+# Local data retained outside source control
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+
+# Local tooling
+.DS_Store
+*.log
+tmp/
+.turbo/
+.cache/
+.playwright-mcp/
+.superpowers/
+
+# Generated run artifacts
+artifacts/
+recordings/
+traces/
+eval-results/
+
+# User-Facing Notes
+implementation-notes.html
+.vercel
+
+# Rive MCP binding caches written by the landing rig builders (editor-session ids)
+packages/utrace-agent-character/rive/gen/.*-bindings.json
+
+# Parallel build worktrees
+.worktrees/
+
+# Local demo fixture checkout
+.demo-fixture/

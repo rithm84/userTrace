@@ -1,0 +1,11 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/gate-decision-kind/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "What the Implementation Gate decided.",
+  "enum": [
+    "approved_live",
+    "no_implementation"
+  ],
+  "title": "GateDecisionKind",
+  "type": "string"
+}

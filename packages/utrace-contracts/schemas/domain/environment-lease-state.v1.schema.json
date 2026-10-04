@@ -1,0 +1,13 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/environment-lease-state/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Fenced workspace lease state.",
+  "enum": [
+    "active",
+    "fenced",
+    "released",
+    "expired"
+  ],
+  "title": "EnvironmentLeaseState",
+  "type": "string"
+}

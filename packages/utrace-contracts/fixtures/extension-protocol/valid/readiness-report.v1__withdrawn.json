@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "kind": "readiness_report",
+  "message_id": "0199a0c0-0000-7aaa-8000-000000000108",
+  "sent_at": "2026-10-03T17:05:02Z",
+  "payload": {
+    "session_id": "0199a0c0-0000-7aaa-8000-0000000055e1",
+    "report": "withdrawn",
+    "reason": "interface_host_removed_repeatedly",
+    "document_attachment_id": "0199a0c0-0000-7aaa-8000-0000000a7701",
+    "observed_at": "2026-10-03T17:05:02Z"
+  }
+}

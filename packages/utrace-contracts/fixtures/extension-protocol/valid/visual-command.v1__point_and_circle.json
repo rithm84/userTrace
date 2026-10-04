@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "kind": "visual_command",
+  "message_id": "0199a0c0-0000-7aaa-8000-000000000006",
+  "sent_at": "2026-10-03T17:04:10Z",
+  "sequence": 17,
+  "payload": {
+    "command_id": "0199a0c0-0000-7aaa-8000-0000000cd001",
+    "client_id": "0199a0c0-0000-7aaa-8000-00000000c101",
+    "session_id": "0199a0c0-0000-7aaa-8000-0000000055e1",
+    "extension_binding_id": "0199a0c0-0000-7aaa-8000-0000000b1d01",
+    "document_attachment_id": "0199a0c0-0000-7aaa-8000-0000000a7701",
+    "expected_lifecycle_revision": 22,
+    "deadline_at": "2026-10-03T17:04:20Z",
+    "command": {
+      "type": "scene",
+      "scene": {
+        "scene_id": "0199a0c0-0000-7aaa-8000-000000005ce1",
+        "steps": [
+          {
+            "step": "move",
+            "target_id": "tgt_filter_panel",
+            "target_revision": 3
+          },
+          {
+            "step": "point",
+            "target_id": "tgt_save_view_button",
+            "target_revision": 7,
+            "dwell_ms": 600
+          },
+          {
+            "step": "circle",
+            "target_id": "tgt_save_view_button",
+            "target_revision": 7,
+            "retain": true
+          }
+        ]
+      }
+    }
+  }
+}

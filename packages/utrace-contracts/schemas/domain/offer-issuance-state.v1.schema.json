@@ -1,0 +1,13 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/offer-issuance-state/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Issuance progress of one earned invoice credit.",
+  "enum": [
+    "pending",
+    "dispatched",
+    "issued",
+    "blocked"
+  ],
+  "title": "OfferIssuanceState",
+  "type": "string"
+}

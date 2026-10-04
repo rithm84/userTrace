@@ -1,0 +1,202 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/browser-observation/runtime-health/v1",
+  "title": "Browser runtime health record",
+  "description": "Operational metadata only. It never contains product content as a health diagnostic.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "state",
+    "browser_stream_id",
+    "runtime_id",
+    "document_attachment_id",
+    "latest_source_sequence",
+    "latest_export_sequence",
+    "acknowledged_export_sequence",
+    "buffer_utilization",
+    "dropped_range_count",
+    "components",
+    "hooks",
+    "annotation_manifest_version",
+    "policy_version",
+    "redaction_version",
+    "protocol_version",
+    "schema_version",
+    "wall_clock_offset_ms",
+    "checked_at"
+  ],
+  "properties": {
+    "state": {
+      "enum": [
+        "dormant",
+        "activating",
+        "ready",
+        "paused",
+        "recovering",
+        "failed",
+        "terminated"
+      ]
+    },
+    "browser_stream_id": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+    },
+    "runtime_id": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+    },
+    "document_attachment_id": {
+      "type": "string"
+    },
+    "latest_source_sequence": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "latest_export_sequence": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "acknowledged_export_sequence": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "buffer_utilization": {
+      "type": "number",
+      "minimum": 0
+    },
+    "dropped_range_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "components": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attestation_current",
+        "credential_current",
+        "protocol_compatible",
+        "schema_compatible",
+        "single_top_coordinator",
+        "required_frames_connected",
+        "required_workers_connected",
+        "hooks_installed_once",
+        "baseline_accepted",
+        "ingestion_acknowledging",
+        "trace_probe_passed",
+        "registry_consistent"
+      ],
+      "properties": {
+        "attestation_current": {
+          "type": "boolean"
+        },
+        "credential_current": {
+          "type": "boolean"
+        },
+        "protocol_compatible": {
+          "type": "boolean"
+        },
+        "schema_compatible": {
+          "type": "boolean"
+        },
+        "single_top_coordinator": {
+          "type": "boolean"
+        },
+        "required_frames_connected": {
+          "type": "boolean"
+        },
+        "required_workers_connected": {
+          "type": "boolean"
+        },
+        "hooks_installed_once": {
+          "type": "boolean"
+        },
+        "baseline_accepted": {
+          "type": "boolean"
+        },
+        "ingestion_acknowledging": {
+          "type": "boolean"
+        },
+        "trace_probe_passed": {
+          "type": "boolean"
+        },
+        "registry_consistent": {
+          "type": "boolean"
+        }
+      }
+    },
+    "hooks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fetch",
+        "xhr",
+        "history",
+        "errors",
+        "interactions",
+        "mutations"
+      ],
+      "properties": {
+        "fetch": {
+          "type": "boolean"
+        },
+        "xhr": {
+          "type": "boolean"
+        },
+        "history": {
+          "type": "boolean"
+        },
+        "errors": {
+          "type": "boolean"
+        },
+        "interactions": {
+          "type": "boolean"
+        },
+        "mutations": {
+          "type": "boolean"
+        }
+      }
+    },
+    "annotation_manifest_version": {
+      "type": "string"
+    },
+    "policy_version": {
+      "type": "string"
+    },
+    "redaction_version": {
+      "type": "string"
+    },
+    "protocol_version": {
+      "const": "1",
+      "$comment": "fixed-literal: the decimal contract major, not a vocabulary name."
+    },
+    "schema_version": {
+      "const": "1",
+      "$comment": "fixed-literal: the decimal contract major, not a vocabulary name."
+    },
+    "wall_clock_offset_ms": {
+      "type": "integer"
+    },
+    "failure_code": {
+      "enum": [
+        "attestation_invalid_or_expired",
+        "attestation_algorithm_unsupported",
+        "activation_endpoint_unavailable",
+        "credential_rejected",
+        "incompatible_protocol_or_schema",
+        "duplicate_runtime_or_hook",
+        "required_frame_or_adapter_missing",
+        "baseline_rejected",
+        "target_registry_drift",
+        "ingestion_unavailable",
+        "acknowledgement_integrity_failure",
+        "buffer_exhaustion",
+        "trace_correlation_failure",
+        "bridge_handshake_rejected"
+      ]
+    },
+    "failure_detail": {
+      "type": "string"
+    },
+    "checked_at": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/rfc3339"
+    }
+  }
+}

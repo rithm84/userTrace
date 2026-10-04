@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/browser-observation/payload-input-metadata/v1",
+  "title": "Input metadata payload",
+  "description": "Safe input metadata: target, edit class, length bucket, validity, and changed state. Never a keystroke stream or an unapproved field value.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "actor",
+    "role",
+    "edit_class",
+    "length_bucket",
+    "validity",
+    "changed",
+    "sensitive_field"
+  ],
+  "properties": {
+    "actor": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/actor"
+    },
+    "role": {
+      "type": "string"
+    },
+    "field_name": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/safe_value"
+    },
+    "edit_class": {
+      "enum": [
+        "insert",
+        "delete",
+        "replace",
+        "clear",
+        "select_option",
+        "toggle"
+      ]
+    },
+    "length_bucket": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/length_bucket"
+    },
+    "validity": {
+      "enum": [
+        "valid",
+        "invalid",
+        "unchecked"
+      ]
+    },
+    "changed": {
+      "type": "boolean"
+    },
+    "sensitive_field": {
+      "type": "boolean"
+    },
+    "approved_value": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/safe_value"
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "attestation": {
+    "algorithm": "ed25519",
+    "key_id": "utrace-browser-2026-09",
+    "payload_b64url": "eyJhdHRlc3RhdGlvbl9pZCI6IjAxOTJmM2M0LWQzNDUtN2I4ZC04MDZlLTkyYTNiNGM1ZDZlNyJ9",
+    "signature_b64url": "BxQhLjtIVWJvfImWo7C9ytfk8f4LGCUyP0xZZnOAjZqntMHO2-j1Ag8cKTZDUF1qd4SRnqu4xdLf7PkGEyAtOg"
+  },
+  "annotation_manifest": {
+    "algorithm": "ed25519",
+    "key_id": "utrace-browser-2026-09",
+    "payload_b64url": "eyJtYW5pZmVzdF92ZXJzaW9uIjoiMjAyNi4wOS4yMC0xIn0",
+    "signature_b64url": "BxQhLjtIVWJvfImWo7C9ytfk8f4LGCUyP0xZZnOAjZqntMHO2-j1Ag8cKTZDUF1qd4SRnqu4xdLf7PkGEyAtOg"
+  },
+  "page_proof": {
+    "algorithm": "ed25519",
+    "key_id": "utrace-browser-2026-09",
+    "payload_b64url": "eyJkb2N1bWVudF9ub25jZSI6ImI0ZjJjOWExZDhlMzA1NzZhN2MxZTJmMzA0MTVhNmI3In0",
+    "signature_b64url": "BxQhLjtIVWJvfImWo7C9ytfk8f4LGCUyP0xZZnOAjZqntMHO2-j1Ag8cKTZDUF1qd4SRnqu4xdLf7PkGEyAtOg"
+  }
+}

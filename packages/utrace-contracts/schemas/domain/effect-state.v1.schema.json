@@ -1,0 +1,13 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/effect-state/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "How certain uTrace is about an external side effect.",
+  "enum": [
+    "absent",
+    "partial",
+    "completed",
+    "indeterminate"
+  ],
+  "title": "EffectState",
+  "type": "string"
+}

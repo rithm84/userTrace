@@ -1,0 +1,13 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/evidence-claim-state/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Whether a claim is proposed, confirmed, contradicted, or withdrawn.",
+  "enum": [
+    "proposed",
+    "confirmed",
+    "contradicted",
+    "withdrawn"
+  ],
+  "title": "EvidenceClaimState",
+  "type": "string"
+}

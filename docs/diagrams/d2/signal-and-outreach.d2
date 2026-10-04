@@ -1,0 +1,73 @@
+...@_style
+
+cells: "Signal and outreach · one immutable intake, one originating user" {
+  class: grid
+  grid-rows: 2
+  grid-columns: 3
+  horizontal-gap: 200
+  vertical-gap: 80
+
+  discord_event: |md
+    ### Discord event
+  
+    - Server/channel identity
+    - Source ID + sender + content
+  | {class: [card; people]}
+
+  intake_item: |md
+    ### Intake Item
+  
+    - Replay dedup + typing-aware batch
+    - Immutable analysis input
+  | {class: [card; runtime]}
+
+  jev_intake_decisions: |md
+    ### Jev intake decisions
+  
+    - Scoped product context
+    - Batched typed judgments
+  | {class: [card; reasoning]}
+
+  initial_interview_invite: |md
+    ### Initial interview invite
+  
+    - Private Discord invitation
+    - Bound identity + deadline
+    - Invoice credit + terms if offered
+    - Channel reply: DM sent
+  | {class: [card; people]}
+
+  new_product_signal: |md
+    ### New Product Signal
+  
+    - Selected source messages
+    - Feature Request Flow + originating user
+  | {class: [card; runtime]}
+
+  committed_route: |md
+    ### Committed route
+  
+    - Policy + source checks
+    - New Product Signal
+    - Or noise, or a held Intake Item
+  | {class: [card; gate]}
+
+  discord_event -> intake_item: "receive" {class: edge}
+  intake_item -> jev_intake_decisions: "analyze" {class: edge}
+  jev_intake_decisions -> committed_route: "propose" {class: edge}
+  committed_route -> new_product_signal: "new case" {class: edge}
+  new_product_signal -> initial_interview_invite: "invite" {class: edge}
+}
+
+key: "" {
+  near: bottom-center
+  class: legend
+  grid-rows: 1
+  grid-columns: 4
+  horizontal-gap: 16
+  vertical-gap: 12
+  k_people: "People · customer surfaces" {class: [key; people]}
+  k_runtime: "uTrace control plane" {class: [key; runtime]}
+  k_reasoning: "Reasoning models" {class: [key; reasoning]}
+  k_gate: "Gates · checks" {class: [key; gate]}
+}

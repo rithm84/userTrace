@@ -1,0 +1,12 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/offer-state/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Whether an Outreach Offer is reserved, earned, or released.",
+  "enum": [
+    "reserved",
+    "earned",
+    "released"
+  ],
+  "title": "OfferState",
+  "type": "string"
+}

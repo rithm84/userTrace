@@ -1,0 +1,13 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/preview-version-state/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Lifecycle of one immutable candidate build.",
+  "enum": [
+    "building",
+    "ready",
+    "retired",
+    "failed"
+  ],
+  "title": "PreviewVersionState",
+  "type": "string"
+}

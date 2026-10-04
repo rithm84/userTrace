@@ -1,0 +1,14 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/job-run-state/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Outcome of one leased Job execution.",
+  "enum": [
+    "leased",
+    "succeeded",
+    "failed",
+    "abandoned",
+    "timed_out"
+  ],
+  "title": "JobRunState",
+  "type": "string"
+}

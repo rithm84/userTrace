@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "kind": "readiness",
+  "message_id": "0199a0c0-0000-7aaa-8000-00000000030a",
+  "sent_at": "2026-10-03T17:04:07Z",
+  "payload": {
+    "readiness_revision": 9,
+    "session_id": "0199a0c0-0000-7aaa-8000-0000000055e1",
+    "extension_readiness": "ready",
+    "combined_readiness": "ready",
+    "blockers": []
+  }
+}

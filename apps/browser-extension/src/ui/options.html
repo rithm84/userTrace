@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>uTrace settings</title>
+    <link rel="stylesheet" href="./pages.css" />
+  </head>
+  <body class="settings">
+    <h1>uTrace settings</h1>
+    <p class="lede">
+      Installation, permissions, and how the agent appears in your preview tab.
+    </p>
+
+    <h2>Status</h2>
+    <div class="rows" id="rows" data-utrace-testid="status-rows"></div>
+    <div class="actions">
+      <button id="link" type="button" data-primary="true" data-utrace-testid="link-account">
+        Link this browser
+      </button>
+      <button id="permissions" type="button" data-utrace-testid="request-permissions">
+        Grant page access
+      </button>
+      <button id="refresh" type="button" data-utrace-testid="refresh">Refresh</button>
+    </div>
+
+    <h2>Global action preferences</h2>
+    <p class="lede">
+      These are stored with your uTrace account and apply in every browser you link.
+    </p>
+    <label class="toggle">
+      <input id="visual-guidance" type="checkbox" data-utrace-testid="toggle-visual-guidance" />
+      Let the agent point, circle, label, and scroll to product elements
+    </label>
+    <label class="toggle">
+      <input id="agent-cursor" type="checkbox" data-utrace-testid="toggle-agent-cursor" />
+      Show the agent cursor while it draws
+    </label>
+
+    <h2>This browser</h2>
+    <p class="lede">Position and size of the agent orb are stored on this device only.</p>
+    <label class="toggle">
+      Orb size
+      <input id="diameter" type="range" data-utrace-testid="orb-diameter" />
+      <span id="diameter-value" data-utrace-testid="orb-diameter-value"></span>
+    </label>
+    <div class="actions">
+      <button id="reset-position" type="button" data-utrace-testid="reset-orb">
+        Reset orb position
+      </button>
+    </div>
+
+    <h2>Installation</h2>
+    <div class="actions">
+      <button id="revoke" type="button" data-utrace-testid="revoke-installation">
+        Sign out and revoke this installation
+      </button>
+    </div>
+    <p class="lede">
+      Revoking blocks new bindings, ends extension authority, and removes this device key.
+      Linking again creates a new installation identity.
+    </p>
+
+    <h2>Troubleshooting</h2>
+    <ul class="troubleshooting">
+      <li>The agent appears only after the session tab offers a binding and the preview page proves it runs the uTrace SDK.</li>
+      <li>Incognito, guest, file, PDF, browser-internal, and other extension pages are unsupported preview contexts.</li>
+      <li>If page access is missing, the agent cannot appear in any preview tab.</li>
+      <li>Status text for the interview lives in the uTrace session tab, not on the orb.</li>
+    </ul>
+
+    <div class="notice" id="notice" data-utrace-testid="notice"></div>
+    <footer>This page cannot start an interview, bind a tab, or issue a product command.</footer>
+    <script type="module" src="./options.ts"></script>
+  </body>
+</html>

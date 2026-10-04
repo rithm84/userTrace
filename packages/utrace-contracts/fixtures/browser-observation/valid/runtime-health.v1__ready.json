@@ -1,0 +1,40 @@
+{
+  "state": "ready",
+  "browser_stream_id": "0199a4c1-0007-7000-8000-000000000007",
+  "runtime_id": "0199a4c1-0002-7000-8000-000000000002",
+  "document_attachment_id": "0199a4c1-0003-7000-8000-000000000003",
+  "latest_source_sequence": 58,
+  "latest_export_sequence": 41,
+  "acknowledged_export_sequence": 41,
+  "buffer_utilization": 0.01,
+  "dropped_range_count": 0,
+  "components": {
+    "attestation_current": true,
+    "credential_current": true,
+    "protocol_compatible": true,
+    "schema_compatible": true,
+    "single_top_coordinator": true,
+    "required_frames_connected": true,
+    "required_workers_connected": true,
+    "hooks_installed_once": true,
+    "baseline_accepted": true,
+    "ingestion_acknowledging": true,
+    "trace_probe_passed": true,
+    "registry_consistent": true
+  },
+  "hooks": {
+    "fetch": true,
+    "xhr": true,
+    "history": true,
+    "errors": true,
+    "interactions": true,
+    "mutations": true
+  },
+  "annotation_manifest_version": "2026.09.20-1",
+  "policy_version": "p-7",
+  "redaction_version": "r-3",
+  "protocol_version": "1",
+  "schema_version": "1",
+  "wall_clock_offset_ms": -3,
+  "checked_at": "2026-10-03T09:00:00.000Z"
+}

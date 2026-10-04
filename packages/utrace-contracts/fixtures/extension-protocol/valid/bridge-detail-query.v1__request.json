@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "kind": "detail_query",
+  "phase": "request",
+  "exchange_id": "0199a0c0-0000-7aaa-8000-000000000204",
+  "payload": {
+    "document_attachment_id": "0199a0c0-0000-7aaa-8000-0000000a7701",
+    "expected_registry_revision": 18,
+    "target_id": "tgt_filter_panel",
+    "fields": [
+      "applied_filters",
+      "displayed_series"
+    ],
+    "depth_limit": 2,
+    "size_limit_bytes": 4096,
+    "deadline_ms": 800
+  }
+}

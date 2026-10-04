@@ -1,0 +1,12 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/case-file-variant/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Which Case File variant an outcome produces.",
+  "enum": [
+    "validated_implementation",
+    "no_implementation",
+    "blocked"
+  ],
+  "title": "CaseFileVariant",
+  "type": "string"
+}

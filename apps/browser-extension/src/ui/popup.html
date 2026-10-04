@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>uTrace</title>
+    <link rel="stylesheet" href="./pages.css" />
+  </head>
+  <body class="popup">
+    <h1>uTrace</h1>
+    <p class="lede">The agent appears in your uTrace preview tab during an interview.</p>
+    <div class="rows" id="rows" data-utrace-testid="status-rows"></div>
+    <div class="actions">
+      <button id="link" type="button" data-primary="true" data-utrace-testid="link-account">
+        Link this browser
+      </button>
+      <button id="permissions" type="button" data-utrace-testid="request-permissions">
+        Grant page access
+      </button>
+      <button id="settings" type="button" data-utrace-testid="open-settings">Settings</button>
+    </div>
+    <div class="notice" id="notice" data-utrace-testid="notice"></div>
+    <footer>This window cannot start an interview or control the product.</footer>
+    <script type="module" src="./popup.ts"></script>
+  </body>
+</html>

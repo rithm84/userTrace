@@ -1,0 +1,39 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/client-record/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One uTrace Client: one company, one product.",
+  "properties": {
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "product_name": {
+      "title": "Product Name",
+      "type": "string"
+    },
+    "revision": {
+      "title": "Revision",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "product_name",
+    "revision",
+    "created_at"
+  ],
+  "title": "ClientRecord",
+  "type": "object"
+}

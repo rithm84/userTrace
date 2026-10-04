@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/browser-observation/payload-interaction-activation/v1",
+  "title": "Interaction activation payload",
+  "description": "One completed user or agent action. Not a copy of every native browser event.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "actor",
+    "activation_kind",
+    "role"
+  ],
+  "properties": {
+    "actor": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/actor"
+    },
+    "activation_kind": {
+      "enum": [
+        "pointer",
+        "keyboard"
+      ]
+    },
+    "role": {
+      "type": "string"
+    },
+    "label": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/safe_value"
+    },
+    "entity_ref": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/entity_ref"
+    },
+    "surface": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/opaque_id"
+    }
+  }
+}

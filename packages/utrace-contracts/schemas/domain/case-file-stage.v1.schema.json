@@ -1,0 +1,14 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/case-file-stage/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Assembly stage of a Case File.",
+  "enum": [
+    "draft",
+    "verified",
+    "delivery_resolved",
+    "ready",
+    "published"
+  ],
+  "title": "CaseFileStage",
+  "type": "string"
+}

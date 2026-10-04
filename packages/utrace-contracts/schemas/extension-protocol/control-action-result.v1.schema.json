@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/extension-protocol/control-action-result/v1",
+  "title": "control_action_result",
+  "description": "Control plane to extension. Control pills reflect this returned session-control revision rather than assuming their action succeeded.",
+  "type": "object",
+  "properties": {
+    "schema_version": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/schema_version" },
+    "kind": { "type": "string", "const": "control_action_result" },
+    "message_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid" },
+    "sent_at": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/timestamp" },
+    "sequence": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/sequence" },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "action_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid" },
+        "session_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid" },
+        "disposition": { "type": "string", "enum": ["accepted", "rejected", "failed"] },
+        "session_control_revision": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/revision" },
+        "mute_state": { "type": "string", "enum": ["muted", "unmuted"] },
+        "pause_state": { "type": "string", "enum": ["running", "paused", "ended"] },
+        "reason": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/reason_code" }
+      },
+      "required": [
+        "action_id",
+        "session_id",
+        "disposition",
+        "session_control_revision",
+        "mute_state",
+        "pause_state"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": ["schema_version", "kind", "message_id", "sent_at", "sequence", "payload"],
+  "additionalProperties": false
+}

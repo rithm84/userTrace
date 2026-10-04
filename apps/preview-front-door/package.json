@@ -1,0 +1,32 @@
+{
+  "name": "preview-front-door",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "dev": "next dev -p 3200",
+    "build": "next build",
+    "start": "next start -p 3200",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "next": "16.2.12",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.6",
+    "@types/react": "19.2.7",
+    "ajv": "8.17.1",
+    "ajv-formats": "3.0.1",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.2.12",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  }
+}

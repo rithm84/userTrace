@@ -1,0 +1,11 @@
+{
+  "status": "terminal",
+  "disposition": "expired",
+  "effect_state": "partial",
+  "failure": {
+    "category": "timeout",
+    "code": "async_authorization_window_elapsed",
+    "message": "The originating user did not authorize async work inside the pinned window.",
+    "retry": "never"
+  }
+}

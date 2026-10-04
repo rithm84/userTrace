@@ -1,0 +1,50 @@
+{
+  "message_id": "01930a9c-1000-7000-8000-000000000005",
+  "envelope_version": 1,
+  "family": "command",
+  "payload_type": "implementation.dispatch_attempt",
+  "payload_version": 1,
+  "producer": {
+    "component": "control_plane_api",
+    "component_version": "0.1.0"
+  },
+  "client_scope": {
+    "scope": "client",
+    "client_id": "01930a9c-1000-7000-8000-000000000001"
+  },
+  "domain_ids": {
+    "product_signal_id": "01930a9c-1000-7000-8000-000000000002",
+    "command_id": "01930a9c-1000-7000-8000-000000000004",
+    "implementation_attempt_id": "01930a9c-1000-7000-8000-000000000007"
+  },
+  "occurred_at": "2026-10-03T09:15:00Z",
+  "stream": {
+    "stream_type": "implementation_attempt",
+    "stream_id": "01930a9c-1000-7000-8000-000000000007",
+    "expected_revision": 5
+  },
+  "payload": {
+    "implementation_attempt_id": "01930a9c-1000-7000-8000-000000000007"
+  },
+  "digest": {
+    "algorithm": "sha256",
+    "canonicalization": "jcs",
+    "value": "f6559eb02c2aff8d1f3b7842e6ac211e586905d83c21cc5c2d074cc338b05677"
+  },
+  "authority": [
+    {
+      "kind": "implementation_gate_decision",
+      "reference_id": "01930a9c-1000-7000-8000-00000000000e",
+      "revision": 1
+    },
+    {
+      "kind": "async_authorization",
+      "reference_id": "01930a9c-1000-7000-8000-000000000009"
+    },
+    {
+      "kind": "environment_lease",
+      "reference_id": "01930a9c-1000-7000-8000-000000000008",
+      "fencing_token": 3
+    }
+  ]
+}

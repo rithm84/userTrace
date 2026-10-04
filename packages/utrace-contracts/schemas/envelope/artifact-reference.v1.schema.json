@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/envelope/artifact-reference/v1",
+  "title": "Artifact reference",
+  "description": "An opaque, immutable reference to large evidence. It carries no bucket name, filesystem path, permanent URL, or object credential: resolution goes through the control plane, which rechecks tenant and object linkage and verifies type, size, and digest before returning a bounded result. Missing, expired, redacted, or deleted artifacts fail explicitly, and a digest, size, or type mismatch is an integrity failure. Content-addressed storage never deduplicates across clients, so identical bytes in two client scopes stay independently authorized and deletable.",
+  "type": "object",
+  "properties": {
+    "artifact_id": {
+      "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+      "description": "Identity of the stored artifact."
+    },
+    "artifact_type": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "maxLength": 64,
+      "description": "The kind of artifact, for example transcript, telemetry_batch, baseline_chunk_manifest, candidate_manifest, check_log, diff, validation_evidence, or case_file_core. Areas name their own types; the name is part of the contract, not a hint."
+    },
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Major version of the artifact's own content schema, independent of this reference contract."
+    },
+    "media_type": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9!#$&^_.+-]{0,126}/[a-z0-9][a-z0-9!#$&^_.+-]{0,126}(; *[a-z0-9!#$&^_.+-]+=[^;]+)*$",
+      "maxLength": 255,
+      "description": "The exact IANA media type of the stored bytes, with optional parameters."
+    },
+    "digest": {
+      "type": "object",
+      "description": "SHA-256 over the artifact's exact stored bytes, encoded as lowercase hexadecimal.",
+      "properties": {
+        "algorithm": {
+          "const": "sha256"
+        },
+        "value": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "algorithm",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "byte_size": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Exact size of the stored bytes. Resolution rejects a mismatch as an integrity failure."
+    },
+    "created_at": {
+      "$ref": "https://utrace.dev/schemas/envelope/envelope/v1#/$defs/timestamp",
+      "description": "When the artifact became durable. Artifact content is immutable afterwards."
+    },
+    "client_scope": {
+      "$ref": "https://utrace.dev/schemas/envelope/envelope/v1#/$defs/client_scope",
+      "description": "The tenant that owns the artifact. Resolution reverifies it against the authenticated caller."
+    },
+    "retention_class": {
+      "$ref": "#/$defs/retention_class"
+    }
+  },
+  "required": [
+    "artifact_id",
+    "artifact_type",
+    "schema_version",
+    "media_type",
+    "digest",
+    "byte_size",
+    "created_at",
+    "client_scope",
+    "retention_class"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "retention_class": {
+      "description": "Which retention, export, and deletion rules govern the artifact. The class is fixed at creation; hold and deletion state live on the durable row, not in this immutable reference.",
+      "oneOf": [
+        {
+          "const": "participant_personal",
+          "title": "Participant personal",
+          "description": "Audio, transcripts, and other artifacts of a participant's own participation. Included in participant export and removed by participant deletion."
+        },
+        {
+          "const": "client_evidence",
+          "title": "Client evidence",
+          "description": "Client-scoped product evidence and outputs: telemetry bundles, candidate manifests, diffs, validation evidence, and sealed Case File cores. Immutable after acceptance and excluded from participant export."
+        },
+        {
+          "const": "operational",
+          "title": "Operational",
+          "description": "Build and check artifacts and journal material kept for diagnosis and reconstruction, on the shortest retention."
+        },
+        {
+          "const": "audit_minimized",
+          "title": "Audit minimized",
+          "description": "The minimized audit facts that deletion preserves, with references tombstoned rather than removed."
+        }
+      ]
+    }
+  }
+}

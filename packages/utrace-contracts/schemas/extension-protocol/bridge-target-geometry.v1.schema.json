@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/extension-protocol/bridge-target-geometry/v1",
+  "title": "target_geometry bridge message",
+  "description": "Main-world bridge, SDK to extension. The answer to one target_query: clipped top-level viewport geometry, revisions, and visibility facts. Zero matches are not_found and several matches are ambiguous; the runtime never picks a nearest guess.",
+  "type": "object",
+  "properties": {
+    "schema_version": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/schema_version" },
+    "kind": { "type": "string", "const": "target_geometry" },
+    "phase": { "type": "string", "const": "response" },
+    "exchange_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid" },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "document_attachment_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid" },
+        "registry_revision": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/revision" },
+        "viewport": {
+          "type": "object",
+          "properties": {
+            "width": { "type": "number", "minimum": 0 },
+            "height": { "type": "number", "minimum": 0 }
+          },
+          "required": ["width", "height"],
+          "additionalProperties": false
+        },
+        "targets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/resolved_target" },
+          "maxItems": 12
+        },
+        "not_found": {
+          "type": "array",
+          "items": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/opaque_id" },
+          "maxItems": 12,
+          "uniqueItems": true
+        },
+        "ambiguous": {
+          "type": "array",
+          "items": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/opaque_id" },
+          "maxItems": 12,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "document_attachment_id",
+        "registry_revision",
+        "viewport",
+        "targets",
+        "not_found",
+        "ambiguous"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": ["schema_version", "kind", "phase", "exchange_id", "payload"],
+  "additionalProperties": false,
+  "$defs": {
+    "resolved_target": {
+      "type": "object",
+      "properties": {
+        "target_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/opaque_id" },
+        "target_revision": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/revision" },
+        "layout_revision": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/revision" },
+        "frame_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/opaque_id" },
+        "rect": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/viewport_rect" },
+        "visible_fraction": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/unit_interval" },
+        "occluded": { "type": "boolean" },
+        "in_viewport": { "type": "boolean" },
+        "supports_visual_guidance": { "type": "boolean" }
+      },
+      "required": [
+        "target_id",
+        "target_revision",
+        "layout_revision",
+        "frame_id",
+        "rect",
+        "visible_fraction",
+        "occluded",
+        "in_viewport",
+        "supports_visual_guidance"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

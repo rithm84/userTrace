@@ -1,0 +1,22 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/session-controls-state/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Durable state of the participant's session controls.",
+  "properties": {
+    "muted": {
+      "title": "Muted",
+      "type": "boolean"
+    },
+    "paused": {
+      "title": "Paused",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "muted",
+    "paused"
+  ],
+  "title": "SessionControlsState",
+  "type": "object"
+}

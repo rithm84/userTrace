@@ -1,0 +1,109 @@
+{
+  "description": "Cross-language canonicalization and digest vectors. Each canonical string is written by hand from RFC 8785 and each digest is SHA-256 over its UTF-8 bytes, so a binding that agrees here agrees with the standard rather than with the other binding's library. Both bindings must reproduce canonical and digest exactly.",
+  "algorithm": "sha256",
+  "canonicalization": "jcs",
+  "vectors": [
+    {
+      "name": "empty_object",
+      "value": {},
+      "canonical": "{}",
+      "digest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+    },
+    {
+      "name": "single_pair",
+      "value": {
+        "a": "b"
+      },
+      "canonical": "{\"a\":\"b\"}",
+      "digest": "db4a7ecb114bc66c623a06c4ff6fe8daa2f49cc270ebbf7a1f81e22ab061c837"
+    },
+    {
+      "name": "key_ordering_ascii",
+      "value": {
+        "a": 1,
+        "A": 2,
+        "": 3,
+        "10": 4,
+        "1": 5,
+        "111": 6
+      },
+      "canonical": "{\"\":3,\"1\":5,\"10\":4,\"111\":6,\"A\":2,\"a\":1}",
+      "digest": "9df18680968ab7e617cd4ac65bdf2882a96b301864c210f6ccbe3467b5fe5844"
+    },
+    {
+      "name": "key_ordering_utf16_code_units",
+      "value": {
+        "é": 1,
+        "z": 2,
+        "😀": 3,
+        "A": 4
+      },
+      "canonical": "{\"A\":4,\"z\":2,\"é\":1,\"😀\":3}",
+      "digest": "15b77a95809c66689430de3472ce4e1d60c0d9abb4eafb8363627c84fbf17ced"
+    },
+    {
+      "name": "numbers_ecmascript_tostring",
+      "value": {
+        "int": 1,
+        "neg": -1,
+        "zero": 0,
+        "frac": 0.1,
+        "whole_float": 56.0,
+        "big": 1e+21,
+        "small": 1e-07,
+        "large_int": 9007199254740991
+      },
+      "canonical": "{\"big\":1e+21,\"frac\":0.1,\"int\":1,\"large_int\":9007199254740991,\"neg\":-1,\"small\":1e-7,\"whole_float\":56,\"zero\":0}",
+      "digest": "cccfc7e31f0c8ed41d0b19e0fdd67fb4ff6c6f4b59eb41ccf24ef94626a54fcc"
+    },
+    {
+      "name": "string_escaping",
+      "value": {
+        "s": "quote\" backslash\\ newline\n tab\t control\u0001 é"
+      },
+      "canonical": "{\"s\":\"quote\\\" backslash\\\\ newline\\n tab\\t control\\u0001 é\"}",
+      "digest": "19465414f51fcb5001ad21a1aa17de3fc6b6276184c11e505ed930e24d07dc30"
+    },
+    {
+      "name": "literals_and_arrays",
+      "value": {
+        "t": true,
+        "f": false,
+        "n": null,
+        "arr": [
+          3,
+          1,
+          2,
+          {
+            "b": 1,
+            "a": 2
+          }
+        ]
+      },
+      "canonical": "{\"arr\":[3,1,2,{\"a\":2,\"b\":1}],\"f\":false,\"n\":null,\"t\":true}",
+      "digest": "f9d17bbeb25109f3e181a5115a7b629d435138a0ea803981dc74b44a1e741893"
+    },
+    {
+      "name": "nested_payload",
+      "value": {
+        "product_signal_id": "01930a9c-4b21-7f3e-a8c2-6d1f0b3e5a77",
+        "flow_type": "feature_request",
+        "acceptance_criteria": [
+          {
+            "criterion_id": "01930a9c-4b21-7f3e-a8c2-6d1f0b3e5a78",
+            "ordinal": 1
+          },
+          {
+            "ordinal": 2,
+            "criterion_id": "01930a9c-4b21-7f3e-a8c2-6d1f0b3e5a79"
+          }
+        ],
+        "frequency": {
+          "customer_accounts": 3
+        }
+      },
+      "canonical": "{\"acceptance_criteria\":[{\"criterion_id\":\"01930a9c-4b21-7f3e-a8c2-6d1f0b3e5a78\",\"ordinal\":1},{\"criterion_id\":\"01930a9c-4b21-7f3e-a8c2-6d1f0b3e5a79\",\"ordinal\":2}],\"flow_type\":\"feature_request\",\"frequency\":{\"customer_accounts\":3},\"product_signal_id\":\"01930a9c-4b21-7f3e-a8c2-6d1f0b3e5a77\"}",
+      "digest": "4a8a76445f0fa614ac45e8a72bf42ed65b22654378f629da82a0060675b83243"
+    }
+  ]
+}

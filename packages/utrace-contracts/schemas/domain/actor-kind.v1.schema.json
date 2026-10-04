@@ -1,0 +1,15 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/actor-kind/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Who a fact is attributed to. Model roles never impersonate a person.",
+  "enum": [
+    "customer_participant",
+    "client_member",
+    "utrace_agent_role",
+    "provider_identity",
+    "service",
+    "system"
+  ],
+  "title": "ActorKind",
+  "type": "string"
+}

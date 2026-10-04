@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/browser-observation/payload-frontend-error/v1",
+  "title": "Frontend error payload",
+  "description": "A typed, sanitized frontend error. The browser never streams console output, and source-map resolution happens after ingestion.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "error_class",
+    "message_fingerprint",
+    "source",
+    "handled"
+  ],
+  "properties": {
+    "error_class": {
+      "type": "string",
+      "minLength": 1
+    },
+    "message_fingerprint": {
+      "type": "string",
+      "pattern": "^fp_[0-9a-f]{8}$"
+    },
+    "product_area": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/opaque_id"
+    },
+    "code_location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "script_ref",
+        "line",
+        "column"
+      ],
+      "properties": {
+        "script_ref": {
+          "type": "string"
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "column": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "source": {
+      "enum": [
+        "error_event",
+        "unhandled_rejection"
+      ]
+    },
+    "handled": {
+      "type": "boolean"
+    }
+  }
+}

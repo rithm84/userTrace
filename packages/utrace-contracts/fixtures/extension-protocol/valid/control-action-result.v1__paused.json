@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "kind": "control_action_result",
+  "message_id": "0199a0c0-0000-7aaa-8000-000000000009",
+  "sent_at": "2026-10-03T17:04:13Z",
+  "sequence": 20,
+  "payload": {
+    "action_id": "0199a0c0-0000-7aaa-8000-0000000ac701",
+    "session_id": "0199a0c0-0000-7aaa-8000-0000000055e1",
+    "disposition": "accepted",
+    "session_control_revision": 6,
+    "mute_state": "unmuted",
+    "pause_state": "paused"
+  }
+}

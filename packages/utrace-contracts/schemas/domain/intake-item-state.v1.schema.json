@@ -1,0 +1,14 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/intake-item-state/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Routing lifecycle of one sealed intake batch.",
+  "enum": [
+    "received",
+    "routing",
+    "routed",
+    "routing_blocked",
+    "canceled"
+  ],
+  "title": "IntakeItemState",
+  "type": "string"
+}

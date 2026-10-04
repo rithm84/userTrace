@@ -1,0 +1,4 @@
+{
+  "schema_version": "utrace_preview_denial_v1",
+  "reason": "session_ended"
+}

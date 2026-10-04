@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/browser-observation/payload-performance-measurement/v1",
+  "title": "Performance measurement payload",
+  "description": "Bounded, aggregated performance measurements. The first eligible records to drop under sustained pressure.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "measurements",
+    "window_start_offset",
+    "window_end_offset"
+  ],
+  "properties": {
+    "measurements": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "metric",
+          "count",
+          "sum_ms",
+          "max_ms"
+        ],
+        "properties": {
+          "metric": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "sum_ms": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "max_ms": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "window_start_offset": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "window_end_offset": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

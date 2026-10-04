@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/server-activation/server-activation/v1",
+  "title": "Server SDK observation activation",
+  "description": "One observation activation binding a server service instance to the exact identities, resource identity, short-lived export credential, operational limits, propagation probe, and signed instrumentation manifest. A new session, validation encounter, Preview Version, or runtime allocation requires a new activation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "activation_id",
+    "client_id",
+    "client_user_id",
+    "customer_account_id",
+    "session_id",
+    "preview_environment_id",
+    "preview_runtime_allocation_id",
+    "server_stream_id",
+    "service_instance_id",
+    "service_key",
+    "resource",
+    "credential",
+    "ingest",
+    "limits",
+    "probe",
+    "signed_manifest"
+  ],
+  "properties": {
+    "activation_id": { "type": "string", "format": "uuid" },
+    "client_id": { "type": "string", "format": "uuid" },
+    "client_user_id": { "type": "string", "format": "uuid" },
+    "customer_account_id": { "type": "string", "format": "uuid" },
+    "session_id": { "type": "string", "format": "uuid" },
+    "preview_environment_id": { "type": "string", "format": "uuid" },
+    "preview_runtime_allocation_id": { "type": "string", "format": "uuid" },
+    "preview_version_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Present only when the activation is bound to a candidate Preview Version."
+    },
+    "server_stream_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Echo of the stream the process created. A mismatch is an invalid activation."
+    },
+    "service_instance_id": { "type": "string", "format": "uuid" },
+    "service_key": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$", "maxLength": 120 },
+    "resource": {
+      "type": "object",
+      "description": "Standard OpenTelemetry resource identity for this process. Dynamic user and session identity never appears here.",
+      "additionalProperties": false,
+      "required": ["service_name", "service_namespace", "service_version", "deployment_environment_name"],
+      "properties": {
+        "service_name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "service_namespace": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "service_version": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "deployment_environment_name": { "type": "string", "minLength": 1, "maxLength": 120 }
+      }
+    },
+    "credential": {
+      "type": "object",
+      "description": "Short-lived, write-only service-instance credential for the telemetry ingestion edge.",
+      "additionalProperties": false,
+      "required": ["token", "expires_at"],
+      "properties": {
+        "token": { "type": "string", "minLength": 1, "maxLength": 4096 },
+        "expires_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "ingest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["traces_path", "preview_entry_token"],
+      "properties": {
+        "traces_path": {
+          "$comment": "fixed-literal: a URL path, spelled by RFC 3986 rather than by the enum vocabulary.",
+          "type": "string",
+          "description": "Path of the OTLP/HTTP traces endpoint on the authenticated telemetry ingestion edge.",
+          "const": "/v1/ingest/otlp/v1/traces"
+        },
+        "preview_entry_token": {
+          "type": "string",
+          "description": "Activation-scoped token the preview front door places on requests that have entered the authenticated active preview. A remote traceparent is accepted only when this token is present and matches.",
+          "minLength": 16,
+          "maxLength": 512
+        }
+      }
+    },
+    "limits": { "$ref": "#/$defs/limits" },
+    "probe": { "$ref": "#/$defs/probe" },
+    "signed_manifest": { "$ref": "https://utrace.dev/schemas/server-activation/signed-server-instrumentation-manifest/v1" }
+  },
+  "$defs": {
+    "limits": {
+      "type": "object",
+      "description": "Operational limits supplied by the activation handshake. Each must sit beneath the SDK's fixed platform ceiling; a value above a ceiling is an invalid activation rather than a silently clamped one.",
+      "additionalProperties": false,
+      "required": [
+        "max_batch_spans",
+        "max_batch_bytes",
+        "max_queue_batches",
+        "max_queue_spans",
+        "readiness_high_water_ratio",
+        "max_in_flight_batches",
+        "export_interval_millis",
+        "acknowledgement_lag_millis",
+        "flush_timeout_millis",
+        "retry"
+      ],
+      "properties": {
+        "max_batch_spans": { "type": "integer", "minimum": 1, "maximum": 2048 },
+        "max_batch_bytes": { "type": "integer", "minimum": 1024, "maximum": 4194304 },
+        "max_queue_batches": { "type": "integer", "minimum": 1, "maximum": 1024 },
+        "max_queue_spans": { "type": "integer", "minimum": 1, "maximum": 65536 },
+        "readiness_high_water_ratio": { "type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1 },
+        "max_in_flight_batches": { "type": "integer", "minimum": 1, "maximum": 8 },
+        "export_interval_millis": { "type": "integer", "minimum": 10, "maximum": 30000 },
+        "acknowledgement_lag_millis": { "type": "integer", "minimum": 100, "maximum": 300000 },
+        "flush_timeout_millis": { "type": "integer", "minimum": 100, "maximum": 30000 },
+        "retry": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["initial_backoff_millis", "max_backoff_millis", "multiplier", "jitter_ratio", "max_attempts"],
+          "properties": {
+            "initial_backoff_millis": { "type": "integer", "minimum": 1, "maximum": 60000 },
+            "max_backoff_millis": { "type": "integer", "minimum": 1, "maximum": 60000 },
+            "multiplier": { "type": "number", "minimum": 1, "maximum": 10 },
+            "jitter_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+            "max_attempts": { "type": "integer", "minimum": 1, "maximum": 12 }
+          }
+        }
+      }
+    },
+    "probe": {
+      "type": "object",
+      "description": "End-to-end propagation probe the activation requires before readiness. The probe enters through the authenticated preview path; the SDK proves the browser CLIENT to server SERVER parentage and every required downstream hop, then waits for the acknowledgement of the batch carrying them.",
+      "additionalProperties": false,
+      "required": ["probe_id", "route_template", "method", "required_hops"],
+      "properties": {
+        "probe_id": { "type": "string", "format": "uuid" },
+        "route_template": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "method": {
+          "$comment": "fixed-literal: HTTP method tokens are uppercase and case-sensitive in RFC 9110.",
+          "type": "string",
+          "enum": ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "TRACE", "CONNECT"]
+        },
+        "required_hops": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "type": "string",
+            "description": "Hop classes the smoke workflow must produce beneath the server span.",
+            "enum": ["server", "downstream_http", "database", "cache", "queue", "custom_protocol"]
+          }
+        }
+      }
+    }
+  }
+}

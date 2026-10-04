@@ -1,0 +1,15 @@
+{
+  "client_id": "0199a4c1-0009-7000-8000-000000000009",
+  "session_id": "0199a4c1-0012-7000-8000-000000000012",
+  "document_attachment_id": "0199a4c1-0003-7000-8000-000000000003",
+  "expected_registry_revision": 18,
+  "target_id": "tgt_4_0a1b2c3d4e5f6071",
+  "fields": [
+    "role",
+    "label",
+    "semantic_state"
+  ],
+  "depth_bound": 1,
+  "size_bound": 4096,
+  "deadline_ms": 1500
+}

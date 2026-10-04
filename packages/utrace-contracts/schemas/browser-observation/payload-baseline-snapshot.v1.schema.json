@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/browser-observation/payload-baseline-snapshot/v1",
+  "title": "Baseline snapshot payload",
+  "description": "Redacted structure, semantics, mounted targets, route state, and product state. Never a screenshot, raw HTML copy, or unrestricted DOM or accessibility-tree dump.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "baseline_id",
+    "reason",
+    "route",
+    "landmarks",
+    "targets",
+    "surfaces",
+    "entities",
+    "node_budget_exhausted"
+  ],
+  "properties": {
+    "baseline_id": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+    },
+    "reason": {
+      "enum": [
+        "activation",
+        "resume",
+        "full_navigation",
+        "settled_route_transition",
+        "delivery_gap",
+        "registry_drift",
+        "authorized_diagnostic"
+      ]
+    },
+    "route": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/route_state"
+    },
+    "landmarks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "role",
+          "depth",
+          "child_count"
+        ],
+        "properties": {
+          "role": {
+            "type": "string"
+          },
+          "label": {
+            "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/safe_value"
+          },
+          "depth": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "child_count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "targets": {
+      "type": "array",
+      "items": {
+        "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/target_summary"
+      }
+    },
+    "surfaces": {
+      "type": "array",
+      "items": {
+        "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/opaque_id"
+      }
+    },
+    "entities": {
+      "type": "array",
+      "items": {
+        "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/entity_ref"
+      }
+    },
+    "node_budget_exhausted": {
+      "type": "boolean"
+    }
+  }
+}

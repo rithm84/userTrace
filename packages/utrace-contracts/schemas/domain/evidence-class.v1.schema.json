@@ -1,0 +1,16 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/evidence-class/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "The admissible evidence slice a claim cites.",
+  "enum": [
+    "intake_source",
+    "transcript_fragment",
+    "browser_observation",
+    "server_span",
+    "implementation_artifact",
+    "check_result",
+    "validation_observation"
+  ],
+  "title": "EvidenceClass",
+  "type": "string"
+}

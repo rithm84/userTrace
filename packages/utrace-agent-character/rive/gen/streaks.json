@@ -1,0 +1,58 @@
+{
+ "coral": {
+  "black": "#111111",
+  "mint": "#97D6A4",
+  "sky": "#85CEF9",
+  "lilac": "#CDB6F9",
+  "peach": "#D07935",
+  "aqua": "#72D8D7"
+ },
+ "black": {
+  "coral": "#FCADA3",
+  "mint": "#97D6A4",
+  "sky": "#85CEF9",
+  "lilac": "#CDB6F9",
+  "peach": "#F5B488",
+  "aqua": "#72D8D7"
+ },
+ "mint": {
+  "coral": "#FCADA3",
+  "black": "#111111",
+  "sky": "#85CEF9",
+  "lilac": "#CDB6F9",
+  "peach": "#F5B488",
+  "aqua": "#00ABAB"
+ },
+ "sky": {
+  "coral": "#FCADA3",
+  "black": "#111111",
+  "mint": "#97D6A4",
+  "lilac": "#CDB6F9",
+  "peach": "#F5B488",
+  "aqua": "#00ABAB"
+ },
+ "lilac": {
+  "coral": "#FCADA3",
+  "black": "#111111",
+  "mint": "#97D6A4",
+  "sky": "#85CEF9",
+  "peach": "#F5B488",
+  "aqua": "#72D8D7"
+ },
+ "peach": {
+  "coral": "#D96F64",
+  "black": "#111111",
+  "mint": "#97D6A4",
+  "sky": "#85CEF9",
+  "lilac": "#CDB6F9",
+  "aqua": "#72D8D7"
+ },
+ "aqua": {
+  "coral": "#FCADA3",
+  "black": "#111111",
+  "mint": "#4AA965",
+  "sky": "#1A9DD8",
+  "lilac": "#CDB6F9",
+  "peach": "#F5B488"
+ }
+}

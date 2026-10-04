@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/browser-observation/payload-observation-gap/v1",
+  "title": "Observation gap payload",
+  "description": "An explicit dropped range. The range is expressed in source_sequence because a record is dropped before the exporter assigns an export_sequence, which keeps the export stream contiguous. A fresh baseline follows.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "gap_runtime_id",
+    "gap_first_source_sequence",
+    "gap_last_source_sequence",
+    "count",
+    "observation_class",
+    "reason",
+    "baseline_follows"
+  ],
+  "properties": {
+    "gap_runtime_id": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+    },
+    "gap_first_source_sequence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "gap_last_source_sequence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "observation_class": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/observation_priority"
+    },
+    "reason": {
+      "enum": [
+        "buffer_pressure",
+        "flow_control",
+        "transport_loss",
+        "pagehide_truncated"
+      ]
+    },
+    "baseline_follows": {
+      "type": "boolean"
+    }
+  }
+}

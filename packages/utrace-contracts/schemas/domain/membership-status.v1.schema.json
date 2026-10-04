@@ -1,0 +1,11 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/membership-status/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Whether a membership row currently grants access.",
+  "enum": [
+    "active",
+    "revoked"
+  ],
+  "title": "MembershipStatus",
+  "type": "string"
+}

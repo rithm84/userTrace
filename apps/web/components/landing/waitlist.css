@@ -1,0 +1,56 @@
+.lp-waitlist { --waitlist-action-width:190px; display:flex; align-items:center; justify-content:center; gap:16px; width:100%; }
+.lp-waitlist-bar { --waitlist-field:var(--paper); --waitlist-field-rule:transparent; position:relative; display:flex; flex:1; min-width:0; height:60px; margin:0; background:var(--waitlist-field); border:3px solid var(--ink); box-shadow:6px 6px 0 var(--ink); }
+.lp-waitlist-bar input { flex:1; width:0; min-width:0; padding:0 20px; border:0; border-radius:0; background:transparent; color:var(--ink); font:500 17px/1 var(--body); outline:none; }
+.lp-waitlist-bar:has(input:focus) { --waitlist-field:#fff7f5; --waitlist-field-rule:var(--coral); box-shadow:6px 6px 0 var(--ink), inset 0 -3px var(--waitlist-field-rule); }
+.lp-waitlist-bar input:is(:autofill, :-webkit-autofill) { box-shadow:inset 0 -3px var(--waitlist-field-rule), inset 0 0 0 1000px var(--waitlist-field); -webkit-text-fill-color:var(--ink); caret-color:var(--ink); }
+.lp-waitlist-bar input::placeholder { color:var(--ink-2); opacity:1; }
+.lp-waitlist-submit { position:relative; display:flex; flex:none; width:var(--waitlist-action-width); align-items:center; justify-content:center; gap:7px; appearance:none; padding:0 22px 0 29px; border:0; border-radius:0; background:var(--ink); color:var(--ink); font:800 19px/1 var(--display); white-space:nowrap; clip-path:polygon(14px 0,100% 0,100% 100%,0 100%); cursor:pointer; }
+.lp-waitlist-submit::before { content:""; position:absolute; inset:0 0 0 3px; clip-path:inherit; background:var(--coral); }
+.lp-waitlist-submit > * { position:relative; }
+button.lp-waitlist-submit:hover::before { background:var(--coral-strong); }
+button.lp-waitlist-submit:active::before { background:var(--coral-tint); }
+.lp-waitlist-submit:focus-visible::before { box-shadow:inset 0 0 0 3px var(--ink); }
+.lp-waitlist-success:focus { outline:none; }
+.lp-waitlist-confirmation { display:flex; flex:1; min-width:0; align-items:center; padding:0 20px; font:500 17px/1.2 var(--body); text-align:left; }
+.lp-waitlist-joined { cursor:default; }
+.lp-waitlist-bang { display:none; }
+.lp-waitlist-joined svg { stroke-dasharray:40; animation:waitlist-check .24s steps(3,end) both; }
+@keyframes waitlist-check { from { stroke-dashoffset:40; } to { stroke-dashoffset:0; } }
+/* On desktop the hero's Join button leaves the bar and hangs under its centre as a small coral
+   triangle pointing down into the city, its sides at the city's 30 degree street angle. It overflows
+   the bar, so the city still hangs from the bar's bottom edge. Bar and flap are one flat inked shape
+   with no offset shadow, which a triangle hanging off a shadowed bar cannot share. Layers: the
+   button's ::before is the ink triangle and its ::after the coral inside it, 3px in from every side. */
+@media (min-width:761px) {
+  .lp-waitlist--hero { --tri-w:204px; }
+  .lp-waitlist--hero .lp-waitlist-bar { box-shadow:none; }
+  .lp-waitlist--hero .lp-waitlist-bar:has(input:focus) { box-shadow:inset 0 -3px var(--waitlist-field-rule); }
+  .lp-waitlist--hero .lp-waitlist-submit { position:absolute; top:100%; left:50%; width:var(--tri-w); height:calc(var(--tri-w) * 0.2887); translate:-50% 0; align-items:flex-start; padding:11px 0 0; background:none; clip-path:polygon(0 0,100% 0,50% 100%); font-size:17px; isolation:isolate; }
+  .lp-waitlist--hero .lp-waitlist-submit::before { inset:0; z-index:-3; background:var(--ink); clip-path:polygon(0 0,100% 0,50% 100%); }
+  .lp-waitlist--hero .lp-waitlist-submit { --flap-base:var(--coral); --flap-dot:#b65047; }
+  .lp-waitlist--hero .lp-waitlist-submit::after { content:""; position:absolute; inset:0; z-index:-2; background:var(--flap-base); clip-path:polygon(11.2px 3px,calc(100% - 11.2px) 3px,50% calc(100% - 3.5px)); }
+  /* the comic dot screen of the headline's burst (dark coral dots running up to the ink outline,
+     shading the left and fading out by the middle), carried by the label's ::before so it sits
+     between the coral and the words */
+  .lp-waitlist--hero .lp-waitlist-submit > span { position:static; }
+  .lp-waitlist--hero .lp-waitlist-submit > span::before { content:""; position:absolute; inset:0; z-index:-1; background:radial-gradient(circle, var(--flap-dot) 2.3px, transparent 2.5px) 0 0 / 9px 9px; clip-path:polygon(11.2px 3px,calc(100% - 11.2px) 3px,50% calc(100% - 3.5px)); -webkit-mask-image:linear-gradient(90deg,#000 8%,transparent 48%); mask-image:linear-gradient(90deg,#000 8%,transparent 48%); pointer-events:none; }
+  .lp-waitlist--hero .lp-waitlist-submit svg { display:none; }
+  /* the flap only has room for "Join!"; "waitlist" stays in the button's accessible name */
+  .lp-waitlist--hero .lp-waitlist-more { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+  .lp-waitlist--hero .lp-waitlist-bang { display:inline; }
+  .lp-waitlist--hero button.lp-waitlist-submit:hover::before, .lp-waitlist--hero button.lp-waitlist-submit:active::before { background:var(--ink); }
+  .lp-waitlist--hero button.lp-waitlist-submit:hover, .lp-waitlist--hero button.lp-waitlist-submit:focus-visible { --flap-base:var(--coral-strong); }
+  .lp-waitlist--hero button.lp-waitlist-submit:active { --flap-base:var(--coral-tint); --flap-dot:var(--coral-strong); }
+  .lp-waitlist--hero .lp-waitlist-submit:focus-visible::before { box-shadow:none; }
+  .lp-waitlist--hero button.lp-waitlist-submit:focus-visible span { text-decoration:underline 2px; text-underline-offset:3px; }
+  .lp-waitlist--hero .lp-waitlist-joined { gap:5px; }
+  .lp-waitlist--hero .lp-waitlist-joined svg { display:block; width:16px; height:16px; }
+}
+@media (max-width:760px) {
+  .lp-waitlist { --waitlist-action-width:144px; flex-direction:column; gap:18px; }
+  .lp-waitlist-bar { flex:none; width:100%; }
+  .lp-waitlist-bar input { padding:0 12px; font-size:16px; }
+  .lp-waitlist-submit { gap:3px; padding:0 10px 0 20px; font-size:16px; }
+  .lp-waitlist-submit svg { width:17px; height:17px; }
+  .lp-waitlist-confirmation { padding:0 12px; font-size:16px; }
+}

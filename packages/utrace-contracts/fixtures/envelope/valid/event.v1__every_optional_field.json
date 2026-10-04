@@ -1,0 +1,67 @@
+{
+  "message_id": "01930a9c-1000-7000-8000-000000000005",
+  "envelope_version": 1,
+  "family": "event",
+  "payload_type": "implementation_attempt.candidate_published",
+  "payload_version": 1,
+  "producer": {
+    "component": "control_plane_api",
+    "component_version": "0.1.0"
+  },
+  "client_scope": {
+    "scope": "client",
+    "client_id": "01930a9c-1000-7000-8000-000000000001"
+  },
+  "domain_ids": {
+    "product_signal_id": "01930a9c-1000-7000-8000-000000000002",
+    "implementation_attempt_id": "01930a9c-1000-7000-8000-000000000007",
+    "preview_version_id": "01930a9c-1000-7000-8000-00000000000d",
+    "client_user_id": "01930a9c-1000-7000-8000-000000000006"
+  },
+  "occurred_at": "2026-10-03T09:15:00Z",
+  "stream": {
+    "stream_type": "implementation_attempt",
+    "stream_id": "01930a9c-1000-7000-8000-000000000007",
+    "expected_revision": 11,
+    "sequence": 12
+  },
+  "payload": {
+    "preview_version_id": "01930a9c-1000-7000-8000-00000000000d"
+  },
+  "digest": {
+    "algorithm": "sha256",
+    "canonicalization": "jcs",
+    "value": "e9d2712d426a178174981dad70a07de9cfea9660ff73f89b32ce66f0325781b2"
+  },
+  "actor": {
+    "kind": "utrace_agent_role",
+    "role": "sol",
+    "model_version": "gpt-5.6-sol-2026-07-14"
+  },
+  "authority": [
+    {
+      "kind": "configuration_release",
+      "reference_id": "01930a9c-1000-7000-8000-000000000009",
+      "revision": 4
+    },
+    {
+      "kind": "implementation_gate_decision",
+      "reference_id": "01930a9c-1000-7000-8000-00000000000e"
+    },
+    {
+      "kind": "environment_lease",
+      "reference_id": "01930a9c-1000-7000-8000-000000000008",
+      "revision": 2,
+      "fencing_token": 7
+    }
+  ],
+  "causation": {
+    "caused_by_message_id": "01930a9c-1000-7000-8000-000000000004",
+    "root_message_id": "01930a9c-1000-7000-8000-000000000002"
+  },
+  "recorded_at": "2026-10-03T09:15:00.123456789Z",
+  "trace_context": {
+    "traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+    "tracestate": "utrace=preview"
+  }
+}

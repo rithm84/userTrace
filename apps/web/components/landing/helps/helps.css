@@ -1,0 +1,113 @@
+/* Where uTrace helps: the case board, a page cut with the strip's slanted gutters. Desktop only. */
+.helps-section {
+  position: relative;
+  z-index: 1;
+  padding: 96px 0 104px;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.helps-section * { box-sizing: border-box; }
+.helps-wrap { width: 1180px; margin: 0 auto; }
+.helps-kicker { margin: 0; }
+.helps-title { margin-top: 12px; font-size: 56px; }
+.helps-lede { max-width: 700px; margin: 20px 0 0; }
+
+/* the page */
+.hp-page { position: relative; margin-top: 44px; background-color: #fff; background-image: radial-gradient(#c9c9c9 0.95px, transparent 1.05px); background-size: 6px 6px; font-family: var(--body); }
+.hp-borders { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; z-index: 4; }
+.hp-caption { position: absolute; z-index: 3; display: inline-flex; align-items: baseline; gap: 10px; padding: 7px 11px 8px; background: #fff; border: 2px solid #000; font: 700 15px/1.25 var(--body); letter-spacing: -0.005em; color: #000; white-space: nowrap; }
+.hp-caption i { font: 500 13px/1 var(--body); font-style: normal; color: var(--ink-2); }
+
+/* the open case */
+.hp-open { position: absolute; background: #fff; }
+.hp-open-body { position: absolute; inset: 0; animation: hp-pop 0.2s steps(2, end) both; }
+.hp-open .hp-caption { left: 24px; top: 22px; }
+.hp-crop { position: absolute; left: 24px; top: 76px; width: 560px; height: 336px; }
+.hp-flow { position: absolute; left: 24px; right: 70px; bottom: 24px; margin: 0; font: 400 15px/1.5 var(--body); color: var(--ink-2); }
+.hp-flow b { color: var(--ink); font-weight: 700; }
+@keyframes hp-pop { 0% { transform: scale(0.97); opacity: 0; } 50% { transform: scale(1.02); opacity: 1; } 100% { transform: none; opacity: 1; } }
+
+/* the waiting cases */
+.hp-thumb { position: absolute; display: block; margin: 0; padding: 0; border: 0; border-radius: 0; background: #fff; color: var(--ink); font-family: var(--body); text-align: left; cursor: pointer; transition: background-color 160ms ease-out; }
+.hp-thumb:hover, .hp-thumb:focus-visible { background: var(--coral-tint); }
+.hp-thumb:focus-visible { outline: 3px solid #000; outline-offset: -10px; }
+.hp-thumb .hp-caption { left: 54px; top: 72px; }
+.hp-thumb-preview { position: absolute; left: 54px; top: 132px; right: 64px; font: 400 16px/1.45 var(--body); color: var(--ink-2); }
+.hp-arrow { position: absolute; right: 24px; top: 26px; font-size: 28px; font-weight: 500; line-height: 1; transition: transform 180ms ease-out; }
+.hp-thumb:hover .hp-arrow { transform: translate(2px, -2px); }
+
+/* scenes: real UI inside the open panel */
+.hp-scene { position: relative; width: 100%; height: 100%; overflow: hidden; background: #fff; border: 2px solid #000; box-shadow: 6px 6px 0 #000; }
+.hp-scene-head { height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; border-bottom: 2px solid #000; font: 700 13px/1 var(--body); }
+.hp-scene-head span:last-child { font: 400 12px/1 var(--body); color: var(--ink-2); }
+.hp-chip { display: inline-flex; align-items: center; min-height: 24px; padding: 2px 7px; border: 2px solid #000; background: var(--coral); font: 600 12px/1.25 var(--body); white-space: nowrap; }
+
+/* the export that fails: a reports list under a dialog */
+.hp-reports { list-style: none; margin: 14px 24px 0; padding: 0; }
+.hp-reports li { display: flex; justify-content: space-between; padding: 9px 12px; border: 1.5px solid #dcdcdc; border-bottom: 0; font: 500 13px/1.3 var(--body); color: #333; }
+.hp-reports li:last-child { border-bottom: 1.5px solid #dcdcdc; }
+.hp-reports li span:last-child { color: #777; }
+.hp-scrim { position: absolute; left: 0; right: 0; top: 40px; bottom: 0; background: rgba(255, 255, 255, 0.72); }
+.hp-dialog { position: absolute; left: 50%; top: 52px; width: 392px; translate: -50% 0; padding: 12px 18px 14px; background: #fff; border: 2px solid #000; box-shadow: 4px 4px 0 #000; }
+.hp-dialog-head { display: flex; justify-content: space-between; align-items: center; }
+.hp-dialog-head h4 { margin: 0; font: 700 15px/1.3 var(--body); }
+.hp-dialog-head span { font-size: 18px; color: #777; }
+.hp-fields { display: grid; gap: 6px; margin: 10px 0; }
+.hp-fields dt { margin-bottom: 3px; font: 500 11.5px/1 var(--body); color: #555; }
+.hp-fields dd { display: flex; align-items: center; justify-content: space-between; height: 26px; margin: 0; padding: 0 10px; border: 1.5px solid #000; font: 500 12.5px/1 var(--body); }
+.hp-progress { height: 8px; border: 1.5px solid #000; background: #fff; }
+.hp-progress i { display: block; height: 100%; background: #111; }
+.hp-progress-note { margin: 4px 0 0; font: 500 11px/1.3 var(--body); color: #777; }
+.hp-error { display: flex; align-items: center; gap: 10px; margin-top: 8px; padding: 7px 10px; border: 2px solid #000; background: var(--coral-tint); font: 500 12.5px/1.3 var(--body); }
+.hp-error > span { display: grid; place-items: center; width: 18px; height: 18px; background: var(--coral); font-weight: 800; }
+.hp-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+.hp-btn, .hp-btn-ghost { padding: 7px 12px; border: 2px solid #000; font: 700 12px/1 var(--body); }
+.hp-btn { background: var(--coral); }
+.hp-btn-ghost { background: #fff; }
+
+/* the weekend drop: a KPI card with its fortnight, then the ask */
+.hp-kpi { margin: 16px 24px 0; padding: 12px 16px 12px; border: 1.5px solid #000; }
+.hp-kpi-head { display: flex; justify-content: space-between; align-items: baseline; font: 700 13px/1.3 var(--body); }
+.hp-kpi-head span { font: 400 11.5px/1.3 var(--body); color: #777; }
+.hp-kpi-value { display: flex; align-items: baseline; gap: 10px; margin-top: 4px; font: 800 30px/1.1 var(--display); letter-spacing: -0.02em; }
+.hp-kpi-value em { font: 600 12px/1.3 var(--body); font-style: normal; color: var(--coral-ink); }
+.hp-spark { display: block; width: 100%; height: 88px; margin-top: 8px; overflow: visible; }
+.hp-spark-weekend { fill: var(--coral-tint); }
+.hp-spark-area { fill: #f1f1f1; }
+.hp-spark-line { fill: none; stroke: #000; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.hp-spark-dot { fill: var(--coral-strong); stroke: #000; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.hp-axis { display: flex; justify-content: space-between; margin-top: 4px; font: 500 10.5px/1 var(--body); color: #777; }
+.hp-axis-weekend { color: var(--coral-ink); font-weight: 700; }
+.hp-days { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 12px 0 0; }
+.hp-days > div { padding: 6px 10px; border: 1.5px solid #dcdcdc; }
+.hp-days > div.is-weekend { border-color: var(--coral-strong); background: var(--coral-tint); }
+.hp-days dt { font: 500 11px/1.2 var(--body); color: #777; }
+.hp-days dd { margin: 2px 0 0; font: 700 14px/1.2 var(--body); }
+
+/* the spreadsheet: formula bar, grid, sheet tabs */
+.hp-sheet-app { margin: 12px 24px 0; border: 1.5px solid #000; }
+.hp-formula { display: flex; align-items: center; height: 30px; border-bottom: 1.5px solid #000; font: 500 12.5px/1 var(--body); }
+.hp-cell-ref { width: 54px; padding: 0 10px; border-right: 1.5px solid #ccc; font-weight: 700; }
+.hp-fx { padding: 0 10px; color: #777; font-style: italic; }
+.hp-formula-text { font: 500 12.5px/1 ui-monospace, "SF Mono", Menlo, monospace; }
+.hp-grid { width: 100%; border-collapse: collapse; font: 500 12.5px/1.3 var(--body); }
+.hp-grid th, .hp-grid td { padding: 6px 9px; border: 1px solid #d4d4d4; text-align: right; }
+.hp-grid thead th { background: #f1f1f1; font-weight: 600; color: #555; text-align: center; }
+.hp-grid th[scope="row"] { width: 28px; background: #f1f1f1; font-weight: 600; color: #555; text-align: center; }
+.hp-grid td:first-of-type { text-align: left; }
+.hp-grid td.is-header { font-weight: 700; text-align: left; }
+.hp-grid td.hp-typed { background: var(--coral-tint); }
+.hp-grid td.is-selected { background: var(--coral-tint); outline: 2px solid #000; outline-offset: -2px; }
+.hp-sheet-tabs { display: flex; align-items: center; gap: 4px; padding: 6px 8px; border-top: 1.5px solid #000; background: #f6f6f6; font: 500 12px/1 var(--body); }
+.hp-sheet-tabs > span:not(.hp-chip) { padding: 6px 10px; border: 1.5px solid #ccc; background: #fff; color: #555; }
+.hp-sheet-tabs > span.is-active { border-color: #000; color: #000; font-weight: 700; }
+.hp-sheet-tabs .hp-chip { margin-left: auto; }
+
+.helps-section[data-reduced-motion="true"] *,
+.helps-section[data-reduced-motion="true"] *::before,
+.helps-section[data-reduced-motion="true"] *::after { transition: none; animation: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .helps-section *, .helps-section *::before, .helps-section *::after { transition: none; animation: none; }
+}

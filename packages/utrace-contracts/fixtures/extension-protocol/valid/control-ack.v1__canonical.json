@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "kind": "control_ack",
+  "message_id": "0199a0c0-0000-7aaa-8000-00000000010a",
+  "sent_at": "2026-10-03T17:04:16Z",
+  "payload": {
+    "acknowledged_sequence": 22
+  }
+}

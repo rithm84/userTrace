@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/server-activation/signed-server-instrumentation-manifest/v1",
+  "title": "Signed server instrumentation manifest",
+  "description": "A server instrumentation manifest with its detached uTrace signature. The signature covers the RFC 8785 canonical JSON serialization of the `manifest` member only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["manifest", "signature"],
+  "properties": {
+    "manifest": { "$ref": "https://utrace.dev/schemas/server-activation/server-instrumentation-manifest/v1" },
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key_id", "algorithm", "value"],
+      "properties": {
+        "key_id": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "algorithm": { "type": "string", "enum": ["ed25519"] },
+        "value": {
+          "type": "string",
+          "description": "Base64 signature bytes.",
+          "pattern": "^[A-Za-z0-9+/]+={0,2}$",
+          "maxLength": 512
+        }
+      }
+    }
+  }
+}

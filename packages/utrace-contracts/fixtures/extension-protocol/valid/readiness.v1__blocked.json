@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "kind": "readiness",
+  "message_id": "0199a0c0-0000-7aaa-8000-000000000004",
+  "sent_at": "2026-10-03T17:04:08Z",
+  "sequence": 15,
+  "payload": {
+    "readiness_revision": 10,
+    "session_id": "0199a0c0-0000-7aaa-8000-0000000055e1",
+    "extension_readiness": "recovering",
+    "combined_readiness": "blocked",
+    "blockers": [
+      "server_sdk_disconnected",
+      "trace_correlation_missing"
+    ]
+  }
+}

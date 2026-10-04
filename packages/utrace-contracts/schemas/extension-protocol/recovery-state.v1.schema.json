@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/extension-protocol/recovery-state/v1",
+  "title": "recovery_state",
+  "description": "Control plane to extension. Answers a resume request: the stream continues from the last acknowledged sequence, restarts, or is refused.",
+  "type": "object",
+  "properties": {
+    "schema_version": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/schema_version" },
+    "kind": { "type": "string", "const": "recovery_state" },
+    "message_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid" },
+    "sent_at": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/timestamp" },
+    "sequence": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/sequence" },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "disposition": { "type": "string", "enum": ["resumed", "restarted", "rejected"] },
+        "next_sequence": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/sequence" },
+        "session_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid" },
+        "protocol_version": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/protocol_version" },
+        "reason": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/reason_code" }
+      },
+      "required": ["disposition", "next_sequence", "protocol_version"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["schema_version", "kind", "message_id", "sent_at", "sequence", "payload"],
+  "additionalProperties": false
+}

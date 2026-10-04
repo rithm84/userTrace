@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/preview/denial/v1",
+  "title": "Preview denial",
+  "description": "Typed refusal the control plane returns to the preview front door for a handoff exchange, a route resolution, or a relay.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "reason"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "utrace_preview_denial_v1"
+    },
+    "reason": {
+      "type": "string",
+      "enum": [
+        "unknown_host",
+        "unknown_handoff_code",
+        "handoff_consumed",
+        "handoff_expired",
+        "host_mismatch",
+        "unauthorized_session",
+        "session_ended",
+        "route_expired",
+        "activation_rejected"
+      ]
+    }
+  }
+}

@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/browser-observation/ingest-client-frame/v1",
+  "title": "Browser ingestion client frame",
+  "description": "Frames the top-document exporter sends on WS /v1/ingest/browser. The credential travels as a WebSocket subprotocol value, never in the URL.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/stream_open"
+    },
+    {
+      "$ref": "#/$defs/observation_batch"
+    },
+    {
+      "$ref": "#/$defs/stream_end"
+    }
+  ],
+  "$defs": {
+    "stream_open": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "schema_version",
+        "protocol_version",
+        "browser_stream_id",
+        "runtime_id",
+        "document_attachment_id",
+        "scope",
+        "resume_from_export_sequence"
+      ],
+      "properties": {
+        "kind": {
+          "const": "stream.open"
+        },
+        "schema_version": {
+          "const": "1",
+          "$comment": "fixed-literal: the decimal contract major, not a vocabulary name."
+        },
+        "protocol_version": {
+          "const": "1",
+          "$comment": "fixed-literal: the decimal contract major, not a vocabulary name."
+        },
+        "browser_stream_id": {
+          "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+        },
+        "runtime_id": {
+          "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+        },
+        "document_attachment_id": {
+          "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+        },
+        "scope": {
+          "$ref": "https://utrace.dev/schemas/browser-observation/observation-scope/v1"
+        },
+        "resume_from_export_sequence": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Zero on a new stream; ingestion's last contiguous acknowledgement on a resume."
+        }
+      }
+    },
+    "observation_batch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "batch_id",
+        "browser_stream_id",
+        "first_export_sequence",
+        "last_export_sequence",
+        "observations"
+      ],
+      "properties": {
+        "kind": {
+          "const": "observation.batch"
+        },
+        "batch_id": {
+          "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+        },
+        "browser_stream_id": {
+          "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+        },
+        "first_export_sequence": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "last_export_sequence": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "observations": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "https://utrace.dev/schemas/browser-observation/observation-envelope/v1"
+          }
+        }
+      }
+    },
+    "stream_end": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "browser_stream_id",
+        "terminal_export_sequence",
+        "reason"
+      ],
+      "properties": {
+        "kind": {
+          "const": "stream.end"
+        },
+        "browser_stream_id": {
+          "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+        },
+        "terminal_export_sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reason": {
+          "enum": [
+            "pagehide",
+            "terminated",
+            "paused"
+          ]
+        }
+      }
+    }
+  }
+}

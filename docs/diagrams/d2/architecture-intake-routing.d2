@@ -1,0 +1,86 @@
+...@_style
+
+cells: "Intake · decide once, then commit the authorized outcome" {
+  class: grid
+  grid-rows: 3
+  grid-columns: 3
+  horizontal-gap: 200
+  vertical-gap: 80
+
+  discord_intake: |md
+    ### Discord intake
+
+    - Configured server + channel
+    - Authenticated immutable batch
+    - Replay deduplication
+  | {class: [card; people]}
+
+  jev_intake_decisions: |md
+    ### Jev intake decisions
+
+    - Pinned product context
+    - Typed source-linked judgments
+    - Warrants a signal? Which flow?
+  | {class: [card; reasoning]}
+
+  optional_assistance: |md
+    ### Optional assistance
+
+    - Rest of the overview + thread
+    - Jev recheck; GPT-6.1 Sol if needed
+  | {class: [card; reasoning]}
+
+  held_intake: |md
+    ### Held Intake Item
+
+    - routing_blocked
+    - Unresolved facts
+    - Or an unsupported flow
+  | {class: [card; external]}
+
+  control_plane_decision: |md
+    ### Control-plane decision
+
+    - Python policy + source checks
+    - Atomic routing outcome
+  | {class: [card; gate]}
+
+  noise: |md
+    ### Noise
+
+    - Optional useful pointer
+    - No interview or Case File
+  | {class: [card; neutral]}
+
+  _s1: "" {width: 8; height: 8; style: {opacity: 0}}
+
+  new_product_signal: |md
+    ### New Product Signal
+
+    - Feature Request Flow
+    - Source-backed record
+    - Private user invitation
+  | {class: [card; outcome]}
+
+  key: "" {
+    class: legend
+    grid-rows: 3
+    grid-columns: 2
+    horizontal-gap: 8
+    vertical-gap: 6
+    k_people: "People · customer surfaces" {class: [key; people]}
+    k_reasoning: "Reasoning models" {class: [key; reasoning]}
+    k_gate: "Gates · checks" {class: [key; gate]}
+    k_outcome: "Validated · durable" {class: [key; outcome]}
+    k_external: "External · blocked" {class: [key; external]}
+    k_neutral: "Neutral · closed" {class: [key; neutral]}
+  }
+
+  optional_assistance -> control_plane_decision: "result" {class: edge}
+  control_plane_decision -> new_product_signal: "new case" {class: edge}
+  control_plane_decision -> noise: "noise" {class: edge}
+  control_plane_decision -> held_intake: "held" {class: edge}
+  jev_intake_decisions -> control_plane_decision: "ready" {class: edge}
+  jev_intake_decisions -> optional_assistance: "uncertain" {class: edge}
+  discord_intake -> jev_intake_decisions: "analyze" {class: edge}
+}

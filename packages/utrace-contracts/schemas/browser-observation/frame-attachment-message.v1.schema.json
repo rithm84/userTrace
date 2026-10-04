@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/browser-observation/frame-attachment-message/v1",
+  "title": "Instrumented child frame message",
+  "description": "Messages between an instrumented child frame's runtime and the top-document coordinator. The coordinator re-envelopes child records and never trusts a child's export sequence or scope fields.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/hello"
+    },
+    {
+      "$ref": "#/$defs/accept"
+    },
+    {
+      "$ref": "#/$defs/record"
+    }
+  ],
+  "$defs": {
+    "hello": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "schema_version",
+        "frame_id",
+        "runtime_id",
+        "attestation"
+      ],
+      "properties": {
+        "kind": {
+          "const": "utrace.frame.hello"
+        },
+        "schema_version": {
+          "const": "1",
+          "$comment": "fixed-literal: the decimal contract major, not a vocabulary name."
+        },
+        "frame_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "attestation": {
+          "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/signed_envelope"
+        },
+        "runtime_id": {
+          "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+        }
+      }
+    },
+    "accept": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "schema_version"
+      ],
+      "properties": {
+        "kind": {
+          "const": "utrace.frame.accept"
+        },
+        "schema_version": {
+          "const": "1",
+          "$comment": "fixed-literal: the decimal contract major, not a vocabulary name."
+        }
+      }
+    },
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "record"
+      ],
+      "properties": {
+        "kind": {
+          "const": "utrace.frame.record"
+        },
+        "record": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "observation_id",
+            "observation_type",
+            "source_sequence",
+            "occurred_at",
+            "monotonic_offset",
+            "route_revision",
+            "visibility_state",
+            "body"
+          ],
+          "properties": {
+            "observation_id": {
+              "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/uuid"
+            },
+            "observation_type": {
+              "type": "string"
+            },
+            "source_sequence": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "occurred_at": {
+              "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/rfc3339"
+            },
+            "monotonic_offset": {
+              "type": "number",
+              "minimum": 0
+            },
+            "route_revision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "visibility_state": {
+              "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/visibility_state"
+            },
+            "body": {
+              "type": "object",
+              "$comment": "extension-point: the observation body, closed and documented by the payload-<observation type> document that observation_type names."
+            }
+          }
+        }
+      }
+    }
+  }
+}

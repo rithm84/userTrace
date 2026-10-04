@@ -1,0 +1,87 @@
+{
+  "$defs": {
+    "OfferIssuanceState": {
+      "description": "Issuance progress of one earned invoice credit.",
+      "enum": [
+        "pending",
+        "dispatched",
+        "issued",
+        "blocked"
+      ],
+      "title": "OfferIssuanceState",
+      "type": "string"
+    },
+    "OfferState": {
+      "description": "Whether an Outreach Offer is reserved, earned, or released.",
+      "enum": [
+        "reserved",
+        "earned",
+        "released"
+      ],
+      "title": "OfferState",
+      "type": "string"
+    }
+  },
+  "$id": "https://utrace.dev/schemas/domain/outreach-offer-record/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One fixed invoice-credit offer for one case, in integer minor units.",
+  "properties": {
+    "amount_minor_units": {
+      "title": "Amount Minor Units",
+      "type": "integer"
+    },
+    "client_id": {
+      "format": "uuid",
+      "title": "Client Id",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "currency": {
+      "title": "Currency",
+      "type": "string"
+    },
+    "customer_account_id": {
+      "format": "uuid",
+      "title": "Customer Account Id",
+      "type": "string"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "issuance_state": {
+      "$ref": "#/$defs/OfferIssuanceState"
+    },
+    "product_signal_id": {
+      "format": "uuid",
+      "title": "Product Signal Id",
+      "type": "string"
+    },
+    "revision": {
+      "title": "Revision",
+      "type": "integer"
+    },
+    "state": {
+      "$ref": "#/$defs/OfferState"
+    }
+  },
+  "required": [
+    "id",
+    "client_id",
+    "product_signal_id",
+    "customer_account_id",
+    "state",
+    "revision",
+    "currency",
+    "amount_minor_units",
+    "created_at"
+  ],
+  "title": "OutreachOfferRecord",
+  "type": "object"
+}

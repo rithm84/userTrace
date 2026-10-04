@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/ids/identifiers/v1",
+  "title": "Typed domain identifiers",
+  "description": "The typed domain identifiers a message carries. Every name is optional; a message states only the relationships it actually establishes. Property names are exactly the enum of https://utrace.dev/schemas/ids/identifier-name/v1.",
+  "type": "object",
+  "properties": {
+    "client_id": {
+      "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+      "description": "The uTrace Client company that owns one product. Tenant scope for every client-scoped record."
+    },
+    "utrace_user_id": {
+      "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+      "description": "A person globally inside uTrace. Global data is limited to communication preferences, do-not-contact state, participation count, and abuse controls."
+    },
+    "client_user_id": {
+      "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+      "description": "That person's isolated relationship with one uTrace Client. Validation always requires the original client_user_id."
+    },
+    "customer_account_id": {
+      "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+      "description": "A client-scoped B2B customer organization. Frequency counts unique customer accounts."
+    },
+    "customer_membership_id": {
+      "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+      "description": "The join between a customer user and a customer account."
+    },
+    "client_member_id": {
+      "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+      "description": "A staff relationship with one client. Exactly one owner and zero or more admins."
+    },
+    "intake_item_id": {
+      "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+      "description": "One routed unit of Customer Surface input."
+    },
+    "product_signal_id": {
+      "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+      "description": "One independently gateable and validatable product outcome."
+    },
+    "outreach_attempt_id": {
+      "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+      "description": "One private invitation or re-contact attempt against the pinned contact budget."
+    },
+    "session_id": {
+      "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+      "description": "One Interview Session: a live interviewing or validation encounter."
+    },
+    "preview_runtime_allocation_id": {
+      "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+      "description": "Exclusive access to a full running copy of the client product. Grants product access, not code-writing authority."
+    },
+    "environment_lease_id": {
+      "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+      "description": "The attempt-scoped fenced lease that alone grants implementation workspace mutation."
+    },
+    "implementation_attempt_id": {
+      "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+      "description": "One gate-approved attempt. At most one nonterminal attempt exists per Product Signal."
+    },
+    "preview_version_id": {
+      "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+      "description": "One immutable candidate bound to one attempt and exact source/build artifact."
+    },
+    "validation_attempt_id": {
+      "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+      "description": "One originating-user validation of one exact Preview Version and prepared dataset."
+    },
+    "case_file_id": {
+      "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+      "description": "The client-facing output record. An eligible Product Signal owns at most one."
+    },
+    "delivery_id": {
+      "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+      "description": "One delivery of an output, such as the single draft PR bound to the validated commit manifest."
+    },
+    "job_id": {
+      "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+      "description": "One durable responsibility with a frozen input, deadline, budget, and concurrency key."
+    },
+    "job_run_id": {
+      "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+      "description": "One leased execution of a Job."
+    },
+    "command_id": {
+      "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+      "description": "One immutable, single-purpose request. The idempotency boundary and provider idempotency key."
+    },
+    "evidence_window_id": {
+      "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+      "description": "One bounded selection of observations promoted as evidence."
+    },
+    "artifact_id": {
+      "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+      "description": "One immutable stored artifact addressed by digest."
+    },
+    "ingestion_receipt_id": {
+      "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+      "description": "One received telemetry batch at the ingress journal."
+    },
+    "normalization_run_id": {
+      "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+      "description": "One reprocessing pass over a retained receipt."
+    },
+    "observation_id": {
+      "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+      "description": "One browser observation record. Browser records deduplicate by this identifier."
+    },
+    "browser_stream_id": {
+      "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+      "description": "One top-document browser runtime export stream. Reload or full navigation starts a new stream."
+    },
+    "server_stream_id": {
+      "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+      "description": "One server SDK service process export stream."
+    },
+    "extension_binding_id": {
+      "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+      "description": "One authenticated extension binding to the selected preview tab."
+    },
+    "document_attachment_id": {
+      "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+      "description": "One browser SDK attachment to a document in the bound preview tab."
+    },
+    "preview_environment_id": {
+      "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+      "description": "The preview environment an observation or span was produced in."
+    },
+    "runtime_id": {
+      "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+      "description": "One embedded browser SDK runtime instance inside a document."
+    },
+    "voice_run_id": {
+      "$ref": "https://utrace.dev/schemas/ids/uuid-v7/v1",
+      "description": "One provider voice connection. Every provider connection creates a new voice run."
+    }
+  },
+  "required": [],
+  "additionalProperties": false
+}

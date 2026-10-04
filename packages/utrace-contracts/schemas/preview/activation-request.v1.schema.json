@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/preview/activation-request/v1",
+  "title": "Preview activation request",
+  "description": "Same-origin POST /__utrace/activate body sent by the embedded browser SDK bootstrap. Its fields are the SDK's whole static configuration plus the per-document nonce: no secret, no uTrace User identity, no customer account, no session, no ingestion credential. schema_version is the browser observation schema major the SDK speaks, not a preview envelope discriminator, because the browser SDK owns this request. The door forwards every field unchanged, because the attestation pins the SDK installation, the document origin, the protocol and the schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "sdk_installation_id",
+    "environment_name",
+    "client_release_id",
+    "schema_version",
+    "protocol_version",
+    "document_nonce",
+    "document_origin"
+  ],
+  "properties": {
+    "sdk_installation_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "environment_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "client_release_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "schema_version": {
+      "type": "string",
+      "pattern": "^[0-9]{1,3}$"
+    },
+    "protocol_version": {
+      "type": "string",
+      "pattern": "^[0-9]{1,3}$"
+    },
+    "document_nonce": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{16,128}$"
+    },
+    "document_origin": {
+      "type": "string",
+      "pattern": "^https?://[^/?#]+$"
+    },
+    "observation_schema_version": {
+      "type": "string",
+      "pattern": "^[0-9]{1,3}$",
+      "description": "The browser observation schema major the runtime speaks, when the SDK pins it separately from its own. Omitted by an SDK that does not; never null."
+    }
+  }
+}

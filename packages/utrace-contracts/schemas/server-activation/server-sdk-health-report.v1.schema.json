@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/server-activation/server-sdk-health-report/v1",
+  "title": "Server SDK health report",
+  "description": "Operational metadata only. Health reports never include product content or rejected raw values.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "reported_at",
+    "sdk_version",
+    "contract_major",
+    "node_version",
+    "service_key",
+    "service_instance_id",
+    "server_stream_id",
+    "lifecycle_state",
+    "capabilities",
+    "adapters",
+    "buffer",
+    "probe_result",
+    "failures"
+  ],
+  "properties": {
+    "reported_at": { "type": "string", "format": "date-time" },
+    "sdk_version": { "type": "string", "minLength": 1, "maxLength": 40 },
+    "contract_major": { "type": "integer", "minimum": 1 },
+    "node_version": { "type": "string", "minLength": 1, "maxLength": 40 },
+    "service_key": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$", "maxLength": 120 },
+    "service_instance_id": { "type": "string", "format": "uuid" },
+    "server_stream_id": { "type": "string", "format": "uuid" },
+    "activation_id": { "type": "string", "format": "uuid" },
+    "manifest_version": { "type": "integer", "minimum": 1 },
+    "policy_version": { "type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$" },
+    "utrace_schema_version": { "type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$" },
+    "semantic_convention_version": { "type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$" },
+    "lifecycle_state": {
+      "type": "string",
+      "enum": ["dormant", "activating", "ready", "paused", "recovering", "failed", "terminated"]
+    },
+    "capabilities": {
+      "type": "array",
+      "maxItems": 32,
+      "items": { "type": "string", "minLength": 1, "maxLength": 60 }
+    },
+    "adapters": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["adapter", "required", "installed"],
+        "properties": {
+          "adapter": {
+            "type": "string",
+            "enum": ["node_http", "undici", "pg", "express", "fastify", "next_server"]
+          },
+          "required": { "type": "boolean" },
+          "installed": { "type": "boolean" },
+          "module_version": { "type": "string", "maxLength": 40 }
+        }
+      }
+    },
+    "buffer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "queued_batches",
+        "queued_spans",
+        "max_queue_batches",
+        "max_queue_spans",
+        "utilization",
+        "high_water_reached",
+        "last_produced_sequence",
+        "last_acknowledged_sequence"
+      ],
+      "properties": {
+        "queued_batches": { "type": "integer", "minimum": 0 },
+        "queued_spans": { "type": "integer", "minimum": 0 },
+        "max_queue_batches": { "type": "integer", "minimum": 1 },
+        "max_queue_spans": { "type": "integer", "minimum": 1 },
+        "utilization": { "type": "number", "minimum": 0, "maximum": 1 },
+        "high_water_reached": { "type": "boolean" },
+        "last_produced_sequence": { "type": "integer", "minimum": 0 },
+        "last_acknowledged_sequence": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "credential_expires_at": { "type": "string", "format": "date-time" },
+    "probe_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "observed_hops", "required_hops"],
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": ["not_started", "awaiting_spans", "awaiting_acknowledgement", "passed", "failed"]
+        },
+        "probe_id": { "type": "string", "format": "uuid" },
+        "observed_hops": {
+          "type": "array",
+          "maxItems": 32,
+          "items": { "type": "string", "enum": ["server", "downstream_http", "database", "cache", "queue", "custom_protocol"] }
+        },
+        "required_hops": {
+          "type": "array",
+          "maxItems": 32,
+          "items": { "type": "string", "enum": ["server", "downstream_http", "database", "cache", "queue", "custom_protocol"] }
+        },
+        "failure_reason": {
+          "type": "string",
+          "enum": ["duplicate_server_span", "missing_hop", "rejected_field", "unexpected_destination", "acknowledgement_timeout"]
+        }
+      }
+    },
+    "failures": {
+      "type": "array",
+      "maxItems": 32,
+      "items": { "$ref": "https://utrace.dev/schemas/server-activation/server-sdk-failure/v1" }
+    }
+  }
+}

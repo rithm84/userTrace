@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/browser-observation/payload-form-submission/v1",
+  "title": "Form submission payload",
+  "description": "A submitted form and its bounded validity summary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "actor",
+    "method",
+    "field_count",
+    "invalid_field_count"
+  ],
+  "properties": {
+    "actor": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/actor"
+    },
+    "form_name": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/safe_value"
+    },
+    "method": {
+      "enum": [
+        "get",
+        "post",
+        "dialog"
+      ]
+    },
+    "field_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "invalid_field_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "surface": {
+      "$ref": "https://utrace.dev/schemas/browser-observation/common/v1#/$defs/opaque_id"
+    }
+  }
+}

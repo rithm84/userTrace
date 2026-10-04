@@ -1,0 +1,16 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/command-state/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Dispatch lifecycle of one Command.",
+  "enum": [
+    "created",
+    "queued",
+    "dispatching",
+    "dispatched",
+    "acknowledged",
+    "reconciling",
+    "terminal"
+  ],
+  "title": "CommandState",
+  "type": "string"
+}

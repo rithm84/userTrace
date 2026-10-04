@@ -1,0 +1,72 @@
+...@_style
+
+cells: "Runtime placement · keep persistent coordination outside sandboxes" {
+  class: grid
+  grid-rows: 2
+  grid-columns: 3
+  horizontal-gap: 200
+  vertical-gap: 80
+
+  vercel_web: |md
+    ### Vercel web
+  
+    - Landing + dashboard
+    - Session UI + auth routes
+  | {class: [card; people]}
+
+  supabase_compute: |md
+    ### Supabase Compute
+  
+    - Persistent API / coordinator
+    - Discord, ingestion, workers
+  | {class: [card; runtime]}
+
+  supabase: |md
+    ### Supabase
+  
+    - Auth · Postgres · Storage
+    - Realtime · Queues · Cron
+  | {class: [card; outcome]}
+
+  preview_front_door: |md
+    ### Preview front door
+  
+    - Separate origin per session
+    - Authenticated route revision
+  | {class: [card; people]}
+
+  vercel_sandbox: |md
+    ### Vercel Sandbox
+  
+    - Isolated workspace + coding agent
+    - Separate product runtimes
+  | {class: [card; observation]}
+
+  credential_custody: |md
+    ### Credential custody
+  
+    - Compute project secrets
+    - Same set in every compute
+  | {class: [card; gate]}
+
+  vercel_web -> supabase_compute: "API" {class: edge}
+  supabase_compute -> supabase: "durable\nrecords" {class: edge}
+  vercel_web -> preview_front_door: "preview handoff" {class: edge}
+  preview_front_door -> vercel_sandbox: "product port" {class: edge}
+  supabase_compute -> vercel_sandbox: "authorized lease" {class: edge}
+  credential_custody -> supabase_compute: "injected secrets" {class: edge}
+}
+
+key: "" {
+  near: bottom-center
+  class: legend
+  grid-rows: 1
+  grid-columns: 5
+  horizontal-gap: 16
+  vertical-gap: 12
+  k_people: "People · customer surfaces" {class: [key; people]}
+  k_runtime: "uTrace control plane" {class: [key; runtime]}
+  k_observation: "SDKs · previews" {class: [key; observation]}
+  k_outcome: "Validated · durable" {class: [key; outcome]}
+  k_gate: "Gates · checks" {class: [key; gate]}
+}

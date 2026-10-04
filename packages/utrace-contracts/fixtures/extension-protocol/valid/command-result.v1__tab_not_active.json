@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "kind": "command_result",
+  "message_id": "0199a0c0-0000-7aaa-8000-000000000104",
+  "sent_at": "2026-10-03T17:04:15Z",
+  "payload": {
+    "command_id": "0199a0c0-0000-7aaa-8000-0000000cd004",
+    "outcome": "failed",
+    "reason": "tab_not_active",
+    "extension_binding_id": "0199a0c0-0000-7aaa-8000-0000000b1d01",
+    "document_attachment_id": "0199a0c0-0000-7aaa-8000-0000000a7701",
+    "observed_targets": [],
+    "completed_at": "2026-10-03T17:04:15Z"
+  }
+}

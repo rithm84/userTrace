@@ -1,0 +1,10 @@
+{
+  "schema_version": "utrace_preview_handoff_exchange_v1",
+  "public_preview_host": "k7m2q9x4v1z8.preview.utrace.dev",
+  "client_id": "0192f3c4-8a21-7c3e-9b6a-1d2e3f405162",
+  "interview_session_id": "0192f3c4-9b10-7d4f-8c2a-5e6f70819243",
+  "session_credential": {
+    "value": "Kd8s-2Ff4LmQ9tR1vXz3Yb7Nc5Pe0Wg6Hj4Ku2Sx8Tn1Vq7Zr3Bd5Mf9Cy2Lp6Aw",
+    "expires_at": "2026-10-03T18:05:00Z"
+  }
+}

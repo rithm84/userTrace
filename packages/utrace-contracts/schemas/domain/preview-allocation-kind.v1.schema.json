@@ -1,0 +1,11 @@
+{
+  "$id": "https://utrace.dev/schemas/domain/preview-allocation-kind/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Whether an allocation serves the base interview or a candidate.",
+  "enum": [
+    "base",
+    "candidate"
+  ],
+  "title": "PreviewAllocationKind",
+  "type": "string"
+}

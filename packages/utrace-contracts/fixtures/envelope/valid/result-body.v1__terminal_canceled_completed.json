@@ -1,0 +1,11 @@
+{
+  "status": "terminal",
+  "disposition": "canceled",
+  "effect_state": "completed",
+  "failure": {
+    "category": "policy_denied",
+    "code": "client_case_stop",
+    "message": "A client admin stopped this case; the dispatched effect had already applied.",
+    "retry": "never"
+  }
+}
