@@ -8,7 +8,11 @@ import contextlib
 from datetime import UTC, datetime, timedelta
 from typing import Final
 
-from utrace_contracts.domain.lifecycle import CriterionObservability, EvidenceClass, ProductSignalState
+from utrace_contracts.domain.lifecycle import (
+    CriterionObservability,
+    EvidenceClass,
+    ProductSignalState,
+)
 
 from app.auth.principals import ParticipantPrincipal
 from app.db.pool import Database

@@ -21,6 +21,7 @@ from app.ingestion.target_registry import IngestionTargetRegistry
 from app.interview.evidence import TranscriptFragment, record_transcript_fragment
 from app.interview.ports import RegisteredTarget
 from app.interview.settings import get_interview_settings
+from app.interview.voice.cues import _new_controls
 from app.interview.voice.delegation import DelegationRunner, DelegationSubject
 from tests.connectors.conftest import optional_env, require_env
 from tests.factories import CaseFixture, create_case
@@ -31,6 +32,7 @@ from tests.interview.fixtures import (
     create_preview_allocation,
     link_installation,
     observe_document,
+    observe_next_document,
 )
 from tests.supabase_auth import SignedInUser
 
@@ -175,6 +177,97 @@ async def test_a_debrief_clause_circles_the_new_control_it_names(
     assert await _dispatched_targets(database, session_id=session_id) == [
         [{"target_id": "filter-channel", "target_revision": 1}]
     ]
+
+
+def _controls(names: tuple[str, ...]) -> tuple[RegisteredTarget, ...]:
+    """One page's controls, in reading order."""
+    return tuple(
+        RegisteredTarget(
+            target_id=name,
+            target_revision=1,
+            description=f'{name} showing "All"',
+            placement="top left of the screen",
+            role="button",
+            visible=True,
+        )
+        for name in names
+    )
+
+
+async def test_a_new_version_names_a_control_moved_only_when_its_order_changed(
+    database: Database, auth_users: dict[str, SignedInUser]
+) -> None:
+    case = await _case(database, auth_users)
+    session_id = await create_live_session(database, case=case, phase=InterviewPhase.VALIDATION)
+    allocation_id = await create_preview_allocation(
+        database, case=case, interview_session_id=session_id, state="ready"
+    )
+    installation_id = await link_installation(
+        database,
+        utrace_user_id=case.utrace_user_id,
+        device_public_key_spki_b64u=_DEVICE_KEY,
+        protocol_version="1.0",
+    )
+    _, attachment_id = await create_binding(
+        database,
+        case=case,
+        interview_session_id=session_id,
+        extension_installation_id=installation_id,
+        preview_runtime_allocation_id=allocation_id,
+    )
+    filters = ("filter_channel", "filter_segment", "filter_review_topic")
+    page = await observe_document(
+        database,
+        case=case,
+        interview_session_id=session_id,
+        preview_runtime_allocation_id=allocation_id,
+        document_attachment_id=attachment_id,
+        targets=_controls(filters),
+    )
+    runner = DelegationRunner(
+        database=database,
+        reasoning=None,
+        jev=None,
+        targets=IngestionTargetRegistry(database),
+        settings=get_interview_settings(),
+    )
+    subject = DelegationSubject(
+        client_id=case.client_id,
+        product_signal_id=case.product_signal_id,
+        interview_session_id=session_id,
+        voice_connection_id=uuid7(),
+    )
+
+    async def load(names: tuple[str, ...]) -> list[str]:
+        nonlocal page
+        attachment = uuid7()
+        async with database.transaction() as conn, conn.cursor() as cur:
+            await cur.execute(
+                "update public.extension_bindings set document_attachment_id = %s "
+                "where interview_session_id = %s and status = 'bound'",
+                (attachment, session_id),
+            )
+        page = await observe_next_document(
+            database,
+            case=case,
+            earlier=page,
+            preview_runtime_allocation_id=allocation_id,
+            document_attachment_id=attachment,
+            targets=_controls(names),
+        )
+        return [
+            control.line
+            for control in await _new_controls(database, delegations=runner, subject=subject)
+        ]
+
+    # Filters around a new control keep their order, so only the new control is named.
+    assert await load((*filters, "saved_view_save_control")) == [
+        "new: saved view save control (top left of the screen)"
+    ]
+    # Placing the topic filter first moves it, and only it.
+    assert await load(
+        ("filter_review_topic", "filter_channel", "filter_segment", "saved_view_save_control")
+    ) == ["moved: filter review topic, now top left of the screen"]
 
 
 async def test_agreed_checks_count_as_shown_only_once_the_new_version_showed_them(
