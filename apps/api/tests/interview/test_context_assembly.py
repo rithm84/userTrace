@@ -5,6 +5,7 @@ items, the omitted-source records the budget produced, and the invalidation a
 correction writes.
 """
 
+import asyncio
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -16,8 +17,9 @@ from utrace_contracts.domain.lifecycle import (
     ProductSignalState,
 )
 
-from app.context.bundles import assemble_bundle, load_bundle
+from app.context.bundles import assemble_bundle, assemble_conversation_bundle, load_bundle
 from app.context.freshness import check_bundle_freshness
+from app.context.purposes import BundlePurpose
 from app.context.sources import (
     SECTION_ACCEPTANCE_CRITERIA,
     SECTION_AGREED_SCOPE,
@@ -148,6 +150,33 @@ async def test_a_bundle_is_source_linked_budgeted_and_stamped(
 
     freshness = await check_bundle_freshness(database, bundle_id=bundle.bundle_id)
     assert freshness.fresh is True
+
+
+async def test_concurrent_bundles_for_one_purpose_take_successive_revisions(
+    database: Database, auth_users: dict[str, SignedInUser]
+) -> None:
+    # The cursor judges every fragment of the agent's speech at once, each against
+    # its own bundle; none may lose a race for the same revision.
+    case = await _case(database, auth_users, "context-concurrent")
+    session_id = await create_live_session(
+        database, case=case, phase=InterviewPhase.DISCOVERY
+    )
+
+    bundles = await asyncio.gather(
+        *(
+            assemble_conversation_bundle(
+                database,
+                client_id=case.client_id,
+                product_signal_id=case.product_signal_id,
+                interview_session_id=session_id,
+                purpose=BundlePurpose.SPEECH_GESTURE,
+                recent_fragment_limit=10,
+            )
+            for _ in range(12)
+        )
+    )
+
+    assert sorted(bundle.context_revision for bundle in bundles) == list(range(1, 13))
 
 
 async def test_a_changed_criteria_revision_makes_a_bundle_stale(

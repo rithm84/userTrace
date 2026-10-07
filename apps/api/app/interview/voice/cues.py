@@ -23,6 +23,7 @@ session's state whenever a trigger says that state may have changed.
 """
 
 import asyncio
+import difflib
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -55,6 +56,7 @@ from app.ingestion.target_registry import (
     load_registered_targets,
     screen_region,
 )
+from app.interview.ports import RegisteredTarget
 from app.interview.voice.delegation import DelegationRunner, DelegationSubject
 from app.interview.voice.pointing import bound_document_attachment
 from app.interview.voice.session_changes import SessionChanges
@@ -725,15 +727,16 @@ async def _new_controls(
     A control is known by what the client declared it to be, not by the value it
     currently shows, so a filter showing a different value is not new, and each
     control is named once however many of its parts the page registers. One has
-    moved when the page before this one showed it in none of the screen regions
-    it occupies now.
+    moved when its place in the page's reading order, among the controls the page
+    before also showed, changed: a value of a different width shifts the controls
+    after it without moving any of them.
     """
     current = await delegations.current_targets(subject=subject)
     bound = await bound_document_attachment(
         database, interview_session_id=subject.interview_session_id
     )
     earlier: set[str] = set()
-    last_regions: dict[str, set[str]] = {}
+    last_order: tuple[str, ...] = ()
     documents = await _earlier_documents(
         database, interview_session_id=subject.interview_session_id, excluding=bound
     )
@@ -746,41 +749,51 @@ async def _new_controls(
         )
         earlier.update(control_identity(target.description) for target in targets)
         if position == 0:
-            for target in targets:
-                last_regions.setdefault(control_identity(target.description), set()).add(
-                    screen_region(target.placement)
-                )
+            last_order = _reading_order(targets)
     visible = [target for target in current[:_TARGET_LIMIT] if target.visible]
-    regions: dict[str, set[str]] = {}
-    for target in visible:
-        regions.setdefault(control_identity(target.description), set()).add(
-            screen_region(target.placement)
-        )
+    order = _reading_order(visible)
+    kept = _in_same_order(
+        [identity for identity in last_order if identity in order],
+        [identity for identity in order if identity in last_order],
+    )
     new: dict[str, _ChangedControl] = {}
     moved: dict[str, _ChangedControl] = {}
     for target in visible:
         identity = control_identity(target.description)
         name = identity.replace("_", " ")
+        where = screen_region(target.placement)
         if identity not in earlier:
             new.setdefault(
-                identity,
-                _ChangedControl(
-                    identity=identity, line=f"new: {name} ({screen_region(target.placement)})"
-                ),
+                identity, _ChangedControl(identity=identity, line=f"new: {name} ({where})")
             )
-        elif identity in last_regions and not regions[identity] & last_regions[identity]:
+        elif identity in last_order and identity not in kept:
             moved.setdefault(
-                identity,
-                _ChangedControl(
-                    identity=identity,
-                    line=(
-                        f"moved: {name}, from the "
-                        f"{' and '.join(sorted(last_regions[identity]))} "
-                        f"to the {screen_region(target.placement)}"
-                    ),
-                ),
+                identity, _ChangedControl(identity=identity, line=f"moved: {name}, now {where}")
             )
     return (*new.values(), *moved.values())
+
+
+def _reading_order(targets: Sequence[RegisteredTarget]) -> tuple[str, ...]:
+    """The visible controls' identities in the order the registry ranks them, top to bottom."""
+    order: dict[str, None] = {}
+    for target in targets:
+        if target.visible:
+            order.setdefault(control_identity(target.description))
+    return tuple(order)
+
+
+def _in_same_order(before: Sequence[str], after: Sequence[str]) -> frozenset[str]:
+    """The controls that keep their order from one page to the next.
+
+    The longest run of controls in the same relative order stays put; the ones
+    outside it are what moved, so moving one control does not mark its neighbours.
+    """
+    matcher = difflib.SequenceMatcher(a=before, b=after, autojunk=False)
+    return frozenset(
+        after[block.b + offset]
+        for block in matcher.get_matching_blocks()
+        for offset in range(block.size)
+    )
 
 
 async def _earlier_documents(

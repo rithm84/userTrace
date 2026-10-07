@@ -539,6 +539,14 @@ async def _next_context_revision(
 ) -> int:
     """Return the next monotonic context revision for one signal and purpose."""
     async with conn.cursor() as cur:
+        # Serialize allocation for this signal and purpose until the caller commits.
+        # Concurrent bundles, such as the cursor judging every fragment of the
+        # agent's speech, would otherwise read the same maximum and the loser would
+        # surface as a constraint error rather than as the next revision.
+        await cur.execute(
+            "select pg_advisory_xact_lock(hashtext(%s))",
+            (f"context_bundles:{product_signal_id}:{purpose}",),
+        )
         await cur.execute(
             """
             select coalesce(max(context_revision), 0) + 1 as next_revision
