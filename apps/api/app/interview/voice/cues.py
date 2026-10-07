@@ -63,6 +63,7 @@ from app.validation.session import start_session_validation
 __all__ = [
     "announce_gate_failure",
     "announce_ready_preview",
+    "announce_validation_outcome",
     "apply_controls",
     "begin_validation_when_ready",
     "prompt_open_preview",
@@ -148,6 +149,24 @@ _NO_IMPLEMENTATION_CUE: Final[str] = (
     "them so now in one or two short sentences, without technical detail, and do not "
     "say a new version is coming. Thank them: what they showed and agreed is recorded "
     "for the product team, and this session will close shortly."
+)
+
+#: Sent once the person's validation of the new version is recorded as validated,
+#: so the agent closes the conversation instead of waiting to be asked.
+_VALIDATED_CUE: Final[str] = (
+    "Validation is complete: every agreed check passed and they confirmed it. Close "
+    "the conversation now in one or two short sentences: thank them, tell them the "
+    "product team gets the change they just validated, and that this session will "
+    "close now. Ask nothing more."
+)
+
+#: Sent once validation is recorded without passing every agreed check, so the agent
+#: closes the conversation honestly.
+_NOT_VALIDATED_CUE: Final[str] = (
+    "Validation is finished, and the new version did not pass every agreed check. "
+    "Close the conversation now in one or two short sentences: thank them, tell them "
+    "the product team gets what they found and their time still counts, and that "
+    "this session will close now. Ask nothing more."
 )
 
 #: The facts that send a case to the gate or settle it; the newest says whether a
@@ -323,6 +342,59 @@ async def announce_gate_failure(
             event_id=str(announced),
             outcome=outcome,
         )
+
+
+async def announce_validation_outcome(
+    database: Database,
+    changes: SessionChanges,
+    *,
+    product_signal_id: UUID,
+    sideband: SidebandConnection,
+    agent_quiet: asyncio.Event,
+) -> None:
+    """Have the agent close the conversation once, when the case's validation is recorded.
+
+    The Case File that follows ends the session a little later; without this the
+    agent waits silently for the person to ask whether they are done.
+    """
+    woken = changes.watch()
+    announced: UUID | None = None
+    while True:
+        await woken.wait()
+        woken.clear()
+        completed = await _completed_validation(database, product_signal_id=product_signal_id)
+        if completed is None or completed[0] == announced:
+            continue
+        announced, outcome = completed
+        await agent_quiet.wait()
+        await sideband.append_commentary(
+            content=_VALIDATED_CUE if outcome == "validated" else _NOT_VALIDATED_CUE,
+            delegation_id=None,
+        )
+        _log.info(
+            "voice_validation_outcome_announced",
+            product_signal_id=str(product_signal_id),
+            validation_attempt_id=str(announced),
+            outcome=outcome,
+        )
+
+
+async def _completed_validation(
+    database: Database, *, product_signal_id: UUID
+) -> tuple[UUID, str] | None:
+    """The case's newest completed Validation Attempt and its outcome, if one completed."""
+    async with database.connection() as conn, conn.cursor() as cur:
+        await cur.execute(
+            """
+            select id, outcome::text as outcome from public.validation_attempts
+            where product_signal_id = %s and completed_at is not null
+            order by completed_at desc
+            limit 1
+            """,
+            (product_signal_id,),
+        )
+        row = await cur.fetchone()
+    return None if row is None else (as_uuid(row, "id"), as_str(row, "outcome"))
 
 
 async def _stopped_change(

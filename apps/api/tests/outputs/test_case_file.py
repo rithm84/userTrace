@@ -32,7 +32,9 @@ from tests.helpers import read_state
 from tests.supabase_auth import SignedInUser
 from tests.validation.scenario import (
     ValidationScenario,
+    add_check_result,
     add_criterion_observation,
+    add_implementation_artifact,
     add_intake_source,
     add_transcript_fragment,
     add_workflow_observation,
@@ -225,6 +227,73 @@ async def test_a_blocked_case_file_seals_publishes_and_closes_the_case(
     assert row.core_canonical is not None
     assert row.authenticated_url is not None
     assert str(result.case_file_id) in row.authenticated_url
+
+
+async def test_a_validated_case_file_states_the_change_its_checks_and_its_scope(
+    database: Database, auth_users: dict[str, SignedInUser]
+) -> None:
+    """Files, checks, cleanup, and gate scope come from the records that own them."""
+    scenario = await _case_with_evidence(database, auth_users, name="validated-change")
+    await add_check_result(database, scenario, name="lint", outcome="passed")
+    await add_check_result(database, scenario, name="test", outcome="failed")
+    await add_implementation_artifact(
+        database,
+        scenario,
+        files=[
+            ("src/components/dashboard/SavedViews.tsx", b"export {};\n"),
+            ("src/components/dashboard/FilterBar.tsx", b"export {};\n"),
+        ],
+    )
+    first, second = scenario.criteria
+    for criterion in (first, second):
+        await add_criterion_observation(
+            database,
+            scenario,
+            criterion=criterion,
+            stance=EvidenceStance.SUPPORTS,
+            evidence_class=EvidenceClass.VALIDATION_OBSERVATION,
+            summary="the saved view reopened with the agreed filters",
+            supersedes_id=None,
+        )
+    attempt_id = await _complete_validation(
+        database,
+        scenario,
+        confirmations=[_confirm(first.id, confirmed=True), _confirm(second.id, confirmed=True)],
+    )
+    window = await DurableEvidenceQuery(database).freeze_window(
+        client_id=scenario.client_id,
+        product_signal_id=scenario.product_signal_id,
+        interview_session_id=scenario.interview_session_id,
+        purpose="case_file",
+        starts_at=datetime.now(tz=UTC) - timedelta(hours=2),
+        ends_at=datetime.now(tz=UTC) + timedelta(minutes=5),
+    )
+
+    async with database.connection() as conn:
+        bundle = await build_bundle(
+            conn,
+            client_id=scenario.client_id,
+            product_signal_id=scenario.product_signal_id,
+            variant=CaseFileVariant.VALIDATED_IMPLEMENTATION,
+            evidence_window_id=window.evidence_window_id,
+            validation_attempt_id=attempt_id,
+            blocker_reason=None,
+        )
+
+    assert bundle.implementation is not None
+    assert bundle.implementation.files_touched == (
+        "src/components/dashboard/FilterBar.tsx",
+        "src/components/dashboard/SavedViews.tsx",
+    )
+    assert [(check.name, check.outcome) for check in bundle.implementation.checks] == [
+        ("lint", "passed"),
+        ("test", "failed"),
+    ]
+    assert bundle.implementation.cleanup_state == "workspace destroyed"
+    assert bundle.gate is not None
+    assert bundle.gate.approved_scope == ("Save and reopen named conversion views.",)
+    assert bundle.gate.excluded_scope == ("Sharing and notifications.",)
+    assert bundle.gate.required_checks == ("pnpm test", "pnpm lint")
 
 
 async def test_a_no_implementation_case_file_ends_the_session_without_a_change(

@@ -19,7 +19,7 @@ import type { SharedObservationRuntime } from "../runtime/runtime.js";
 import { measureGeometry } from "../registry/geometry.js";
 import type { TargetSummary } from "../observation/types.js";
 import { evaluateDetailQuery } from "./detail-query.js";
-import type { BridgeFrameKind, BridgeRequest, BridgeTargetQuery } from "./messages.js";
+import type { BridgeRequest, BridgeTargetQuery } from "./messages.js";
 import { bridgeFrame, decodeBridgeFrame } from "./messages.js";
 
 /** Matches the extension protocol's `maxItems` on every resolved-target array. */
@@ -50,7 +50,7 @@ interface ResolvedTarget extends JsonObject {
 export class ExtensionBridge {
   readonly #runtime: SharedObservationRuntime;
   readonly #callbacks: BridgeCallbacks;
-  #port: MessagePort | null = null;
+  readonly #ports = new Set<MessagePort>();
   #discoveryListener: ((event: MessageEvent) => void) | null = null;
 
   constructor(runtime: SharedObservationRuntime, callbacks: BridgeCallbacks) {
@@ -59,7 +59,7 @@ export class ExtensionBridge {
   }
 
   get connected(): boolean {
-    return this.#port !== null;
+    return this.#ports.size > 0;
   }
 
   /** Starts listening for the extension's page-proof request. */
@@ -92,15 +92,16 @@ export class ExtensionBridge {
   }
 
   /**
-   * Takes the transferred port and answers the proof on it. A later handshake
-   * replaces an earlier one: the service worker probes before the content
-   * script attaches, and a reinjected content script attaches again.
+   * Takes the transferred port and answers the proof on it. Each handshake keeps
+   * its own port and is answered on it: the service worker's page-proof probe
+   * runs whenever the bound tab gains focus, which every scene causes, and then
+   * closes its port, so letting it replace the content script's long-lived port
+   * would leave every later target query unanswered.
    */
   #accept(port: MessagePort, exchangeId: string): void {
-    this.#port?.close();
-    this.#port = port;
+    this.#ports.add(port);
     port.addEventListener("message", (event: MessageEvent) => {
-      void this.#onMessage(event);
+      void this.#onMessage(port, event);
     });
     port.start();
     this.#sendPageProof(port, exchangeId);
@@ -121,7 +122,7 @@ export class ExtensionBridge {
     );
   }
 
-  async #onMessage(event: MessageEvent): Promise<void> {
+  async #onMessage(port: MessagePort, event: MessageEvent): Promise<void> {
     const receivedAtMs = this.#runtime.clock.wallNowMs();
     let request: BridgeRequest;
     try {
@@ -131,13 +132,11 @@ export class ExtensionBridge {
       return;
     }
     switch (request.kind) {
-      case "page_proof": {
-        const port = this.#port;
-        if (port !== null) this.#sendPageProof(port, request.exchange_id);
+      case "page_proof":
+        this.#sendPageProof(port, request.exchange_id);
         return;
-      }
       case "target_query":
-        this.#send("target_geometry", request.exchange_id, this.#resolveQuery(request.query));
+        port.postMessage(bridgeFrame("target_geometry", request.exchange_id, this.#resolveQuery(request.query)));
         return;
       case "detail_query": {
         const result = evaluateDetailQuery(
@@ -154,7 +153,7 @@ export class ExtensionBridge {
           this.#runtime.clock.wallNowMs(),
           receivedAtMs,
         );
-        this.#send(
+        port.postMessage(bridgeFrame(
           "detail_query",
           request.exchange_id,
           result.status === "ok"
@@ -164,7 +163,7 @@ export class ExtensionBridge {
                 fields: result.fields,
               }
             : { disposition: "failed", reason: result.status },
-        );
+        ));
         return;
       }
       case "pause_notice":
@@ -246,13 +245,9 @@ export class ExtensionBridge {
     };
   }
 
-  #send(kind: BridgeFrameKind, exchangeId: string, payload: JsonObject): void {
-    this.#port?.postMessage(bridgeFrame(kind, exchangeId, payload));
-  }
-
   close(): void {
-    this.#port?.close();
-    this.#port = null;
+    for (const port of this.#ports) port.close();
+    this.#ports.clear();
     if (this.#discoveryListener !== null) {
       this.#runtime.view.removeEventListener("message", this.#discoveryListener);
       this.#discoveryListener = null;

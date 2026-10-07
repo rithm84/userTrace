@@ -16,7 +16,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from datetime import datetime
-from typing import Literal
 from uuid import UUID
 
 from psycopg import AsyncConnection
@@ -189,18 +188,6 @@ def _text(evidence_class: EvidenceClass, body: Mapping[str, object]) -> str:
     return value
 
 
-def _check_name(body: Mapping[str, object]) -> str:
-    """Read the pinned check a check-result evidence body names."""
-    value = body.get("name")
-    if not isinstance(value, str):
-        raise GuardRejectedError(
-            machine="case_file",
-            trigger="verify",
-            reason="a check_result evidence body carries no 'name'",
-        )
-    return value
-
-
 def _body(row: Mapping[str, object]) -> Mapping[str, object]:
     body = row["body"]
     if not isinstance(body, Mapping):
@@ -281,37 +268,62 @@ async def _load_gate(
         row = await cur.fetchone()
     if row is None:
         return None
-    scope = row["approved_scope"]
-    checks = row["required_checks"]
+    decision = GateDecisionKind(as_str(row, "decision"))
+    approved = decision is GateDecisionKind.APPROVED_LIVE
+    scope = _ApprovedScope.model_validate(row["approved_scope"]) if approved else None
+    checks = _RequiredChecks.model_validate(row["required_checks"])
     return GateRecord(
         gate_decision_id=as_uuid(row, "id"),
-        decision=GateDecisionKind(as_str(row, "decision")),
+        decision=decision,
         blocker_reason=as_optional_str(row, "blocker_reason"),
         decided_at=as_datetime(row, "decided_at"),
-        approved_scope=_string_list(scope, "paths"),
-        excluded_scope=_string_list(scope, "excluded"),
-        required_checks=_string_list(checks, "commands"),
+        approved_scope=() if scope is None else tuple(scope.in_scope_changes),
+        excluded_scope=() if scope is None else tuple(scope.excluded_changes),
+        required_checks=tuple(check.command for check in checks.checks),
     )
 
 
-def _string_list(container: object, key: str) -> tuple[str, ...]:
-    """Read a list of strings out of a jsonb object, refusing another shape."""
-    if not isinstance(container, Mapping):
-        raise TypeError(f"expected an object carrying '{key}'")
-    value = container.get(key)
-    if value is None:
-        return ()
-    if not isinstance(value, Sequence) or isinstance(value, str):
-        raise TypeError(f"'{key}' is not a list of strings")
-    return tuple(str(item) for item in value)
+class _ApprovedScope(BaseModel):
+    """The parts of an approved gate scope the Case File states."""
+
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
+    in_scope_changes: list[str]
+    excluded_changes: list[str]
+
+
+class _RequiredCheck(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
+    command: str
+
+
+class _RequiredChecks(BaseModel):
+    """The checks the gate pinned; a declined case pins none."""
+
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
+    checks: list[_RequiredCheck]
+
+
+#: What an attempt's newest lease says about its workspace, as the Case File states it.
+_CLEANUP_BY_LEASE: Mapping[str, str] = {
+    "released": "workspace destroyed",
+    "active": "workspace still running",
+    "fenced": "workspace superseded by a later run",
+    "expired": "workspace lease expired without release",
+}
 
 
 async def _load_implementation(
-    conn: AsyncConnection[DictRow],
-    *,
-    validation_attempt_id: UUID,
-    evidence: Sequence[BundleEvidence],
+    conn: AsyncConnection[DictRow], *, validation_attempt_id: UUID
 ) -> ImplementationRecord:
+    """The validated candidate's identities, changed files, checks, and cleanup.
+
+    Each comes from the record that owns it: the files from the frozen Preview
+    Version's source manifest, the checks from the attempt's candidate check runs
+    (the last cycle of each), and cleanup from the attempt's newest lease.
+    """
     async with conn.cursor() as cur:
         await cur.execute(
             """
@@ -319,7 +331,10 @@ async def _load_implementation(
                    implementations.id as implementation_attempt_id,
                    implementations.repository_ref, implementations.base_revision,
                    versions.id as preview_version_id, versions.source_commit,
-                   versions.source_digest, versions.build_digest
+                   versions.source_digest, versions.build_digest, versions.source_manifest,
+                   (select leases.state::text from public.environment_leases as leases
+                     where leases.implementation_attempt_id = implementations.id
+                     order by leases.created_at desc limit 1) as lease_state
             from public.validation_attempts as attempts
             join public.implementation_attempts as implementations
               on implementations.id = attempts.implementation_attempt_id
@@ -330,32 +345,30 @@ async def _load_implementation(
             (validation_attempt_id,),
         )
         row = await cur.fetchone()
-    if row is None:
-        raise AggregateNotFoundError(
-            table="validation_attempts", row_id=validation_attempt_id
+        if row is None:
+            raise AggregateNotFoundError(
+                table="validation_attempts", row_id=validation_attempt_id
+            )
+        await cur.execute(
+            """
+            select distinct on (check_name) check_name, exit_code
+            from public.implementation_check_runs
+            where implementation_attempt_id = %s and phase = 'candidate'
+            order by check_name, cycle_index desc, created_at desc
+            """,
+            (as_uuid(row, "implementation_attempt_id"),),
         )
-    artifacts = [
-        item
-        for item in evidence
-        if item.evidence_class is EvidenceClass.IMPLEMENTATION_ARTIFACT
-    ]
-    files: list[str] = []
-    cleanup = "not recorded"
-    for artifact in artifacts:
-        touched = artifact.body.get("files_touched")
-        if isinstance(touched, Sequence) and not isinstance(touched, str):
-            files.extend(str(item) for item in touched)
-        state = artifact.body.get("cleanup_state")
-        if isinstance(state, str):
-            cleanup = state
-    checks = tuple(
-        CheckResult(
-            name=_check_name(item.body),
-            outcome=_check_outcome(item.body),
+        runs = await cur.fetchall()
+    manifest = row["source_manifest"]
+    if not isinstance(manifest, Mapping):
+        raise TypeError("the validated Preview Version carries no frozen source manifest")
+    lease_state = as_optional_str(row, "lease_state")
+    if lease_state is None:
+        raise GuardRejectedError(
+            machine="case_file",
+            trigger="verify",
+            reason="the validated candidate's Implementation Attempt holds no environment lease",
         )
-        for item in evidence
-        if item.evidence_class is EvidenceClass.CHECK_RESULT
-    )
     return ImplementationRecord(
         implementation_attempt_id=as_uuid(row, "implementation_attempt_id"),
         repository_ref=as_str(row, "repository_ref"),
@@ -365,24 +378,15 @@ async def _load_implementation(
         source_digest=as_str(row, "source_digest"),
         build_digest=as_str(row, "build_digest"),
         dataset_manifest_digest=as_str(row, "dataset_manifest_digest"),
-        files_touched=tuple(dict.fromkeys(files)),
-        cleanup_state=cleanup,
-        checks=checks,
-    )
-
-
-def _check_outcome(body: Mapping[str, object]) -> Literal["passed", "failed", "skipped"]:
-    outcome = body.get("outcome")
-    if outcome == "passed":
-        return "passed"
-    if outcome == "failed":
-        return "failed"
-    if outcome == "skipped":
-        return "skipped"
-    raise GuardRejectedError(
-        machine="case_file",
-        trigger="verify",
-        reason="a check_result evidence body carries no passed/failed/skipped outcome",
+        files_touched=tuple(sorted(str(path) for path in manifest)),
+        cleanup_state=_CLEANUP_BY_LEASE[lease_state],
+        checks=tuple(
+            CheckResult(
+                name=as_str(run, "check_name"),
+                outcome="passed" if as_int(run, "exit_code") == 0 else "failed",
+            )
+            for run in runs
+        ),
     )
 
 
@@ -501,7 +505,7 @@ async def build_bundle(
         )
         if variant is CaseFileVariant.VALIDATED_IMPLEMENTATION:
             implementation = await _load_implementation(
-                conn, validation_attempt_id=validation_attempt_id, evidence=evidence
+                conn, validation_attempt_id=validation_attempt_id
             )
 
     established = as_optional_str(signal, "established_flow_type")

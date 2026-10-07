@@ -115,6 +115,10 @@ Before an Interview Session starts, the claimed invitation runs a participant co
   client, user, session, preview runtime allocation, extension installation,
   and protocol version. It delivers the offer only to the official extension
   through externally connectable messaging.
+- Every page-proof handshake keeps its own channel to the SDK. The service
+  worker probes a bound tab whenever it gains focus, which every scene causes,
+  and closes its probe channel afterwards, so a probe never displaces the content
+  script's long-lived channel.
 - The embedded SDK supplies the signed page proof but does not issue it.
   Telemetry ingestion issues it when the document activates, mints the
   `document_attachment_id` inside it, and the SDK forwards the envelope verbatim.

@@ -65,6 +65,7 @@ from app.interview.voice.checks_shown import ShownChecks
 from app.interview.voice.cues import (
     announce_gate_failure,
     announce_ready_preview,
+    announce_validation_outcome,
     apply_controls,
     begin_validation_when_ready,
     prompt_open_preview,
@@ -212,6 +213,15 @@ async def drain_sideband(
             ),
             asyncio.create_task(
                 announce_gate_failure(
+                    database,
+                    changes,
+                    product_signal_id=subject.product_signal_id,
+                    sideband=sideband,
+                    agent_quiet=agent_quiet,
+                )
+            ),
+            asyncio.create_task(
+                announce_validation_outcome(
                     database,
                     changes,
                     product_signal_id=subject.product_signal_id,

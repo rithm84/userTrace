@@ -54,7 +54,7 @@ from app.implementation.specification import (
     RepositoryCheckout,
 )
 from app.implementation.state import advance_attempt, current_attempt
-from app.lifecycle.attempts import grant_environment_lease
+from app.lifecycle.attempts import grant_environment_lease, release_environment_lease
 from app.lifecycle.implementation import ImplementationAttemptFacts
 from app.lifecycle.product_signal import ProductSignalFacts
 from app.lifecycle.signal_transitions import advance_product_signal
@@ -265,6 +265,10 @@ async def _commit_outcome(
     database: Database, *, specification: AttemptSpecification, result: AttemptRunResult
 ) -> None:
     """Commit the run's typed outcome, and what it obliges for the Product Signal."""
+    if result.workspace_destroyed:
+        await release_environment_lease(
+            database, implementation_attempt_id=specification.implementation_attempt_id
+        )
     triggers = _OUTCOME_TRIGGERS.get(result.outcome)
     if triggers is None:
         _log.info(
