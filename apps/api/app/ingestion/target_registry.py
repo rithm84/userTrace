@@ -75,6 +75,7 @@ class _TargetSummary(BaseModel):
     target_id: str
     target_revision: int
     role: str
+    visual_only: bool
     definition_id: str | None = None
     label: _SafeValue | None = None
     geometry: _Geometry
@@ -111,7 +112,8 @@ class IngestionTargetRegistry:
         document_attachment_id: UUID,
         limit: int,
     ) -> Sequence[RegisteredTarget]:
-        """Return up to ``limit`` describable registered targets, visible ones first.
+        """Return up to ``limit`` describable registered targets: visible ones first,
+        then in `load_registered_targets` order, controls before visual-only parts.
 
         A target with neither a released label nor a declared definition cannot be
         matched to anything a person or agent says, so it is left out rather than
@@ -203,7 +205,7 @@ async def load_registered_targets(
             }
             continue
         _apply(registry, _RegistryChange.model_validate(payload))
-    targets = _registered_all(tuple(registry.values()))
+    targets = _registered_all(tuple(sorted(registry.values(), key=_priority)))
     _log.info(
         "registered_targets_read",
         client_id=str(client_id),
@@ -213,6 +215,17 @@ async def load_registered_targets(
         targets=len(targets),
     )
     return targets
+
+
+def _priority(summary: _TargetSummary) -> tuple[bool, int, int]:
+    """Declared product controls before visual-only parts, then top to bottom.
+
+    A page that declares the parts of its components (chart points, rows,
+    reviews) can register more targets than a caller takes; ranking by when each
+    target last changed let a control the participant had just set fall out of
+    the offered set, so the controls come first and the order is stable.
+    """
+    return (summary.visual_only, summary.geometry.y, summary.geometry.x)
 
 
 def _apply(registry: dict[str, _TargetSummary], change: _RegistryChange) -> None:

@@ -111,7 +111,10 @@ additional serial approval step for every utterance.
   those words arrive, for up to 1.5 seconds. Targets are described by role, the
   client's declared definition, the label they currently show, and where they sit
   on screen among targets described alike; a target with neither definition nor
-  label is not offered.
+  label is not offered. When a page registers more targets than are offered,
+  visible ones come first, declared controls before the visual-only parts of
+  components, then top to bottom, so a filter is never crowded out by chart
+  points or reviews.
 - **Acknowledgements:** each time the participant does something in the preview,
   Jev judges from the conversation and that activity whether it is a moment the
   conversation was waiting on, such as the screen they said they would open coming
@@ -232,7 +235,10 @@ invent one.
 
 During the conversation, who is talking sets the character, from the call's audio
 levels: `speaking` while the agent's audio plays, `thinking` while the agent has
-gone quiet waiting on a delegation's answer, and `listening` otherwise. Every
+gone quiet waiting on a delegation's answer, and `listening` otherwise. GPT-Live
+generates audio faster than it plays, so an agent turn ends when its last speech
+has played on the timeline its audio carries, not when generation stops; talking
+over the agent ends it at once. Every
 change is committed and published together, so the session tab and the extension
 show the same state.
 

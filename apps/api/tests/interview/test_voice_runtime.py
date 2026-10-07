@@ -1,4 +1,6 @@
 import asyncio
+import base64
+import contextlib
 
 """The voice runtime, end to end against a real socket and the real database.
 
@@ -471,6 +473,91 @@ async def test_the_sideband_persists_fragments_playback_and_a_delegation(
 
 _CLAIM_ATTEMPTS = 50
 _CLAIM_POLL_SECONDS = 0.1
+
+
+def _agent_audio(start_ms: int, *, loud: bool) -> Mapping[str, JsonValue]:
+    """100 ms of generated agent audio on the service timeline, loud or silent."""
+    sample = (8000).to_bytes(2, "little", signed=True) if loud else bytes(2)
+    return {
+        "type": "session.output_audio.delta",
+        "start_ms": start_ms,
+        "end_ms": start_ms + 100,
+        "delta": base64.b64encode(sample * 2400).decode(),
+    }
+
+
+async def test_the_character_speaks_until_the_agent_audio_has_played(
+    database: Database, auth_users: dict[str, SignedInUser]
+) -> None:
+    """The model generates audio faster than it plays; the turn ends when it is heard."""
+    case = await _case(database, auth_users, "voice-playback-turn")
+    session_id = await create_interview_session(
+        database,
+        case=case,
+        state=InterviewSessionState.LIVE,
+        conversational_ready=True,
+    )
+    await create_preview_allocation(
+        database, case=case, interview_session_id=session_id, state="ready"
+    )
+    await record_session_readiness(
+        database, interview_session_id=session_id, conversational=True, observation=True
+    )
+    # Three seconds of speech and the pause after it, all delivered at once.
+    script = ScriptedSession(
+        events=(
+            *(_agent_audio(start, loud=True) for start in range(0, 3000, 100)),
+            *(_agent_audio(start, loud=False) for start in range(3000, 3800, 100)),
+        ),
+    )
+
+    async def character() -> str:
+        async with database.connection() as conn, conn.cursor() as cur:
+            await cur.execute(
+                "select character_state::text as state from public.interview_sessions where id = %s",
+                (session_id,),
+            )
+            row = await cur.fetchone()
+        assert row is not None
+        return str(row["state"])
+
+    async with run_test_server(port=_SIDEBAND_PORT, script=script) as server:
+        adapter = local_voice_adapter(base_url=server.base_url)
+        async with adapter:
+            await open_voice_connection(
+                database,
+                adapter,
+                participant=_participant(case),
+                interview_session_id=session_id,
+                sdp_offer=_OFFER_SDP,
+            )
+            claimed = await _claim_sideband_job(database)
+            sideband = asyncio.create_task(
+                run_voice_sideband_with(
+                    database,
+                    claimed,
+                    adapter=adapter,
+                    delegations=DelegationRunner(
+                        database=database,
+                        reasoning=None,
+                        jev=None,
+                        targets=None,
+                        settings=get_interview_settings(),
+                    ),
+                )
+            )
+            try:
+                await script.attached.wait()
+                await asyncio.sleep(1.5)
+                while_playing = await character()
+                await asyncio.sleep(2.5)
+                after_playing = await character()
+            finally:
+                sideband.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await sideband
+
+    assert (while_playing, after_playing) == ("speaking", "listening")
 
 
 async def _claim_sideband_job(database: Database) -> ClaimedJob:

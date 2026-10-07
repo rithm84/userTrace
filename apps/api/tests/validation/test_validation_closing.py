@@ -1,8 +1,9 @@
-"""The agent closes the conversation itself once validation is recorded."""
+"""The agent closes the conversation itself once validation is recorded, then the session ends."""
 
 from __future__ import annotations
 
 import asyncio
+import base64
 import contextlib
 from datetime import UTC, datetime, timedelta
 from typing import Final
@@ -29,6 +30,17 @@ _SIDEBAND_PORT: Final[int] = 8137
 _OFFER_SDP: Final[str] = "v=0\r\no=- 0 0 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\n"
 _CUE_DEADLINE_SECONDS: Final[float] = 15.0
 _CLOSING: Final[str] = "Validation is complete"
+
+
+def _goodbye() -> list[dict[str, object]]:
+    """A second of the agent's spoken goodbye, then the pause that ends its turn."""
+    loud = base64.b64encode((8000).to_bytes(2, "little", signed=True) * 2400).decode()
+    quiet = base64.b64encode(bytes(4800)).decode()
+    return [
+        {"type": "session.output_audio.delta", "start_ms": start, "end_ms": start + 100,
+         "delta": loud if start < 1000 else quiet}
+        for start in range(0, 1800, 100)
+    ]
 
 
 async def test_a_validated_case_has_the_agent_close_the_conversation(
@@ -87,7 +99,7 @@ async def test_a_validated_case_has_the_agent_close_the_conversation(
 
     # The sideband reads the case as it starts, so a connection made after validation
     # was recorded (or a reconnect) still closes the conversation.
-    script = ScriptedSession(events=())
+    script = ScriptedSession(events=(), replies={"session.commentary.append": _goodbye()})
     async with run_test_server(port=_SIDEBAND_PORT, script=script) as server:
         adapter = local_voice_adapter(base_url=server.base_url)
         async with adapter:
@@ -132,13 +144,29 @@ async def test_a_validated_case_has_the_agent_close_the_conversation(
                             return content
                     await asyncio.sleep(0.1)
 
+            async def session_closed() -> str:
+                while True:
+                    async with database.connection() as conn, conn.cursor() as cur:
+                        await cur.execute(
+                            "select state::text as state, closure_reason from public.interview_sessions"
+                            " where id = %s",
+                            (scenario.interview_session_id,),
+                        )
+                        row = await cur.fetchone()
+                    if row is not None and row["state"] == "closed":
+                        return str(row["closure_reason"])
+                    await asyncio.sleep(0.1)
+
             try:
                 async with asyncio.timeout(_CUE_DEADLINE_SECONDS):
                     cue = await closing_cue()
+                    closure_reason = await session_closed()
             finally:
                 sideband.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
                     await sideband
 
+    # The session ends once the goodbye has played, before the Case File exists.
+    assert closure_reason == "completed"
     assert "will close now" in cue
     assert "Ask nothing more" in cue

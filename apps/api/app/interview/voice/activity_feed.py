@@ -54,8 +54,9 @@ _READ_LIMIT: Final[int] = 30
 _MAX_CHARACTERS: Final[int] = 1600
 _PREFIX: Final[str] = "In the preview, the person just did this, oldest first: "
 _ACKNOWLEDGE: Final[str] = (
-    "Acknowledge it out loud now in a few words, the way someone watching would, such "
-    'as "There it is.", without describing or listing what they did.'
+    "Acknowledge it out loud now in a few words, the way someone watching would, "
+    "without describing or listing what they did, and not in words you have already "
+    'used to acknowledge them, such as "There it is." once and "Nice." the next time.'
 )
 
 
@@ -188,7 +189,9 @@ async def _append(
 ) -> None:
     """Send the activity quietly, or, when it is acknowledged, as speakable context."""
     if spoken:
-        tail = _ACKNOWLEDGE if checks is None else f"{checks} {_ACKNOWLEDGE}"
+        # A newly shown check already has the agent ask them to confirm it, which
+        # acknowledges what they did; a second acknowledgement only repeats it.
+        tail = _ACKNOWLEDGE if checks is None else checks
         await sideband.append_commentary(content=_content(lines, tail=tail), delegation_id=None)
     else:
         await sideband.append_thinking(content=_content(lines, tail=checks), delegation_id=None)
