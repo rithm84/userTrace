@@ -512,6 +512,7 @@ class ParticipantInterview(BaseModel):
             "ended_by_participant",
             "client_stopped",
             "completed",
+            "no_implementation",
             "blocked",
             "not_validated",
         ]

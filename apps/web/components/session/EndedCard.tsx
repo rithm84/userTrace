@@ -13,6 +13,8 @@ const REASONS: Readonly<Record<SessionEndReason, string>> = {
     "The product team stopped this case. Nothing further will run, and anything you had already completed still counts.",
   completed:
     "You validated the change. The product team gets a Case File and a draft pull request; the merge is theirs to make.",
+  no_implementation:
+    "Thanks for walking through it. The product team won't build this change right now; they get a Case File explaining why, and the time you gave still counts.",
   blocked:
     "uTrace hit something it could not get past and stopped. The product team can see what happened.",
   not_validated:

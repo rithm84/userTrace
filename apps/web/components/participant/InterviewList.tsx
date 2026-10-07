@@ -24,6 +24,7 @@ const END_LABELS: Readonly<Record<SessionEndReason, string>> = {
   ended_by_participant: "Ended by you",
   client_stopped: "Stopped by the team",
   completed: "Completed",
+  no_implementation: "Completed, no change built",
   blocked: "Stopped by a blocker",
   not_validated: "Did not pass its checks",
 };

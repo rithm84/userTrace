@@ -100,6 +100,7 @@ export const sessionEndReasonSchema = z.enum([
   "ended_by_participant",
   "client_stopped",
   "completed",
+  "no_implementation",
   "blocked",
   "not_validated",
 ]);

@@ -77,6 +77,7 @@ _TAB_END_REASON_BY_CLOSURE: Mapping[str, str] = {
     "end_confirm": "ended_by_participant",
     "client_stopped": "client_stopped",
     "completed": "completed",
+    "no_implementation": "no_implementation",
     "blocked": "blocked",
     "not_validated": "not_validated",
 }

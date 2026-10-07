@@ -9,8 +9,8 @@
 import { AgentCursor } from "./cursor";
 import { AgentOrb } from "./orb";
 import { OrbCharacter } from "./character";
-import { PageBridge } from "./bridgeClient";
-import { SceneRunner } from "./scene";
+import { BridgeError, PageBridge } from "./bridgeClient";
+import { SceneRunner, type CommandExecution } from "./scene";
 import { SURFACE_STYLES } from "./styles";
 import { SurfaceHost, type SurfaceLayers } from "./host";
 import { failureFields, logError } from "../shared/log";
@@ -211,7 +211,21 @@ class AgentSurface {
       return;
     }
 
-    const execution = await mounted.scenes.execute(message.frame);
+    let execution: CommandExecution;
+    try {
+      execution = await mounted.scenes.execute(message.frame);
+    } catch (error) {
+      // Report the failure now, with its cause, instead of leaving the command
+      // pending until its deadline; the caller still logs the error.
+      this.send({
+        kind: "command_result",
+        commandId: message.frame.payload.command_id,
+        outcome: "failed",
+        reason: executionFailureReason(error),
+        observedTargets: [],
+      });
+      throw error;
+    }
     this.send({
       kind: "command_result",
       commandId: message.frame.payload.command_id,
@@ -262,6 +276,14 @@ class AgentSurface {
     mounted.bridge.close();
     mounted.host.teardown();
   }
+}
+
+/** The reason code a scene that threw reports: the error's own code when it has one. */
+function executionFailureReason(error: unknown): string {
+  if (error instanceof BridgeError) {
+    return error.code;
+  }
+  return "scene_execution_failed";
 }
 
 function reasonOf(error: unknown): string {

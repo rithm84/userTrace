@@ -64,6 +64,12 @@ _SERVICE_ACTOR = Actor(kind=ActorKind.SERVICE, ref="outputs.assembly")
 #: How a blocked closure ends the participant's session, where its cause has its own
 #: wording; any other blocked closure ends it as ``blocked``.
 _SESSION_CLOSURE_BY_TRIGGER: Mapping[str, str] = {UNSUCCESSFUL_VALIDATION: "not_validated"}
+#: How the participant's session ends when the case closes with a published Case
+#: File and no blocker: only a validated change completes it as built.
+_SESSION_CLOSURE_BY_STATE: Mapping[str, str] = {
+    ProductSignalState.CLOSED_VALIDATED.value: "completed",
+    ProductSignalState.CLOSED_NO_IMPLEMENTATION.value: "no_implementation",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -513,7 +519,7 @@ async def _close_signal(
         closure_reason=(
             _SESSION_CLOSURE_BY_TRIGGER.get(closure_trigger, "blocked")
             if request.to_state == ProductSignalState.CLOSED_BLOCKED.value
-            else "completed"
+            else _SESSION_CLOSURE_BY_STATE[request.to_state]
         ),
         event_type="interview_session_closed_by_case_closure",
         audit_action="close_product_signal",

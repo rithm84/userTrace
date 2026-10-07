@@ -85,8 +85,9 @@ additional serial approval step for every utterance.
   it, and every transcript fragment in a moment is judged as it arrives, over the
   agent's last six words: Jev judges whether they are about a specific control on
   screen and which; in the recap, which control they name last, whether the
-  agent's turn is playing the request back, and whether the participant had
-  finished or is still partway through showing something, and in the debrief,
+  agent's turn is playing back the request or what the participant just showed,
+  and whether the participant had finished or is still partway through showing
+  something, and in the debrief,
   only the controls the new version added or moved are offered. Judging each
   fragment rather than each finished clause is what lands the circle while the
   words are heard, and asking for the control named last keeps a window that
