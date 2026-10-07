@@ -108,6 +108,11 @@ _STILL_EXPLAINING_CONFIDENCE = 0.7
 # session's recap, whose registry showed the applied filter values), each judged
 # twice: from 0.3 to 0.6 no question about one detail, acknowledgement, or echo was
 # circled, and no clause circled the wrong control; 0.7 lost recap clauses.
+# Rechecked with the question widened to a play-back of what the customer just showed
+# ("I saw you just set up the date range, last 30 days, then channel..."): on the
+# 2026-10-07 session's recap it recognised the turn at its first filters instead of
+# its closing question, and on the labeled recap clauses it circled nothing unwanted
+# (held out: 29 of 34 correct against 27 of 34 before).
 _RECAP_CONFIDENCE = 0.5
 # A debrief offers only the few controls a new version added, so a real mention is
 # picked with confidence: in live debriefs every control the agent named was chosen
@@ -421,13 +426,14 @@ def recap_gesture_questions(targets: Mapping[str, str]) -> dict[str, Question]:
         _RECAP: Choice(
             instructions=(
                 f"{_SPEECH_SITUATION} Taking `agent_last_said` as a whole, is the agent "
-                "restating or summarizing back to the customer what they asked for or "
-                "complained about, to check it understood them?"
+                "playing back to the customer what they asked for, complained about, or "
+                "just showed on their screen, naming what it covers, to check it "
+                "understood them?"
             ),
             criteria={
                 _RESTATING: (
-                    "Yes: the agent is playing the customer's request or complaint back "
-                    "to them, naming what it covers."
+                    "Yes: the agent is playing the customer's request, complaint, or what "
+                    "they just showed back to them, naming what it covers."
                 ),
                 _OTHER_TALK: (
                     "No: the agent asks about one detail, acknowledges, explains "

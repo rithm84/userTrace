@@ -227,6 +227,58 @@ async def test_a_blocked_case_file_seals_publishes_and_closes_the_case(
     assert str(result.case_file_id) in row.authenticated_url
 
 
+async def test_a_no_implementation_case_file_ends_the_session_without_a_change(
+    database: Database, auth_users: dict[str, SignedInUser]
+) -> None:
+    """The session tab must not present a case the gate declined as a validated change."""
+    scenario = await _case_with_evidence(database, auth_users, name="declined")
+    async with database.transaction() as conn, conn.cursor() as cur:
+        # The gate leaves a declined case here, with its Case File still to publish.
+        await cur.execute(
+            "update public.product_signals set state = %s where id = %s",
+            (ProductSignalState.GATE_PENDING.value, scenario.product_signal_id),
+        )
+        await cur.execute(
+            """
+            insert into public.gate_decisions (
+                id, client_id, product_signal_id, decision, blocker_reason,
+                classification_revision, acceptance_criteria_revision,
+                pinned_configuration_release_id, evidence_window_id, approved_scope,
+                required_checks, budgets, cited_evidence, decided_at
+            )
+            select %s, client_id, product_signal_id, 'no_implementation',
+                   'the bundle lacks persistence findings', classification_revision,
+                   acceptance_criteria_revision, pinned_configuration_release_id,
+                   evidence_window_id, '{}', '{"checks": []}', '{}', cited_evidence,
+                   now()
+            from public.gate_decisions where product_signal_id = %s
+            """,
+            (uuid7(), scenario.product_signal_id),
+        )
+
+    await assemble(
+        database,
+        DurableEvidenceQuery(database),
+        product_signal_id=scenario.product_signal_id,
+        variant=CaseFileVariant.NO_IMPLEMENTATION,
+        validation_attempt_id=None,
+        blocker_reason="the bundle lacks persistence findings",
+        closure_trigger="no_implementation",
+        closure_reason="the bundle lacks persistence findings",
+        narrative_source="evidence_derived",
+        drafter=None,
+        repository=None,
+    )
+
+    closure_reason, _ = await read_state(
+        database,
+        table="interview_sessions",
+        row_id=scenario.interview_session_id,
+        column="closure_reason",
+    )
+    assert closure_reason == "no_implementation"
+
+
 async def test_an_amendment_is_a_separate_record(
     database: Database, auth_users: dict[str, SignedInUser]
 ) -> None:

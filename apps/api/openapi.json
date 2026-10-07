@@ -3058,6 +3058,11 @@
             "title": "Forbidden Path Patterns",
             "type": "array"
           },
+          "implementation_limit": {
+            "minimum": 1.0,
+            "title": "Implementation Limit",
+            "type": "integer"
+          },
           "live_implementation_allowed": {
             "title": "Live Implementation Allowed",
             "type": "boolean"
@@ -3113,6 +3118,7 @@
           "dependency_manifest_paths",
           "budgets",
           "live_window_seconds",
+          "implementation_limit",
           "forbidden_path_patterns"
         ],
         "title": "ImplementationPolicy",
@@ -4393,7 +4399,9 @@
                   "ended_by_participant",
                   "client_stopped",
                   "completed",
-                  "blocked"
+                  "no_implementation",
+                  "blocked",
+                  "not_validated"
                 ],
                 "type": "string"
               },

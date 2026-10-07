@@ -107,8 +107,11 @@ _DISCOVERY_BY_FLOW = {
     "feature_request_flow": (
         "Separate what they are asking for from the job behind it: why they want\n"
         "   it, what they are trying to accomplish, how often the need comes up, and\n"
-        "   what they do today instead. If their idea would not relieve that pain,\n"
-        "   suggest one that would."
+        "   what they do today instead. Ask only about what they have not already\n"
+        "   told you, even in passing: \"every Monday\" answers how often, and the\n"
+        "   manual steps they describe repeating answer what they do today. Once the job\n"
+        "   behind the request is clear, move on rather than asking more. If their\n"
+        "   idea would not relieve that pain, suggest one that would."
     ),
 }
 _DEFAULT_DISCOVERY = "Ask what they are trying to do and what gets in the way."
