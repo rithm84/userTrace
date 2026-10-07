@@ -43,6 +43,7 @@ class TurnDetector:
         self._participant_loud_ms = 0.0
         self._participant_quiet_ms = 0.0
         self._participant_speaking = False
+        self._participant_spoke_at: float | None = None
         self._agent_loud_ms = 0.0
         self._agent_quiet_ms = 0.0
         self._agent_speaking = False
@@ -55,7 +56,14 @@ class TurnDetector:
         """Whether the participant is mid-turn: from their onset until a pause."""
         return self._participant_speaking
 
-    def participant_audio(self, *, level: float, byte_length: int) -> CharacterState | None:
+    @property
+    def participant_spoke_at(self) -> float | None:
+        """When, on the caller's monotonic clock, the participant's speech was last heard."""
+        return self._participant_spoke_at
+
+    def participant_audio(
+        self, *, level: float, byte_length: int, now: float
+    ) -> CharacterState | None:
         """Return `listening` when the participant has just started talking."""
         duration = byte_length / _BYTES_PER_MS
         if level < _SPEECH_LEVEL:
@@ -67,6 +75,8 @@ class TurnDetector:
         self._participant_quiet_ms = 0.0
         before = self._participant_loud_ms
         self._participant_loud_ms += duration
+        if self._participant_loud_ms >= _ONSET_MS:
+            self._participant_spoke_at = now
         if before < _ONSET_MS <= self._participant_loud_ms:
             self._participant_speaking = True
             return CharacterState.LISTENING
