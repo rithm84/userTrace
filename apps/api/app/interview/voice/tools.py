@@ -466,11 +466,11 @@ async def _gesture(
         context.database,
         client_id=context.client_id,
         interview_session_id=context.interview_session_id,
-        step=(
+        steps=[
             point_step(target, dwell_ms=POINT_DWELL_MS)
             if gesture == "point"
             else circle_step(target)
-        ),
+        ],
         deadline_seconds=context.visual_command_deadline_seconds,
     )
     if "refused" in outcome:

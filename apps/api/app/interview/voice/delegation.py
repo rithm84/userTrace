@@ -61,7 +61,7 @@ from app.interview.voice.pointing import (
 from app.interview.voice.tools import TOOL_DEFINITIONS, ToolContext, execute_tool
 from app.logging import get_logger
 
-__all__ = ["DelegationRunner", "DelegationSubject", "RecapClause"]
+__all__ = ["DelegationRunner", "DelegationSubject", "RecapWords"]
 
 _log = get_logger(__name__)
 
@@ -165,8 +165,8 @@ _UNAVAILABLE = (
 
 
 @dataclass(frozen=True, slots=True)
-class RecapClause:
-    """What one clause of a possible recap names, and whether the turn is the recap."""
+class RecapWords:
+    """What the agent's latest words in a possible recap name, and whether the turn is the recap."""
 
     target: RegisteredTarget | None
     restating: bool
@@ -182,7 +182,7 @@ def _log_gesture_unavailable(*, subject: "DelegationSubject", failure: Connector
 
 
 class SpokenGestureRoute(Protocol):
-    """Decides which supplied control to circle while the agent says one clause."""
+    """Decides which supplied control to circle while the agent says its latest words."""
 
     async def __call__(
         self,
@@ -466,7 +466,7 @@ class DelegationRunner:
             answered_by="gesture",
         )
 
-    async def recap_gesture(self, *, subject: DelegationSubject, saying: str) -> RecapClause:
+    async def recap_gesture(self, *, subject: DelegationSubject, saying: str) -> RecapWords:
         """What ``saying`` names, and whether the agent's turn is recapping the request.
 
         Names nothing while no preview document is bound, when Jev is unsure, or
@@ -474,7 +474,7 @@ class DelegationRunner:
         """
         targets = await self.current_targets(subject=subject)
         if self._jev is None or not targets:
-            return RecapClause(target=None, restating=False)
+            return RecapWords(target=None, restating=False)
         jev = self._jev
         bundle = await self._speech_bundle(subject=subject)
         try:
@@ -487,8 +487,8 @@ class DelegationRunner:
             )
         except ConnectorFailure as failure:
             _log_gesture_unavailable(subject=subject, failure=failure)
-            return RecapClause(target=None, restating=False)
-        return RecapClause(
+            return RecapWords(target=None, restating=False)
+        return RecapWords(
             target=next(
                 (target for target in targets if target.target_id == gesture.target_id), None
             ),
@@ -539,7 +539,7 @@ class DelegationRunner:
         )
 
     async def _speech_bundle(self, *, subject: DelegationSubject) -> AssembledBundle:
-        """The conversation a clause of the agent's speech is judged against."""
+        """The conversation the agent's latest words are judged against."""
         return await assemble_conversation_bundle(
             self._database,
             client_id=subject.client_id,

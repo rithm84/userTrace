@@ -161,7 +161,7 @@ export class TargetRegistry {
       // A declared target keeps its declared definition: claiming it here
       // would leave it visual-only and nameless, and a command could then
       // never address it by the definition the client annotated.
-      if (element.hasAttribute("data-utrace-target")) continue;
+      if (element.hasAttribute("data-utrace-target") || element.hasAttribute("data-utrace-visual-target")) continue;
       if (isPlatformExcludedElement(element)) continue;
       if (computeAccessibleName(element) === null && computeRole(element) === "generic") continue;
       this.#mount(element, null, true, VISUAL_ONLY_EFFECTS, readElementAnnotations(element, this.#index));

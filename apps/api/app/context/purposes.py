@@ -50,7 +50,7 @@ class BundlePurpose(StrEnum):
     DELEGATION_ROUTING = "delegation_routing"
     """Whether a delegation needs a control shown, which, or only the change's progress."""
     SPEECH_GESTURE = "speech_gesture"
-    """Whether a clause the agent is saying is about a control on screen, and which."""
+    """Whether the words the agent is saying are about a control on screen, and which."""
 
     @property
     def dependencies(self) -> frozenset[BundleDependency]:

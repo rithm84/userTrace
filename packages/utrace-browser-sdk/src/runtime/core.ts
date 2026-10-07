@@ -186,7 +186,9 @@ export class ObservationCore implements RuntimeContext {
   }
 
   /**
-   * Registers every declared target in `root`, including `root` itself.
+   * Registers every declared target in `root`, including `root` itself:
+   * product targets (`data-utrace-target`) and visual-only ones
+   * (`data-utrace-visual-target`), each under its declared definition.
    *
    * Declared registration runs before automatic discovery, because an
    * annotated element must carry its own definition: a visual-only target
@@ -194,14 +196,16 @@ export class ObservationCore implements RuntimeContext {
    * resolve it by the name the client declared.
    */
   #registerAnnotatedTargets(root: ParentNode): void {
+    const selector = "[data-utrace-target],[data-utrace-visual-target]";
     const candidates =
-      root instanceof Element && root.hasAttribute("data-utrace-target")
-        ? [root, ...root.querySelectorAll("[data-utrace-target]")]
-        : [...root.querySelectorAll("[data-utrace-target]")];
+      root instanceof Element && root.matches(selector)
+        ? [root, ...root.querySelectorAll(selector)]
+        : [...root.querySelectorAll(selector)];
     for (const element of candidates) {
       const annotations = readElementAnnotations(element, this.manifest);
-      if (annotations.targetDefinitionId === null) continue;
-      this.registry.register(element, annotations.targetDefinitionId, annotations);
+      const definitionId = annotations.targetDefinitionId ?? annotations.visualTargetDefinitionId;
+      if (definitionId === null) continue;
+      this.registry.register(element, definitionId, annotations);
     }
   }
 

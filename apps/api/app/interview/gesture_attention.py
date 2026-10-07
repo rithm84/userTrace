@@ -3,11 +3,12 @@
 Two moments call for one. When GPT-Live delegates, Jev judges from the latest
 words whether the agent needs a control shown (or only the status of the change),
 which supplied target, and whether to circle or point. While the agent speaks, Jev
-judges each clause it says: whether it is clarifying or explaining something the
-customer can see, which supplied target that is, and how to show it. Targets are
-always chosen from what the shared browser runtime registers; Jev invents neither
-selectors nor coordinates, and code verifies binding and freshness before a
-gesture is dispatched. Nothing here matches words against controls.
+judges its latest words at every transcript fragment: whether they clarify or
+explain something the customer can see, and which supplied target that is.
+Targets are always chosen from what the shared browser runtime registers; Jev
+invents neither selectors nor coordinates, and code verifies binding and
+freshness before a gesture is dispatched. Nothing here matches words against
+controls.
 """
 
 from collections.abc import Mapping
@@ -90,6 +91,11 @@ _PROGRESS_CONFIDENCE = 0.6
 # registries (this demo's own clauses, the earlier pointer cases, and 16 held out),
 # each judged twice: from 0 to 0.9 no floor showed a wrong control or showed one
 # where none was meant; 0.5 kept 18 of 20 of the demo's clauses and all 16 held out.
+# Rechecked on 16 recorded GPT-Live recaps judged at every transcript fragment over
+# the agent's last six words, with the 13 targets of the applied filter bar and with
+# 44 once chart points, axis labels, product rows, and reviews were registered: at
+# 0.5 the cursor landed within the spoken phrase for 104 and 99 of 112 mentions and
+# never circled a chart point, row, or review; at 0.4 it circled reviews three times.
 _SPEECH_INTENT_CONFIDENCE = 0.5
 _SPEECH_TARGET_CONFIDENCE = 0.5
 # Calibrated on those clauses plus 18 from the 2026-10-03 session (the agent echoing
@@ -127,7 +133,7 @@ class DelegationRoute:
 
 @dataclass(frozen=True, slots=True)
 class SpeechGesture:
-    """Which control to circle while the agent says one clause, if any.
+    """Which control to circle while the agent says its latest words, if any.
 
     `target_id` is set only when the agent confidently refers to that registered
     target at a moment the cursor follows its words; otherwise the cursor stays
@@ -141,9 +147,9 @@ class SpeechGesture:
 
 @dataclass(frozen=True, slots=True)
 class RecapGesture:
-    """What one clause of a possible recap names, and whether the turn is the recap.
+    """What the agent's latest words in a possible recap name, and whether the turn is the recap.
 
-    `target_id` is set when the clause confidently names that registered target
+    `target_id` is set when the words confidently name that registered target
     and the customer had finished explaining. `restating` says whether the
     agent's turn so far is playing the request back; the caller decides, across
     the whole turn, whether to circle.
@@ -402,7 +408,7 @@ _SPEECH_SITUATION = (
 
 
 def recap_gesture_questions(targets: Mapping[str, str]) -> dict[str, Question]:
-    """The questions a clause of the agent's recap of the request is judged by.
+    """The questions the agent's latest words in a recap of the request are judged by.
 
     They ask independently whether the words are about a specific control the
     customer can see, whether the agent's turn is playing the customer's request
@@ -429,7 +435,7 @@ def recap_gesture_questions(targets: Mapping[str, str]) -> dict[str, Question]:
                 ),
             },
         ),
-        _TARGET_SELECTION: _which_control(targets),
+        _TARGET_SELECTION: _control_named_last(targets),
         _CUSTOMER_TURN: Choice(
             instructions=(
                 f"{_SPEECH_SITUATION} Has the customer finished explaining, or is the "
@@ -451,7 +457,7 @@ def recap_gesture_questions(targets: Mapping[str, str]) -> dict[str, Question]:
 
 
 def debrief_gesture_questions(targets: Mapping[str, str]) -> dict[str, Question]:
-    """The questions a clause of the agent's walkthrough of a new version is judged by.
+    """The questions the agent's latest words in a walkthrough of a new version are judged by.
 
     The supplied controls are only the ones the version added or moved, so the
     questions ask whether the words are about one of them and which.
@@ -496,6 +502,28 @@ def _which_control(targets: Mapping[str, str]) -> Choice:
     )
 
 
+def _control_named_last(targets: Mapping[str, str]) -> Choice:
+    """The control the agent's latest words name last, for a recap.
+
+    The words are judged at every transcript fragment, so they often still hold the
+    control named just before ("channel set to TikTok, segment"); asking for the
+    one named last keeps the answer on the newest control instead of splitting it
+    between the two, and each control becomes the answer as soon as it is said. On
+    recorded recaps this put the cursor within the spoken phrase for 104 of 112
+    mentions, against 69 when asking which control the words refer to.
+    """
+    criteria: dict[str, str] = {target_id: summary for target_id, summary in targets.items()}
+    criteria[_NO_TARGET] = "None of these controls is named in `agent_saying_now`."
+    return Choice(
+        instructions=(
+            f"{_SPEECH_SITUATION} `agent_saying_now` is the agent's latest few words. "
+            "Which supplied on-screen control do they name last, by the control or the "
+            "value it shows?"
+        ),
+        criteria=criteria,
+    )
+
+
 async def route_recap_gesture(
     database: Database,
     jev: JevClient,
@@ -504,9 +532,9 @@ async def route_recap_gesture(
     saying: str,
     targets: Mapping[str, str],
 ) -> RecapGesture:
-    """Judge one clause of what may be the agent's recap of the customer's request.
+    """Judge the agent's latest words in what may be its recap of the customer's request.
 
-    The clause names a control when the words are about it, both clear their
+    The words name a control when they are about it, both clear their
     floors, and the agent is not echoing a customer who is still partway through
     showing something. Whether the turn is playing the request back is judged
     alongside, and its own floor decides `restating`.
@@ -573,7 +601,7 @@ async def _judge_spoken(
     questions: Mapping[str, Question],
     target_confidence: float,
 ) -> AttentionResult:
-    """Judge one spoken clause: whether it is about a control and which.
+    """Judge the agent's latest words: whether they are about a control and which.
 
     Any further question is answered alongside without a floor of its own; its
     caller reads the selection.

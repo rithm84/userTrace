@@ -73,7 +73,7 @@ from app.interview.voice.delegation import DelegationRunner, DelegationSubject
 from app.interview.voice.session_changes import SessionChanges
 from app.interview.voice.speech_gestures import (
     GestureMoments,
-    SpokenClauses,
+    SpokenWindow,
     show_what_is_said,
 )
 from app.interview.voice.turns import Floor, TurnDetector
@@ -182,9 +182,9 @@ async def drain_sideband(
         participant_quiet = asyncio.Event()
         participant_quiet.set()
         changes = SessionChanges(database, interview_session_id=subject.interview_session_id)
-        # The agent's words, a clause at a time, for the cursor to follow as it speaks.
+        # The agent's latest words at each fragment, for the cursor to follow as it speaks.
         spoken: asyncio.Queue[str] = asyncio.Queue()
-        clauses = SpokenClauses()
+        window = SpokenWindow()
         moments = GestureMoments()
         listener = asyncio.create_task(changes.run())
         await changes.listening()
@@ -279,8 +279,9 @@ async def drain_sideband(
                     counters.fragments += 1
                     if event.speaker() == "agent":
                         await speech.said()
-                        for clause in clauses.add(event.delta):
-                            spoken.put_nowait(clause)
+                        latest = window.add(event.delta)
+                        if latest is not None:
+                            spoken.put_nowait(latest)
                     continue
                 if isinstance(event, OutputAudioSegment):
                     playback.append(
@@ -302,6 +303,7 @@ async def drain_sideband(
                             if not pending:
                                 no_delegation.set()
                             moments.agent_stopped()
+                            window.end_turn()
                         await _show_turn(
                             database,
                             subject=subject,

@@ -18,25 +18,26 @@ control it names there:
 
 Elsewhere the cursor stays still unless the participant asks to be shown
 something, which goes through delegation. GPT-Live's transcript of its own speech
-arrives about a second ahead of the audio the person hears, so each clause is
-judged as soon as it is transcribed: Jev decides whether the clause is about a
-control on screen, which registered control that is, and, for the recap, whether
-the agent's turn so far is playing the request back and whether the participant
-had finished explaining (`DelegationRunner.recap_gesture`, `debrief_gesture`). A
-confident answer is shown at once and lands while the person hears the clause.
-Nothing in the clause is matched against any control: what is meant is Jev's
-judgement.
+arrives a fraction of a second ahead of the audio the person hears, so every
+transcript fragment is judged as soon as it arrives, over the agent's last few
+words: Jev decides whether those words are about a control on screen, which
+registered control that is, and, for the recap, whether the agent's turn so far is
+playing the request back and whether the participant had finished explaining
+(`DelegationRunner.recap_gesture`, `debrief_gesture`). A confident answer is shown
+at once and lands while the person hears the words. Nothing in them is matched
+against any control: what is meant is Jev's judgement.
 
-Clauses are judged concurrently, because a list ("your channel, segment, and
-topic") arrives faster than one judgement takes, and shown in the order they
-were spoken: a judgement that finishes after a later clause's gesture is dropped,
-since the person has already heard past it. A sentence that runs on without a
-pause is judged every few words rather than once at its end, so each control it
-names is shown as it is said rather than one, late, for the whole sentence.
+Judging each fragment rather than each finished clause is what keeps the circle
+on time: a clause is complete only after its last word, and on a list ("your
+channel, segment, and topic") that is too late for its first. Each window
+overlaps the last, so every control named gets several chances to be recognised
+while it is still being heard, and is circled once per moment. Fragments are
+judged concurrently and shown in the order spoken: a judgement that finishes
+after a later fragment's gesture is dropped, since the person has already heard
+past it.
 """
 
 import asyncio
-import re
 from dataclasses import dataclass
 from typing import Final
 
@@ -44,51 +45,40 @@ from app.interview.ports import RegisteredTarget
 from app.interview.voice.delegation import DelegationRunner, DelegationSubject
 from app.logging import get_logger
 
-__all__ = ["GestureMoments", "SpokenClauses", "show_what_is_said"]
+__all__ = ["GestureMoments", "SpokenWindow", "show_what_is_said"]
 
 _log = get_logger(__name__)
 
-#: Punctuation that ends a clause in the agent's transcript.
-_CLAUSE_END: Final[frozenset[str]] = frozenset(",.;:?!")
-#: The most words judged together when the agent does not pause: about two seconds
-#: of speech, so a control named mid-sentence is shown while it is still heard.
-_MAX_WORDS: Final[int] = 8
-_WORD: Final[re.Pattern[str]] = re.compile(r"\S+")
+#: The agent's words each judgement reads: about a second and a half of speech,
+#: enough to name a control and its value, short enough to be about what is heard
+#: now. Measured on recorded GPT-Live recaps, judging this window on every
+#: fragment put the cursor on the named control in time far more often than
+#: judging finished clauses.
+_WINDOW_WORDS: Final[int] = 6
 
 
-class SpokenClauses:
-    """Joins the agent's transcript deltas into clauses as each one ends."""
+class SpokenWindow:
+    """The agent's latest words, as each transcript fragment of its turn arrives."""
 
     def __init__(self) -> None:
-        self._pending = ""
+        self._tail = ""
 
-    def add(self, delta: str) -> tuple[str, ...]:
-        """Take one transcript delta and return the clauses it completed, in order."""
-        self._pending += delta
-        clauses: list[str] = []
-        start = 0
-        for index, character in enumerate(self._pending):
-            if character in _CLAUSE_END:
-                clause = self._pending[start : index + 1].strip()
-                start = index + 1
-                if clause.rstrip("".join(_CLAUSE_END)).strip():
-                    clauses.append(clause)
-        self._pending = self._pending[start:]
-        while (cut := _after_words(self._pending, _MAX_WORDS)) is not None:
-            clauses.append(self._pending[:cut].strip())
-            self._pending = self._pending[cut:]
-        return tuple(clauses)
+    def add(self, delta: str) -> str | None:
+        """Take one transcript delta and return the window it ends, or `None` if it adds no word.
 
+        A delta may end inside a word that the next one completes, so only the
+        window's words are kept, joined as they arrived at the end.
+        """
+        self._tail += delta
+        if not delta.strip():
+            return None
+        window = " ".join(self._tail.split()[-_WINDOW_WORDS:])
+        self._tail = window + (" " if self._tail[-1:].isspace() else "")
+        return window
 
-def _after_words(text: str, count: int) -> int | None:
-    """Where `count` complete words end in `text`, or `None` before that many have.
-
-    The last word counts as complete only once whitespace follows it, since a later
-    delta may still extend it.
-    """
-    ends = [match.end() for match in _WORD.finditer(text)]
-    complete = ends if text[-1:].isspace() else ends[:-1]
-    return complete[count - 1] if len(complete) >= count else None
+    def end_turn(self) -> None:
+        """The agent finished a turn; the next one starts with no earlier words."""
+        self._tail = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,14 +111,14 @@ class GestureMoments:
     def __init__(self) -> None:
         self._recap_open = True
         self._debrief: _Debrief | None = None
-        self._circled = False
+        self._circled: set[str] = set()
         self._announcing = False
         self._debrief_cued = False
         self._turn = 0
 
     @property
     def turn(self) -> int:
-        """Which of the agent's turns a clause transcribed now belongs to."""
+        """Which of the agent's turns words transcribed now belong to."""
         return self._turn
 
     @property
@@ -141,7 +131,7 @@ class GestureMoments:
         self._announcing = True
 
     def current(self) -> _Recap | _Debrief | None:
-        """The moment a clause transcribed now belongs to."""
+        """The moment words transcribed now belong to."""
         if self._debrief is not None:
             return self._debrief
         return _Recap() if self._recap_open else None
@@ -150,12 +140,16 @@ class GestureMoments:
         """The agent is about to walk the participant through these new controls."""
         self._recap_open = False
         self._debrief = _Debrief(controls=controls)
-        self._circled = False
+        self._circled = set()
         self._debrief_cued = True
 
-    def circled(self) -> None:
-        """Something was circled in the current moment."""
-        self._circled = True
+    def circled(self, target_ids: frozenset[str]) -> None:
+        """These targets were circled in the current moment."""
+        self._circled |= target_ids
+
+    def uncircled(self, target_ids: frozenset[str]) -> frozenset[str]:
+        """Which of these targets the current moment has not circled yet."""
+        return target_ids - self._circled
 
     def agent_stopped(self) -> None:
         """The agent finished a turn, which spends the moment if it circled something.
@@ -169,7 +163,7 @@ class GestureMoments:
             self._announcing = False
         if not self._circled:
             return
-        self._circled = False
+        self._circled = set()
         if self._debrief is not None:
             self._debrief = None
         else:
@@ -177,13 +171,14 @@ class GestureMoments:
 
 
 async def show_what_is_said(
-    clauses: "asyncio.Queue[str]",
+    windows: "asyncio.Queue[str]",
     *,
     delegations: DelegationRunner,
     subject: DelegationSubject,
     moments: GestureMoments,
 ) -> None:
-    """Judge each clause spoken in a recap or debrief and circle what it names, in order."""
+    """Judge the agent's latest words on every fragment of a recap or debrief, and circle
+    each control they name once, in the order spoken."""
     shown_through = 0
     # By turn: whether it is known to be the recap, and what it named before that.
     restated: set[int] = set()
@@ -191,34 +186,40 @@ async def show_what_is_said(
 
     async def show(order: int, targets: tuple[RegisteredTarget, ...], cause: str) -> None:
         nonlocal shown_through
+        fresh = moments.uncircled(frozenset(target.target_id for target in targets))
+        if not fresh:
+            return
         shown_through = order
-        moments.circled()
+        moments.circled(fresh)
         await delegations.show_targets(
-            subject=subject, targets=targets, circle=True, cause=cause
+            subject=subject,
+            targets=tuple(target for target in targets if target.target_id in fresh),
+            circle=True,
+            cause=cause,
         )
 
-    async def judge_debrief(order: int, clause: str, moment: _Debrief) -> None:
+    async def judge_debrief(order: int, window: str, moment: _Debrief) -> None:
         target = await delegations.debrief_gesture(
-            subject=subject, saying=clause, controls=moment.controls
+            subject=subject, saying=window, controls=moment.controls
         )
         _log.info(
             "voice_spoken_gesture_judged",
             interview_session_id=str(subject.interview_session_id),
             moment="debrief",
-            clause=clause,
+            window=window,
             target_id=None if target is None else target.target_id,
         )
         if target is None or order < shown_through:
             return
         await show(order, (target,), "debrief")
 
-    async def judge_recap(order: int, turn: int, clause: str) -> None:
-        named = await delegations.recap_gesture(subject=subject, saying=clause)
+    async def judge_recap(order: int, turn: int, window: str) -> None:
+        named = await delegations.recap_gesture(subject=subject, saying=window)
         _log.info(
             "voice_spoken_gesture_judged",
             interview_session_id=str(subject.interview_session_id),
             moment="recap",
-            clause=clause,
+            window=window,
             target_id=None if named.target is None else named.target.target_id,
             restating=named.restating,
         )
@@ -239,12 +240,12 @@ async def show_what_is_said(
     async with asyncio.TaskGroup() as group:
         order = 0
         while True:
-            clause = await clauses.get()
+            window = await windows.get()
             moment = moments.current()
             if moment is None:
                 continue
             order += 1
             if isinstance(moment, _Debrief):
-                group.create_task(judge_debrief(order, clause, moment))
+                group.create_task(judge_debrief(order, window, moment))
             else:
-                group.create_task(judge_recap(order, moments.turn, clause))
+                group.create_task(judge_recap(order, moments.turn, window))

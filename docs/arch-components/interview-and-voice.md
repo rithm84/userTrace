@@ -80,16 +80,20 @@ additional serial approval step for every utterance.
   once they have finished explaining, and the debrief, when it walks them through
   what a new version added. Each moment is spent by the first agent turn that
   circles something in it, so a later restatement of the same request is not
-  circled again, and outside them the cursor stays still. As each clause of
-  GPT-Live's speech in a moment is transcribed, about a second before the
-  participant hears it, Jev judges whether it is about a specific control on
-  screen and which; in the recap, also whether the agent's turn is playing the
-  request back and whether the participant had finished or is still partway
-  through showing something, and in the debrief, only the controls the new version
-  added or moved are offered. A confident answer is circled while the clause is
-  heard; clauses are judged concurrently and shown in the order spoken, a sentence
-  that runs on without a pause is judged every few words, and a control shown in
-  the last few seconds is not shown again. GPT-Live is instructed to listen
+  circled again, and outside them the cursor stays still. GPT-Live's transcript
+  of its own speech arrives a fraction of a second before the participant hears
+  it, and every transcript fragment in a moment is judged as it arrives, over the
+  agent's last six words: Jev judges whether they are about a specific control on
+  screen and which; in the recap, which control they name last, whether the
+  agent's turn is playing the request back, and whether the participant had
+  finished or is still partway through showing something, and in the debrief,
+  only the controls the new version added or moved are offered. Judging each
+  fragment rather than each finished clause is what lands the circle while the
+  words are heard, and asking for the control named last keeps a window that
+  still holds the previous control on the newest one. A confident answer is
+  circled at once; fragments are judged concurrently and shown in the order
+  spoken, each control is circled once per moment, and a control shown in the
+  last few seconds is not shown again. GPT-Live is instructed to listen
   through a walkthrough, at most with a brief backchannel, and to restate the
   request in one pass once the participant has finished. A gesture brings the preview tab and its window to the front, because a
   gesture the participant cannot see helps no one and a hidden window pauses the
