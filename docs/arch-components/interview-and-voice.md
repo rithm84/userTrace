@@ -93,7 +93,8 @@ additional serial approval step for every utterance.
   still holds the previous control on the newest one. A confident answer is
   circled at once; fragments are judged concurrently and shown in the order
   spoken, each control is circled once per moment, and a control shown in the
-  last few seconds is not shown again. GPT-Live is instructed to listen
+  last few seconds is not shown again. The measurements behind this design are in
+  [agent cursor measurements](./evaluation-and-observability.md#agent-cursor-measurements). GPT-Live is instructed to listen
   through a walkthrough, at most with a brief backchannel, and to restate the
   request in one pass once the participant has finished. A gesture brings the preview tab and its window to the front, because a
   gesture the participant cannot see helps no one and a hidden window pauses the

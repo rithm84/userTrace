@@ -94,7 +94,7 @@ _PROGRESS_CONFIDENCE = 0.6
 # Rechecked on 16 recorded GPT-Live recaps judged at every transcript fragment over
 # the agent's last six words, with the 13 targets of the applied filter bar and with
 # 44 once chart points, axis labels, product rows, and reviews were registered: at
-# 0.5 the cursor landed within the spoken phrase for 104 and 99 of 112 mentions and
+# 0.5 the cursor landed within the spoken phrase for 104 and 101 of 112 mentions and
 # never circled a chart point, row, or review; at 0.4 it circled reviews three times.
 _SPEECH_INTENT_CONFIDENCE = 0.5
 _SPEECH_TARGET_CONFIDENCE = 0.5
