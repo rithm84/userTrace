@@ -132,10 +132,7 @@ export function ConversionDashboard({ context, now, dimensions }: Props) {
     [savedViews],
   );
 
-  const filters = useMemo<AnalyticsFilters>(
-    () => ({ accountId: context.account.id, ...filterState }),
-    [context.account.id, filterState],
-  );
+  const filters: AnalyticsFilters = filterState;
 
   const appliedFilters = useMemo<AppliedFilterValues>(
     () => ({
