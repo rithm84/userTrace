@@ -14,7 +14,6 @@ installs them once the connector is open rather than at construction.
 from dataclasses import dataclass
 
 from app.errors import NotYetWiredError
-from app.ports.receipts import ReceiptVerifierPort
 from app.ports.voice import VoicePort
 from app.preview.ports import ObservationReadinessPort
 from app.validation.evidence import EvidenceQueryPort
@@ -23,7 +22,6 @@ __all__ = [
     "EvidenceQueryPort",
     "ObservationReadinessPort",
     "PortRegistry",
-    "ReceiptVerifierPort",
     "VoicePort",
 ]
 
@@ -33,7 +31,6 @@ class PortRegistry:
     """The provider adapters installed in this process."""
 
     voice: VoicePort | None
-    receipts: ReceiptVerifierPort | None
     observation: ObservationReadinessPort | None
     evidence: EvidenceQueryPort | None
 
@@ -44,15 +41,6 @@ class PortRegistry:
                 capability="gpt_live_voice_session", owning_workstream="provider-adapters"
             )
         return self.voice
-
-    def require_receipts(self) -> ReceiptVerifierPort:
-        """Return the callback receipt verifier or refuse."""
-        if self.receipts is None:
-            raise NotYetWiredError(
-                capability="provider_callback_receipt_verification",
-                owning_workstream="provider-adapters",
-            )
-        return self.receipts
 
     def require_observation(self) -> ObservationReadinessPort:
         """Return the observation readiness adapter or refuse."""

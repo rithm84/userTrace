@@ -18,9 +18,14 @@ import asyncio
 import contextlib
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Final
 from uuid import UUID
 
+from psycopg import AsyncConnection
+from psycopg.rows import DictRow
 from utrace_contracts.domain.lifecycle import (
+    ActorKind,
+    AggregateKind,
     InterviewPhase,
     VoiceConnectionState,
 )
@@ -40,10 +45,13 @@ from app.connectors.openai_live_events import (
     TranscriptFragment,
     UnrecognizedEvent,
 )
+from app.db.kernel import append_fact
 from app.db.pool import Database
-from app.db.rows import as_str, as_uuid
+from app.db.rows import as_bool, as_str, as_uuid
+from app.envelope import Actor, AuditIntent, EventAppend, StreamRef
 from app.errors import AggregateNotFoundError
 from app.execution.jobs import ClaimedJob
+from app.ids import uuid7
 from app.interview.character import CharacterState, change_character, set_character
 from app.interview.evidence import (
     PlaybackSegment,
@@ -58,13 +66,14 @@ from app.interview.projection import (
     publish_projection_on_connection,
 )
 from app.interview.readiness import record_conversational_facts
+from app.interview.reconnect import reconnect_window_job
 from app.interview.voice.acknowledgements import Acknowledgements
 from app.interview.voice.activity_feed import feed_activity
 from app.interview.voice.adapter import GptLiveVoiceAdapter
 from app.interview.voice.agent_speech import AgentSpeech
 from app.interview.voice.checks_shown import ShownChecks
 from app.interview.voice.cues import (
-    announce_gate_failure,
+    announce_gate_outcome,
     announce_ready_preview,
     announce_validation_outcome,
     apply_controls,
@@ -90,6 +99,7 @@ __all__ = [
 ]
 
 _log = get_logger(__name__)
+_SIDEBAND_ACTOR: Final[Actor] = Actor(kind=ActorKind.SERVICE, ref="interview.voice.sideband")
 
 
 class VoiceSessionMisconfigured(RuntimeError):
@@ -218,7 +228,7 @@ async def drain_sideband(
                 )
             ),
             asyncio.create_task(
-                announce_gate_failure(
+                announce_gate_outcome(
                     database,
                     changes,
                     product_signal_id=subject.product_signal_id,
@@ -392,6 +402,7 @@ async def drain_sideband(
                             sideband=sideband,
                             event=event,
                             speech=speech,
+                            participant_quiet=participant_quiet,
                         )
                     )
                     pending.add(task)
@@ -612,6 +623,52 @@ async def _mark_attached(database: Database, *, subject: SidebandSubject) -> Non
         )
 
 
+async def _open_reconnect_window(
+    conn: AsyncConnection[DictRow],
+    *,
+    subject: SidebandSubject,
+    product_signal_id: UUID,
+    reason: str | None,
+) -> None:
+    """Start the bounded window in which the lost connection must be replaced."""
+    now = datetime.now(tz=UTC)
+    stream = StreamRef(kind=AggregateKind.INTERVIEW_SESSION, id=subject.interview_session_id)
+    await append_fact(
+        conn,
+        client_id=subject.client_id,
+        event=EventAppend(
+            message_id=uuid7(),
+            stream=stream,
+            event_type="voice_reconnect_window_opened",
+            payload={
+                "voice_connection_id": str(subject.voice_connection_id),
+                "close_reason": reason,
+            },
+            actor=_SIDEBAND_ACTOR,
+            causation_id=None,
+            correlation_id=product_signal_id,
+            occurred_at=now,
+        ),
+        audit=AuditIntent(
+            audit_id=uuid7(),
+            subject=stream,
+            action="open_reconnect_window",
+            outcome="window_opened",
+            reason_code=reason,
+            actor=_SIDEBAND_ACTOR,
+            pinned_configuration_release_id=None,
+            detail={"voice_connection_id": str(subject.voice_connection_id)},
+        ),
+        jobs=(
+            reconnect_window_job(
+                interview_session_id=subject.interview_session_id,
+                lost_voice_connection_id=subject.voice_connection_id,
+                now=now,
+            ),
+        ),
+    )
+
+
 async def _awaiting_greeting(database: Database, *, interview_session_id: UUID) -> bool:
     """Whether the session is still in its greeting phase, so nobody has spoken yet.
 
@@ -657,7 +714,8 @@ async def _mark_detached(
                 ),
             )
             await cur.execute(
-                "select state from public.interview_sessions where id = %s",
+                "select state, paused, product_signal_id from public.interview_sessions "
+                "where id = %s",
                 (subject.interview_session_id,),
             )
             session = await cur.fetchone()
@@ -667,6 +725,13 @@ async def _mark_detached(
                 interview_session_id=subject.interview_session_id,
                 state=CharacterState.RECONNECTING,
             )
+            if not as_bool(session, "paused"):
+                await _open_reconnect_window(
+                    conn,
+                    subject=subject,
+                    product_signal_id=as_uuid(session, "product_signal_id"),
+                    reason=reason,
+                )
         await publish_projection_on_connection(
             conn, interview_session_id=subject.interview_session_id
         )

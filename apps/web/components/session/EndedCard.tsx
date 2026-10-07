@@ -7,6 +7,8 @@ import { USER_SETTINGS_PATH } from "@/lib/routes";
 const REASONS: Readonly<Record<SessionEndReason, string>> = {
   finish_later:
     "Saved where you left it. Come back from your uTrace account, or from the private link uTrace sends you, and pick it up with the same agent.",
+  connection_lost:
+    "The call dropped and didn't reconnect, so uTrace saved where you left it. Come back from your uTrace account, or from the private link uTrace sends you, and pick it up with the same agent.",
   ended_by_participant:
     "The interview is over and nothing further will run on this case. Thanks for the time you gave it.",
   client_stopped:

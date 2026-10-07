@@ -18,7 +18,7 @@ import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Protocol
+from typing import Final, Protocol
 from uuid import UUID
 
 from app.clients.overview import load_active_overview
@@ -64,6 +64,9 @@ from app.logging import get_logger
 __all__ = ["DelegationRunner", "DelegationSubject", "RecapWords"]
 
 _log = get_logger(__name__)
+#: The longest an answer waits for the participant to pause. A muted microphone sends
+#: no audio to end their turn, so the wait is bounded.
+_PAUSE_WAIT_SECONDS: Final[float] = 8.0
 
 _PURPOSE = BundlePurpose.VOICE_DELEGATION
 _ROUTING_PURPOSE = BundlePurpose.DELEGATION_ROUTING
@@ -138,9 +141,10 @@ with record_requested_change: the whole change as it now stands, and the checks,
 earlier ones included unless the change replaces them. If it is refused because
 the case has used all its versions, say so plainly.
 
-Once you record an agreement or a requested change, answer only, in the first
-person, that you are building it now and the person will hear when it is ready,
-with no question: the voice agent stays silent while it is built.
+Once you record an agreement or a requested change, answer only, in a few words,
+that it is recorded and you are getting it started, with no question. Never say
+it is being built: whether it is built is decided next, and the application tells
+the voice agent when building starts.
 
 Validation begins by itself once the new version is ready. When the person has
 answered every agreed criterion out loud, cite the observations that show what
@@ -241,6 +245,7 @@ class DelegationRunner:
         sideband: SidebandConnection,
         event: DelegationCreated,
         speech: AgentSpeech,
+        participant_quiet: asyncio.Event,
     ) -> None:
         """Answer one delegation, or record precisely why it could not be answered.
 
@@ -249,7 +254,8 @@ class DelegationRunner:
         only the status of the change, and GPT-6.1 Sol works out anything else. A
         confident gesture is shown, or the status is read from durable state, and
         either answers the delegation within a few hundred milliseconds while Sol is
-        stopped; otherwise Sol's finding is the answer.
+        stopped; otherwise Sol's finding is the answer. The answer is spoken as soon
+        as it arrives, so it waits for the participant to pause.
         """
         delegation_id = await self._open(subject=subject, event=event)
         reasoning = asyncio.create_task(
@@ -263,6 +269,7 @@ class DelegationRunner:
             reasoning.cancel()
             await asyncio.gather(reasoning, return_exceptions=True)
             await self._attach_bundle(delegation_row_id=delegation_id, bundle_id=served.bundle_id)
+            await _participant_pause(participant_quiet, subject=subject)
             await sideband.append_commentary(
                 content=served.spoken, delegation_id=event.delegation_id
             )
@@ -289,6 +296,7 @@ class DelegationRunner:
                 finding=None,
                 refusal_reason="delegation_deadline_exceeded",
             )
+            await _participant_pause(participant_quiet, subject=subject)
             await sideband.append_instructions(
                 content=_UNAVAILABLE, delegation_id=event.delegation_id
             )
@@ -300,6 +308,7 @@ class DelegationRunner:
                 finding=None,
                 refusal_reason=failure.category.value,
             )
+            await _participant_pause(participant_quiet, subject=subject)
             await sideband.append_instructions(
                 content=_UNAVAILABLE, delegation_id=event.delegation_id
             )
@@ -312,11 +321,13 @@ class DelegationRunner:
                 finding=None,
                 refusal_reason="reasoning_path_unavailable",
             )
+            await _participant_pause(participant_quiet, subject=subject)
             await sideband.append_instructions(
                 content=_UNAVAILABLE, delegation_id=event.delegation_id
             )
             return
 
+        await _participant_pause(participant_quiet, subject=subject)
         await sideband.append_commentary(
             content=finding, delegation_id=event.delegation_id
         )
@@ -850,3 +861,15 @@ def _prompt(*, bundle: AssembledBundle) -> str:
         "language.\n\n"
         f"{json.dumps(payload, separators=(',', ':'))}"
     )
+
+
+async def _participant_pause(participant_quiet: asyncio.Event, *, subject: DelegationSubject) -> None:
+    """Wait until the participant pauses, so the agent's answer does not talk over them."""
+    try:
+        await asyncio.wait_for(participant_quiet.wait(), timeout=_PAUSE_WAIT_SECONDS)
+    except TimeoutError:
+        _log.warning(
+            "voice_delegation_answer_without_pause",
+            interview_session_id=str(subject.interview_session_id),
+            waited_seconds=_PAUSE_WAIT_SECONDS,
+        )

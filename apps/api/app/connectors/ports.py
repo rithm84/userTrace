@@ -26,6 +26,7 @@ __all__ = [
     "ChannelMessageReceipt",
     "CustomerSurfacePort",
     "DirectMessageReceipt",
+    "InboundDirectMessageReceipt",
     "MessageReceipt",
     "TypingReceipt",
     "WorkspaceExecution",
@@ -92,6 +93,21 @@ class ChannelMessageReceipt(_Frozen):
     provider: Literal["discord"]
     message_id: str
     channel_id: str
+    sent_at: datetime
+
+
+class InboundDirectMessageReceipt(_Frozen):
+    """One private message a person sent the bot.
+
+    A direct message is never an intake surface: it can answer the person's own
+    invitation or session, or carry a preference such as stopping contact, and
+    nothing else.
+    """
+
+    provider: Literal["discord"]
+    message_id: str
+    author_id: str
+    content: str
     sent_at: datetime
 
 

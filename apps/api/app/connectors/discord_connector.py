@@ -60,6 +60,7 @@ from app.connectors.failures import (
 from app.connectors.ports import (
     ChannelMessageReceipt,
     DirectMessageReceipt,
+    InboundDirectMessageReceipt,
     MessageReceipt,
     TypingReceipt,
 )
@@ -78,7 +79,7 @@ _RECEIPT_QUEUE_SIZE: Final[int] = 1000
 #: client still typing sends another before it lapses.
 _TYPING_INDICATOR: Final[timedelta] = timedelta(seconds=10)
 
-type GatewayReceipt = MessageReceipt | TypingReceipt
+type GatewayReceipt = MessageReceipt | TypingReceipt | InboundDirectMessageReceipt
 
 
 class ProviderIdentity(BaseModel):
@@ -569,24 +570,26 @@ class _WatchingClient(discord.Client):
         self._receipt_queue = receipts
 
     async def on_message(self, message: discord.Message) -> None:
-        """Queue a receipt for each watched-channel message."""
-        if message.guild is None or str(message.guild.id) != self._guild_id:
+        """Queue a receipt for each watched-channel message and each person's direct message."""
+        if message.guild is None:
+            if isinstance(message.channel, discord.DMChannel) and not message.author.bot:
+                self._enqueue(
+                    InboundDirectMessageReceipt(
+                        provider="discord",
+                        message_id=str(message.id),
+                        author_id=str(message.author.id),
+                        content=message.content,
+                        sent_at=message.created_at,
+                    )
+                )
+            return
+        if str(message.guild.id) != self._guild_id:
             return
         if str(message.channel.id) not in self._watched_channel_ids:
             return
         if self.user is not None and message.author.id == self.user.id:
             return
-        receipt = _to_receipt(message=message, guild_id=self._guild_id)
-        try:
-            self._receipt_queue.put_nowait(receipt)
-        except asyncio.QueueFull:
-            _logger.warning(
-                "discord.receipt.dropped",
-                guild_id=self._guild_id,
-                channel_id=receipt.channel_id,
-                message_id=receipt.message_id,
-                queue_size=_RECEIPT_QUEUE_SIZE,
-            )
+        self._enqueue(_to_receipt(message=message, guild_id=self._guild_id))
 
     async def on_raw_typing(self, payload: discord.RawTypingEvent) -> None:
         """Queue a typing receipt for someone composing in a watched channel.
@@ -599,20 +602,25 @@ class _WatchingClient(discord.Client):
             return
         if self.user is not None and payload.user_id == self.user.id:
             return
-        receipt = TypingReceipt(
-            provider="discord",
-            channel_id=str(payload.channel_id),
-            guild_id=self._guild_id,
-            author_id=str(payload.user_id),
-            active_until=payload.timestamp + _TYPING_INDICATOR,
+        self._enqueue(
+            TypingReceipt(
+                provider="discord",
+                channel_id=str(payload.channel_id),
+                guild_id=self._guild_id,
+                author_id=str(payload.user_id),
+                active_until=payload.timestamp + _TYPING_INDICATOR,
+            )
         )
+
+    def _enqueue(self, receipt: GatewayReceipt) -> None:
+        """Queue one receipt for the consumer, or log it as dropped when the queue is full."""
         try:
             self._receipt_queue.put_nowait(receipt)
         except asyncio.QueueFull:
             _logger.warning(
-                "discord.typing.dropped",
+                "discord.receipt.dropped",
                 guild_id=self._guild_id,
-                channel_id=receipt.channel_id,
+                receipt_kind=type(receipt).__name__,
                 queue_size=_RECEIPT_QUEUE_SIZE,
             )
 

@@ -36,7 +36,7 @@ _SCHEMA_ONLY_SETTINGS = Settings.model_construct(
 
 def main() -> int:
     """Generate the OpenAPI document and report where it was written."""
-    app = create_app(_SCHEMA_ONLY_SETTINGS, PortRegistry(voice=None, receipts=None, observation=None, evidence=None))
+    app = create_app(_SCHEMA_ONLY_SETTINGS, PortRegistry(voice=None, observation=None, evidence=None))
     document = app.openapi()
     OUTPUT.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     sys.stdout.write(f"wrote {len(document['paths'])} paths to {OUTPUT}\n")

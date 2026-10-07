@@ -84,7 +84,7 @@ def ingest_server(settings: Settings) -> Iterator[str]:
     if "url" in _RUNNING:
         yield _RUNNING["url"]
         return
-    application = create_app(settings, PortRegistry(voice=None, receipts=None, observation=None, evidence=None))
+    application = create_app(settings, PortRegistry(voice=None, observation=None, evidence=None))
     config = uvicorn.Config(
         application,
         host="127.0.0.1",

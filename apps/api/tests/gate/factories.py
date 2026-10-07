@@ -17,10 +17,19 @@ from pathlib import Path
 from uuid import UUID
 
 from psycopg.types.json import Jsonb
-from utrace_contracts.domain.lifecycle import FlowType, IntakeItemState, ProductSignalState
+from utrace_contracts.domain.lifecycle import (
+    ActorKind,
+    FlowType,
+    IntakeItemState,
+    ProductSignalState,
+)
 
 from app.db.pool import Database
+from app.envelope import Actor, JobIntent
 from app.ids import uuid7
+from app.implementation.budgets import ConsumedBudgets
+from app.implementation.handlers import RUN_IMPLEMENTATION_ATTEMPT
+from app.lifecycle.attempts import AttemptRequest, create_implementation_attempt
 from tests.helpers import policy_digest
 
 __all__ = [
@@ -29,6 +38,7 @@ __all__ = [
     "SHOPALYTICS_REPOSITORY",
     "SNAPSHOT",
     "GatedCase",
+    "approve_agreed_change",
     "create_base_allocation",
     "create_code_finding",
     "create_evidence_record",
@@ -451,3 +461,84 @@ async def prepare_gated_case(
     )
     await create_base_allocation(database, case=case, state=allocation_state)
     return (case, str(evidence_id), str(finding_id))
+
+
+async def approve_agreed_change(
+    database: Database, *, client_id: UUID, product_signal_id: UUID, configuration_release_id: UUID
+) -> UUID:
+    """Approve a case at `gate_pending` and authorize its attempt, as the gate's approval does.
+
+    The decision row is written directly; authorizing the attempt runs the real
+    lifecycle, which commits `implementation_attempt_authorized` and wakes the case's
+    live sideband. Returns the attempt's identifier.
+    """
+    decision_id = uuid7()
+    window_id = uuid7()
+    async with database.transaction() as conn, conn.cursor() as cur:
+        await cur.execute(
+            "select classification_revision from public.product_signals where id = %s",
+            (product_signal_id,),
+        )
+        signal = await cur.fetchone()
+        if signal is None:
+            raise LookupError(f"product signal {product_signal_id} does not exist")
+        await cur.execute(
+            """
+            insert into public.evidence_windows (
+                id, client_id, product_signal_id, window_kind, starts_at, ends_at
+            )
+            values (%s, %s, %s, 'implementation_gate', now() - interval '1 hour', now())
+            """,
+            (window_id, client_id, product_signal_id),
+        )
+        await cur.execute(
+            """
+            insert into public.gate_decisions (
+                id, client_id, product_signal_id, decision, classification_revision,
+                acceptance_criteria_revision, pinned_configuration_release_id,
+                evidence_window_id, approved_scope, required_checks, budgets, cited_evidence
+            )
+            values (%s, %s, %s, 'approved_live', %s, 1, %s, %s, '{}', '{"checks": []}',
+                    '{}', '{"evidence_ids": []}')
+            """,
+            (
+                decision_id,
+                client_id,
+                product_signal_id,
+                signal["classification_revision"],
+                configuration_release_id,
+                window_id,
+            ),
+        )
+    now = datetime.now(tz=UTC)
+    created = await create_implementation_attempt(
+        database,
+        AttemptRequest(
+            client_id=client_id,
+            product_signal_id=product_signal_id,
+            gate_decision_id=decision_id,
+            repository_ref=SHOPALYTICS_REPOSITORY,
+            base_revision=SHOPALYTICS_BASE_REVISION,
+            expected_classification_revision=int(signal["classification_revision"]),
+            expected_configuration_release_id=configuration_release_id,
+            implementation_limit=2,
+            consumed_budgets=ConsumedBudgets.empty().as_column(),
+            job=JobIntent(
+                job_id=uuid7(),
+                job_type=RUN_IMPLEMENTATION_ATTEMPT,
+                input={"product_signal_id": str(product_signal_id)},
+                deadline_at=now + timedelta(hours=1),
+                timeout_seconds=3600,
+                max_runs=1,
+                resource_budget={"kind": RUN_IMPLEMENTATION_ATTEMPT},
+                retryable_categories=[],
+                backoff_base_seconds=30,
+                backoff_max_seconds=300,
+                concurrency_key=f"implementation:{product_signal_id}",
+                cancellation_scope_id=None,
+                not_before=now,
+            ),
+            actor=Actor(kind=ActorKind.SERVICE, ref="tests.gate"),
+        ),
+    )
+    return created.attempt_id

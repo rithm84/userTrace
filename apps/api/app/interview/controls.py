@@ -68,15 +68,19 @@ from app.outputs.closure_jobs import CASE_FILE_DEADLINE_SECONDS, entitlement_job
 from app.preview.ports import ObservationReadinessPort
 
 __all__ = [
+    "RETURN_WINDOW_SECONDS",
     "SET_INPUT_MUTED",
     "ControlResult",
     "apply_participant_control",
+    "close_encounter",
     "session_paused",
 ]
 
 _log = get_logger(__name__)
 
 SET_INPUT_MUTED = "voice.set_input_muted"
+#: How long a departed participant has to return before the case closes.
+RETURN_WINDOW_SECONDS = 72 * 60 * 60
 
 _PAUSE_REASON = "paused_by_participant"
 _CLOSE_REASON = "session_closed"
@@ -191,12 +195,18 @@ async def apply_participant_control(
             paused=False,
         )
     elif action in _CLOSING:
-        await _close_encounter(
+        await close_encounter(
             database,
-            participant=participant,
+            client_id=participant.client_id,
             interview_session_id=interview_session_id,
-            action=action,
+            reason=action.value,
         )
+        if action is ControlAction.END_CONFIRM:
+            await _cancel_scope(
+                database,
+                client_id=participant.client_id,
+                interview_session_id=interview_session_id,
+            )
 
     async with database.transaction() as conn:
         await set_character(
@@ -363,17 +373,13 @@ async def _record_pause_fact(
         )
 
 
-async def _close_encounter(
-    database: Database,
-    *,
-    participant: ParticipantPrincipal,
-    interview_session_id: UUID,
-    action: ControlAction,
+async def close_encounter(
+    database: Database, *, client_id: UUID, interview_session_id: UUID, reason: str
 ) -> None:
     """Revoke the binding, stop voice and observation, and clean up the encounter."""
     await cancel_pending_visual_commands(
         database,
-        client_id=participant.client_id,
+        client_id=client_id,
         interview_session_id=interview_session_id,
         reason=_CLOSE_REASON,
     )
@@ -381,9 +387,7 @@ async def _close_encounter(
         database, interview_session_id=interview_session_id, reason=_CLOSE_REASON
     )
     async with database.transaction() as conn:
-        await revoke_binding(
-            conn, interview_session_id=interview_session_id, reason=action.value
-        )
+        await revoke_binding(conn, interview_session_id=interview_session_id, reason=reason)
     async with database.connection() as conn, conn.cursor() as cur:
         await cur.execute(
             """
@@ -396,16 +400,10 @@ async def _close_encounter(
     for connection_id in open_connections:
         await close_voice_connection(
             database,
-            client_id=participant.client_id,
+            client_id=client_id,
             connection_id=connection_id,
-            reason=action.value,
+            reason=reason,
             close_provider_session=True,
-        )
-    if action is ControlAction.END_CONFIRM:
-        await _cancel_scope(
-            database,
-            client_id=participant.client_id,
-            interview_session_id=interview_session_id,
         )
 
 

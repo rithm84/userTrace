@@ -184,11 +184,16 @@ judges worth [acknowledging](#jevs-interview-responsibilities) goes as
 `session.commentary.append` instead, asking the agent for a few words. Context appended
 while the agent is talking can make it break off mid-sentence, so every
 application append except a delegation's own answer waits until the agent's
-output audio has gone quiet. When the Implementation Gate stops the agreed change, by
-failing for good or by choosing no implementation, the backend appends one
-`session.commentary.append` telling the agent the change will not start, so it never
-promises a version that is not coming; a reconnected sideband repeats it while that
-is still the case's latest gate outcome. None of these polls: database triggers notify the
+output audio has gone quiet. The agent speaks a delegation's answer as soon as it
+arrives, so the answer instead waits for the participant to pause, for at most
+eight seconds, because a muted microphone never shows a pause. Recording an agreement promises nothing: the agent
+says it is getting the change started, and says it is building only once the
+Implementation Gate has authorized an attempt, when the backend appends one
+`session.commentary.append` saying so while that attempt is still building. When the
+gate stops the agreed change, by failing for good or by choosing no implementation,
+the backend appends one telling the agent the change will not start, so it never
+promises a version that is not coming. A reconnected sideband repeats either while
+it is still the case's latest gate outcome. None of these polls: database triggers notify the
 `voice_sideband` channel with the Interview Session whose mute Commands, preview
 route, readiness, implementation progress, or preview activity changed, and a gate
 outcome that stops the change notifies it in the transaction that records it. The
@@ -421,7 +426,11 @@ Resume rechecks readiness and supplies fresh context. A spoken request for a qui
 moment can suppress speech without pausing implementation.
 
 A temporary connection loss allows current authorized live implementation/checks
-during a bounded reconnect window, within the existing attempt budget. No validation
+during a bounded reconnect window, within the existing attempt budget. The window is
+two minutes from the lost connection; the session tab opens a new one by itself
+within seconds, so it runs out only when the person has gone. A connection not
+replaced in time closes the encounter as **Finish later** does, with closure reason
+`reconnect_window_expired`; a paused session keeps its own Pause semantics. No validation
 completes while the user is absent. When the window expires, further live work
 stops under the lifecycle contract. **Finish later**, departure, and a reconnection timeout all checkpoint the encounter and start or preserve the fixed case-level return deadline in [Failure Recovery](./failure-recovery.md#bounded-return-and-terminal-expiry). The same user returns through the dashboard link or bounded private Discord reminders; return requires fresh readiness and does not reset budgets. Expiry closes the case and cleans resources.
 

@@ -42,6 +42,7 @@ from app.interview.voice.connections import VOICE_SIDEBAND, open_voice_connectio
 from app.interview.voice.delegation import DelegationRunner
 from app.outputs.job_types import ASSEMBLE_CASE_FILE
 from tests.factories import CaseFixture, create_case, create_interview_session
+from tests.gate.factories import approve_agreed_change
 from tests.interview.gpt_live_server import ScriptedSession, run_test_server
 from tests.interview.local_voice import local_voice_adapter
 from tests.supabase_auth import SignedInUser
@@ -263,3 +264,23 @@ async def test_a_gate_that_chooses_no_implementation_tells_the_agent(
             (case.product_signal_id, GATE_NO_IMPLEMENTATION_EVENT),
         )
         assert await cur.fetchone() is not None
+
+
+async def test_an_approved_gate_has_the_agent_say_it_is_building(
+    database: Database, auth_users: dict[str, SignedInUser]
+) -> None:
+    """The agent says it is building only once the gate has authorized an attempt."""
+    case, session_id = await _gate_pending_case(database, auth_users)
+
+    async def approve() -> None:
+        await approve_agreed_change(
+            database,
+            client_id=case.client_id,
+            product_signal_id=case.product_signal_id,
+            configuration_release_id=case.configuration_release_id,
+        )
+
+    cue = await _cue_heard_after(database, case, session_id, approve)
+
+    assert cue["type"] == "session.commentary.append"
+    assert "being built now" in str(cue["content"])

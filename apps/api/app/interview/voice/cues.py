@@ -37,6 +37,7 @@ from utrace_contracts.domain.lifecycle import (
     EffectState,
     GateDecisionKind,
     ImplementationProgress,
+    ProductSignalState,
 )
 
 from app.connectors.openai_live import SidebandConnection
@@ -68,7 +69,7 @@ from app.validation.records import load_criteria_on_connection
 from app.validation.session import start_session_validation
 
 __all__ = [
-    "announce_gate_failure",
+    "announce_gate_outcome",
     "announce_ready_preview",
     "announce_validation_outcome",
     "apply_controls",
@@ -158,6 +159,15 @@ _NO_IMPLEMENTATION_CUE: Final[str] = (
     "for the product team, and this session will close shortly."
 )
 
+#: Sent once the Implementation Gate approved the agreed change and its attempt is
+#: building, so the agent says it is building only when that is true.
+_BUILDING_CUE: Final[str] = (
+    "The change you agreed is approved and is being built now. Tell them in one short "
+    "sentence, in the first person, that you are building it now and will tell them "
+    "when it is ready, such as \"I'm building it now; I'll tell you when it's ready.\" "
+    "Then stay silent while it is built."
+)
+
 #: How often to look whether the floor is free and whether the goodbye has started.
 _GOODBYE_POLL_SECONDS: Final[float] = 0.1
 #: How long the agent has to start its goodbye before the session closes without it.
@@ -182,12 +192,14 @@ _NOT_VALIDATED_CUE: Final[str] = (
     "this session will close now. Ask nothing more."
 )
 
-#: The facts that send a case to the gate or settle it; the newest says whether a
-#: stopped change is still the case's current outcome.
+_ATTEMPT_AUTHORIZED_EVENT: Final[str] = "implementation_attempt_authorized"
+#: The facts that send a case to the gate or settle it; the newest says whether its
+#: outcome, a change being built or a stopped one, is still the case's current one.
 _GATE_EVENTS: Final[tuple[str, ...]] = (
     "product_signal_evidence_sufficient",
     "product_signal_revision_requested",
     "implementation_gate_decided",
+    _ATTEMPT_AUTHORIZED_EVENT,
     GATE_FAILED_EVENT,
     GATE_NO_IMPLEMENTATION_EVENT,
 )
@@ -322,7 +334,7 @@ async def announce_ready_preview(
         )
 
 
-async def announce_gate_failure(
+async def announce_gate_outcome(
     database: Database,
     changes: SessionChanges,
     *,
@@ -330,27 +342,28 @@ async def announce_gate_failure(
     sideband: SidebandConnection,
     agent_quiet: asyncio.Event,
 ) -> None:
-    """Tell the agent the change will not start, once per connection, when the gate stopped it.
+    """Tell the agent, once per connection, what the gate decided about the agreed change.
 
-    The gate stops an agreed change by failing or by choosing no implementation. The
-    outcome is announced while it is the case's latest gate outcome, so a new
-    connection hears it too and a later change request is never answered with an
-    old one. A declined change keeps the version the person has, so they go on
-    checking it.
+    An approved change is announced once its attempt is authorized and only while it
+    is still being built, so the agent says it is building exactly when it is. The
+    gate stops a change by failing or by choosing no implementation. Each outcome is
+    announced while it is the case's latest, so a new connection hears it too and a
+    later change request is never answered with an old one. A declined change keeps
+    the version the person has, so they go on checking it.
     """
     woken = changes.watch()
     announced: UUID | None = None
     while True:
         await woken.wait()
         woken.clear()
-        stopped = await _stopped_change(database, product_signal_id=product_signal_id)
-        if stopped is None or stopped[0] == announced:
+        decided = await _gate_outcome(database, product_signal_id=product_signal_id)
+        if decided is None or decided[0] == announced:
             continue
-        announced, cue, outcome = stopped
+        announced, cue, outcome = decided
         await agent_quiet.wait()
         await sideband.append_commentary(content=cue, delegation_id=None)
         _log.info(
-            "voice_stopped_change_announced",
+            "voice_gate_outcome_announced",
             product_signal_id=str(product_signal_id),
             event_id=str(announced),
             outcome=outcome,
@@ -445,18 +458,20 @@ async def _completed_validation(
     return None if row is None else (as_uuid(row, "id"), as_str(row, "outcome"))
 
 
-async def _stopped_change(
+async def _gate_outcome(
     database: Database, *, product_signal_id: UUID
 ) -> tuple[UUID, str, str] | None:
-    """The fact, cue, and outcome of the case's latest gate outcome when it stopped the change."""
+    """The fact, cue, and outcome of the case's latest gate outcome, if it is one to announce."""
     async with database.connection() as conn, conn.cursor() as cur:
         await cur.execute(
             """
-            select id, event_type, payload ->> 'outcome' as outcome
+            select events.id, events.event_type, events.payload ->> 'outcome' as outcome,
+                   signals.state::text as signal_state
             from public.events
-            where stream_kind = 'product_signal' and stream_id = %s
-              and event_type = any(%s)
-            order by sequence desc
+            join public.product_signals as signals on signals.id = events.stream_id
+            where events.stream_kind = 'product_signal' and events.stream_id = %s
+              and events.event_type = any(%s)
+            order by events.sequence desc
             limit 1
             """,
             (product_signal_id, list(_GATE_EVENTS)),
@@ -465,6 +480,10 @@ async def _stopped_change(
     if row is None:
         return None
     event_type = as_str(row, "event_type")
+    if event_type == _ATTEMPT_AUTHORIZED_EVENT:
+        if as_str(row, "signal_state") != ProductSignalState.IMPLEMENTING.value:
+            return None
+        return as_uuid(row, "id"), _BUILDING_CUE, "building"
     if event_type == GATE_NO_IMPLEMENTATION_EVENT:
         return as_uuid(row, "id"), _NO_IMPLEMENTATION_CUE, "no_implementation"
     if event_type != GATE_FAILED_EVENT:

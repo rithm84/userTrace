@@ -79,19 +79,19 @@ async def test_the_agent_sees_preview_activity_and_answers_in_realtime(
 
         filters_at = time.time()
         await harness.apply_filters(database, document)
-        fed_at = report.first_append_after("append_thinking", filters_at)
+        fed_at = report.first_activity_after(filters_at)
         for _ in range(40):
             if fed_at is not None:
                 break
             await asyncio.sleep(0.1)
-            fed_at = report.first_append_after("append_thinking", filters_at)
+            fed_at = report.first_activity_after(filters_at)
 
         microphone.say(ask_seen)
         await asyncio.sleep(0.2)
         seen_start = microphone.started_at
         await microphone.finished.wait()
         seen_end = time.time()
-        seen_reply_at, seen_reply = await harness.required_reply(database, session_id, after=seen_end)
+        seen_reply_at, seen_reply = await harness.whole_turn(database, session_id, after=seen_end)
 
         microphone.say(ask_circle)
         await asyncio.sleep(0.2)

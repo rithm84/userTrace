@@ -12,7 +12,6 @@ from logging import INFO
 from fastapi import FastAPI
 
 from app.adapters.wire import install_ingestion_adapters
-from app.api.callbacks import router as callbacks_router
 from app.api.clients import router as clients_router
 from app.api.exception_handlers import install_exception_handlers
 from app.api.extension import router as extension_router
@@ -112,7 +111,6 @@ def create_app(settings: Settings, ports: PortRegistry) -> FastAPI:
     application.include_router(ingestion_router)
     application.include_router(ingestion_queries_router)
     application.include_router(preview_activation_router)
-    application.include_router(callbacks_router)
 
     @application.get("/health", tags=["operations"])
     def health() -> dict[str, str]:
@@ -136,7 +134,6 @@ def create_default_app() -> FastAPI:
         get_settings(),
         PortRegistry(
             voice=build_voice_adapter(settings=get_openai_voice_settings()),
-            receipts=None,
             observation=None,
             evidence=None,
         ),

@@ -17,7 +17,7 @@ from uuid import UUID
 from app.clients.configuration import ActiveRelease, load_active_release
 from app.connectors.discord_connector import DiscordConnector
 from app.connectors.openai_roles import OpenAIRole, openai_gateway_for
-from app.connectors.ports import MessageReceipt, TypingReceipt
+from app.connectors.ports import InboundDirectMessageReceipt, MessageReceipt, TypingReceipt
 from app.connectors.typesafe_jev import JevClient
 from app.db.pool import Database
 from app.errors import AuthorizationError
@@ -36,6 +36,7 @@ from app.intake.settings import IntakeOutreachSettings, get_intake_settings
 from app.logging import get_logger
 from app.outreach.dispatch import send_initial_invitation
 from app.outreach.expiry import expire_initial_invitation
+from app.outreach.inbound import InboundRoute, route_direct_message
 from app.outreach.stop_notice import send_stop_notice
 
 __all__ = [
@@ -44,6 +45,7 @@ __all__ = [
     "discord_connector_for",
     "expire_invitation_job",
     "intake_handlers",
+    "route_inbound_direct_message",
     "route_job",
     "seal_job",
     "send_invitation_job",
@@ -215,7 +217,8 @@ async def consume_watched_channels(
 ) -> None:
     """Consume one client's watched channels until cancelled or the gateway ends.
 
-    The consumer records; it never decides. Each recorded message schedules or
+    A person's direct message to the bot is routed to their own invitation,
+    session, or preference, never to intake. The consumer records; it never decides. Each recorded message schedules or
     extends its batch's seal Job, and routing happens inside that Job. The author
     typing again extends their open batch until the typing indicator lapses. The
     watched-channel set is read once from the client's pinned active release, so
@@ -256,6 +259,9 @@ async def consume_watched_channels(
                 if isinstance(receipt, TypingReceipt):
                     await _hold_for_typing(database, client_id=client_id, receipt=receipt)
                     continue
+                if isinstance(receipt, InboundDirectMessageReceipt):
+                    await route_inbound_direct_message(database, receipt=receipt)
+                    continue
                 await _record_queued_receipt(
                     database,
                     client_id=client_id,
@@ -266,6 +272,26 @@ async def consume_watched_channels(
     finally:
         await connector.close()
         _log.info("intake_consumer_stopped", client_id=str(client_id))
+
+
+async def route_inbound_direct_message(
+    database: Database, *, receipt: InboundDirectMessageReceipt
+) -> InboundRoute:
+    """Route a person's direct message to their own invitation, session, or preference."""
+    routed = await route_direct_message(
+        database,
+        provider_message_id=receipt.message_id,
+        sender_provider_identity=receipt.author_id,
+        content=receipt.content,
+        occurred_at=receipt.sent_at,
+    )
+    _log.info(
+        "intake_consumer_direct_message_routed",
+        provider_message_id=receipt.message_id,
+        route_kind=routed.route_kind,
+        duplicate=routed.duplicate,
+    )
+    return routed
 
 
 async def _hold_for_typing(database: Database, *, client_id: UUID, receipt: TypingReceipt) -> None:

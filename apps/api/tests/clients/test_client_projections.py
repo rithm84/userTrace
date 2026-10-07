@@ -39,7 +39,7 @@ async def client(settings: Settings, database: Database) -> AsyncIterator[httpx.
     """The assembled application with no provider adapters installed."""
     app: FastAPI = create_app(
         settings,
-        PortRegistry(voice=None, receipts=None, observation=None, evidence=None),
+        PortRegistry(voice=None, observation=None, evidence=None),
     )
     async with app.router.lifespan_context(app):
         transport = httpx.ASGITransport(app=app)

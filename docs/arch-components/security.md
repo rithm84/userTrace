@@ -28,7 +28,7 @@ Each session preview has its own origin `<opaque>.preview.utrace.dev`, which sha
 
 A compromised SDK, client repository, participant, or staff account is contained to its tenant, session, and authorized scope. Anomaly signals can immediately deny new effects, revoke credentials, freeze delivery, and preserve evidence. They do not permit runtime staff editing or silent recovery.
 
-Public invitation claims, auth callbacks, telemetry ingestion, provider callbacks, and preview claims use rate limits, replay protection, signature or token verification, size limits, schema validation, and abuse monitoring. Bare preview URLs and leaked invitation identifiers are insufficient authority.
+Public invitation claims, auth callbacks, telemetry ingestion, and preview claims use rate limits, replay protection, signature or token verification, size limits, schema validation, and abuse monitoring. Bare preview URLs and leaked invitation identifiers are insufficient authority.
 
 Revocation can narrow authority immediately, and nothing stale can widen it: a
 stale credential, worker result, target, or model statement cannot expand

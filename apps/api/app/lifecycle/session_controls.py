@@ -40,6 +40,8 @@ __all__ = [
     "ControlOutcome",
     "PreflightReport",
     "apply_control",
+    "close_session_on_connection",
+    "lock_session",
     "run_preflight",
 ]
 
@@ -106,7 +108,7 @@ async def run_preflight(
 ) -> ControlOutcome:
     """Record the preflight result and admit the session to preparation."""
     async with database.transaction() as conn:
-        session = await _lock_session(conn, session_id)
+        session = await lock_session(conn, session_id)
         if not report.passed:
             raise GuardRejectedError(
                 machine="interview_session",
@@ -196,7 +198,7 @@ async def run_preflight(
                 jobs=(),
                 reason_code=None,
             )
-        session = await _lock_session(conn, session_id)
+        session = await lock_session(conn, session_id)
     return _outcome(session_id, session)
 
 
@@ -210,7 +212,7 @@ async def apply_control(
 ) -> ControlOutcome:
     """Apply one participant control to the durable session projection."""
     async with database.transaction() as conn:
-        session = await _lock_session(conn, session_id)
+        session = await lock_session(conn, session_id)
         state = as_str(session, "state")
         actor = Actor(
             kind=ActorKind.CUSTOMER_PARTICIPANT, ref=str(participant.client_user_id)
@@ -219,14 +221,15 @@ async def apply_control(
         stream = StreamRef(kind=AggregateKind.INTERVIEW_SESSION, id=session_id)
 
         if action in _CLOSING_ACTIONS:
-            await _close_session(
+            await close_session_on_connection(
                 conn,
-                participant=participant,
+                client_id=participant.client_id,
                 session=session,
                 session_id=session_id,
-                action=action,
+                closure_reason=action.value,
                 actor=actor,
                 now=now,
+                departure=action is ControlAction.FINISH_LATER,
                 return_window_seconds=return_window_seconds,
             )
         else:
@@ -271,7 +274,7 @@ async def apply_control(
                 ),
                 jobs=(),
             )
-        session = await _lock_session(conn, session_id)
+        session = await lock_session(conn, session_id)
     _log.info(
         "session_control_applied",
         client_id=str(participant.client_id),
@@ -281,20 +284,24 @@ async def apply_control(
     return _outcome(session_id, session)
 
 
-async def _close_session(
+async def close_session_on_connection(
     conn: AsyncConnection[DictRow],
     *,
-    participant: ParticipantPrincipal,
+    client_id: UUID,
     session: DictRow,
     session_id: UUID,
-    action: ControlAction,
+    closure_reason: str,
     actor: Actor,
     now: datetime,
+    departure: bool,
     return_window_seconds: int,
 ) -> None:
-    """Close the encounter and, for finish later, open the bounded return window."""
+    """Close the encounter; a departure also starts the case's bounded return window.
+
+    `session` is the row `lock_session` returned in this transaction.
+    """
     mutation: dict[str, ColumnValue] = {
-        "closure_reason": action.value,
+        "closure_reason": closure_reason,
         "closed_at": now,
         "phase": InterviewPhase.CLOSING.value,
         "paused": False,
@@ -311,7 +318,7 @@ async def _close_session(
             ),
             trigger="close",
             current_state=as_str(session, "state"),
-            client_id=participant.client_id,
+            client_id=client_id,
             aggregate_kind=AggregateKind.INTERVIEW_SESSION,
             aggregate_id=session_id,
             expected_revision=as_int(session, "revision"),
@@ -320,8 +327,8 @@ async def _close_session(
             event=EventAppend(
                 message_id=uuid7(),
                 stream=StreamRef(kind=AggregateKind.INTERVIEW_SESSION, id=session_id),
-                event_type=f"session_control_{action.value}",
-                payload={"control": action.value},
+                event_type=f"session_control_{closure_reason}",
+                payload={"control": closure_reason},
                 actor=actor,
                 causation_id=None,
                 correlation_id=as_uuid(session, "product_signal_id"),
@@ -332,9 +339,9 @@ async def _close_session(
             audit=AuditIntent(
                 audit_id=uuid7(),
                 subject=StreamRef(kind=AggregateKind.INTERVIEW_SESSION, id=session_id),
-                action=f"session_control_{action.value}",
+                action=f"session_control_{closure_reason}",
                 outcome="session_closed",
-                reason_code=action.value,
+                reason_code=closure_reason,
                 actor=actor,
                 pinned_configuration_release_id=None,
                 detail={"return_window_seconds": return_window_seconds},
@@ -342,16 +349,16 @@ async def _close_session(
             additional_locks=(),
         ),
     )
-    if action is ControlAction.FINISH_LATER:
+    if departure:
         await record_departure(
             conn,
             product_signal_id=as_uuid(session, "product_signal_id"),
-            reason=action.value,
+            reason=closure_reason,
             return_window_seconds=return_window_seconds,
         )
 
 
-async def _lock_session(
+async def lock_session(
     conn: AsyncConnection[DictRow], session_id: UUID
 ) -> DictRow:
     """Lock one session row and return its current control projection."""

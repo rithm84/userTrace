@@ -114,7 +114,7 @@ def control_plane(settings: Settings) -> Iterator[str]:
     require_env("UTRACE_SUPABASE_SECRET_KEY")
     _require_free_port(CONTROL_PLANE_PORT)
     application = create_app(
-        settings, PortRegistry(voice=None, receipts=None, observation=None, evidence=None)
+        settings, PortRegistry(voice=None, observation=None, evidence=None)
     )
     server = uvicorn.Server(
         uvicorn.Config(

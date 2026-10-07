@@ -95,7 +95,7 @@ async def preview_session(database: Database) -> AsyncIterator[PreviewSession]:
     control_plane = get_settings()
     ingestion = get_ingestion_settings()
     ports = install_ingestion_adapters(
-        PortRegistry(voice=None, receipts=None, observation=None, evidence=None),
+        PortRegistry(voice=None, observation=None, evidence=None),
         database=database,
     )
     async with (

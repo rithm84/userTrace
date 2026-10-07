@@ -74,6 +74,7 @@ _TAB_PROGRESS_BY_DURABLE: Mapping[str, str | None] = {
 
 _TAB_END_REASON_BY_CLOSURE: Mapping[str, str] = {
     "finish_later": "finish_later",
+    "reconnect_window_expired": "connection_lost",
     "end_confirm": "ended_by_participant",
     "client_stopped": "client_stopped",
     "completed": "completed",

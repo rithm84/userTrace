@@ -21,6 +21,7 @@ const LIVE_TONES: Readonly<Record<Exclude<TabState, "ended">, ChipTone>> = {
 
 const END_LABELS: Readonly<Record<SessionEndReason, string>> = {
   finish_later: "Finished later",
+  connection_lost: "Saved after the call dropped",
   ended_by_participant: "Ended by you",
   client_stopped: "Stopped by the team",
   completed: "Completed",

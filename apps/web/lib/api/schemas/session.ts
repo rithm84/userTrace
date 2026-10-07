@@ -96,6 +96,7 @@ export type TabProgress = z.infer<typeof tabProgressSchema>;
 
 export const sessionEndReasonSchema = z.enum([
   "finish_later",
+  "connection_lost",
   "ended_by_participant",
   "client_stopped",
   "completed",
