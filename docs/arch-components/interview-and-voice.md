@@ -211,7 +211,10 @@ or both, and has a stable `session_id`. A case may span several such sessions wh
 the originating user leaves and returns. Every provider connection has a new
 `voice_run_id`, provider session reference, and participant connection ID.
 A reconnect may preserve the Interview Session while replacing provider resources;
-old callbacks cannot change the current session. Only one connection has current
+old callbacks cannot change the current session. When GPT-Live loses the session
+tab's media connection, it ends that provider session and the projection reports
+`reconnecting`; the tab then opens one new connection, retrying a few times if
+that fails. Only one connection has current
 participant authority. Authenticated takeover revokes the previous connection.
 
 An Interview Session moves `invited` → `claimed` → `preparing` → `live` →

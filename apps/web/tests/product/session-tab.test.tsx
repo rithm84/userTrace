@@ -133,6 +133,57 @@ describe("session tab", () => {
     expect(screen.getByTestId("session-connection")).toHaveTextContent("Connected");
   });
 
+  it("replaces a lost voice connection once each time the session reports reconnecting", async () => {
+    const closes = [vi.fn(), vi.fn(), vi.fn()];
+    for (const close of closes) {
+      voice.connectVoice.mockResolvedValueOnce({
+        connectionId: "conn",
+        voiceRunId: "vr",
+        setMicrophoneEnabled: vi.fn(),
+        close,
+      });
+    }
+    let publish: (next: SessionProjection) => void = () => undefined;
+    realtime.subscribeToSession.mockImplementation(
+      (parameters: {
+        onStatus: (status: string) => void;
+        onProjection: (next: SessionProjection) => void;
+      }) => {
+        parameters.onStatus("live");
+        publish = parameters.onProjection;
+        return () => undefined;
+      },
+    );
+    renderSession(fixtureSessionProjection);
+    await waitFor(() => {
+      expect(voice.connectVoice).toHaveBeenCalledTimes(1);
+    });
+
+    const revision = fixtureSessionProjection.revision;
+    act(() => {
+      publish(projectionWith({ revision: revision + 1, state: "reconnecting" }));
+    });
+    await waitFor(() => {
+      expect(voice.connectVoice).toHaveBeenCalledTimes(2);
+    });
+    expect(closes[0]).toHaveBeenCalledTimes(1);
+
+    // Still reconnecting until the new sideband attaches: no second replacement.
+    act(() => {
+      publish(projectionWith({ revision: revision + 2, state: "reconnecting" }));
+    });
+    act(() => {
+      publish(projectionWith({ revision: revision + 3 }));
+    });
+    act(() => {
+      publish(projectionWith({ revision: revision + 4, state: "reconnecting" }));
+    });
+    await waitFor(() => {
+      expect(voice.connectVoice).toHaveBeenCalledTimes(3);
+    });
+    expect(closes[1]).toHaveBeenCalledTimes(1);
+  });
+
   it("delivers the binding offer to the extension id the deployment configures", async () => {
     renderSession(fixtureSessionProjection);
 

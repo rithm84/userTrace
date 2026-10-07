@@ -95,6 +95,13 @@ _CLOSE_POLICY_VIOLATION = 1008
 _CLOSE_NORMAL = 1000
 
 _FLOW_CONTROL_RETRY_AFTER_MS = 1_000
+#: The longest a batch's transaction may wait between statements. A commit that
+#: stops making progress would otherwise hold its rows' locks indefinitely, and the
+#: producer's resend of the same batch, after its acknowledgement never came,
+#: would wait behind them. Postgres ends the stalled transaction instead, which
+#: releases them. It exceeds the Storage upload's request timeout, the longest
+#: legitimate pause inside the transaction.
+_IDLE_IN_TRANSACTION_TIMEOUT = "30s"
 
 
 def credential_from_subprotocols(header: str | None) -> str:
@@ -321,6 +328,10 @@ class BrowserIngestSession:
 
         content_sha256 = sha256(raw).hexdigest()
         async with self._database.transaction() as conn:
+            await conn.execute(
+                "select set_config('idle_in_transaction_session_timeout', %s, true)",
+                (_IDLE_IN_TRANSACTION_TIMEOUT,),
+            )
             existing = await find_receipt(
                 conn,
                 client_id=activation.client_id,
