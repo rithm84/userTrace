@@ -32,6 +32,7 @@ from app.extension.installations import (
 from app.extension.socket import ExtensionControlSocket, SocketDependencies
 from app.ingestion.control_hub import require_control_hub
 from app.ingestion.wiring import require_signer
+from app.interview.controls import RETURN_WINDOW_SECONDS
 from app.interview.settings import get_interview_settings
 from app.logging import get_logger
 from app.ports import PortRegistry
@@ -43,7 +44,6 @@ _log = get_logger(__name__)
 router = APIRouter(prefix="/v1/extension", tags=["extension"])
 
 CONTROL_SOCKET_PATH = "/v1/extension/control"
-RETURN_WINDOW_SECONDS = 72 * 60 * 60
 
 
 class ApiModel(BaseModel):

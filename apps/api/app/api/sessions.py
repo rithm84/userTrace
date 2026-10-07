@@ -27,7 +27,7 @@ from app.envelope import JsonValue
 from app.errors import AggregateNotFoundError, GuardRejectedError
 from app.extension.bindings import mint_binding_offer, served_allocation
 from app.ingestion.control_hub import require_control_hub
-from app.interview.controls import apply_participant_control
+from app.interview.controls import RETURN_WINDOW_SECONDS, apply_participant_control
 from app.interview.preflight import ParticipantEnvironment, run_participant_preflight
 from app.interview.projection import load_projection
 from app.interview.settings import get_interview_settings
@@ -39,7 +39,6 @@ __all__ = ["provider_registry", "router"]
 
 router = APIRouter(prefix="/v1/sessions", tags=["participant"])
 
-RETURN_WINDOW_SECONDS = 72 * 60 * 60
 
 _READY_ALLOCATION_STATES = frozenset({"ready", "bound"})
 _OFFER_READY_WAIT_SECONDS: Final[float] = 30.0

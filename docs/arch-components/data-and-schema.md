@@ -45,7 +45,7 @@ Postgres stores artifact metadata, digest, media type, class, encryption referen
 
 ## Cross-system consistency
 
-The transactional outbox is the only path from committed workflow state to Discord, GitHub, Stripe, Vercel, or other external effects. An adapter records the provider operation ID before acknowledging completion. Callback ingestion verifies authenticity, resolves `provider_refs`, deduplicates delivery, and evaluates the expected state. Ambiguous external outcomes remain pending investigation and never advance optimistically.
+The transactional outbox is the only path from committed workflow state to Discord, GitHub, Stripe, Vercel, or other external effects. An adapter records the provider operation ID before acknowledging completion. The adapter confirms an effect by reading the provider's own record, resolving `provider_refs` and evaluating the expected state. Ambiguous external outcomes remain pending investigation and never advance optimistically.
 
 ## Model data and cleanup
 

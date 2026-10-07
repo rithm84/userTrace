@@ -85,7 +85,7 @@ Only the owner authorizes or increases the Outreach Offers budget. Configuration
 
 Participants manage their own identity, preferences, participation, and opt-out. They hold no client-side authority. Models and providers may propose or report typed facts only. The deterministic control plane owns authorization, evidence admission, lifecycle transitions, and effects.
 
-Inbound Discord, GitHub, Stripe, Supabase, and Vercel callbacks are verified using the provider's mechanism and mapped to a client and expected resource before ingestion. Internal services use separate scoped identities; no shared all-powerful credential exists.
+Inbound Discord gateway events and Supabase Auth callbacks are verified using the provider's mechanism and mapped to a client and expected resource before ingestion. uTrace takes no GitHub, Stripe, or Vercel webhooks: the adapter that caused an effect reads its outcome back from the provider. Internal services use separate scoped identities; no shared all-powerful credential exists.
 
 ## Interruption, revocation, and recovery
 

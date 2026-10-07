@@ -49,7 +49,7 @@ UPSTREAM = "https://sb-contracttest.vercel.run"
 @pytest_asyncio.fixture
 async def client(settings: Settings, database: Database) -> AsyncIterator[httpx.AsyncClient]:
     """The assembled application with no provider adapters installed."""
-    app: FastAPI = create_app(settings, PortRegistry(voice=None, receipts=None, observation=None, evidence=None))
+    app: FastAPI = create_app(settings, PortRegistry(voice=None, observation=None, evidence=None))
     async with app.router.lifespan_context(app):
         transport = httpx.ASGITransport(app=app)
         async with httpx.AsyncClient(transport=transport, base_url=BASE_URL) as http:

@@ -78,7 +78,7 @@ def page_proof_signer() -> Signer:
 @pytest_asyncio.fixture
 async def running_api(settings: Settings) -> AsyncIterator[FastAPI]:
     """Run the production application on a real port for the duration of a test."""
-    application = create_app(settings, PortRegistry(voice=None, receipts=None, observation=None, evidence=None))
+    application = create_app(settings, PortRegistry(voice=None, observation=None, evidence=None))
     config = uvicorn.Config(
         application, host="127.0.0.1", port=SOCKET_PORT, log_level="warning"
     )

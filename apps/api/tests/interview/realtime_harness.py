@@ -70,6 +70,8 @@ _FRAME_BYTES: Final[int] = _FRAME_SAMPLES * 2
 _DEVICE_KEY: Final[str] = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEtoolstestkeyfortheinstallationrecord"
 _QUIET_SECONDS: Final[float] = 2.0
 REPLY_DEADLINE_SECONDS: Final[float] = 30.0
+#: How long a participant waits in silence before taking the agent's turn as over.
+_TURN_OVER_SECONDS: Final[float] = 6.0
 INTRO_REPLY_SECONDS: Final[float] = 6.0
 
 FILTERS: Final[Mapping[str, str]] = {
@@ -148,6 +150,18 @@ class Report:
     def first_append_after(self, kind: str, after: float) -> float | None:
         return next((at for at, k, _ in self.appends if k == kind and at >= after), None)
 
+    def first_activity_after(self, after: float) -> float | None:
+        """When product activity first reached the agent, as thinking or, when it
+        answers an awaited acknowledgement, as commentary."""
+        return next(
+            (
+                at
+                for at, _, content in self.appends
+                if at >= after and content.startswith("In the preview, the person just did this")
+            ),
+            None,
+        )
+
     def first_character_after(self, state: str, after: float) -> float | None:
         return next((at for at, s in self.character if s == state and at >= after), None)
 
@@ -167,13 +181,12 @@ async def agent_reply(
     Returns `None` when the agent stays silent until the deadline.
     """
     deadline = time.time() + deadline_seconds
-    reply_deadline = time.time() + REPLY_DEADLINE_SECONDS
     first: float | None = None
     last_count = 0
     last_change = time.time()
     text = ""
     # The deadline bounds when a reply must start; one that has started may finish.
-    while time.time() < (deadline if first is None else reply_deadline):
+    while time.time() < (deadline if first is None else first + REPLY_DEADLINE_SECONDS):
         async with database.connection() as conn, conn.cursor() as cur:
             await cur.execute(
                 """
@@ -207,6 +220,19 @@ async def required_reply(
     if reply is None:
         raise AssertionError("the agent never answered")
     return reply
+
+
+async def whole_turn(database: Database, session_id: UUID, *, after: float) -> tuple[float, str]:
+    """Wait for the agent's whole turn, through any filler before a delegated answer, as
+    a participant would: when it began and everything it said."""
+    started, text = await required_reply(database, session_id, after=after)
+    while True:
+        more = await agent_reply(
+            database, session_id=session_id, after=time.time() - 0.5, deadline_seconds=_TURN_OVER_SECONDS
+        )
+        if more is None:
+            return started, text
+        text += more[1]
 
 
 async def watch_character(database: Database, session_id: UUID, report: Report) -> None:

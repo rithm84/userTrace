@@ -21,6 +21,7 @@ from app.connectors.typesafe_jev import JevClient
 from app.db.pool import Database
 from app.execution.jobs import ClaimedJob
 from app.ingestion.target_registry import IngestionTargetRegistry
+from app.interview.reconnect import EXPIRE_RECONNECT_WINDOW, expire_reconnect_window
 from app.interview.settings import (
     get_interview_settings,
     get_jev_settings,
@@ -49,6 +50,7 @@ def interview_handlers() -> Mapping[str, JobHandler]:
     return {
         VOICE_SIDEBAND: run_voice_sideband,
         CLOSE_PROVIDER_SESSION: close_provider_session,
+        EXPIRE_RECONNECT_WINDOW: expire_reconnect_window,
     }
 
 

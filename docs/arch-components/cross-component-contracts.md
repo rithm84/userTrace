@@ -37,7 +37,7 @@ Internal domain communication uses exactly three families:
 - **Command:** one immutable, single-purpose request with `command_id` as its idempotency boundary.
 - **Result:** accepted, progress, or one canonical terminal outcome for a Command.
 
-Provider callbacks first become authenticated receipts, then normalized Events or Results. Media, OpenTelemetry, and bulk telemetry keep their native transport; only control-relevant facts enter domain messaging. Read-only queries cannot change state or confer later authority.
+Provider outcomes enter as Results the adapter that caused them reads back; uTrace takes no inbound provider webhooks. Media, OpenTelemetry, and bulk telemetry keep their native transport; only control-relevant facts enter domain messaging. Read-only queries cannot change state or confer later authority.
 
 The common envelope carries `message_id`, versions, producer, optional actor, client scope, typed domain IDs, authority references, causation, timestamps, optional trace context, primary lifecycle stream, expected revision, payload, and digest. Optional values are omitted unless `null` has defined meaning. Every producer and consumer runtime-validates the envelope and payload.
 

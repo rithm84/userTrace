@@ -9,9 +9,11 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+from app.connectors.ports import InboundDirectMessageReceipt
 from app.db.pool import Database
 from app.db.rows import as_bool, as_int, as_str
 from app.ids import uuid7
+from app.intake.worker import route_inbound_direct_message
 from app.outreach.inbound import RouteKind, route_direct_message
 from app.outreach.reasons import DECLINED, DO_NOT_CONTACT
 from tests.cases import seed_awaiting_invitation, seed_product_signal
@@ -104,12 +106,16 @@ async def test_a_stop_reply_records_do_not_contact_and_cancels(
     database: Database, auth_users: dict[str, SignedInUser]
 ) -> None:
     fixture = await _invited(database, auth_users)
-    route = await route_direct_message(
+    # Delivered as the gateway queues it, through the consumer's own routing.
+    route = await route_inbound_direct_message(
         database,
-        provider_message_id=uuid7().hex,
-        sender_provider_identity=fixture.maya.discord_user_id,
-        content="stop",
-        occurred_at=datetime.now(tz=UTC),
+        receipt=InboundDirectMessageReceipt(
+            provider="discord",
+            message_id=uuid7().hex,
+            author_id=fixture.maya.discord_user_id,
+            content="stop",
+            sent_at=datetime.now(tz=UTC),
+        ),
     )
     assert route.route_kind == RouteKind.PREFERENCE_ACTION
 

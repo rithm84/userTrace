@@ -4396,6 +4396,7 @@
               {
                 "enum": [
                   "finish_later",
+                  "connection_lost",
                   "ended_by_participant",
                   "client_stopped",
                   "completed",
@@ -5411,37 +5412,6 @@
           "limit"
         ],
         "title": "QueryScope",
-        "type": "object"
-      },
-      "ReceiptAccepted": {
-        "additionalProperties": false,
-        "description": "What the control plane recorded for one inbound callback.",
-        "properties": {
-          "deduplicated": {
-            "title": "Deduplicated",
-            "type": "boolean"
-          },
-          "message_id": {
-            "format": "uuid",
-            "title": "Message Id",
-            "type": "string"
-          },
-          "provider": {
-            "title": "Provider",
-            "type": "string"
-          },
-          "provider_event_id": {
-            "title": "Provider Event Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "message_id",
-          "provider",
-          "provider_event_id",
-          "deduplicated"
-        ],
-        "title": "ReceiptAccepted",
         "type": "object"
       },
       "ReferenceResolutionResponse": {
@@ -6569,94 +6539,6 @@
         "summary": "Health",
         "tags": [
           "operations"
-        ]
-      }
-    },
-    "/v1/callbacks/github": {
-      "post": {
-        "description": "Record one verified GitHub callback receipt.",
-        "operationId": "github_callback_v1_callbacks_github_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-utrace-client-id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "X-Utrace-Client-Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ReceiptAccepted"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Github Callback",
-        "tags": [
-          "callbacks"
-        ]
-      }
-    },
-    "/v1/callbacks/stripe": {
-      "post": {
-        "description": "Record one verified Stripe callback receipt.",
-        "operationId": "stripe_callback_v1_callbacks_stripe_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-utrace-client-id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "X-Utrace-Client-Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ReceiptAccepted"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Stripe Callback",
-        "tags": [
-          "callbacks"
         ]
       }
     },

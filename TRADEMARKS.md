@@ -20,8 +20,7 @@ reserved, and are not licensed under the AGPL:
 - everything in [`assets/`](assets)
 - the logo artwork in [`apps/web/public/brand/`](apps/web/public/brand) and
   [`apps/web/components/brand/`](apps/web/components/brand)
-- the agent characters in [`apps/web/public/agent/`](apps/web/public/agent) and
-  [`apps/web/public/agents/`](apps/web/public/agents)
+- the agent characters in [`apps/web/public/agent/`](apps/web/public/agent)
 - the landing-page artwork in [`apps/web/public/landing/`](apps/web/public/landing)
   and [`apps/web/public/hero-avatars/`](apps/web/public/hero-avatars)
 - the character artwork (`.riv` and `.svg` files) in

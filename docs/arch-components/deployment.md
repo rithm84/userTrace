@@ -36,7 +36,7 @@ in the same Supabase project, both built from `apps/api/Dockerfile`. The public
 `api` compute serves the HTTP API, the extension's control sockets, and telemetry
 ingestion. The private `worker` compute has no URL and runs durable Jobs and the
 Discord gateway. Together they cover Discord ingestion, telemetry ingestion,
-session coordination, model delegation, jobs, callbacks, and provider adapters.
+session coordination, model delegation, jobs, and provider adapters.
 Compute project secrets hold long-lived credentials.
 
 The application region is AWS `us-west-2`. Supabase Compute's private alpha runs
@@ -99,7 +99,7 @@ redirects requests to another provider.
 ## Network and public boundaries
 
 Public endpoints are limited to the Vercel web/session surfaces, preview front
-door, authenticated telemetry ingestion, provider callbacks, and the signaling
+door, authenticated telemetry ingestion, and the signaling
 paths required for GPT-Live WebRTC. Vercel Sandbox port URLs are public, so runtime
 middleware verifies uTrace route context and the runtime's entry token on every
 request; the [front-door contract](./preview-front-door.md#vercel-to-sandbox-request-path)

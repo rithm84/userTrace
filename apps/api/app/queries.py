@@ -509,6 +509,7 @@ class ParticipantInterview(BaseModel):
     end_reason: (
         Literal[
             "finish_later",
+            "connection_lost",
             "ended_by_participant",
             "client_stopped",
             "completed",

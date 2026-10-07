@@ -116,7 +116,7 @@ Stripe can prune keys after at least 24 hours, so the key alone cannot guarantee
 permanent deduplication. Reconcile ambiguous responses against the customer's
 transaction history and operation metadata before redispatch, especially outside
 that window. If the outcome cannot be established, block for reconciliation;
-never create a fresh adjustment merely because a callback was late.
+never create a fresh adjustment merely because an outcome was slow to confirm.
 
 A verified adjustment means the credit is issued, not necessarily consumed.
 Stripe applies the customer's aggregate credit balance as invoices finalize; the

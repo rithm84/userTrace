@@ -68,7 +68,7 @@ async def _stop_notices(database: Database, *, product_signal_id: UUID) -> int:
 @pytest_asyncio.fixture
 async def client(settings: Settings, database: Database) -> AsyncIterator[httpx.AsyncClient]:
     """The assembled application with no provider adapters installed."""
-    app: FastAPI = create_app(settings, PortRegistry(voice=None, receipts=None, observation=None, evidence=None))
+    app: FastAPI = create_app(settings, PortRegistry(voice=None, observation=None, evidence=None))
     async with app.router.lifespan_context(app):
         transport = httpx.ASGITransport(app=app)
         async with httpx.AsyncClient(transport=transport, base_url=BASE_URL) as http:
@@ -872,19 +872,9 @@ async def test_front_door_routes_require_the_service_token(
     assert without_session.status_code == 422
 
 
-async def test_ingestion_and_callback_skeletons_refuse_explicitly(
+async def test_an_unauthenticated_otlp_export_is_refused(
     client: httpx.AsyncClient,
 ) -> None:
-    """Unwired routes name their owning workstream instead of returning a stub."""
-    # The OTLP receiver is wired by the telemetry ingestion workstream; an
-    # unauthenticated export is refused as a credential rejection, not a stub.
+    """An export without a credential is refused as a credential rejection, not a stub."""
     otlp = await client.post("/v1/ingest/otlp/v1/traces", content=b"")
     assert otlp.status_code == 401
-
-    stripe = await client.post(
-        "/v1/callbacks/stripe",
-        headers={"x-utrace-client-id": str(uuid7())},
-        content=b"{}",
-    )
-    assert stripe.status_code == 501
-    assert stripe.json()["subject"] == "provider-adapters"

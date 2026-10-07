@@ -97,7 +97,7 @@ async def api(settings: Settings, database: Database) -> AsyncIterator[httpx.Asy
     """The assembled application, so the staff route runs behind real authority."""
     app: FastAPI = create_app(
         settings,
-        PortRegistry(voice=None, receipts=None, observation=None, evidence=None),
+        PortRegistry(voice=None, observation=None, evidence=None),
     )
     async with app.router.lifespan_context(app):
         transport = httpx.ASGITransport(app=app)

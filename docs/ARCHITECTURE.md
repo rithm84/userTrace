@@ -140,7 +140,7 @@ The Product Signal lifecycle tracks each case, keeping implementation and valida
 ![Product Signal states from invitation through live implementation and validation to terminal outcomes, with a change asked during validation going back through the gate.](./diagrams/svg/architecture-signal-lifecycle.svg)
 
 The control plane commits state and dispatch intent atomically before external
-work. Reconnect reads durable state. Model proposals, provider callbacks, and
+work. Reconnect reads durable state. Model proposals, provider results, and
 notifications cannot bypass the [shared contracts](./arch-components/cross-component-contracts.md).
 
 [Control Plane](./arch-components/control-plane.md) owns transitions and dispatch;
