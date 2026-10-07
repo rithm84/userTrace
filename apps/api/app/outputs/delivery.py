@@ -238,7 +238,7 @@ def pull_request_body(
     implementation: ImplementationRecord,
     risks: Sequence[str],
     case_file_url: str,
-    validated_head: str,
+    delivered_commit: str,
 ) -> str:
     """Compose the sanitized pull-request body.
 
@@ -261,7 +261,7 @@ def pull_request_body(
         f"## Checks\n\n{checks}\n\n"
         f"## Risks\n\n{risk_lines}\n\n"
         "## Validated candidate\n\n"
-        f"- validated source commit: `{validated_head}`\n"
+        f"- commit: `{delivered_commit}`\n"
         f"- source digest: `{implementation.source_digest}`\n"
         f"- build digest: `{implementation.build_digest}`\n"
         f"- tested base revision: `{implementation.base_revision}`\n\n"

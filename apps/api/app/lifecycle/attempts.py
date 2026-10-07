@@ -44,6 +44,7 @@ __all__ = [
     "LeaseGrant",
     "create_implementation_attempt",
     "grant_environment_lease",
+    "release_environment_lease",
 ]
 
 _log = get_logger(__name__)
@@ -370,3 +371,30 @@ async def grant_environment_lease(
         fencing_token=grant.fencing_token,
     )
     return grant
+
+
+async def release_environment_lease(database: Database, *, implementation_attempt_id: UUID) -> None:
+    """Release the attempt's active lease once its workspace has been destroyed.
+
+    The released lease is the durable record that the workspace is gone, which the
+    Case File reports as the attempt's cleanup state.
+    """
+    async with database.transaction() as conn, conn.cursor() as cur:
+        await cur.execute(
+            """
+            update public.environment_leases
+            set state = %s, released_at = now(), revision = revision + 1, updated_at = now()
+            where implementation_attempt_id = %s and state = %s
+            """,
+            (
+                EnvironmentLeaseState.RELEASED.value,
+                implementation_attempt_id,
+                EnvironmentLeaseState.ACTIVE.value,
+            ),
+        )
+        released = cur.rowcount
+    _log.info(
+        "environment_lease_released",
+        implementation_attempt_id=str(implementation_attempt_id),
+        released=released,
+    )

@@ -172,7 +172,6 @@ async def _validated_case(
                 b"# Saved conversion views\n\nPersist the named filter stack.\n",
             )
         ],
-        cleanup_state="workspace destroyed after artifact extraction",
     )
     attempt_id = await open_validation_attempt(database, binding=binding_of(scenario))
     await begin_validation(
@@ -433,7 +432,7 @@ def test_a_pull_request_body_carries_no_customer_identity() -> None:
         implementation=implementation,
         risks=("dashboard state only",),
         case_file_url="https://app.utrace.dev/case-files/abc",
-        validated_head="b" * 40,
+        delivered_commit="c" * 40,
     )
     assert "Maya" not in body
     assert "@" not in body

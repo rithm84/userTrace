@@ -91,6 +91,51 @@ describe("extension bridge", () => {
     expect(missing.not_found).toEqual(["a_definition_that_is_not_registered"]);
   });
 
+  it("keeps answering the content script after a separate page-proof probe closes its own port", async () => {
+    // The service worker probes a bound tab whenever it gains focus, which every
+    // scene causes; that probe must not take over the long-lived bridge.
+    const probed = await harness.page.evaluate(
+      () =>
+        new Promise<string>((resolve) => {
+          const channel = new MessageChannel();
+          channel.port1.addEventListener("message", (message: MessageEvent) => {
+            channel.port1.close();
+            resolve((message.data as { kind: string }).kind);
+          });
+          channel.port1.start();
+          window.postMessage(
+            {
+              schema_version: 1,
+              kind: "page_proof",
+              phase: "request",
+              exchange_id: crypto.randomUUID(),
+              payload: { extension_protocol_version: "1.0" },
+            },
+            window.location.origin,
+            [channel.port2],
+          );
+        }),
+    );
+    expect(probed).toBe("page_proof");
+
+    const answered = await harness.page.evaluate(async () => {
+      const surface = window.__utraceTest;
+      if (surface === undefined) throw new Error("fixture is not ready");
+      const reply = surface.bridge.send("target_query", "request", {
+        document_attachment_id: surface.health().document_attachment_id,
+        query: { by: "definition", definition_id: "saved_view_save_button", effect: "any", visibility: "any" },
+        deadline_ms: 400,
+      });
+      const timeout = new Promise<null>((resolve) => {
+        setTimeout(() => {
+          resolve(null);
+        }, 2_000);
+      });
+      return (await Promise.race([reply, timeout]))?.kind ?? "no answer";
+    });
+    expect(answered).toBe("target_geometry");
+  });
+
   it("supplies clipped top-level geometry, occlusion, and visible fraction by target id", async () => {
     const targetId = (await queryByDefinition("saved_view_save_button")).targets[0]?.target_id;
     expect(targetId).toBeDefined();

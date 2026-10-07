@@ -26,6 +26,12 @@ Assembly follows three stages:
    compute the immutable core digest. Publication retries reuse those exact bytes;
    delivery never edits an already sealed core.
 
+The implementation section states facts from the records that own them, never
+from model prose: the changed files from the validated Preview Version's frozen
+source manifest, the checks from that attempt's last candidate run of each, the
+cleanup state from its environment lease, and the approved scope, exclusions,
+and required checks from the gate decision.
+
 The [PRD's Case File definition](../PRD.md#case-file) owns its content sections.
 A future correction must be a separately identified amendment rather than a
 silent rewrite.

@@ -140,6 +140,7 @@ async def build_scenario(
     window_id = uuid7()
     gate_id = uuid7()
     attempt_id = uuid7()
+    lease_id = uuid7()
     version_id = uuid7()
     allocation_id = uuid7()
     dataset_digest = f"sha256:dataset-{name}"
@@ -151,6 +152,8 @@ async def build_scenario(
         "live_implementation_allowed": True,
         "contact_budget": contact_budget,
         "dashboard_base_url": DASHBOARD_BASE_URL,
+        "data_seeding": {"fixture_clock": "2026-10-03T09:00:00+00:00"},
+        "implementation": {"implementation_limit": 3},
     }
 
     async with database.transaction() as conn, conn.cursor() as cur:
@@ -298,11 +301,18 @@ async def build_scenario(
                 window_id,
                 Jsonb(
                     {
-                        "paths": ["apps/dashboard/saved-views"],
-                        "excluded": ["sharing", "notifications"],
+                        "in_scope_changes": ["Save and reopen named conversion views."],
+                        "excluded_changes": ["Sharing and notifications."],
                     }
                 ),
-                Jsonb({"commands": ["pnpm test", "pnpm lint"]}),
+                Jsonb(
+                    {
+                        "checks": [
+                            {"name": "test", "command": "pnpm test"},
+                            {"name": "lint", "command": "pnpm lint"},
+                        ]
+                    }
+                ),
                 Jsonb({"elapsed_seconds": 3600}),
                 Jsonb({"evidence_ids": []}),
             ),
@@ -329,6 +339,17 @@ async def build_scenario(
                 base_revision,
                 Jsonb({"elapsed_seconds": 1200}),
             ),
+        )
+        # The attempt ran under one lease, released once its workspace was destroyed.
+        await cur.execute(
+            """
+            insert into public.environment_leases (
+                id, client_id, implementation_attempt_id, state, fencing_token,
+                expires_at, released_at
+            )
+            values (%s, %s, %s, 'released', utrace.next_fencing_token(), now(), now())
+            """,
+            (lease_id, client_id, attempt_id),
         )
         await cur.execute(
             """
@@ -570,29 +591,37 @@ async def add_workflow_observation(
 
 async def add_check_result(
     database: Database, scenario: ValidationScenario, *, name: str, outcome: str
-) -> UUID:
-    """Record one pinned check and how it ended."""
-    return await _insert_evidence(
-        database,
-        scenario,
-        evidence_class=EvidenceClass.CHECK_RESULT,
-        source_ref=f"check:{name}",
-        body={"summary": f"{name} {outcome}", "name": name, "outcome": outcome},
-        supersedes_id=None,
-    )
+) -> None:
+    """Record one pinned check's candidate run, as the workspace records it."""
+    async with database.transaction() as conn, conn.cursor() as cur:
+        await cur.execute(
+            """
+            insert into public.implementation_check_runs (
+                id, client_id, implementation_attempt_id, environment_lease_id, phase,
+                check_name, command, exit_code, duration_seconds, cycle_index
+            )
+            select %s, %s, %s, leases.id, 'candidate', %s, %s, %s, 1.0, 1
+            from public.environment_leases as leases
+            where leases.implementation_attempt_id = %s
+            """,
+            (
+                uuid7(),
+                scenario.client_id,
+                scenario.implementation_attempt_id,
+                name,
+                name,
+                0 if outcome == "passed" else 1,
+                scenario.implementation_attempt_id,
+            ),
+        )
 
 
 async def add_implementation_artifact(
-    database: Database,
-    scenario: ValidationScenario,
-    *,
-    files: Sequence[tuple[str, bytes]],
-    cleanup_state: str,
-) -> UUID:
-    """Freeze the validated files on the Preview Version and record the artifact evidence.
+    database: Database, scenario: ValidationScenario, *, files: Sequence[tuple[str, bytes]]
+) -> None:
+    """Freeze the validated files on the Preview Version, where production freezes them.
 
-    The files land where production freezes them, on the Preview Version, which is
-    what delivery commits.
+    Delivery commits these files, and the Case File lists them as the change.
     """
     frozen = [
         {
@@ -620,15 +649,3 @@ async def add_implementation_artifact(
                 scenario.preview_version_id,
             ),
         )
-    return await _insert_evidence(
-        database,
-        scenario,
-        evidence_class=EvidenceClass.IMPLEMENTATION_ARTIFACT,
-        source_ref=f"artifact:{scenario.source_commit}",
-        body={
-            "summary": f"{len(files)} file(s) changed in the isolated workspace",
-            "files_touched": [path for path, _ in files],
-            "cleanup_state": cleanup_state,
-        },
-        supersedes_id=None,
-    )

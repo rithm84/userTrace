@@ -340,7 +340,7 @@ async def run_delivery(
                 implementation=request.implementation,
                 risks=request.risks,
                 case_file_url=delivery.case_file_url,
-                validated_head=delivery.head_commit,
+                delivered_commit=head_sha,
             ),
             marker=delivery.idempotency_marker,
         )
@@ -585,6 +585,5 @@ def _commit_message(request: DeliveryRequest, delivery: DeliveryRow) -> str:
     return (
         f"{request.title}\n\n"
         f"uTrace Product Signal {delivery.product_signal_id}\n"
-        f"Validated source commit {delivery.head_commit}\n"
         f"Source digest {request.implementation.source_digest}\n"
     )

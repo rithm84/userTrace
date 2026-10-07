@@ -186,4 +186,4 @@ attempted, and blocker, and opens no PR.
 
 ## Artifact extraction and cleanup
 
-Before workspace destruction, uTrace extracts the final diff, file and process logs, the agent's command and file-change journal, check results, inspection evidence, approved-scope checks, dependency manifest, and source/build provenance. Each artifact is content-addressed and bound to the attempt and lease. Extraction failures retry and block cleanup; the sandbox is never the sole recovery record. Once required artifacts are durable and no incident hold applies, the workspace sandbox is deleted.
+Before workspace destruction, uTrace extracts the final diff, file and process logs, the agent's command and file-change journal, check results, inspection evidence, approved-scope checks, dependency manifest, and source/build provenance. Each artifact is content-addressed and bound to the attempt and lease. Extraction failures retry and block cleanup; the sandbox is never the sole recovery record. Once required artifacts are durable and no incident hold applies, the workspace sandbox is deleted and the attempt's environment lease is released, which is the durable record of that cleanup.
