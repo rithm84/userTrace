@@ -53,11 +53,13 @@ the agents what happened.
 
 ## The agent cursor
 
-![The voice agent speaks, Jev decides which on-screen control a clause is about, and the extension circles it.](docs/diagrams/svg/readme-cursor.svg)
+![The voice agent speaks, Jev decides which on-screen control its latest words name, and the extension circles it.](docs/diagrams/svg/readme-cursor.svg)
 
-While the agent recaps a request or walks through a new version, each clause it
-says is judged for the control it refers to, and the browser extension circles
-that control in the customer's preview.
+While the agent recaps a request or walks through a new version, its latest
+words are judged at every transcript fragment for the control they name, and the
+browser extension circles that control in the customer's preview while the
+words are heard. Controls, chart points, table rows, and reviews are all
+declared targets in the page's registry, so no screenshot is read.
 
 ## Stack
 

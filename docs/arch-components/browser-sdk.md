@@ -250,6 +250,13 @@ The following diagram shows the browser SDK's activation and single observation 
   interactive elements and meaningful semantic elements whose DOM and ARIA
   semantics are sufficient. These targets may be pointed to, circled, labeled,
   or scrolled into view.
+- A client declares a visual target (`data-utrace-visual-target`) for anything
+  worth showing that is not itself a product control: a region, or a part of a
+  component such as one point of a chart, one axis label, one table row, or one
+  review. It registers under its declared definition with the same identity,
+  revision, and geometry rules, and its label leaves the runtime only through a
+  signed safe-value rule. Declaring the parts of a component is how the agent
+  shows one of them; no screenshot is interpreted to find a point inside a chart.
 - Targets expose only observation and visual guidance. Clicking,
   typing, submission, and product navigation are not command capabilities.
   Automatic target discovery preserves broad visual communication without

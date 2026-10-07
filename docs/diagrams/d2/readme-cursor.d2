@@ -13,16 +13,16 @@ cells: "The agent cursor: Jev decides what to circle, live" {
   | {class: [card; reasoning]; width: 330}
 
   jev: |md
-    ### Jev judges each clause
-    - about a control on screen?
-    - which one · how sure
-    - ~0.3 s per clause
+    ### Jev judges every fragment
+    - the last six words
+    - which control named last
+    - ~0.3 s · how sure
   | {class: [card; reasoning]; width: 330}
 
   sdk: |md
     ### Browser SDK
-    - live registry of the
-    - page's annotated controls
+    - live registry of controls,
+    - chart points, rows, reviews
   | {class: [card; observation]; width: 330}
 
   extension: |md
@@ -32,6 +32,6 @@ cells: "The agent cursor: Jev decides what to circle, live" {
   | {class: [card; runtime]; width: 330}
 }
 
-cells.agent -> cells.jev: each clause {class: edge}
+cells.agent -> cells.jev: each fragment {class: edge}
 cells.jev -> cells.sdk: resolve target {class: edge-dashed}
 cells.sdk -> cells.extension: confident: circle {class: edge-ok}

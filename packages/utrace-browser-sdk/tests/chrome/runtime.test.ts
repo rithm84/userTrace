@@ -95,6 +95,10 @@ describe("baseline, sequences, and acknowledgement", () => {
     expect(payload.entities[0]?.instance_ref).toMatch(/^psn_\d+$/);
     expect(payload.targets.some((target) => target.definition_id === "saved_view_save_button")).toBe(true);
     expect(payload.targets.some((target) => target.visual_only)).toBe(true);
+    // A declared visual target keeps its declared definition.
+    expect(
+      payload.targets.some((target) => target.definition_id === "saved_view_list" && target.visual_only),
+    ).toBe(true);
     expect(payload.landmarks.length).toBeGreaterThan(0);
   });
 
