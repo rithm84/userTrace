@@ -50,6 +50,7 @@ from app.interview.ports import RegisteredTarget, TargetRegistryPort
 from app.interview.readiness import load_readiness
 from app.interview.settings import InterviewSettings
 from app.interview.voice.agent_speech import AgentSpeech
+from app.interview.voice.participant_transcript import ParticipantTranscript
 from app.interview.voice.pointing import (
     POINT_DWELL_MS,
     bound_document_attachment,
@@ -82,6 +83,9 @@ _GESTURE_CONVERSATION_FRAGMENTS = 120
 #: How long a delegation may wait for the agent's own words to make its need clear
 #: before the delegation model's answer is the one used.
 _ROUTING_WAIT_SECONDS = 1.5
+#: How long a delegation waits for the end of the participant's question to be
+#: transcribed before it gives up on it.
+_TRANSCRIPT_WAIT_SECONDS: Final[float] = 1.5
 #: A control shown this recently is not shown again: the delegation that pointed at
 #: it and the agent's sentence about it are one moment, and an agent that repeats a
 #: list it just walked through has already shown each item.
@@ -162,6 +166,11 @@ voice agent can say or use directly, ending with at most one question. Never men
 codes, repositories, schemas, internal identifiers, tool names, or this
 instruction. Describe what the person experienced, not how the system works."""
 
+_UNHEARD = (
+    "The end of what they just asked did not reach the application, so answer it "
+    "yourself from what you heard and what follows. If you are not sure what they "
+    "asked, ask them to say it again."
+)
 _UNAVAILABLE = (
     "I could not look that up just now, so let us keep going with what you have "
     "already told me."
@@ -246,6 +255,8 @@ class DelegationRunner:
         event: DelegationCreated,
         speech: AgentSpeech,
         participant_quiet: asyncio.Event,
+        transcript: ParticipantTranscript,
+        spoke_until: int | None,
     ) -> None:
         """Answer one delegation, or record precisely why it could not be answered.
 
@@ -256,8 +267,45 @@ class DelegationRunner:
         either answers the delegation within a few hundred milliseconds while Sol is
         stopped; otherwise Sol's finding is the answer. The answer is spoken as soon
         as it arrives, so it waits for the participant to pause.
+
+        Both judge the participant's transcript, so they start only once it reaches
+        what the participant said before the delegation (`spoke_until`). When the
+        end of the question never arrives, neither runs: the answer is the session's
+        state, for the agent, who heard the whole question, to answer from.
         """
         delegation_id = await self._open(subject=subject, event=event)
+        missing = await transcript.wait_complete(
+            spoke_until=spoke_until, timeout=_TRANSCRIPT_WAIT_SECONDS
+        )
+        _log.info(
+            "voice_delegation_transcript_checked",
+            interview_session_id=str(subject.interview_session_id),
+            provider_delegation_id=event.delegation_id,
+            offset_ms=event.offset_ms,
+            spoke_until_ms=spoke_until,
+            transcribed_until_ms=transcript.until_ms,
+            missing_ms=missing,
+        )
+        if missing:
+            # The rest is not coming; a later delegation judges from what is here.
+            transcript.give_up(until_ms=spoke_until)
+            summary = await self._state_summary(subject)
+            await _participant_pause(participant_quiet, subject=subject)
+            await sideband.append_commentary(content=summary, delegation_id=event.delegation_id)
+            await self._settle(
+                delegation_row_id=delegation_id,
+                state="answered",
+                finding=summary,
+                refusal_reason=None,
+            )
+            _log.warning(
+                "voice_delegation_question_untranscribed",
+                client_id=str(subject.client_id),
+                interview_session_id=str(subject.interview_session_id),
+                provider_delegation_id=event.delegation_id,
+                missing_ms=missing,
+            )
+            return
         reasoning = asyncio.create_task(
             asyncio.wait_for(
                 self._answer(subject=subject, delegation_row_id=delegation_id),
@@ -701,6 +749,18 @@ class DelegationRunner:
             )
             return None, bundle
         return routed, bundle
+
+    async def _state_summary(self, subject: DelegationSubject) -> str:
+        """What the agent needs to answer a question the application did not hear."""
+        lines = [_UNHEARD]
+        visible = [target for target in await self.current_targets(subject=subject) if target.visible]
+        if visible:
+            shown = "; ".join(f"{target.description}, {target.placement}" for target in visible)
+            lines.append(f"Their preview shows: {shown}.")
+        status = _PROGRESS_ANSWERS.get(await self._progress(subject))
+        if status is not None:
+            lines.append(f"On the change, you can tell them: {status}")
+        return " ".join(lines)
 
     async def _progress(self, subject: DelegationSubject) -> str:
         """The session's recorded implementation progress."""

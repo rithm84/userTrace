@@ -108,7 +108,14 @@ additional serial approval step for every utterance.
   answers the delegation, and Sol is stopped; otherwise Sol's finding answers it.
   The delegation usually arrives before the agent's own words ("Let me show you
   the segment filter") are transcribed, so an unsure judgement is repeated as
-  those words arrive, for up to 1.5 seconds. Targets are described by role, the
+  those words arrive, for up to 1.5 seconds. GPT-Live can also delegate before
+  the end of the participant's question is transcribed, and sometimes that end
+  never arrives. Transcript fragments and the delegation share the session
+  timeline, and the participant's reflected audio shows when they last spoke, so
+  neither Jev nor Sol starts until the transcript reaches that point, for up to
+  1.5 seconds. If it still falls short, the delegation is answered with the
+  visible controls and the change's progress, for the agent, who heard the whole
+  question, to answer from. Targets are described by role, the
   client's declared definition, the label they currently show, and where they sit
   on screen among targets described alike; a target with neither definition nor
   label is not offered. When a page registers more targets than are offered,

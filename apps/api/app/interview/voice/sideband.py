@@ -81,6 +81,7 @@ from app.interview.voice.cues import (
     prompt_open_preview,
 )
 from app.interview.voice.delegation import DelegationRunner, DelegationSubject
+from app.interview.voice.participant_transcript import ParticipantTranscript, spoke_until_ms
 from app.interview.voice.session_changes import SessionChanges
 from app.interview.voice.speech_gestures import (
     GestureMoments,
@@ -291,6 +292,7 @@ async def drain_sideband(
             task.add_done_callback(_report_failure)
         turns = TurnDetector()
         speech = AgentSpeech()
+        transcript = ParticipantTranscript()
         pending: set[asyncio.Task[None]] = set()
         loop = asyncio.get_running_loop()
         # The agent's turn ends when its audio has played, not when it was generated:
@@ -329,6 +331,8 @@ async def drain_sideband(
                 if isinstance(event, TranscriptFragment):
                     await _record_fragment(database, subject=subject, event=event)
                     counters.fragments += 1
+                    if event.speaker() == "participant":
+                        await transcript.transcribed(end_ms=event.end_ms)
                     if event.speaker() == "agent":
                         await speech.said()
                         latest = window.add(event.delta)
@@ -374,7 +378,7 @@ async def drain_sideband(
                     # Reflected caller audio proves only receipt, so it is not evidence;
                     # its loudness is what shows the participant has started talking.
                     turn = turns.participant_audio(
-                        level=event.level, byte_length=event.audio_byte_length
+                        level=event.level, byte_length=event.audio_byte_length, now=loop.time()
                     )
                     if turn is not None and not agent_quiet.is_set():
                         # Talking over the agent cuts its audio off, whether it is
@@ -403,6 +407,12 @@ async def drain_sideband(
                             event=event,
                             speech=speech,
                             participant_quiet=participant_quiet,
+                            transcript=transcript,
+                            spoke_until=spoke_until_ms(
+                                offset_ms=event.offset_ms,
+                                delegated_at=loop.time(),
+                                spoke_at=turns.participant_spoke_at,
+                            ),
                         )
                     )
                     pending.add(task)
