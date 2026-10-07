@@ -25,10 +25,12 @@ session's state whenever a trigger says that state may have changed.
 import asyncio
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Final
 from uuid import UUID
 
 from utrace_contracts.domain.lifecycle import (
+    ActorKind,
     CommandDisposition,
     CommandState,
     EffectState,
@@ -39,6 +41,7 @@ from utrace_contracts.domain.lifecycle import (
 from app.connectors.openai_live import SidebandConnection
 from app.db.pool import Database
 from app.db.rows import as_int, as_str, as_uuid
+from app.envelope import Actor
 from app.errors import AggregateNotFoundError, ControlPlaneError
 from app.execution.commands import TerminalResult, record_terminal_result
 from app.gate.job_types import (
@@ -56,6 +59,7 @@ from app.interview.voice.delegation import DelegationRunner, DelegationSubject
 from app.interview.voice.pointing import bound_document_attachment
 from app.interview.voice.session_changes import SessionChanges
 from app.interview.voice.speech_gestures import GestureMoments
+from app.lifecycle.case_stop import close_open_sessions
 from app.logging import get_logger
 from app.validation.records import load_criteria_on_connection
 from app.validation.session import start_session_validation
@@ -150,6 +154,10 @@ _NO_IMPLEMENTATION_CUE: Final[str] = (
     "say a new version is coming. Thank them: what they showed and agreed is recorded "
     "for the product team, and this session will close shortly."
 )
+
+#: How often to look whether the agent has started its goodbye.
+_GOODBYE_POLL_SECONDS: Final[float] = 0.1
+_SIDEBAND_ACTOR: Final[Actor] = Actor(kind=ActorKind.SERVICE, ref="interview.voice.cues")
 
 #: Sent once the person's validation of the new version is recorded as validated,
 #: so the agent closes the conversation instead of waiting to be asked.
@@ -348,14 +356,16 @@ async def announce_validation_outcome(
     database: Database,
     changes: SessionChanges,
     *,
+    client_id: UUID,
     product_signal_id: UUID,
     sideband: SidebandConnection,
     agent_quiet: asyncio.Event,
 ) -> None:
-    """Have the agent close the conversation once, when the case's validation is recorded.
+    """Have the agent close the conversation once validation is recorded, then end the session.
 
-    The Case File that follows ends the session a little later; without this the
-    agent waits silently for the person to ask whether they are done.
+    Without the cue the agent waits silently for the person to ask whether they are
+    done. Once its goodbye has played the session closes; the Case File, the pull
+    request, and cleanup finish after the person leaves, as validated work may.
     """
     woken = changes.watch()
     announced: UUID | None = None
@@ -376,6 +386,26 @@ async def announce_validation_outcome(
             product_signal_id=str(product_signal_id),
             validation_attempt_id=str(announced),
             outcome=outcome,
+        )
+        # The goodbye is the agent's next turn: wait for it to start, then to play out.
+        while agent_quiet.is_set():
+            await asyncio.sleep(_GOODBYE_POLL_SECONDS)
+        await agent_quiet.wait()
+        async with database.transaction() as conn:
+            closed = await close_open_sessions(
+                conn,
+                product_signal_id=product_signal_id,
+                client_id=client_id,
+                actor=_SIDEBAND_ACTOR,
+                now=datetime.now(tz=UTC),
+                closure_reason="completed" if outcome == "validated" else "not_validated",
+                event_type="interview_session_closed_after_validation",
+                audit_action="close_session_after_validation",
+            )
+        _log.info(
+            "voice_session_closed_after_validation",
+            product_signal_id=str(product_signal_id),
+            sessions=closed,
         )
 
 

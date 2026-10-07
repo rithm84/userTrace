@@ -48,6 +48,8 @@ class ScriptedSession:
     """Command types after which the server ends the session, as `session.close` would.
 
     Tests use it to end a run at a known point without racing the backend."""
+    replies: Mapping[str, Sequence[Mapping[str, JsonValue]]] = field(default_factory=dict)
+    """Events the server emits after a command of each type, as the model answers a cue."""
 
 
 class GptLiveTestServer:
@@ -163,6 +165,8 @@ def _build_app(script: ScriptedSession) -> FastAPI:
                     await websocket.close()
                     return
                 await websocket.send_text(json.dumps(_acknowledgement(command)))
+                for reply in script.replies.get(str(kind), ()):
+                    await websocket.send_text(json.dumps(reply))
                 if kind in script.close_after_command_types:
                     await websocket.send_text(json.dumps(_closed(session_id, None)))
                     await websocket.close()

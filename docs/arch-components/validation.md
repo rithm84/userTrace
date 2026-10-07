@@ -95,8 +95,9 @@ technical blocker; the demo does not iterate after such an outcome.
 
 Whatever the outcome, once it is recorded the agent closes the conversation
 itself: it thanks the participant, says what the product team receives, and says
-the session is closing, rather than waiting to be asked. The Case File that
-follows ends the session.
+the session is closing, rather than waiting to be asked. The session ends once
+that goodbye has played; the Case File, any pull request, and cleanup finish
+after the participant leaves.
 
 A change is asked for before the verdict instead: while trying a new version, the
 originating user may ask for something to be different in it. Once they agree it

@@ -15,6 +15,7 @@ context; nothing here handles either.
 """
 
 import asyncio
+import contextlib
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID
@@ -224,6 +225,7 @@ async def drain_sideband(
                 announce_validation_outcome(
                     database,
                     changes,
+                    client_id=subject.client_id,
                     product_signal_id=subject.product_signal_id,
                     sideband=sideband,
                     agent_quiet=agent_quiet,
@@ -279,6 +281,31 @@ async def drain_sideband(
         turns = TurnDetector()
         speech = AgentSpeech()
         pending: set[asyncio.Task[None]] = set()
+        loop = asyncio.get_running_loop()
+        # The agent's turn ends when its audio has played, not when it was generated:
+        # `playing_out` while its last turn still plays, `cut_short` once the
+        # participant talks over it, which stops the audio.
+        ending_turn: asyncio.Task[None] | None = None
+        playing_out = False
+        cut_short = asyncio.Event()
+
+        async def end_agent_turn(delay: float) -> None:
+            nonlocal playing_out
+            with contextlib.suppress(TimeoutError):
+                await asyncio.wait_for(cut_short.wait(), timeout=delay)
+            playing_out = False
+            agent_quiet.set()
+            if not pending:
+                no_delegation.set()
+            moments.agent_stopped()
+            window.end_turn()
+            await _show_turn(
+                database,
+                subject=subject,
+                # Quiet while a delegation is still being answered is the agent
+                # waiting on its answer, not listening.
+                state=CharacterState.THINKING if pending else CharacterState.LISTENING,
+            )
         try:
             async for event in sideband.events():
                 if isinstance(event, SessionStarted | SessionUpdated):
@@ -303,28 +330,27 @@ async def drain_sideband(
                     )
                     counters.playback_segments += 1
                     turn = turns.agent_audio(
-                        level=event.level, byte_length=event.audio_byte_length
+                        level=event.level,
+                        byte_length=event.audio_byte_length,
+                        start_ms=event.start_ms,
+                        end_ms=event.end_ms,
+                        now=loop.time(),
                     )
-                    if turn is not None:
-                        if turns.agent_speaking:
-                            agent_quiet.clear()
+                    if turn is CharacterState.SPEAKING:
+                        if playing_out and ending_turn is not None:
+                            # It spoke again before the last turn finished playing.
+                            ending_turn.cancel()
+                            playing_out = False
                         else:
-                            agent_quiet.set()
-                            if not pending:
-                                no_delegation.set()
-                            moments.agent_stopped()
-                            window.end_turn()
-                        await _show_turn(
-                            database,
-                            subject=subject,
-                            # Quiet while a delegation is still being answered is the
-                            # agent waiting on its answer, not listening.
-                            state=(
-                                CharacterState.THINKING
-                                if turn is CharacterState.LISTENING and pending
-                                else turn
-                            ),
+                            agent_quiet.clear()
+                            await _show_turn(database, subject=subject, state=turn)
+                    elif turn is CharacterState.LISTENING:
+                        cut_short.clear()
+                        playing_out = True
+                        ending_turn = asyncio.create_task(
+                            end_agent_turn(max(0.0, turns.agent_heard_until - loop.time()))
                         )
+                        ending_turn.add_done_callback(_report_failure)
                     if len(playback) >= _PLAYBACK_BATCH_SEGMENTS:
                         await _record_playback(database, subject=subject, segments=playback)
                         playback.clear()
@@ -335,6 +361,9 @@ async def drain_sideband(
                     turn = turns.participant_audio(
                         level=event.level, byte_length=event.audio_byte_length
                     )
+                    if turn is not None and playing_out:
+                        # Talking over the agent cuts its audio off, so its turn ends now.
+                        cut_short.set()
                     if turns.participant_speaking:
                         participant_quiet.clear()
                     else:
@@ -408,7 +437,7 @@ async def drain_sideband(
         finally:
             # Stopped and awaited, so nothing this run started still touches the
             # session once it returns.
-            stopping = (*background, *pending)
+            stopping = (*background, *pending, *(() if ending_turn is None else (ending_turn,)))
             for task in stopping:
                 task.cancel()
             await asyncio.gather(*stopping, return_exceptions=True)

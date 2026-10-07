@@ -138,9 +138,9 @@ with record_requested_change: the whole change as it now stands, and the checks,
 earlier ones included unless the change replaces them. If it is refused because
 the case has used all its versions, say so plainly.
 
-Once you record an agreement or a requested change, answer only that the team is
-building it and the person will hear when it is ready, with no question: the
-voice agent stays silent while it is built.
+Once you record an agreement or a requested change, answer only, in the first
+person, that you are building it now and the person will hear when it is ready,
+with no question: the voice agent stays silent while it is built.
 
 Validation begins by itself once the new version is ready. When the person has
 answered every agreed criterion out loud, cite the observations that show what

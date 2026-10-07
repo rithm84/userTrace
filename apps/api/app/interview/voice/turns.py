@@ -11,6 +11,11 @@ A turn needs sustained sound, not a click: the participant starts talking after
 120 ms of speech-level input, the agent starts on its first loud output, and
 either has finished after 700 ms of quiet, at which point the agent is listening.
 
+The model generates its audio faster than it plays, so on a long turn the last
+chunk arrives seconds before the participant hears it. Each agent turn is
+anchored where its first audible chunk arrived; its end is when its last speech
+plays out on that clock (`agent_heard_until`), not when generation stopped.
+
 `Floor` gathers who has the floor for an application turn that needs it free,
 such as acknowledging what the participant just did.
 """
@@ -41,6 +46,8 @@ class TurnDetector:
         self._agent_loud_ms = 0.0
         self._agent_quiet_ms = 0.0
         self._agent_speaking = False
+        self._anchor: tuple[float, int] = (0.0, 0)
+        self._last_loud_end_ms = 0
 
     @property
     def agent_speaking(self) -> bool:
@@ -69,11 +76,27 @@ class TurnDetector:
             return CharacterState.LISTENING
         return None
 
-    def agent_audio(self, *, level: float, byte_length: int) -> CharacterState | None:
-        """Return `speaking` when the agent starts talking, `listening` once it stops."""
+    @property
+    def agent_heard_until(self) -> float:
+        """When, on the caller's monotonic clock, the agent's last speech finishes playing."""
+        anchored_at, anchor_ms = self._anchor
+        return anchored_at + (self._last_loud_end_ms - anchor_ms) / 1000
+
+    def agent_audio(
+        self, *, level: float, byte_length: int, start_ms: int, end_ms: int, now: float
+    ) -> CharacterState | None:
+        """Return `speaking` when the agent starts talking, `listening` once it stops.
+
+        `start_ms` and `end_ms` place the chunk on the service's audio timeline and
+        `now` is when it arrived, on a monotonic clock.
+        """
         duration = byte_length / _BYTES_PER_MS
         if level >= _SPEECH_LEVEL:
             self._agent_quiet_ms = 0.0
+            if self._agent_loud_ms == 0.0 and not self._agent_speaking:
+                # A turn plays after whatever the previous one has left to play.
+                self._anchor = (max(now, self.agent_heard_until), start_ms)
+            self._last_loud_end_ms = end_ms
             if self._agent_speaking:
                 return None
             self._agent_loud_ms += duration
