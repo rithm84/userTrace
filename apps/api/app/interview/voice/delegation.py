@@ -126,7 +126,9 @@ at, circled, or highlighted, gesture at it: circle for circling or highlighting,
 point otherwise. When your answer clarifies or restates their request or
 complaint, name the on-screen controls and values it is about plainly, the way
 the screen shows them: the application moves the cursor to each one as the voice
-agent says it.
+agent says it. Put a restated request as what they would like to be able to do,
+such as "So you'd like to be able to ...", never in words that could be heard as
+something the product does now.
 
 A change you propose, or one the person asks for, is not in their preview until
 its new version is built and ready. So when you propose a change and its checks,
