@@ -16,7 +16,6 @@ from app.envelope import TRANSIENT_CATEGORIES, JobIntent, JsonValue
 from app.ids import uuid7
 
 __all__ = [
-    "CANCEL_OUTREACH",
     "EXPIRE_INITIAL_INVITATION",
     "PREPARE_BASE_ALLOCATION",
     "ROUTE_INTAKE_ITEM",
@@ -36,7 +35,6 @@ ROUTE_INTAKE_ITEM: Final[str] = "intake.route_intake_item"
 SEND_INITIAL_INVITATION: Final[str] = "intake.send_initial_invitation"
 EXPIRE_INITIAL_INVITATION: Final[str] = "intake.expire_initial_invitation"
 SEND_STOP_NOTICE: Final[str] = "intake.send_stop_notice"
-CANCEL_OUTREACH: Final[str] = "intake.cancel_outreach"
 PREPARE_BASE_ALLOCATION: Final[str] = "preview_runtime.prepare_base_allocation"
 """Handed to the preview-runtime workstream; this workstream only enqueues it."""
 

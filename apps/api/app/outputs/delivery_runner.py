@@ -38,7 +38,7 @@ from app.outputs.delivery import (
     pull_request_title,
 )
 
-__all__ = ["DeliveryOutcome", "DeliveryRequest", "reconcile_delivery", "run_delivery"]
+__all__ = ["DeliveryOutcome", "DeliveryRequest", "run_delivery"]
 
 _log = get_logger(__name__)
 
@@ -322,9 +322,12 @@ async def run_delivery(
     )
 
     try:
+        # The commit is the validated candidate exactly: its patches on the base it
+        # was tested on, so the pull request shows any later change to the base
+        # branch as a merge rather than presenting an untested commit as validated.
         head_sha = await repository.create_branch_commit(
             branch=delivery.branch_ref,
-            base_sha=preflight.base_sha,
+            base_sha=request.implementation.base_revision,
             patches=list(request.patches),
             commit_message=_commit_message(request, delivery),
         )
@@ -479,34 +482,6 @@ async def _reconcile_after_uncertainty(
             database,
             delivery.id,
             reason=f"the delivery outcome could not be established: {reason}",
-        )
-    return await _adopt(database, repository, delivery, existing)
-
-
-async def reconcile_delivery(
-    database: Database, repository: DeliveryRepositoryPort, *, delivery_id: UUID
-) -> DeliveryOutcome:
-    """Resolve one delivery whose provider outcome is unknown."""
-    async with database.connection() as conn:
-        delivery = await load_delivery(conn, delivery_id=delivery_id)
-    if delivery.state is DeliveryState.DELIVERED:
-        return DeliveryOutcome(
-            delivery_id=delivery.id,
-            state=DeliveryState.DELIVERED,
-            pull_request_ref=delivery.pull_request_ref,
-            pull_request_number=delivery.pull_request_number,
-            verified_head_sha=delivery.verified_head_sha,
-            blocker_reason=None,
-            adopted_existing=True,
-        )
-    existing = await repository.find_existing_delivery(
-        marker=delivery.idempotency_marker
-    )
-    if existing is None:
-        return await _block(
-            database,
-            delivery_id,
-            reason="no pull request carries this delivery's marker",
         )
     return await _adopt(database, repository, delivery, existing)
 

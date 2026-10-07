@@ -158,12 +158,6 @@ class DraftingBundle(_Frozen):
             ),
         )
 
-    def of_class(self, evidence_class: EvidenceClass) -> tuple[BundleEvidence, ...]:
-        """Return the bundle's slices of one evidence class, in recorded order."""
-        return tuple(
-            item for item in self.evidence if item.evidence_class is evidence_class
-        )
-
 
 #: Where each evidence class keeps its readable text: intake keeps the reporter's
 #: own words, the interview keeps the participant's statement, and every derived

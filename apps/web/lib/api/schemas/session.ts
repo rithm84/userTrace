@@ -84,7 +84,6 @@ export const tabPhaseSchema = z.enum([
   "validation",
   "closed",
 ]);
-export type TabPhase = z.infer<typeof tabPhaseSchema>;
 
 /** The user-facing implementation progress the session tab shows. */
 export const tabProgressSchema = z.enum([
@@ -127,7 +126,6 @@ export const CHARACTER_PROJECTION_STATES = [
 ] as const;
 
 export const characterProjectionStateSchema = z.enum(CHARACTER_PROJECTION_STATES);
-export type CharacterProjectionState = z.infer<typeof characterProjectionStateSchema>;
 
 export const characterProjectionSchema = z.object({
   revision: z.int().nonnegative(),
@@ -137,7 +135,6 @@ export const characterProjectionSchema = z.object({
   speechEnergy: z.number().min(0).max(1),
   motionScale: z.number().min(0).max(1),
 });
-export type CharacterProjection = z.infer<typeof characterProjectionSchema>;
 
 export const sessionControlActionSchema = z.enum([
   "mute",
@@ -160,7 +157,6 @@ export const readinessSchema = z.object({
   observation: z.boolean(),
   unavailable_detail: absentWhenNull(text),
 });
-export type Readiness = z.infer<typeof readinessSchema>;
 
 export const agentCharacterColourSchema = z.enum([
   "coral",
@@ -214,7 +210,6 @@ export const sessionProjectionDocumentSchema = z.object({
   revision: z.int().nonnegative(),
   projection: sessionProjectionSchema,
 });
-export type SessionProjectionDocument = z.infer<typeof sessionProjectionDocumentSchema>;
 
 /** The revision a control acknowledgement commits; the subscription sees it too. */
 export const sessionControlAckSchema = z.object({

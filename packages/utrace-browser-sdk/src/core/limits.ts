@@ -21,7 +21,6 @@ export const PAGEHIDE_FLUSH_BYTES = 64 * 1024;
 
 /** Cardinality and length bounds applied by redaction step seven. */
 export const MAX_SAFE_VALUE_LENGTH = 120;
-export const MAX_LABEL_LENGTH = 120;
 export const MAX_BASELINE_NODES = 1500;
 export const MAX_DOM_CHANGES_PER_RECORD = 200;
 

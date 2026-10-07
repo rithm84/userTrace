@@ -6,7 +6,7 @@ import { configureAgentCharacterRuntime, createAgentCharacterResources, type Cha
 import Image, { type ImageProps } from "next/image";
 import { useEffect, useLayoutEffect, useRef, type CSSProperties, type JSX, type ReactNode } from "react";
 
-import { AGENT_HEX, type AgentColour } from "../characters/AgentSprite";
+import type { AgentColour } from "../characters/AgentSprite";
 import { fitRigCanvas } from "../characters/rigCanvas";
 import { useLandingRiveFile } from "../characters/RiveFiles";
 import { useNearViewport } from "../characters/useNearViewport";
@@ -45,17 +45,6 @@ export function MayaArt(props: Readonly<{ piece: MayaPiece; style?: CSSPropertie
       draggable={false}
       style={{ position: "absolute", width, height: (width * natural[1]) / natural[0], pointerEvents: "none", ...props.style }}
     />
-  );
-}
-
-/** Two tiny round hands in the body colour, gripping a border line. */
-export function Hands(props: Readonly<{ colour: AgentColour; left: number; top: number; gap: number }>): JSX.Element {
-  return (
-    <>
-      {[0, 1].map((index) => (
-        <i key={index} aria-hidden="true" style={{ position: "absolute", left: props.left + index * props.gap, top: props.top, width: 15, height: 15, borderRadius: "50%", background: AGENT_HEX[props.colour] }} />
-      ))}
-    </>
   );
 }
 

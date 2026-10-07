@@ -18,7 +18,7 @@ Contract: docs/arch-components/policy-and-permissions.md#client-policy-model
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from typing import Literal
 from uuid import UUID
 
@@ -43,7 +43,6 @@ __all__ = [
     "WatchedChannel",
     "load_active_release",
     "load_active_release_on_connection",
-    "load_release",
     "release_digest",
 ]
 
@@ -175,20 +174,6 @@ async def load_active_release(database: Database, *, client_id: UUID) -> ActiveR
         return await load_active_release_on_connection(conn, client_id=client_id)
 
 
-async def load_release(database: Database, *, release_id: UUID) -> ActiveRelease:
-    """Return one pinned release by identity, for a case that already pinned it."""
-    async with database.connection() as conn, conn.cursor() as cur:
-        await cur.execute(
-            "select id, client_id, release_number, digest, policy "
-            "from public.configuration_releases where id = %s",
-            (release_id,),
-        )
-        row = await cur.fetchone()
-    if row is None:
-        raise AggregateNotFoundError(table="configuration_releases", row_id=release_id)
-    return _to_release(row)
-
-
 def release_digest(policy: ClientConfigurationPolicy) -> str:
     """Return the `sha256:<hex>` digest that identifies one release's policy.
 
@@ -201,6 +186,3 @@ def release_digest(policy: ClientConfigurationPolicy) -> str:
     return f"sha256:{payload_digest(policy.model_dump(mode='json'))}"
 
 
-def watched_channel_refs(channels: Sequence[WatchedChannel]) -> tuple[str, ...]:
-    """Return the provider channel references of a watched-channel set."""
-    return tuple(channel.channel_ref for channel in channels)

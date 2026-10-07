@@ -61,6 +61,7 @@ from app.interview.voice.delegation import DelegationRunner, DelegationSubject
 from app.interview.voice.pointing import bound_document_attachment
 from app.interview.voice.session_changes import SessionChanges
 from app.interview.voice.speech_gestures import GestureMoments
+from app.interview.voice.turns import Floor
 from app.lifecycle.case_stop import close_open_sessions
 from app.logging import get_logger
 from app.validation.records import load_criteria_on_connection
@@ -157,8 +158,10 @@ _NO_IMPLEMENTATION_CUE: Final[str] = (
     "for the product team, and this session will close shortly."
 )
 
-#: How often to look whether the agent has started its goodbye.
+#: How often to look whether the floor is free and whether the goodbye has started.
 _GOODBYE_POLL_SECONDS: Final[float] = 0.1
+#: How long the agent has to start its goodbye before the session closes without it.
+_GOODBYE_START_SECONDS: Final[float] = 20.0
 _SIDEBAND_ACTOR: Final[Actor] = Actor(kind=ActorKind.SERVICE, ref="interview.voice.cues")
 
 #: Sent once the person's validation of the new version is recorded as validated,
@@ -361,13 +364,16 @@ async def announce_validation_outcome(
     client_id: UUID,
     product_signal_id: UUID,
     sideband: SidebandConnection,
-    agent_quiet: asyncio.Event,
+    floor: Floor,
 ) -> None:
     """Have the agent close the conversation once validation is recorded, then end the session.
 
     Without the cue the agent waits silently for the person to ask whether they are
-    done. Once its goodbye has played the session closes; the Case File, the pull
-    request, and cleanup finish after the person leaves, as validated work may.
+    done. The outcome is usually recorded inside a delegation, so the cue waits until
+    nobody holds the floor, including a delegation still being answered; otherwise
+    the agent's next turn could be that answer rather than the goodbye. Once the
+    goodbye has played the session closes; the Case File, the pull request, and
+    cleanup finish after the person leaves, as validated work may.
     """
     woken = changes.watch()
     announced: UUID | None = None
@@ -378,7 +384,8 @@ async def announce_validation_outcome(
         if completed is None or completed[0] == announced:
             continue
         announced, outcome = completed
-        await agent_quiet.wait()
+        while not floor.free():
+            await asyncio.sleep(_GOODBYE_POLL_SECONDS)
         await sideband.append_commentary(
             content=_VALIDATED_CUE if outcome == "validated" else _NOT_VALIDATED_CUE,
             delegation_id=None,
@@ -390,9 +397,18 @@ async def announce_validation_outcome(
             outcome=outcome,
         )
         # The goodbye is the agent's next turn: wait for it to start, then to play out.
-        while agent_quiet.is_set():
-            await asyncio.sleep(_GOODBYE_POLL_SECONDS)
-        await agent_quiet.wait()
+        try:
+            async with asyncio.timeout(_GOODBYE_START_SECONDS):
+                while floor.agent_quiet.is_set():
+                    await asyncio.sleep(_GOODBYE_POLL_SECONDS)
+        except TimeoutError:
+            _log.warning(
+                "voice_validation_goodbye_not_spoken",
+                product_signal_id=str(product_signal_id),
+                validation_attempt_id=str(announced),
+                waited_seconds=_GOODBYE_START_SECONDS,
+            )
+        await floor.agent_quiet.wait()
         async with database.transaction() as conn:
             closed = await close_open_sessions(
                 conn,

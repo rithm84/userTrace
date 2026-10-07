@@ -81,8 +81,6 @@
 [data-landing] .dc-tools { margin-left: auto; display: flex; gap: 12px; color: var(--dc-icon); }
 [data-landing] .dc-tools svg { color: var(--dc-icon); }
 [data-landing] .dc-scroll { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: flex-end; padding: 0 14px 4px; overflow: hidden; }
-[data-landing] .dc-day { display: flex; align-items: center; gap: 8px; margin: 12px 0 6px; font-size: 11px; font-weight: 600; color: var(--dc-muted); }
-[data-landing] .dc-day::before, [data-landing] .dc-day::after { content: ""; flex: 1; height: 1px; background: var(--dc-divider); }
 [data-landing] .dc-new { display: flex; align-items: center; margin: 8px 0 4px; height: 1px; background: var(--dc-red); }
 [data-landing] .dc-new span { margin-left: auto; padding: 0 6px; height: 14px; border-radius: 3px 0 0 3px; background: var(--dc-red); color: #fff; font-size: 10px; font-weight: 700; line-height: 14px; }
 [data-landing] .dc-msg { display: flex; gap: 12px; padding: 4px 0; }
@@ -118,7 +116,3 @@
 [data-landing] .dc-composer > span { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 [data-landing] .dc-composer svg { color: var(--dc-icon); }
 [data-landing] .dc-plus { flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--dc-icon); color: var(--dc-composer); display: grid; place-items: center; }
-[data-landing] .dc-dm-intro { padding: 4px 0 8px; }
-[data-landing] .dc-dm-intro .dc-avatar { width: 56px; height: 56px; }
-[data-landing] .dc-dm-intro h3 { margin: 8px 0 0; font-size: 22px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; }
-[data-landing] .dc-dm-intro p { margin: 2px 0 0; font-size: 13px; color: var(--dc-muted); }

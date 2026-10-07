@@ -52,7 +52,6 @@ from app.ingestion.signing import verify_canonical_signature
 from app.logging import get_logger
 
 __all__ = [
-    "PREVIEW_ENTRY_HEADER",
     "ServerActivation",
     "ServerActivationRequest",
     "create_server_activation",
@@ -64,9 +63,6 @@ __all__ = [
 
 _log = get_logger(__name__)
 
-#: The header the preview front door attaches to requests that have entered the
-#: authenticated active preview.
-PREVIEW_ENTRY_HEADER = "x-utrace-preview-entry"
 
 _PREVIEW_ENTRY_TOKEN_BYTES = 32
 

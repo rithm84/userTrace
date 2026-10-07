@@ -17,7 +17,7 @@ is neither is refused rather than reinterpreted.
 import base64
 import json
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Literal
 from uuid import UUID
 
@@ -268,6 +268,3 @@ def _b64u_decode(value: str, *, field: str) -> bytes:
         ) from error
 
 
-def utc_now() -> datetime:
-    """The clock every possession check reads, in one place."""
-    return datetime.now(tz=UTC)

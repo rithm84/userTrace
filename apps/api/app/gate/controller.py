@@ -19,7 +19,7 @@ and a denial is closed by the Case File that explains it.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
 from uuid import UUID
 
 from psycopg import AsyncConnection
@@ -371,6 +371,3 @@ async def _insert_decision(
         )
 
 
-def utc_now() -> datetime:
-    """The gate's clock, isolated so a test can pin it."""
-    return datetime.now(tz=UTC)

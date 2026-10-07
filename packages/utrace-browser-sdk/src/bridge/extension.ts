@@ -96,12 +96,16 @@ export class ExtensionBridge {
    * its own port and is answered on it: the service worker's page-proof probe
    * runs whenever the bound tab gains focus, which every scene causes, and then
    * closes its port, so letting it replace the content script's long-lived port
-   * would leave every later target query unanswered.
+   * would leave every later target query unanswered. A port leaves the set when
+   * its other end closes, so the probes do not accumulate.
    */
   #accept(port: MessagePort, exchangeId: string): void {
     this.#ports.add(port);
     port.addEventListener("message", (event: MessageEvent) => {
       void this.#onMessage(port, event);
+    });
+    port.addEventListener("close", () => {
+      this.#ports.delete(port);
     });
     port.start();
     this.#sendPageProof(port, exchangeId);

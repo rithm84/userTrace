@@ -267,7 +267,9 @@ async def _commit_outcome(
     """Commit the run's typed outcome, and what it obliges for the Product Signal."""
     if result.workspace_destroyed:
         await release_environment_lease(
-            database, implementation_attempt_id=specification.implementation_attempt_id
+            database,
+            lease_id=specification.lease.lease_id,
+            fencing_token=specification.lease.fencing_token,
         )
     triggers = _OUTCOME_TRIGGERS.get(result.outcome)
     if triggers is None:

@@ -29,22 +29,4 @@ export const decodeBase64Url = (text: string, path: string): Uint8Array<ArrayBuf
   return bytes;
 };
 
-export const encodeBase64Url = (bytes: Uint8Array): string => {
-  let out = "";
-  let accumulator = 0;
-  let bits = 0;
-  for (const byte of bytes) {
-    accumulator = (accumulator << 8) | byte;
-    bits += 8;
-    while (bits >= 6) {
-      bits -= 6;
-      out += ALPHABET[(accumulator >> bits) & 0x3f] ?? "";
-    }
-  }
-  if (bits > 0) out += ALPHABET[(accumulator << (6 - bits)) & 0x3f] ?? "";
-  return out;
-};
-
 export const utf8Decode = (bytes: Uint8Array): string => new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-
-export const utf8Encode = (text: string): Uint8Array<ArrayBuffer> => new TextEncoder().encode(text);

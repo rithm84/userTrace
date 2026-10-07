@@ -21,7 +21,7 @@ from uuid import UUID
 from psycopg import AsyncConnection
 from psycopg.rows import DictRow
 from pydantic import BaseModel, ConfigDict, Field
-from utrace_contracts.domain.lifecycle import FlowType, GateDecisionKind, ProductSignalState
+from utrace_contracts.domain.lifecycle import FlowType, ProductSignalState
 
 from app.db.pool import Database
 from app.db.rows import as_datetime, as_int, as_optional_str, as_str, as_uuid
@@ -336,6 +336,3 @@ async def _load_readiness(
     )
 
 
-def gate_decision_kinds() -> tuple[GateDecisionKind, ...]:
-    """The closed set of decisions the controller may commit."""
-    return (GateDecisionKind.APPROVED_LIVE, GateDecisionKind.NO_IMPLEMENTATION)

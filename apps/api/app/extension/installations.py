@@ -27,7 +27,7 @@ from psycopg.rows import DictRow
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.db.pool import Database
-from app.db.rows import as_datetime, as_str, as_uuid
+from app.db.rows import as_str, as_uuid
 from app.errors import AggregateNotFoundError, AuthorizationError
 from app.extension.proofs import (
     PossessionChallenge,
@@ -45,7 +45,6 @@ __all__ = [
     "LinkCode",
     "ProofOfPossession",
     "consume_possession_proof",
-    "installation_registered_at",
     "link_code_digest",
     "load_installation",
     "mint_link_code",
@@ -534,18 +533,3 @@ def _protocol_sort_key(version: str) -> tuple[int, int]:
     return int(major), int(minor)
 
 
-async def installation_registered_at(
-    conn: AsyncConnection[DictRow], *, installation_id: UUID
-) -> datetime:
-    """Return when one installation was registered."""
-    async with conn.cursor() as cur:
-        await cur.execute(
-            "select registered_at from public.extension_installations where id = %s",
-            (installation_id,),
-        )
-        row = await cur.fetchone()
-    if row is None:
-        raise AggregateNotFoundError(
-            table="extension_installations", row_id=installation_id
-        )
-    return as_datetime(row, "registered_at")

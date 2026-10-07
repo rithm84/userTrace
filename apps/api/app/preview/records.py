@@ -31,7 +31,6 @@ __all__ = [
 ]
 
 ROUTE_RECORD_SCHEMA_VERSION = "utrace_preview_route_record_v1"
-HANDOFF_EXCHANGE_SCHEMA_VERSION = "utrace_preview_handoff_exchange_v1"
 DENIAL_SCHEMA_VERSION = "utrace_preview_denial_v1"
 
 

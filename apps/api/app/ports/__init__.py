@@ -63,11 +63,3 @@ class PortRegistry:
             )
         return self.observation
 
-    def require_evidence(self) -> EvidenceQueryPort:
-        """Return the promoted-evidence query adapter or refuse."""
-        if self.evidence is None:
-            raise NotYetWiredError(
-                capability="promoted_telemetry_evidence_query",
-                owning_workstream="telemetry-ingestion",
-            )
-        return self.evidence

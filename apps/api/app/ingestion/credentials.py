@@ -34,7 +34,6 @@ __all__ = [
     "ResolvedCredential",
     "issue_credential",
     "resolve_credential",
-    "revoke_credentials_for_activation",
 ]
 
 _log = get_logger(__name__)
@@ -162,41 +161,3 @@ async def resolve_credential(
     )
 
 
-async def revoke_credentials_for_activation(
-    database: Database, *, client_id: UUID, activation_id: UUID, reason: str
-) -> int:
-    """Revoke every live credential of one activation and record why.
-
-    Returns the number of credentials revoked so the caller can report exactly
-    what stopped writing.
-    """
-    async with database.transaction() as conn, conn.cursor() as cur:
-        await cur.execute(
-            """
-            update public.telemetry_credentials
-            set state = 'revoked', revoked_at = now(), revocation_reason = %s,
-                revision = revision + 1, updated_at = now()
-            where client_id = %s and activation_id = %s and state = 'active'
-            returning id
-            """,
-            (reason, client_id, activation_id),
-        )
-        rows = await cur.fetchall()
-        for row in rows:
-            await cur.execute(
-                """
-                insert into public.telemetry_credential_revocations (
-                    id, client_id, telemetry_credential_id, reason
-                )
-                values (%s, %s, %s, %s)
-                """,
-                (uuid7(), client_id, UUID(str(row["id"])), reason),
-            )
-    _log.info(
-        "telemetry_credentials_revoked",
-        client_id=str(client_id),
-        activation_id=str(activation_id),
-        reason=reason,
-        revoked=len(rows),
-    )
-    return len(rows)

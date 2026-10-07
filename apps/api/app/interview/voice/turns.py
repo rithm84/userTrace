@@ -49,10 +49,6 @@ class TurnDetector:
         self._anchor: tuple[float, int] = (0.0, 0)
         self._last_loud_end_ms = 0
 
-    @property
-    def agent_speaking(self) -> bool:
-        """Whether the agent is mid-turn, so nothing should be appended to its context."""
-        return self._agent_speaking
 
     @property
     def participant_speaking(self) -> bool:
@@ -81,6 +77,14 @@ class TurnDetector:
         """When, on the caller's monotonic clock, the agent's last speech finishes playing."""
         anchored_at, anchor_ms = self._anchor
         return anchored_at + (self._last_loud_end_ms - anchor_ms) / 1000
+
+    def agent_interrupted(self, *, now: float) -> None:
+        """The participant talked over the agent, which stops its audio now.
+
+        What it had generated beyond this moment is never heard, so its speech ends
+        here, and the next turn plays from now rather than after the cut-off audio.
+        """
+        self._anchor = (now, self._last_loud_end_ms)
 
     def agent_audio(
         self, *, level: float, byte_length: int, start_ms: int, end_ms: int, now: float

@@ -17,7 +17,6 @@ from uuid import UUID
 from psycopg import AsyncConnection
 from psycopg.rows import DictRow
 
-from app.db.pool import Database
 from app.db.rows import as_bool, as_str, as_uuid
 from app.errors import AggregateNotFoundError, AuthorizationError
 
@@ -31,9 +30,7 @@ __all__ = [
     "RESOURCE_USER",
     "ResolvedAuthor",
     "provider_identity_for_client_user",
-    "resolve_author",
     "resolve_author_on_connection",
-    "resolve_client_for_installation",
     "sign_in_binding",
     "upsert_provider_ref",
 ]
@@ -106,37 +103,6 @@ async def upsert_provider_ref(
         )
 
 
-async def resolve_client_for_installation(
-    conn: AsyncConnection[DictRow], *, provider: str, installation_ref: str
-) -> UUID:
-    """Return the client that connected one provider installation.
-
-    The guild-to-client binding is a provider reference owned by the client, so
-    an unconfigured server resolves to nothing and never reaches routing.
-    """
-    async with conn.cursor() as cur:
-        await cur.execute(
-            """
-            select client_id from public.provider_refs
-            where provider = %s and installation_ref = %s
-              and resource_type = %s and owner_kind = %s
-            """,
-            (provider, installation_ref, RESOURCE_GUILD, _OWNER_CLIENT),
-        )
-        rows = await cur.fetchall()
-    if not rows:
-        raise AuthorizationError(
-            subject=f"{provider} installation {installation_ref}",
-            reason="no client has connected this Customer Surface",
-        )
-    if len(rows) > 1:
-        raise AuthorizationError(
-            subject=f"{provider} installation {installation_ref}",
-            reason="the installation resolves to more than one client",
-        )
-    return as_uuid(rows[0], "client_id")
-
-
 _SELECT_AUTHOR = """
 select client_users.id as client_user_id,
        client_users.utrace_user_id,
@@ -204,25 +170,6 @@ async def resolve_author_on_connection(
         external_account_key=as_str(row, "external_account_key"),
         do_not_contact=as_bool(row, "do_not_contact"),
     )
-
-
-async def resolve_author(
-    database: Database,
-    *,
-    client_id: UUID,
-    provider: str,
-    installation_ref: str,
-    provider_user_id: str,
-) -> ResolvedAuthor:
-    """Resolve one provider account in its own read transaction."""
-    async with database.connection() as conn:
-        return await resolve_author_on_connection(
-            conn,
-            client_id=client_id,
-            provider=provider,
-            installation_ref=installation_ref,
-            provider_user_id=provider_user_id,
-        )
 
 
 async def provider_identity_for_client_user(

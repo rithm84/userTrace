@@ -4,11 +4,13 @@ One async connection pool over Supabase Postgres. This is the single transaction
 authority: every durable write goes through a transaction opened here.
 """
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
 from datetime import datetime
+from typing import Final
 
 from psycopg import AsyncConnection, sql
+from psycopg.conninfo import make_conninfo
 from psycopg.rows import DictRow, dict_row
 from psycopg_pool import AsyncConnectionPool
 
@@ -18,17 +20,31 @@ __all__ = ["Database"]
 
 _log = get_logger(__name__)
 
+#: libpq's TCP liveness settings for every connection. A connection whose packets
+#: stop arriving otherwise looks healthy: a query sent on it waits out the kernel's
+#: retransmission limit (about 15 minutes on Linux) and a reply that never arrives
+#: is waited for indefinitely, which froze the worker's Job loop and left an API
+#: transaction holding its locks. With these, a dead peer is noticed within about
+#: 25 seconds while idle or waiting, and unacknowledged data fails after 20.
+_TCP_LIVENESS: Final[Mapping[str, int]] = {
+    "keepalives": 1,
+    "keepalives_idle": 10,
+    "keepalives_interval": 5,
+    "keepalives_count": 3,
+    "tcp_user_timeout": 20_000,
+}
+
 
 class Database:
     """Owns the connection pool and hands out connections and transactions."""
 
     def __init__(self, dsn: str, min_size: int, max_size: int) -> None:
-        self._dsn = dsn
+        self._dsn = make_conninfo(dsn, **_TCP_LIVENESS)
         # A database restart or failover closes every server connection while the
         # pool still holds them; checking on lease replaces a dead one instead of
         # failing the request that drew it.
         self._pool: AsyncConnectionPool[AsyncConnection[DictRow]] = AsyncConnectionPool(
-            conninfo=dsn,
+            conninfo=self._dsn,
             min_size=min_size,
             max_size=max_size,
             kwargs={"row_factory": dict_row, "autocommit": True},

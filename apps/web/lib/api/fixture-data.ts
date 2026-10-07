@@ -40,8 +40,6 @@ export const FIXTURE_CASE_ID = "0199a0c0-0000-7aaa-8000-0000000005a7";
 export const FIXTURE_CASE_FILE_ID = "0199a0c0-0000-7aaa-8000-0000000000cf";
 export const FIXTURE_INVITATION_TOKEN = "demo-invitation";
 export const FIXTURE_SAVED_VIEW_NAME = "TikTok sizing drop-off";
-export const FIXTURE_EXAMPLE_NOTE =
-  "Illustrative Shopalytics example; every name, figure and quote is fictional.";
 
 const OWNER_MEMBER_ID = "0199a0c0-0000-7aaa-8000-000000000e01";
 const ADMIN_MEMBER_ID = "0199a0c0-0000-7aaa-8000-000000000e02";

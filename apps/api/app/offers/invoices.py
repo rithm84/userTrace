@@ -74,12 +74,6 @@ class InvoiceApplication(BaseModel):
     invoice_status: str
     reconciled_at: datetime
 
-    def counts_toward_application(self) -> bool:
-        """Whether this row still represents credit the customer consumed."""
-        return (
-            self.applied_minor_units > 0 and self.invoice_status not in _VOID_STATUSES
-        )
-
 
 async def reconcile_invoice_applications(
     database: Database,

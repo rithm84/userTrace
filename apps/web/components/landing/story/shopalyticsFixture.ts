@@ -87,5 +87,3 @@ export const SHOPALYTICS = Object.freeze({
     invoice: { number: "SHOP-1107", plan: "Growth plan", period: "October 2026", amount: 1000, due: "October 3, 2026" },
   },
 });
-
-export type ShopalyticsFixture = typeof SHOPALYTICS;
