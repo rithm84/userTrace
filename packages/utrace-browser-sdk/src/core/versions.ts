@@ -13,12 +13,6 @@ export const SUPPORTED_PROTOCOL_VERSION = "1";
  */
 export const BRIDGE_SCHEMA_VERSION = 1;
 
-/** Pinned OpenTelemetry semantic convention schema for this browser stream. */
-export const SEMANTIC_CONVENTION_SCHEMA_URL = "https://opentelemetry.io/schemas/1.38.0";
-
-/** Versioned uTrace attribute namespace. Never an alias for a standard attribute. */
-export const UTRACE_ATTRIBUTE_NAMESPACE = "utrace.v1";
-
 /** WebSocket subprotocol advertised to the browser telemetry ingestion edge. */
 export const INGEST_SUBPROTOCOL = "utrace.browser.v1";
 

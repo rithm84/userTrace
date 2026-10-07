@@ -31,7 +31,6 @@ from utrace_contracts.domain.lifecycle import (
 )
 
 from app.context.freshness import invalidate_bundles_citing
-from app.context.sources import OPEN_QUESTION_BODY_KIND
 from app.db.kernel import append_fact
 from app.db.pool import Database
 from app.db.rows import as_uuid
@@ -45,18 +44,14 @@ __all__ = [
     "TranscriptFragment",
     "accept_correction",
     "implementation_hold_active",
-    "raise_contradiction_flag",
     "record_claim",
-    "record_open_question",
     "record_playback_segments",
     "record_transcript_fragment",
-    "release_hold",
 ]
 
 _log = get_logger(__name__)
 
 _CORRECTION_REASON = "superseded_by_accepted_correction"
-_FLAG_REASON = "contradiction_flag_raised"
 
 
 @dataclass(frozen=True, slots=True)
@@ -223,98 +218,6 @@ async def record_claim(
     return evidence_id
 
 
-async def record_open_question(
-    database: Database,
-    *,
-    client_id: UUID,
-    product_signal_id: UUID,
-    interview_session_id: UUID,
-    question: str,
-    criterion_id: UUID | None,
-    source_ref: str,
-    context_revision: int,
-) -> UUID:
-    """Record a question the interview raised and has not answered.
-
-    Open questions live in the evidence ledger so context assembly has one home
-    for interview facts and a later answer supersedes the question in place.
-    """
-    async with database.transaction() as conn:
-        return await record_claim(
-            conn,
-            client_id=client_id,
-            product_signal_id=product_signal_id,
-            interview_session_id=interview_session_id,
-            evidence_class=EvidenceClass.TRANSCRIPT_FRAGMENT,
-            claim_state=EvidenceClaimState.PROPOSED,
-            source_ref=source_ref,
-            context_revision=context_revision,
-            body={
-                "kind": OPEN_QUESTION_BODY_KIND,
-                "question": question,
-                "criterion_id": str(criterion_id) if criterion_id is not None else None,
-            },
-            supersedes_id=None,
-        )
-
-
-async def raise_contradiction_flag(
-    database: Database,
-    *,
-    client_id: UUID,
-    product_signal_id: UUID,
-    interview_session_id: UUID,
-    affected_evidence_id: UUID,
-    reason: str,
-    semantic_judgement_id: UUID | None,
-    source_ref: str,
-    context_revision: int,
-) -> UUID:
-    """Flag a plausible contradiction and hold new dependent implementation steps.
-
-    A flag is not a confirmed correction. Conversation and independent read-only
-    work continue; dispatched operations settle or checkpoint with their outcomes
-    recorded, and a dismissed flag releases the hold.
-    """
-    async with database.transaction() as conn:
-        flag_id = await record_claim(
-            conn,
-            client_id=client_id,
-            product_signal_id=product_signal_id,
-            interview_session_id=interview_session_id,
-            evidence_class=EvidenceClass.TRANSCRIPT_FRAGMENT,
-            claim_state=EvidenceClaimState.CONTRADICTED,
-            source_ref=source_ref,
-            context_revision=context_revision,
-            body={
-                "kind": "contradiction_flag",
-                "reason": reason,
-                "affected_evidence_id": str(affected_evidence_id),
-            },
-            supersedes_id=None,
-        )
-        hold_id = await _raise_hold(
-            conn,
-            client_id=client_id,
-            product_signal_id=product_signal_id,
-            interview_session_id=interview_session_id,
-            hold_kind="contradiction_flag",
-            reason=reason,
-            raised_by_evidence_id=flag_id,
-            affected_evidence_id=affected_evidence_id,
-            semantic_judgement_id=semantic_judgement_id,
-        )
-    _log.info(
-        "contradiction_flag_raised",
-        client_id=str(client_id),
-        product_signal_id=str(product_signal_id),
-        evidence_id=str(flag_id),
-        affected_evidence_id=str(affected_evidence_id),
-        dependency_hold_id=str(hold_id),
-    )
-    return flag_id
-
-
 async def accept_correction(
     database: Database,
     *,
@@ -417,20 +320,6 @@ async def accept_correction(
     )
 
 
-async def release_hold(database: Database, *, hold_id: UUID, reason: str) -> None:
-    """Release one hold after its dependency check resolved it."""
-    async with database.transaction() as conn, conn.cursor() as cur:
-        await cur.execute(
-            """
-            update public.dependency_holds
-            set released_at = now(), release_reason = %s
-            where id = %s and released_at is null
-            """,
-            (reason, hold_id),
-        )
-    _log.info("dependency_hold_released", dependency_hold_id=str(hold_id), reason=reason)
-
-
 async def implementation_hold_active(
     conn: AsyncConnection[DictRow], *, product_signal_id: UUID
 ) -> bool:
@@ -488,23 +377,3 @@ async def _raise_hold(
     return hold_id
 
 
-async def fragment_source_refs(
-    conn: AsyncConnection[DictRow],
-    *,
-    interview_session_id: UUID,
-    fragment_ids: Sequence[UUID],
-) -> str:
-    """Return the ``source_ref`` a claim uses to cite a span of fragments."""
-    async with conn.cursor() as cur:
-        await cur.execute(
-            """
-            select min(start_ms) as first_ms, max(end_ms) as last_ms
-            from public.voice_transcript_fragments
-            where interview_session_id = %s and id = any(%s)
-            """,
-            (interview_session_id, list(fragment_ids)),
-        )
-        row = await cur.fetchone()
-    if row is None or row["first_ms"] is None:
-        raise LookupError("no transcript fragments matched the cited span")
-    return f"transcript:{interview_session_id}:{row['first_ms']}-{row['last_ms']}"

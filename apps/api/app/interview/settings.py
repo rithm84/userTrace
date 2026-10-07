@@ -98,9 +98,6 @@ class InterviewSettings(_EnvSettings):
         default="wss://api.utrace.dev",
         validation_alias="UTRACE_EXTENSION_SOCKET_AUDIENCE",
     )
-    account_link_origin: str = Field(
-        default="https://utrace.dev", validation_alias="UTRACE_ACCOUNT_LINK_ORIGIN"
-    )
     extension_offer_lifetime_seconds: int = Field(
         default=300, validation_alias="UTRACE_EXTENSION_OFFER_LIFETIME_SECONDS"
     )

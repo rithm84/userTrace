@@ -26,7 +26,7 @@ from utrace_contracts.canonical import payload_digest
 from utrace_contracts.domain.lifecycle import PreviewVersionState
 
 from app.db.pool import Database
-from app.db.rows import as_int, as_str, as_uuid
+from app.db.rows import as_int, as_uuid
 from app.errors import LeaseLostError
 from app.ids import uuid7
 from app.implementation.artifacts import ArtifactManifest
@@ -373,35 +373,3 @@ async def previous_version(
     return None if row is None else as_uuid(row, "id")
 
 
-async def mark_preview_version_ready(
-    database: Database, *, preview_version_id: UUID, seed_manifest_digest: str
-) -> str:
-    """Record the readiness the preview-runtime stream reported for one version."""
-    async with database.transaction() as conn, conn.cursor() as cur:
-        await cur.execute(
-            """
-            update public.preview_versions
-            set state = %s, seed_manifest_digest = %s, ready_at = now(),
-                revision = revision + 1, updated_at = now()
-            where id = %s and state = %s
-            returning state
-            """,
-            (
-                PreviewVersionState.READY.value,
-                seed_manifest_digest,
-                preview_version_id,
-                PreviewVersionState.BUILDING.value,
-            ),
-        )
-        row = await cur.fetchone()
-    if row is None:
-        raise PublicationRefusedError(
-            [
-                PublicationRefusal(
-                    kind=RefusalKind.SOURCE_REVISION_MISMATCH,
-                    subject=str(preview_version_id),
-                    detail="the Preview Version is not in the building state",
-                )
-            ]
-        )
-    return as_str(row, "state")

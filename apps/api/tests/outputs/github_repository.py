@@ -39,6 +39,8 @@ class SmokeRepository:
     owner: str
     name: str
     default_branch: str
+    head_sha: str
+    """The default branch's head, a real commit a delivery can be based on."""
     token: str
 
     @property
@@ -106,7 +108,12 @@ def ensure_repository(*, token: str) -> SmokeRepository:
             )
     payload = json.loads(view.stdout)
     branch = payload["defaultBranchRef"]["name"]
-    return SmokeRepository(owner=owner, name=name, default_branch=branch, token=token)
+    head = _run(["gh", "api", f"repos/{SMOKE_REPOSITORY}/commits/{branch}", "--jq", ".sha"])
+    if head.returncode != 0:
+        raise RuntimeError(f"could not read the {branch} head of {SMOKE_REPOSITORY}: {head.stderr.strip()}")
+    return SmokeRepository(
+        owner=owner, name=name, default_branch=branch, head_sha=head.stdout.strip(), token=token
+    )
 
 
 def delete_repository() -> str:

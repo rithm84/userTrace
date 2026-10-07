@@ -16,7 +16,6 @@ from dataclasses import dataclass
 
 from utrace_contracts.domain.lifecycle import (
     PreviewRuntimeAllocationState,
-    PreviewVersionState,
 )
 
 from app.lifecycle.machine import Machine, Transition
@@ -24,14 +23,10 @@ from app.lifecycle.machine import Machine, Transition
 __all__ = [
     "ALLOCATION_MACHINE_VERSION",
     "PREVIEW_RUNTIME_ALLOCATION_MACHINE",
-    "PREVIEW_VERSION_MACHINE",
-    "PREVIEW_VERSION_MACHINE_VERSION",
     "PreviewRuntimeAllocationFacts",
-    "PreviewVersionFacts",
 ]
 
 ALLOCATION_MACHINE_VERSION = 1
-PREVIEW_VERSION_MACHINE_VERSION = 1
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,15 +38,6 @@ class PreviewRuntimeAllocationFacts:
     readiness_admits_traffic: bool
     routes_revoked: bool
     evidence_extracted: bool
-
-
-@dataclass(frozen=True, slots=True)
-class PreviewVersionFacts:
-    """Facts the Preview Version guards read."""
-
-    artifact_digests_verified: bool
-    candidate_readiness_admits_traffic: bool
-    seed_identity_matches_base: bool
 
 
 def _may_seed(facts: PreviewRuntimeAllocationFacts) -> str | None:
@@ -148,43 +134,3 @@ PREVIEW_RUNTIME_ALLOCATION_MACHINE: Machine[PreviewRuntimeAllocationFacts] = Mac
 )
 
 
-def _may_publish(facts: PreviewVersionFacts) -> str | None:
-    if not facts.artifact_digests_verified:
-        return "the candidate's source and artifact digests were not verified"
-    if not facts.seed_identity_matches_base:
-        return "the candidate dataset is not the approved seed identity"
-    if not facts.candidate_readiness_admits_traffic:
-        return "a gating readiness probe on the candidate runtime did not pass"
-    return None
-
-
-PREVIEW_VERSION_MACHINE: Machine[PreviewVersionFacts] = Machine(
-    name="preview_version",
-    version=PREVIEW_VERSION_MACHINE_VERSION,
-    initial=PreviewVersionState.BUILDING.value,
-    terminal=frozenset(
-        {PreviewVersionState.RETIRED.value, PreviewVersionState.FAILED.value}
-    ),
-    transitions=(
-        Transition(
-            trigger="publish",
-            sources=frozenset({PreviewVersionState.BUILDING.value}),
-            target=PreviewVersionState.READY.value,
-            guard=_may_publish,
-        ),
-        Transition(
-            trigger="fail",
-            sources=frozenset({PreviewVersionState.BUILDING.value}),
-            target=PreviewVersionState.FAILED.value,
-            guard=None,
-        ),
-        Transition(
-            trigger="retire",
-            sources=frozenset(
-                {PreviewVersionState.BUILDING.value, PreviewVersionState.READY.value}
-            ),
-            target=PreviewVersionState.RETIRED.value,
-            guard=None,
-        ),
-    ),
-)

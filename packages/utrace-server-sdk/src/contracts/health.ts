@@ -45,7 +45,6 @@ export const PROBE_FAILURE_REASONS = [
   'acknowledgement_timeout',
 ] as const;
 
-export type ProbeState = (typeof PROBE_STATES)[number];
 export type ProbeFailureReason = (typeof PROBE_FAILURE_REASONS)[number];
 
 export const probeResultSchema = z.strictObject({

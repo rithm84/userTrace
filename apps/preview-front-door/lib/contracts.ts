@@ -45,7 +45,6 @@ export const previewDenialSchema = z
     reason: previewDenialReasonSchema,
   })
   .strict();
-export type PreviewDenial = z.infer<typeof previewDenialSchema>;
 
 export const handoffExchangeRequestSchema = z
   .object({
@@ -53,9 +52,6 @@ export const handoffExchangeRequestSchema = z
     public_preview_host: previewHost,
   })
   .strict();
-export type HandoffExchangeRequest = z.infer<
-  typeof handoffExchangeRequestSchema
->;
 
 export const handoffExchangeSchema = z
   .object({
@@ -195,9 +191,6 @@ export const activationRelayRequestSchema = z
     activation_request: activationRequestSchema,
   })
   .strict();
-export type ActivationRelayRequest = z.infer<
-  typeof activationRelayRequestSchema
->;
 
 /**
  * The control plane's answer, returned to the browser unchanged. It is the
@@ -232,9 +225,6 @@ export const telemetryCredentialRelayRequestSchema = z
     credential_request: telemetryCredentialRequestSchema,
   })
   .strict();
-export type TelemetryCredentialRelayRequest = z.infer<
-  typeof telemetryCredentialRelayRequestSchema
->;
 
 /**
  * The short-lived, write-only browser telemetry credential and the one
@@ -272,9 +262,6 @@ export type TelemetryCredential = z.infer<typeof telemetryCredentialSchema>;
 export const propagationProbeRequestSchema = z
   .object({ probe: z.literal("trace_propagation") })
   .strict();
-export type PropagationProbeRequest = z.infer<
-  typeof propagationProbeRequestSchema
->;
 
 /** Body the door returns to the browser SDK when a relay is refused. */
 export const relayFailureSchema = z
@@ -283,4 +270,3 @@ export const relayFailureSchema = z
     reason: z.enum(["unauthorized", "invalid_request", "unavailable"]),
   })
   .strict();
-export type RelayFailure = z.infer<typeof relayFailureSchema>;

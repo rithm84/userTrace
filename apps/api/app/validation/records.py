@@ -21,7 +21,6 @@ from utrace_contracts.domain.lifecycle import (
     ValidationOutcome,
 )
 
-from app.db.pool import Database
 from app.db.rows import (
     as_bool,
     as_datetime,
@@ -39,7 +38,6 @@ __all__ = [
     "ValidationAttemptRow",
     "load_attempt",
     "load_budgets",
-    "load_criteria",
     "load_criteria_on_connection",
     "session_is_bound",
 ]
@@ -226,16 +224,6 @@ async def load_criteria_on_connection(
         )
         for row in rows
     )
-
-
-async def load_criteria(
-    database: Database, *, product_signal_id: UUID, criteria_revision: int
-) -> tuple[CriterionRow, ...]:
-    """Return the frozen acceptance criteria outside a caller-owned transaction."""
-    async with database.connection() as conn:
-        return await load_criteria_on_connection(
-            conn, product_signal_id=product_signal_id, criteria_revision=criteria_revision
-        )
 
 
 async def session_is_bound(

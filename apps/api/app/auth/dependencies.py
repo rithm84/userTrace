@@ -121,34 +121,6 @@ async def staff_of_path(
 StaffOfPath = Annotated[StaffPrincipal, Depends(staff_of_path)]
 
 
-async def resolve_participant(
-    database: Database, identity: VerifiedIdentity, client_id: UUID
-) -> ParticipantPrincipal:
-    """Resolve the client-scoped participation identity for one client."""
-    async with database.connection() as conn, conn.cursor() as cur:
-        await cur.execute(
-            """
-            select users.id as utrace_user_id, client_users.id as client_user_id
-            from public.users
-            join public.client_users on client_users.utrace_user_id = users.id
-            where users.auth_user_id = %s and client_users.client_id = %s
-            """,
-            (identity.auth_user_id, client_id),
-        )
-        row = await cur.fetchone()
-    if row is None:
-        raise AuthorizationError(
-            subject=f"participation in client {client_id}",
-            reason="this identity has no client-scoped uTrace User for that client",
-        )
-    return ParticipantPrincipal(
-        auth_user_id=identity.auth_user_id,
-        utrace_user_id=as_uuid(row, "utrace_user_id"),
-        client_user_id=as_uuid(row, "client_user_id"),
-        client_id=client_id,
-    )
-
-
 async def participant_of_session(
     identity: AuthenticatedIdentity,
     database: CurrentDatabase,

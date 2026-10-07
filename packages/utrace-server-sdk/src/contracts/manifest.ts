@@ -102,9 +102,6 @@ export const OUTPUT_CLASSES = [
   'metadata_only',
 ] as const;
 
-export type AnnotationKind = (typeof ANNOTATION_KINDS)[number];
-export type OutputClass = (typeof OUTPUT_CLASSES)[number];
-
 export const annotationDefinitionSchema = z
   .strictObject({
     definition_id: z.uuid(),

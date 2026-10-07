@@ -8,14 +8,9 @@
  */
 
 import type { JsonObject } from "../core/json.js";
-import type { Observation, ObservationEnvelope } from "../observation/types.js";
+import type { ObservationEnvelope } from "../observation/types.js";
 
 export interface ExportRecord {
   readonly envelope: ObservationEnvelope;
   readonly body: JsonObject;
 }
-
-export const toExportRecord = (observation: Observation): ExportRecord => ({
-  envelope: observation.envelope,
-  body: observation.payload.body,
-});

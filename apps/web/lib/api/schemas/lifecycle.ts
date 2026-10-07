@@ -179,61 +179,42 @@ export const flowTypeSchema = z.enum(FLOW_TYPES);
 export type FlowType = z.infer<typeof flowTypeSchema>;
 
 export const gateDecisionKindSchema = z.enum(GATE_DECISION_KINDS);
-export type GateDecisionKind = z.infer<typeof gateDecisionKindSchema>;
 
 export const implementationAttemptStateSchema = z.enum(IMPLEMENTATION_ATTEMPT_STATES);
-export type ImplementationAttemptState = z.infer<typeof implementationAttemptStateSchema>;
 
 export const previewVersionStateSchema = z.enum(PREVIEW_VERSION_STATES);
-export type PreviewVersionState = z.infer<typeof previewVersionStateSchema>;
 
 export const validationAttemptStateSchema = z.enum(VALIDATION_ATTEMPT_STATES);
-export type ValidationAttemptState = z.infer<typeof validationAttemptStateSchema>;
 
 export const validationOutcomeSchema = z.enum(VALIDATION_OUTCOMES);
-export type ValidationOutcome = z.infer<typeof validationOutcomeSchema>;
 
 export const criterionResultSchema = z.enum(CRITERION_RESULTS);
-export type CriterionResult = z.infer<typeof criterionResultSchema>;
 
 export const criterionObservabilitySchema = z.enum(CRITERION_OBSERVABILITIES);
-export type CriterionObservability = z.infer<typeof criterionObservabilitySchema>;
 
 export const evidenceClassSchema = z.enum(EVIDENCE_CLASSES);
-export type EvidenceClass = z.infer<typeof evidenceClassSchema>;
 
 export const caseFileVariantSchema = z.enum(CASE_FILE_VARIANTS);
-export type CaseFileVariant = z.infer<typeof caseFileVariantSchema>;
 
 export const caseFileStageSchema = z.enum(CASE_FILE_STAGES);
-export type CaseFileStage = z.infer<typeof caseFileStageSchema>;
 
 export const clientMemberRoleSchema = z.enum(CLIENT_MEMBER_ROLES);
-export type ClientMemberRole = z.infer<typeof clientMemberRoleSchema>;
 
 export const membershipStatusSchema = z.enum(MEMBERSHIP_STATUSES);
-export type MembershipStatus = z.infer<typeof membershipStatusSchema>;
 
 export const deliveryStateSchema = z.enum(DELIVERY_STATES);
-export type DeliveryState = z.infer<typeof deliveryStateSchema>;
 
 export const offerStateSchema = z.enum(OFFER_STATES);
-export type OfferState = z.infer<typeof offerStateSchema>;
 
 export const offerIssuanceStateSchema = z.enum(OFFER_ISSUANCE_STATES);
-export type OfferIssuanceState = z.infer<typeof offerIssuanceStateSchema>;
 
 export const interviewPhaseSchema = z.enum(INTERVIEW_PHASES);
-export type InterviewPhase = z.infer<typeof interviewPhaseSchema>;
 
 export const interviewSessionStateSchema = z.enum(INTERVIEW_SESSION_STATES);
-export type InterviewSessionState = z.infer<typeof interviewSessionStateSchema>;
 
 export const agentCharacterStateSchema = z.enum(AGENT_CHARACTER_STATES);
-export type AgentCharacterState = z.infer<typeof agentCharacterStateSchema>;
 
 export const implementationProgressSchema = z.enum(IMPLEMENTATION_PROGRESS_STATES);
-export type ImplementationProgress = z.infer<typeof implementationProgressSchema>;
 
 /**
  * The Product Signal states in which uTrace holds no further authority. The

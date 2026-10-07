@@ -119,10 +119,13 @@ async def _validated_case(
         signal_state=ProductSignalState.AWAITING_VALIDATION,
         candidate_ready=True,
     )
+    # Delivery commits onto the base the candidate was tested on, so the attempt's
+    # base is a real commit of the repository it delivers to.
     async with database.transaction() as conn, conn.cursor() as cur:
         await cur.execute(
-            "update public.implementation_attempts set repository_ref = %s where id = %s",
-            (repository.full_name, scenario.implementation_attempt_id),
+            "update public.implementation_attempts set repository_ref = %s, base_revision = %s "
+            "where id = %s",
+            (repository.full_name, repository.head_sha, scenario.implementation_attempt_id),
         )
     await add_intake_source(
         database,

@@ -183,6 +183,11 @@ async def drain_sideband(
         no_delegation.set()
         participant_quiet = asyncio.Event()
         participant_quiet.set()
+        floor = Floor(
+            agent_quiet=agent_quiet,
+            no_delegation=no_delegation,
+            participant_quiet=participant_quiet,
+        )
         changes = SessionChanges(database, interview_session_id=subject.interview_session_id)
         # The agent's latest words at each fragment, for the cursor to follow as it speaks.
         spoken: asyncio.Queue[str] = asyncio.Queue()
@@ -228,7 +233,7 @@ async def drain_sideband(
                     client_id=subject.client_id,
                     product_signal_id=subject.product_signal_id,
                     sideband=sideband,
-                    agent_quiet=agent_quiet,
+                    floor=floor,
                 )
             ),
             asyncio.create_task(
@@ -259,11 +264,7 @@ async def drain_sideband(
                         subject=_delegation_subject(subject),
                         delegations=delegations,
                         moments=moments,
-                        floor=Floor(
-                            agent_quiet=agent_quiet,
-                            no_delegation=no_delegation,
-                            participant_quiet=participant_quiet,
-                        ),
+                        floor=floor,
                     ),
                 )
             ),
@@ -288,6 +289,14 @@ async def drain_sideband(
         ending_turn: asyncio.Task[None] | None = None
         playing_out = False
         cut_short = asyncio.Event()
+        # Character changes come from this loop and from the turn that is playing
+        # out; one lock commits them in the order they were made, so a stale
+        # `listening` cannot land after a newer `speaking`.
+        character = asyncio.Lock()
+
+        async def show_turn(state: CharacterState) -> None:
+            async with character:
+                await _show_turn(database, subject=subject, state=state)
 
         async def end_agent_turn(delay: float) -> None:
             nonlocal playing_out
@@ -299,13 +308,9 @@ async def drain_sideband(
                 no_delegation.set()
             moments.agent_stopped()
             window.end_turn()
-            await _show_turn(
-                database,
-                subject=subject,
-                # Quiet while a delegation is still being answered is the agent
-                # waiting on its answer, not listening.
-                state=CharacterState.THINKING if pending else CharacterState.LISTENING,
-            )
+            # Quiet while a delegation is still being answered is the agent waiting
+            # on its answer, not listening.
+            await show_turn(CharacterState.THINKING if pending else CharacterState.LISTENING)
         try:
             async for event in sideband.events():
                 if isinstance(event, SessionStarted | SessionUpdated):
@@ -343,7 +348,7 @@ async def drain_sideband(
                             playing_out = False
                         else:
                             agent_quiet.clear()
-                            await _show_turn(database, subject=subject, state=turn)
+                            await show_turn(turn)
                     elif turn is CharacterState.LISTENING:
                         cut_short.clear()
                         playing_out = True
@@ -361,15 +366,18 @@ async def drain_sideband(
                     turn = turns.participant_audio(
                         level=event.level, byte_length=event.audio_byte_length
                     )
-                    if turn is not None and playing_out:
-                        # Talking over the agent cuts its audio off, so its turn ends now.
-                        cut_short.set()
+                    if turn is not None and not agent_quiet.is_set():
+                        # Talking over the agent cuts its audio off, whether it is
+                        # still generating or only playing out, so its turn ends now.
+                        turns.agent_interrupted(now=loop.time())
+                        if playing_out:
+                            cut_short.set()
                     if turns.participant_speaking:
                         participant_quiet.clear()
                     else:
                         participant_quiet.set()
                     if turn is not None:
-                        await _show_turn(database, subject=subject, state=turn)
+                        await show_turn(turn)
                     continue
                 if isinstance(event, DelegationCreated):
                     if event.target != _CLIENT_DELEGATION:

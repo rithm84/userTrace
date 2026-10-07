@@ -381,15 +381,6 @@ export function parseOutboundFrame(candidate: unknown): OutboundFrame {
   );
 }
 
-export function parseBindingOffer(candidate: unknown): BindingOffer {
-  return parseWith(
-    bindingOfferSchema,
-    candidate,
-    "invalid_binding_offer",
-    "The session tab sent a binding offer the extension cannot accept",
-  );
-}
-
 export function parseInboundFrameJson(text: string): InboundFrame {
   let candidate: unknown;
   try {

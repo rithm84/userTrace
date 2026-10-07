@@ -13,7 +13,6 @@ inspect an authorized checkout with no Environment Lease at all.
 from __future__ import annotations
 
 import shlex
-from dataclasses import dataclass
 from typing import Final
 
 import structlog
@@ -29,7 +28,6 @@ from app.connectors.failures import (
 from app.connectors.vercel_sandboxes import EgressPolicy, SandboxHandle, VercelSandboxes
 
 __all__ = [
-    "ContentMatch",
     "WorkspaceFilesystem",
     "checkout_repository",
     "create_workspace",
@@ -41,15 +39,6 @@ _GIT_TIMEOUT_SECONDS: Final[int] = 600
 _SEARCH_TIMEOUT_SECONDS: Final[int] = 120
 _WORKSPACE_PORTS: Final[tuple[int, ...]] = ()
 """A workspace serves nothing: the candidate runs in its own preview runtime."""
-
-
-@dataclass(frozen=True, slots=True)
-class ContentMatch:
-    """One content-search hit with the provenance a finding needs."""
-
-    path: str
-    line: int
-    content: str
 
 
 async def create_workspace(
@@ -128,30 +117,12 @@ class WorkspaceFilesystem:
         self._handle = handle
         self._root = root
 
-    async def search_paths(self, *, glob: str) -> tuple[str, ...]:
-        """Return the checkout-relative paths whose file names match the glob."""
-        output = await self._search(
-            f"find . -type f -name {shlex.quote(glob)} -not -path './.git/*'"
-        )
-        return tuple(line.removeprefix("./") for line in output.splitlines() if line)
 
     async def tracked_paths(self) -> tuple[str, ...]:
         """Return the checkout-relative paths git tracks."""
         output = await self._search("git ls-files")
         return tuple(line for line in output.splitlines() if line)
 
-    async def search_contents(self, *, pattern: str) -> tuple[ContentMatch, ...]:
-        """Return the checkout-relative content matches for a literal pattern."""
-        output = await self._search(
-            f"grep -rnF --exclude-dir=.git -- {shlex.quote(pattern)} . || test $? -eq 1"
-        )
-        matches: list[ContentMatch] = []
-        for line in output.splitlines():
-            path, number, content = line.split(":", 2)
-            matches.append(
-                ContentMatch(path=path.removeprefix("./"), line=int(number), content=content)
-            )
-        return tuple(matches)
 
     async def read_text(self, *, path: str) -> str:
         """Read one checkout-relative file as UTF-8 text."""

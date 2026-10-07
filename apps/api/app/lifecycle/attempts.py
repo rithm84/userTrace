@@ -373,28 +373,34 @@ async def grant_environment_lease(
     return grant
 
 
-async def release_environment_lease(database: Database, *, implementation_attempt_id: UUID) -> None:
-    """Release the attempt's active lease once its workspace has been destroyed.
+async def release_environment_lease(
+    database: Database, *, lease_id: UUID, fencing_token: int
+) -> None:
+    """Release a run's own lease once its workspace has been destroyed.
 
     The released lease is the durable record that the workspace is gone, which the
-    Case File reports as the attempt's cleanup state.
+    Case File reports as the attempt's cleanup state. Only the lease and fencing
+    token the run held are released: a run that outlived its lease cannot release
+    the one a newer run of the same attempt now holds.
     """
     async with database.transaction() as conn, conn.cursor() as cur:
         await cur.execute(
             """
             update public.environment_leases
             set state = %s, released_at = now(), revision = revision + 1, updated_at = now()
-            where implementation_attempt_id = %s and state = %s
+            where id = %s and fencing_token = %s and state = %s
             """,
             (
                 EnvironmentLeaseState.RELEASED.value,
-                implementation_attempt_id,
+                lease_id,
+                fencing_token,
                 EnvironmentLeaseState.ACTIVE.value,
             ),
         )
         released = cur.rowcount
     _log.info(
         "environment_lease_released",
-        implementation_attempt_id=str(implementation_attempt_id),
+        lease_id=str(lease_id),
+        fencing_token=fencing_token,
         released=released,
     )

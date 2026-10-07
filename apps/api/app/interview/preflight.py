@@ -31,7 +31,6 @@ from app.lifecycle.session_controls import PreflightReport, run_preflight
 from app.logging import get_logger
 
 __all__ = [
-    "CHECK_IDS",
     "MINIMUM_CHROME_VERSION",
     "ParticipantEnvironment",
     "PreflightCheck",
@@ -44,15 +43,6 @@ _log = get_logger(__name__)
 MINIMUM_CHROME_VERSION = 137
 # `Google Chrome` is the Client Hints brand the session tab reports.
 _SUPPORTED_BROWSERS = frozenset({"google chrome", "chrome", "chromium"})
-
-CHECK_IDS: tuple[str, ...] = (
-    "supported_browser",
-    "extension_installed",
-    "extension_account_linked",
-    "extension_host_permission",
-    "microphone",
-)
-
 
 
 class ParticipantEnvironment(BaseModel):

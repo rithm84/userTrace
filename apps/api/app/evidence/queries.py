@@ -712,13 +712,3 @@ async def delivery_gap_report(
         )
 
 
-def window_provenance(window: EvidenceWindow) -> Mapping[str, JsonValue]:
-    """Return the provenance block a citation carries alongside its rows."""
-    return {
-        "evidence_window_id": str(window.evidence_window_id),
-        "mode": window.mode,
-        "purpose": window.purpose,
-        "authorized_caller": window.authorized_caller,
-        "starts_at": window.starts_at.isoformat(),
-        **dict(window.watermarks.as_json()),
-    }

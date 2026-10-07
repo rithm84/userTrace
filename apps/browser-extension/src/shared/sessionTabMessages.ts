@@ -36,8 +36,6 @@ export const sessionTabMessageSchema = z.discriminatedUnion("type", [
   bindingOfferMessageSchema,
 ]);
 
-export type PreflightRequest = z.infer<typeof preflightRequestSchema>;
-export type BindingOfferMessage = z.infer<typeof bindingOfferMessageSchema>;
 export type SessionTabMessage = z.infer<typeof sessionTabMessageSchema>;
 
 /**

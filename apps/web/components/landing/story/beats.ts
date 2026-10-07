@@ -91,12 +91,6 @@ export function chapterProgress(elapsed: number, id: ChapterId): number {
   return Math.min(1, Math.max(0, (elapsed - start) / duration));
 }
 
-export function chapterOf(id: ChapterId): Chapter {
-  const found = CHAPTERS.find((chapter) => chapter.id === id);
-  if (found === undefined) throw new Error(`Unknown story chapter ${id}.`);
-  return found;
-}
-
 /** The last beat of each chapter, for the reduced-motion stills. */
 export function lastBeatOf(id: ChapterId): number {
   let last = -1;

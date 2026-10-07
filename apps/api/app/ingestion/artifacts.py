@@ -14,7 +14,8 @@ Contracts: docs/arch-components/telemetry-and-evidence.md#persistence-and-integr
            docs/arch-components/cross-component-contracts.md#artifact-references
 """
 
-from collections.abc import Mapping, Sequence
+import asyncio
+from collections.abc import Mapping
 from dataclasses import dataclass
 from hashlib import sha256
 from uuid import UUID
@@ -31,7 +32,7 @@ from app.ids import uuid7
 from app.ingestion.errors import ArtifactIntegrityError
 from app.logging import get_logger
 
-__all__ = ["ArtifactReference", "ArtifactStore", "ChunkManifest", "chunk_manifest"]
+__all__ = ["ArtifactReference", "ArtifactStore", "ChunkManifest"]
 
 _log = get_logger(__name__)
 
@@ -65,19 +66,6 @@ class ChunkManifest:
             "chunk_hashes": list(self.chunk_hashes),
             "aggregate_hash": self.aggregate_hash,
         }
-
-
-def chunk_manifest(chunks: Sequence[bytes]) -> ChunkManifest:
-    """Hash each chunk in order and derive the aggregate hash over the whole body.
-
-    The aggregate hash is taken over the concatenated chunk bodies, which is what
-    the exporter hashes, so a reordered or missing chunk cannot validate.
-    """
-    if len(chunks) == 0:
-        raise ValueError("a chunk manifest needs at least one chunk")
-    hashes = tuple(f"sha256:{sha256(chunk).hexdigest()}" for chunk in chunks)
-    aggregate = sha256(b"".join(chunks)).hexdigest()
-    return ChunkManifest(chunk_hashes=hashes, aggregate_hash=f"sha256:{aggregate}")
 
 
 class ArtifactStore:
@@ -129,11 +117,14 @@ class ArtifactStore:
 
         artifact_id = uuid7()
         key = self._object_key(client_id, artifact_class, artifact_id)
-        response = await self._client.post(
-            f"/object/{self._bucket}/{key}",
-            content=body,
-            headers={"content-type": media_type, "x-upsert": "false"},
-        )
+        # httpx bounds each phase of a request separately; the whole upload gets
+        # the same bound, because callers hold a transaction open across it.
+        async with asyncio.timeout(_REQUEST_TIMEOUT_SECONDS):
+            response = await self._client.post(
+                f"/object/{self._bucket}/{key}",
+                content=body,
+                headers={"content-type": media_type, "x-upsert": "false"},
+            )
         if response.status_code >= 400:
             raise ArtifactIntegrityError(
                 artifact_id=artifact_id,

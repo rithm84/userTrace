@@ -34,9 +34,7 @@ from app.logging import get_logger
 from app.preview.activation import ServerActivationContext, install_server_activation
 from app.preview.artifacts import (
     fail_preview_version,
-    load_artifact,
     publish_preview_version,
-    reopen_for_rebuild,
 )
 from app.preview.config import PreviewSettings
 from app.preview.machines import PreviewRuntimeAllocationFacts
@@ -75,7 +73,6 @@ __all__ = [
     "build_candidate_runtime",
     "deploy_candidate",
     "expire_idle_candidates",
-    "rebuild_candidate",
 ]
 
 _log = get_logger(__name__)
@@ -545,43 +542,6 @@ async def deploy_candidate(
         preview_runtime_allocation_id=allocation_id,
         route=route,
         report=report,
-    )
-
-
-async def rebuild_candidate(
-    database: Database,
-    *,
-    provider: PreviewRuntimeProvider,
-    client: httpx.AsyncClient,
-    settings: PreviewSettings,
-    template: RuntimeTemplate,
-    recipe: TemplateRecipe,
-    preview_version_id: UUID,
-    interview_session_id: UUID,
-    activation: ServerActivationContext,
-    observation_port: ObservationReadinessPort,
-) -> DeployedCandidate:
-    """Rebuild an expired candidate from its frozen artifact and seed manifest.
-
-    The runtime bytes expire under retention policy; the artifact and the seed
-    manifest do not. A rebuild therefore reproduces the exact same candidate
-    rather than creating a new Preview Version, so validation evidence that cites
-    it stays admissible.
-    """
-    artifact = await load_artifact(database, preview_version_id=preview_version_id)
-    await reopen_for_rebuild(database, preview_version_id=preview_version_id)
-    return await deploy_candidate(
-        database,
-        provider=provider,
-        client=client,
-        settings=settings,
-        template=template,
-        recipe=recipe,
-        artifact=artifact,
-        interview_session_id=interview_session_id,
-        activation=activation,
-        observation_port=observation_port,
-        built=None,
     )
 
 

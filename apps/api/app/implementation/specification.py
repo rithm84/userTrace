@@ -35,10 +35,6 @@ class LeaseBinding(SpecificationModel):
     lease_id: UUID
     fencing_token: Annotated[int, Field(ge=1)]
 
-    def as_provider_token(self) -> str:
-        """The token form the workspace connector compares."""
-        return str(self.fencing_token)
-
 
 class RepositoryCheckout(SpecificationModel):
     """Where the authorized repository comes from and which commit is pinned."""

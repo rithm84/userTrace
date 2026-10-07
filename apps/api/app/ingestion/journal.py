@@ -11,16 +11,14 @@ Contract: docs/arch-components/telemetry-and-evidence.md#durable-receipt-and-ack
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import datetime
 from uuid import UUID
 
 from psycopg import AsyncConnection
 from psycopg.rows import DictRow
 from psycopg.types.json import Jsonb
-from utrace_contracts.domain.lifecycle import AggregateKind
 
 from app.db.pool import Database
-from app.db.rows import as_int, as_str
+from app.db.rows import as_str
 from app.envelope import JsonValue
 from app.ids import uuid7
 from app.ingestion.errors import IngestionError
@@ -296,42 +294,3 @@ async def record_failure(
     return failure_id
 
 
-def stage_reached(stage: str, at_least: str) -> bool:
-    """Return whether one stage is at or past another."""
-    return STAGE_ORDER.index(stage) >= STAGE_ORDER.index(at_least)
-
-
-async def receipt_counts(
-    database: Database, *, activation_id: UUID
-) -> Mapping[str, int]:
-    """Return accepted, rejected, and quarantined receipt counts for one activation."""
-    async with database.connection() as conn, conn.cursor() as cur:
-        await cur.execute(
-            """
-            select outcome, count(*) as total
-            from public.ingestion_receipts
-            where activation_id = %s
-            group by outcome
-            """,
-            (activation_id,),
-        )
-        rows = await cur.fetchall()
-    return {as_str(row, "outcome"): as_int(row, "total") for row in rows}
-
-
-def stream_kind_for(producer_kind: str) -> AggregateKind:
-    """Return the control-plane stream a producer's derived facts belong to."""
-    if producer_kind not in {"browser", "server"}:
-        raise ValueError(f"'{producer_kind}' is not a telemetry producer kind")
-    return AggregateKind.INTERVIEW_SESSION
-
-
-def watermark_payload(
-    *, browser_accepted_through: int, server_accepted_through: int, accepted_at: datetime
-) -> Mapping[str, JsonValue]:
-    """Build the watermark block every frozen evidence use records."""
-    return {
-        "browser_accepted_through": browser_accepted_through,
-        "server_accepted_through": server_accepted_through,
-        "accepted_through": accepted_at.isoformat(),
-    }

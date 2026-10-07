@@ -171,18 +171,6 @@ def observation_gap(
     )
 
 
-def contiguous_through(accepted_through: int, arrived: frozenset[int]) -> int:
-    """Return the highest contiguous sequence after adding the arrived sequences.
-
-    A missing or rejected sequence leaves the later records durable but does not
-    pretend the stream is continuous across the hole.
-    """
-    watermark = accepted_through
-    while watermark + 1 in arrived:
-        watermark += 1
-    return watermark
-
-
 def _as_json_payload(payload: Mapping[str, object]) -> Mapping[str, JsonValue]:
     """Narrow a decoded payload to the JSON value type without copying meaning."""
     narrowed: dict[str, JsonValue] = {}

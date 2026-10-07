@@ -26,12 +26,6 @@ export const restrictionRank = (outputClass: OutputClass): number => RANK[output
 export const mostRestrictive = (left: OutputClass, right: OutputClass): OutputClass =>
   RANK[left] >= RANK[right] ? left : right;
 
-/** True when the class permits a literal value to be exported. */
-export const carriesValue = (outputClass: OutputClass): boolean =>
-  outputClass === "bounded_safe_value" ||
-  outputClass === "structural_operational_safe" ||
-  outputClass === "pseudonymized";
-
 export type LengthBucket =
   | "empty"
   | "len_1_3"

@@ -80,7 +80,6 @@ export const clientRecordSchema = z.object({
   revision: z.int(),
   created_at: timestamp,
 });
-export type ClientRecord = z.infer<typeof clientRecordSchema>;
 
 export const clientMemberSchema = z.object({
   id: uuid,
@@ -187,7 +186,6 @@ export const caseConcernSchema = z.object({
   validation_criterion: text,
   established_at: timestamp,
 });
-export type CaseConcern = z.infer<typeof caseConcernSchema>;
 
 export const caseOverviewSchema = z.object({
   product_signal_id: uuid,
@@ -214,7 +212,6 @@ export const gateDecisionSchema = z.object({
   pinned_configuration_release_id: uuid,
   decided_at: timestamp,
 });
-export type GateDecision = z.infer<typeof gateDecisionSchema>;
 
 export const implementationAttemptSchema = z.object({
   id: uuid,
@@ -229,7 +226,6 @@ export const implementationAttemptSchema = z.object({
   created_at: timestamp,
   updated_at: timestamp,
 });
-export type ImplementationAttempt = z.infer<typeof implementationAttemptSchema>;
 
 export const validationAttemptSchema = z.object({
   id: uuid,
@@ -247,7 +243,6 @@ export const validationAttemptSchema = z.object({
   completed_at: absentWhenNull(timestamp),
   created_at: timestamp,
 });
-export type ValidationAttempt = z.infer<typeof validationAttemptSchema>;
 
 export const caseSessionSchema = z.object({
   id: uuid,
@@ -259,7 +254,6 @@ export const caseSessionSchema = z.object({
   closed_at: absentWhenNull(timestamp),
   closure_reason: absentWhenNull(text),
 });
-export type CaseSession = z.infer<typeof caseSessionSchema>;
 
 export const previewVersionSchema = z.object({
   id: uuid,
@@ -271,7 +265,6 @@ export const previewVersionSchema = z.object({
   base_revision: text,
   ready_at: absentWhenNull(timestamp),
 });
-export type PreviewVersion = z.infer<typeof previewVersionSchema>;
 
 export const caseStopSchema = z.object({
   recorded_at: timestamp,
@@ -280,7 +273,6 @@ export const caseStopSchema = z.object({
   client_member_id: uuid,
   staff_role: clientMemberRoleSchema,
 });
-export type CaseStop = z.infer<typeof caseStopSchema>;
 
 export const deliverySchema = z.object({
   delivery_id: uuid,
@@ -499,7 +491,6 @@ export const caseFileAmendmentsSchema = z.object({
     }),
   ),
 });
-export type CaseFileAmendments = z.infer<typeof caseFileAmendmentsSchema>;
 
 /* ------------------------------------------------------------- offers */
 

@@ -120,15 +120,6 @@ class BudgetLedger:
                 allowance=self._budgets.elapsed_seconds,
             )
 
-    def remaining_agent_turns(self) -> int:
-        """Turns the next authoring cycle may take; the harness's `max_turns`."""
-        return self._budgets.agent_turns - (self._base.agent_turns + self._agent_turns)
-
-    def remaining_agent_cost_cents(self) -> int:
-        """Spend the next authoring cycle may incur; the harness's `max_budget_usd`."""
-        return self._budgets.agent_cost_cents - (
-            self._base.agent_cost_cents + self._agent_cost_cents
-        )
 
     def consume_agent_run(self, *, turns: int, cost_cents: int) -> None:
         """Charge one authoring cycle's turns and spend, as the harness reported them."""

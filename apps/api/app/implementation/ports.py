@@ -14,7 +14,7 @@ produced the artifacts.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Annotated, Protocol
@@ -142,6 +142,3 @@ class PreviewRuntimePort(Protocol):
         ...
 
 
-def artifact_digests(references: Sequence[ArtifactReference]) -> tuple[str, ...]:
-    """Every digest in a handoff's artifact set, in the order it was given."""
-    return tuple(reference.digest.value for reference in references)

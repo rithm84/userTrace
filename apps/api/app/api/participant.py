@@ -28,6 +28,7 @@ from app.auth.dependencies import (
 )
 from app.errors import GuardRejectedError
 from app.extension.preferences import PreferencesRecord, load_preferences, update_preferences
+from app.preview.config import get_preview_settings
 from app.preview.handoff import mint_front_door_claim
 from app.preview.records import RouteReadinessState
 from app.preview.routing import route_for_session
@@ -36,9 +37,6 @@ from app.queries import load_participant_account, load_session, participant_user
 __all__ = ["router"]
 
 router = APIRouter(prefix="/v1", tags=["participant"])
-
-HANDOFF_LIFETIME_SECONDS = 120
-
 
 # The invitation claim lives in `app.api.invitations`, which owns the claim
 # completion: identity binding, the Interview Session, and the preview preparation
@@ -100,7 +98,7 @@ async def preview_handoff(
         interview_session_id=session_id,
         preview_route_id=route.preview_route_id,
         public_preview_host=route.public_preview_host,
-        lifetime_seconds=HANDOFF_LIFETIME_SECONDS,
+        lifetime_seconds=get_preview_settings().handoff_code_ttl_seconds,
     )
     return PreviewHandoffResponse(
         front_door_url=claim.url, expires_at=claim.expires_at.isoformat()

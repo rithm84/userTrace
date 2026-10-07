@@ -183,10 +183,6 @@ export function AppTag(): JSX.Element {
   );
 }
 
-export function DayDivider(props: Readonly<{ label: string }>): JSX.Element {
-  return <div className="dc-day">{props.label}</div>;
-}
-
 export function NewDivider(): JSX.Element {
   return (
     <div className="dc-new" aria-hidden="true">
@@ -252,18 +248,6 @@ export function Composer(props: Readonly<{ placeholder: string }>): JSX.Element 
       <Gift size={20} />
       <Sticker size={20} />
       <Smile size={20} />
-    </div>
-  );
-}
-
-export function DmIntro(): JSX.Element {
-  return (
-    <div className="dc-dm-intro">
-      <Avatar app size={56} />
-      <h3>
-        uTrace <AppTag />
-      </h3>
-      <p>This is the beginning of your direct message history with uTrace.</p>
     </div>
   );
 }
