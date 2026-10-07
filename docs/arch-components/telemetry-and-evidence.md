@@ -113,6 +113,10 @@ of product operations, and exposes bounded evidence views to the control plane.
 - An acknowledgement means that the authenticated batch passed the ingress
   checks and was committed to the replicated durable journal. Receipt by a load
   balancer, WebSocket process, OTLP receiver, or in-memory queue is not enough.
+- A browser batch commits in one transaction that may wait at most 30 seconds
+  between statements. Postgres ends a commit that stops making progress, which
+  releases its locks; the producer, whose acknowledgement never came, reconnects
+  and resends the batch, and that resend commits rather than waiting behind it.
 - Acknowledgement is per batch, not per record. One acknowledgement follows each
   accepted browser batch and carries the stream's highest contiguous accepted
   `export_sequence`. A missing or rejected export sequence leaves the later

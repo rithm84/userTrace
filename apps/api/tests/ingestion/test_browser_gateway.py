@@ -2,16 +2,21 @@
 
 from __future__ import annotations
 
+import asyncio
 import secrets
+import time
 from collections.abc import AsyncIterator, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from uuid import UUID
 
+import pytest
 import pytest_asyncio
 from psycopg.types.json import Jsonb
+from websockets.exceptions import ConnectionClosedError
 
 from app.db.pool import Database
 from app.ids import uuid7
+from app.ingestion import browser_gateway
 from app.settings import Settings
 from tests.ingestion.activation_client import ActivatedDocument, activate_document
 from tests.ingestion.browser_client import BrowserExporter, observation, request_started
@@ -195,6 +200,64 @@ async def test_receipt_is_durable_before_the_acknowledgement(
     assert receipts[0]["raw_artifact_id"] is not None
     assert stored is not None
     assert stored["total"] == 2
+
+
+async def test_a_stalled_commit_does_not_block_the_resend_of_its_batch(
+    active_stream: ActiveBrowserStream,
+    telemetry_database: Database,
+    ingest_websocket_url: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Postgres ends a batch transaction that stops committing, releasing its locks.
+
+    The page's exporter reconnects on a new stream and resends the same records
+    when an acknowledgement never comes; that resend must commit instead of
+    waiting behind the stalled one.
+    """
+    monkeypatch.setattr(browser_gateway, "_IDLE_IN_TRANSACTION_TIMEOUT", "1s")
+    insert = browser_gateway.store_observation
+    stalled = asyncio.Event()
+
+    async def stall_after_first_insert(*args: object, **kwargs: object) -> bool:
+        stored = await insert(*args, **kwargs)  # type: ignore[arg-type]
+        if not stalled.is_set():
+            stalled.set()
+            await asyncio.sleep(4)
+        return stored
+
+    monkeypatch.setattr(browser_gateway, "store_observation", stall_after_first_insert)
+    records = [_record(active_stream, 1), _record(active_stream, 2)]
+    resent_stream_id = uuid7()
+    resend = replace(
+        active_stream,
+        browser_stream_id=resent_stream_id,
+        scope={**active_stream.scope, "browser_stream_id": str(resent_stream_id)},
+    )
+
+    async with _exporter(active_stream, ingest_websocket_url) as first:
+        await first.open_stream(resume_from=0)
+        stalled_batch = asyncio.create_task(first.send_batch(records, batch_id=None))
+        while not stalled.is_set():
+            await asyncio.sleep(0.05)
+        started = time.monotonic()
+        async with _exporter(resend, ingest_websocket_url) as second:
+            await second.open_stream(resume_from=0)
+            ack = await second.send_batch(records, batch_id=None)
+        resent_in = time.monotonic() - started
+        with pytest.raises(ConnectionClosedError):
+            await stalled_batch
+
+    assert ack["kind"] == "ack"
+    assert ack["accepted_through_export_sequence"] == 2
+    assert resent_in < 3
+    async with telemetry_database.connection() as conn, conn.cursor() as cur:
+        await cur.execute(
+            "select browser_stream_id from public.browser_observations "
+            "where activation_id = %s",
+            (UUID(str(active_stream.document.attestation["attestation_id"])),),
+        )
+        stored = [row["browser_stream_id"] for row in await cur.fetchall()]
+    assert stored == [resent_stream_id, resent_stream_id]
 
 
 async def test_acknowledgement_holds_at_a_gap_and_advances_when_it_is_filled(

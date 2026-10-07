@@ -24,6 +24,9 @@ import { SessionControls } from "./SessionControls";
 import { TranscriptPanel } from "./TranscriptPanel";
 
 const ICE_GATHERING_TIMEOUT_MS = 5000;
+/** How many times, and how far apart, a lost voice connection is reopened before giving up. */
+const VOICE_REOPEN_ATTEMPTS = 3;
+const VOICE_REOPEN_DELAY_MS = 2000;
 
 type VoiceStatus = "idle" | "connecting" | "connected" | "failed";
 
@@ -73,6 +76,9 @@ export function SessionTab(
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>("connecting");
   const [voice, setVoice] = useState<VoiceSession | null>(null);
   const [voiceFailure, setVoiceFailure] = useState<string | null>(null);
+  // Bumped to replace the voice connection with a new one.
+  const [voiceRun, setVoiceRun] = useState(0);
+  const voiceReopens = useRef(0);
   const [notice, setNotice] = useState<string | null>(null);
   const [returned, setReturned] = useState(false);
   const [turns, setTurns] = useState<readonly TranscriptTurn[]>([]);
@@ -85,6 +91,8 @@ export function SessionTab(
   const ended = projection.state === "ended";
   const inSetup = projection.state === "participant_setup";
   const wantsVoice = !inSetup && !ended && projection.state !== "paused";
+  const reconnecting = projection.state === "reconnecting";
+  const wasReconnecting = useRef(reconnecting);
   const conversational = projection.readiness.conversational;
   const voiceStatus = describeVoice(wantsVoice, voice, voiceFailure, conversational);
   const microphoneEnabled = projection.controls.microphone === "unmuted";
@@ -112,11 +120,23 @@ export function SessionTab(
   );
 
   useEffect(() => {
+    // GPT-Live ends the call when it loses this tab's media connection, and the
+    // session then reports `reconnecting`. The session outlives any one provider
+    // connection, so a new connection replaces the lost one.
+    if (reconnecting && !wasReconnecting.current) {
+      voiceReopens.current = 0;
+      setVoiceRun((run) => run + 1);
+    }
+    wasReconnecting.current = reconnecting;
+  }, [reconnecting]);
+
+  useEffect(() => {
     if (!wantsVoice) {
       return;
     }
     let cancelled = false;
     let opened: VoiceSession | null = null;
+    let reopen: number | undefined;
 
     void (async () => {
       try {
@@ -160,6 +180,10 @@ export function SessionTab(
         if (cancelled) {
           return;
         }
+        if (voiceRun > 0 && voiceReopens.current < VOICE_REOPEN_ATTEMPTS) {
+          voiceReopens.current += 1;
+          reopen = window.setTimeout(() => setVoiceRun((run) => run + 1), VOICE_REOPEN_DELAY_MS);
+        }
         setVoiceFailure(
           error instanceof VoiceError
             ? error.message
@@ -170,10 +194,11 @@ export function SessionTab(
 
     return () => {
       cancelled = true;
+      window.clearTimeout(reopen);
       opened?.close();
       setVoice(null);
     };
-  }, [wantsVoice, sessionId, voiceTransport, acceptTranscriptDelta]);
+  }, [wantsVoice, sessionId, voiceTransport, acceptTranscriptDelta, voiceRun]);
 
   useEffect(() => {
     // Speech before the backend sideband attaches would reach GPT-Live with no
