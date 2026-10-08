@@ -48,7 +48,7 @@ dark ink color.
 | --- | --- |
 | `people` | People, customer surfaces, browsers and tabs |
 | `runtime` | uTrace control plane, workers, ingestion |
-| `reasoning` | GPT-Live, Opus 5.5, Jev |
+| `reasoning` | Voice agent, GPT-6.1 Sol, Jev |
 | `observation` | Browser SDK, Server SDK, extension, previews |
 | `external` | Providers, terminal blockers, refusals |
 | `outcome` | Validated outcomes, durable records |
@@ -86,8 +86,8 @@ cells: "Diagram title" {
 
     - Authorize current user
   | {class: [card; runtime]}
-  live: |md
-    ### GPT-Live
+  agent: |md
+    ### Voice agent
 
     - Full-duplex voice
   | {class: [card; reasoning]}
@@ -110,7 +110,7 @@ cells: "Diagram title" {
     k_outcome: "Validated · durable" {class: [key; outcome]}
   }
 
-  tab -> api: "SDP offer" {class: edge}
+  tab -> api: "open call" {class: edge}
   api -> store: "commit" {class: edge}
 }
 ```

@@ -20,6 +20,22 @@ highlighting are out of scope.
   observation, interruption, live implementation, validation, cancellation,
   blocking, delivery, and Outreach Offers against pinned fixtures, using real
   provider sandboxes where practical.
+- Opt-in live voice checks (`UTRACE_REALTIME_E2E=1`) run real calls against the
+  local stack. The browser call test runs the API, both worker lanes, and a
+  production build of the web app, and drives the real session tab in Chrome
+  under its real autoplay policy: a synthetic microphone speaks recorded lines,
+  and the test measures what the tab actually plays, including through a reload
+  and an agent that joins late. The interview quality test holds the scenario's
+  whole interview, greeting to recorded validation, with Maya played by a model
+  that hears the agent; it fails on a repeated or re-listed sentence, a second
+  greeting, a stall, or a walk back through confirmed checks, and on a judge
+  model finding repetition, a restart, a stall, or anything false.
+- Each test empties the tables it owns, so two test processes cannot share one
+  database. Live checks run side by side on separate local Supabase stacks: a copy
+  of `supabase/` with its own `project_id` and ports, started with
+  `supabase start --workdir`, gives each process its own database. Tests that bind
+  a fixed local port, such as the browser call test and the telemetry ingestion
+  tests, still run one process at a time.
 - The demo harness (`tools/demo-harness`) brings a target control plane to the
   [scenario's](../SCENARIO.md) starting state with `demo prepare`, returns a demo
   database to its pre-prepare state with `demo reset-target`, and follows the live
@@ -47,22 +63,22 @@ highlighting are out of scope.
 
 Verification uses no fixed demonstration duration. It assesses whether the agent
 gathers sufficient evidence while maintaining a fluid conversation and whether
-implementation progresses without repetitive status narration. GPT-Live transcript
+implementation progresses without repetitive status narration. Voice transcript
 fragments are provisional: they cannot prove a final utterance or that speech was
 heard.
 
 ## Provider integration checks
 
-Voice integration checks exercise the GPT-Live session handshake, direct WebRTC
-media, sideband attachment, client delegation, reconnection, and revocation.
-Reject cross-session or stale setup results and verify that browser responses
-contain no OpenAI credential.
+Voice integration checks exercise Daily room and meeting-token creation, the voice
+agent joining the call, Flux turns, the model's tool calls and gesture marks,
+playback, reconnection, and revocation. Reject cross-session or stale setup
+results and verify that browser responses contain no provider credential.
 
-Model checks run a GPT-6.1 Sol delegation tool run with the real strict function
-tools, check GPT-6.1 Sol gate proposals, intake interpretations, and Case File
-drafts against their schemas, and run the
+Model checks run the voice agent's tools against real records, check GPT-6.1 Sol
+gate proposals, intake interpretations, and Case File drafts against their
+schemas, and run the
 Codex harness in a Vercel Sandbox with the credential added at egress. Record provider configuration revisions, and measure
-browser-to-OpenAI voice latency and control-plane-to-provider model latency separately.
+the voice agent's reply latency and control-plane-to-provider model latency separately.
 
 ## Outreach Offers verification
 
@@ -75,10 +91,12 @@ sandbox/live mismatches.
 
 ## Agent cursor measurements
 
-These measurements, taken on 2026-10-06, are the evidence behind the
-[agent cursor's design](./interview-and-voice.md#jevs-interview-responsibilities):
-the target registry as the only grounding source, Jev as the judge, and judging
-every transcript fragment. Jev is served under the unversioned ID
+These measurements, taken on 2026-10-06, are the evidence behind grounding the
+[agent cursor](./interview-and-voice.md#agent-cursor) in the target registry. They
+also record the GPT-Live design it replaced, in which Jev judged every transcript
+fragment of the agent's speech; the active design places each gesture from the
+voice agent's own inline mark, measured under
+[voice and reasoning model measurements](#voice-and-reasoning-model-measurements). Jev is served under the unversioned ID
 `typesafe-ai/jev` and the Decisions API was in public beta, so these numbers are a
 dated snapshot; rerun them before changing a floor, a question, or a model.
 Latency was measured from a workstation, not from the deployed control plane.
@@ -194,9 +212,9 @@ could place gestures. Here a mention is on time when the cursor arrives between
 `gpt-realtime-2` delivers its audio seconds ahead of playback, so a gesture keyed
 to arrival is early without alignment to the audio. With pointing tools it made
 every call before speaking. Gemini 3.8 Live spoke the tool syntax aloud in 3 of
-its 11 recordings. The script-first cascade times gestures exactly but speaks
-with a second voice, so GPT-Live stays the voice. A full script-first pipeline
-with its own turn-taking was measured later; see
+its 11 recordings. The script-first cascade timed gestures exactly but spoke
+with a second voice, so GPT-Live stayed the voice until a full script-first
+pipeline with its own turn-taking was measured; see
 [voice and reasoning model measurements](#voice-and-reasoning-model-measurements).
 
 ### Measurement harness
@@ -223,18 +241,20 @@ The harness was not committed; it ran from a workstation. It consisted of:
 ## Voice and reasoning model measurements
 
 These measurements, taken on 2026-10-07 from a workstation, are the evidence
-behind keeping GPT-6.1 Sol in every
-[reasoning role](./interview-and-voice.md#conversation-and-backend-work) and
-GPT-Live as the voice. They compare Claude Haiku 5.5 (`claude-haiku-5-5`) in Sol's
-roles, and a script-first voice pipeline ("option A") in which a text model writes
-the reply with inline gesture marks, a speech engine speaks it, and the
-application owns turn-taking. Provider models change under the same names, so
+behind keeping GPT-6.1 Sol in its
+[reasoning roles](./interview-and-voice.md#conversation-and-backend-work) and
+behind the active voice design. They compare Claude Haiku 5.5 (`claude-haiku-5-5`)
+in Sol's roles, and a script-first voice pipeline ("option A") in which a text
+model writes the reply with inline gesture marks, a speech engine speaks it, and
+the application owns turn-taking. Option A, built on Pipecat with Sonnet 5.5 and
+Eleven v4 Turbo, is the active [voice agent](./interview-and-voice.md#conversation-and-backend-work);
+GPT-Live with delegation to Sol is the baseline it replaced. Provider models change under the same names, so
 these numbers are a dated snapshot; rerun them before changing a model or a
 pipeline.
 
 ### Claude Haiku 5.5 in Sol's roles
 
-Sol ran each role as production pins it: `gpt-6.1-sol` on the Fast tier, at low
+Sol ran each role as `gpt-6.1-sol` on the Fast tier, at low
 effort for gate proposals, delegations, and code work, and medium for intake and
 Case File drafting. Haiku ran every role at low, medium, and high effort, each
 with adaptive thinking and with thinking disabled; its code work ran through the
@@ -341,10 +361,11 @@ the Text to Dialogue WebSocket.
 Flux's thresholds trade speed for cut-off turns. Over 22 turns each, the
 participant's last speech to Flux's end of turn took a median 665 ms at
 `eot_threshold` 0.5 with `eager_eot_threshold` 0.3, with two transcripts cut short;
-747 ms at 0.6 and 0.4, all complete; and 995 ms at 0.7 and 0.5. Option A uses 0.6
-and 0.4.
+747 ms at 0.6 and 0.4, all complete; and 995 ms at 0.7 and 0.5. Option A used 0.6
+and 0.4 with Sonnet, and uses 0.7 and 0.4 with Sol (see
+[GPT-6.1 Sol Ultrafast as the voice text model](#gpt-61-sol-ultrafast-as-the-voice-text-model)).
 
-The current architecture, recorded on the server during the live realtime
+The GPT-Live baseline, recorded on the server during the live realtime
 tests, replied a median 1.45 s after the participant's last speech (p90
 4.0 s, 103 replies). Each stretch of agent speech counts as a reply, so a
 delegated answer counts from the participant's last speech even when a holding
@@ -358,7 +379,8 @@ filters across 14 sessions.
 
 Option A was then built with full-duplex turn-taking on Pipecat 1.12.0, from its
 own components: Flux turn events with eager end of turn, Sonnet 5.5, ElevenLabs'
-Text to Dialogue service with Eleven v4 Turbo, and the WebRTC transport. A user
+Text to Dialogue service with Eleven v4 Turbo, and Pipecat's WebRTC transport.
+Production runs the same pipeline over Daily's transport. A user
 turn interrupts the agent, the context keeps only the words that were played,
 and a pattern aggregator splits the marks out of the text. Four pieces are
 uTrace's own:
@@ -379,7 +401,8 @@ uTrace's own:
   waiting.
 - The page holds each circle back by the audio's measured lag, from the server's
   "bot started speaking" message to that reply's audio being heard, so the
-  cursor lands as the word begins.
+  cursor lands as the word begins. Production dispatches each circle through the
+  extension's visual-command path instead, without this delay.
 
 A scripted participant joined over WebRTC as a browser would and spoke
 synthesized lines in real time: a long ask with two backchannels during the
@@ -402,7 +425,7 @@ OpenAI's cloud.
 The reply rows are not comparable. Option A's first audio is its answer. Without
 the sideband, nothing answers GPT-Live's delegations, so its first audio was often
 the holding phrase, and no answer followed to be timed. With delegations answered,
-the current architecture's p90 is 4.0 seconds (see above).
+the GPT-Live baseline's p90 is 4.0 seconds (see above).
 
 Option A's reply time divides into Flux's end of turn (a median 1.02 seconds after
 the participant's last speech reached the bot), the reply's first audio leaving
@@ -442,27 +465,13 @@ own turn decisions, which the client cannot see; GPT-Live's come from its audio.
 Option A therefore depends on echo cancellation removing the agent's voice
 before Flux hears it.
 
-### Option A over Daily, end to end
+### Whole interviews
 
-On 2026-10-08 option A ran as a production voice agent over Daily, with its own
-call handling (a reload rejoins the same call, the agent introduces itself once
-per session, the tab plays audio under Chrome's autoplay policy) and its own
-turn-taking rules. Its tests were committed with it and left with it when
-GPT-Live was restored; both are in the repository's history at `30ba891`.
-
-A browser test drove the real session tab in Chrome under its autoplay policy,
-with the API, both worker lanes, and a production build of the web app. The
-greeting was heard 5.9 seconds after the tab opened. A reload rejoined the same
-call and agent, and the agent welcomed the participant back without introducing
-itself again. With the agent started 40 seconds late, the tab connected once and
-the greeting was heard 1.3 seconds after it did, with one connection and one agent.
-Each circle left as its word played: of the six filters named in a recap, every
-circle was dispatched within 10 ms of its word.
-
-An interview quality test held the scenario's whole interview over a live call:
-Maya was played by `claude-sonnet-5-5`, hearing the agent's played words and
-answering through synthesized speech; a terse persona answered in as few words as
-it could; `claude-opus-5-5` judged each transcript. Each row is one interview,
+On 2026-10-08 the interview quality test held the scenario's whole interview on a
+workstation's local stack, over a live Daily call with the production pipeline and
+tools. Maya was played by `claude-sonnet-5-5`, hearing the agent's played words
+and answering through synthesized speech; a terse persona answered in as few words
+as it could; `claude-opus-5-5` judged each transcript. Each row is one interview,
 and each design keeps the changes of the rows above it. Reply time runs from the
 end of the participant's speech to the agent's first played word.
 
@@ -475,15 +484,71 @@ end of the participant's speech to the agent's first played word.
 | It lets them finish validating before asking | Terse | none | 9, 9 | none | 1.93 s | 7.20 s |
 | It acknowledges before recording | Maya | none | 9, 9 | none | 1.62 s | 2.39 s |
 | It acknowledges before recording | Terse | none | 9, 9 | none | 1.69 s | 2.54 s |
+| GPT-6.1 Sol Ultrafast writes its words | Maya | none | 9, 9 | none | 1.73 s | 3.18 s |
+| GPT-6.1 Sol Ultrafast writes its words | Terse | none | 6, 6 | wrong, over-confirmation, awkward | 1.80 s | 3.03 s |
+| It names filters that stayed and treats an example name as an example | Maya | none | 9, 9 | none | 1.01 s | 1.69 s |
+| It names filters that stayed and treats an example name as an example | Terse | none | 7, 7 | repetition, over-confirmation, awkward | 1.21 s | 2.06 s |
+| End of turn at 0.7, and an interrupted reply finishes in a whole sentence (active) | Maya | none | 8, 9 | none | 1.46 s | 2.17 s |
+| End of turn at 0.7, and an interrupted reply finishes in a whole sentence (active) | Terse | none | 8, 9 | none | 1.36 s | 2.04 s |
 
 Over the three rounds in which the acknowledgement came first, 5 of 6 interviews
-passed; the failure was two mild repetitions, a restated check list and an echoed
-thanks. Recorded silently, an agreement was acknowledged 5.6 seconds after the
-participant agreed; said first, 1.0 second after, with the recording running
-while it played. Thinking only between tool calls answered about as fast, but in
-two of four rounds the model spoke its reasoning aloud; adaptive thinking at low
-effort never did. The GPT-Live baseline above replied at a p50 of 1.45 seconds and
-a p90 of 4.0 seconds.
+passed; the failure, before the last instruction changes, was two mild
+repetitions: a restated check list and an echoed thanks. Recorded silently, an
+agreement was acknowledged 5.6 seconds after the participant agreed; said first,
+1.0 second after, with the recording running while it played. Thinking only
+between tool calls answered about as fast, but in two of four rounds the model
+spoke its reasoning aloud ("They've confirmed save, reopen..."); adaptive thinking
+at low effort never did. The GPT-Live baseline replied at a p50 of 1.45 seconds
+and a p90 of 4.0 seconds (see above).
+
+### GPT-6.1 Sol Ultrafast as the voice text model
+
+GPT-6.1 Sol on the Ultrafast tier replaced Claude Sonnet 5.5 in the same pipeline,
+through the Responses API over one WebSocket per call. Sol accepts no reasoning
+effort below `low`, and Pipecat requests `none` unless the effort is set. In the
+nine-scenario text-stage benchmark Sol marked every required control exactly in
+36 of 36 runs with the mark before its words, the form the agent uses.
+
+A reply's time splits into Flux's end of turn and the agent's own part. From
+Flux's committed end of turn, the agent's first audio took:
+
+| Text model | Interviews | End of turn to first text, p50 / p90 | First text to first audio, p50 / p90 | End of turn to first audio, p50 / p90 |
+| --- | --- | --- | --- | --- |
+| `claude-sonnet-5-5`, adaptive thinking, low effort, `eot_threshold` 0.6 | 8 | 0.71 s / 1.35 s | 0.17 s / 0.48 s | 1.04 s / 1.57 s |
+| `gpt-6.1-sol`, low effort, Ultrafast tier, `eot_threshold` 0.6 | 10 | 0.42 s / 0.74 s | 0.19 s / 0.31 s | 0.62 s / 0.94 s |
+| `gpt-6.1-sol`, low effort, Ultrafast tier, `eot_threshold` 0.7 | 6 | 0.29 s / 0.77 s | 0.18 s / 0.25 s | 0.52 s / 0.96 s |
+
+Sol's reply begins at Flux's eager end of turn, so most of it is written before
+the turn is committed; the rest of a reply's time is Flux waiting for the turn to
+end. A faster reply also reaches a participant's pause between sentences sooner.
+At `eot_threshold` 0.6, Flux ended 18 percent of turns that the participant then
+continued within two seconds (12 percent with Sonnet), and in 13 of 186 turns Sol's
+audio had started, for up to 0.4 seconds, before they went on (1 of 129 with
+Sonnet). At 0.7 Flux ended 5 percent of turns early, and the agent's audio started
+in 3 of 92, for at most 0.05 seconds. Because Sol's reply is ready by the later
+commit, replies took a median 1.22 seconds and a p90 of 1.89 seconds at 0.7 over
+six interviews, against 1.27 and 2.12 seconds at 0.6 over ten, 1.60 and 2.56
+seconds with Sonnet over eight, and 1.45 and 4.0 seconds for the GPT-Live
+baseline. The agent uses 0.7.
+
+Sol writes typographic apostrophes ("I’m"), so the echo guard and the tests'
+checks compare words with apostrophes normalized. In two interviews Sol said the
+date range was All. The test listed the date range control as showing All, where
+the dashboard opens on Last 30 days, and the activity Sol was given named only the
+values that changed, so the date range, which stayed at Last 30 days through the
+reload and the reopened view, never appeared. The test now lists Last 30 days, and
+the activity feed names the values that stayed whenever several change at once. Sol also wrote a check about saving under a name the
+participant had offered only as an example, and twice finished a goodbye the
+participant had talked over by picking up mid-sentence; the instructions now rule
+out both.
+
+The browser call test passed both scenarios with Sol: the greeting was heard 4.6
+seconds after the tab opened, a reload rejoined the same call and agent, and an
+agent started 40 seconds late joined one connection without a loop. The four
+other live realtime tests passed.
+
+In Codex, the same investigation task took 9.2 seconds on the Ultrafast tier and
+19.1 seconds on the Fast tier, at $0.51 against $0.19.
 
 ### Voice and model measurement harness
 
@@ -501,7 +566,7 @@ of:
   streamed to Flux in 80 ms chunks in real time, with every turn's speech end,
   Flux events, first token, first audio, and mark timing recorded; a check of each
   speech engine's character timing against Deepgram `nova-3` word timestamps; and
-  a pytest plugin that recorded the current architecture's audio, transcript
+  a pytest plugin that recorded the GPT-Live baseline's audio, transcript
   fragments, and gestures during the live realtime tests.
 - For full duplex: a Python WebRTC participant (`aiortc`) that speaks the same
   synthesized lines in real time, optionally mixes the agent's audio back into its
@@ -513,7 +578,7 @@ of:
 
 ## Operational observability
 
-OpenTelemetry traces cover Vercel-to-control-plane requests, Supabase operations, GPT-Live session delegation, GPT-6.1 Sol and Jev calls, Discord, GitHub, and Stripe adapters, Vercel Sandbox workspaces and harness runs, and preview routing. Trace context joins operational spans to typed business IDs without placing sensitive content in span attributes. Durable events and evidence remain the authoritative audit path.
+OpenTelemetry traces cover Vercel-to-control-plane requests, Supabase operations, the voice agent's Daily, Deepgram, and ElevenLabs calls, GPT-6.1 Sol and Jev calls, Discord, GitHub, and Stripe adapters, Vercel Sandbox workspaces and harness runs, and preview routing. Trace context joins operational spans to typed business IDs without placing sensitive content in span attributes. Durable events and evidence remain the authoritative audit path.
 
 The web surfaces report to Vercel Observability. Always-on tracing samples every production request to `utrace-web`, `@vercel/otel` adds Next.js framework and outbound fetch spans, and Web Analytics and Speed Insights record page views and Core Web Vitals. A reported page URL carries route parameters in place of identifiers and no query string, because an invitation path holds a bearer token and query strings hold OAuth codes. The preview front door runs none of this instrumentation: it forwards the browser's `traceparent` untouched, and a second injector fails its propagation probe.
 

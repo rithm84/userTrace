@@ -62,10 +62,11 @@ CODEX_ROOT: Final[str] = "/opt/utrace/codex"
 CODEX_BINARY: Final[str] = f"{CODEX_ROOT}/node_modules/.bin/codex"
 
 CODEX_MODEL_CATALOG: Final[str] = f"{CODEX_ROOT}/models.json"
-"""Codex's own catalog for the pinned release, with GPT-6 Astra's `ultrafast` tier added.
+"""Codex's own catalog for the pinned release, with the `ultrafast` tier added to GPT-6
+Astra and GPT-6.1 Sol.
 
 Codex sends a service tier only when the model's catalog entry advertises it, and the
-release bundled with the CLI lists only `priority` for Astra."""
+release bundled with the CLI lists only `priority` for both."""
 
 PLACEHOLDER_API_KEY: Final[str] = "utrace-injected-at-egress"
 """What the sandbox's `CODEX_API_KEY` holds: never a credential.

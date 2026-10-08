@@ -1,45 +1,53 @@
 ...@_style
 vars: {d2-config: {layout-engine: tala}}
 
-title: "GPT-Live · backend setup, direct browser media" {class: title}
+title: "Voice call · backend setup, one private Daily room" {class: title}
 
 session_tab: |md
   ### Session tab
 
   - Authenticated originating user
-  - Create offer; apply answer
+  - Pipecat client + Daily transport
 | {class: [card; people]}
 
 fastapi: |md
   ### FastAPI · Supabase Compute
 
   - Authorize current user
-  - Bind session + revision
-  - Keep the OpenAI key server-side
+  - Rejoin the running call, or replace an ended one
+  - Keep provider keys server-side
 | {class: [card; runtime]}
 
-gpt_live: |md
-  ### GPT-Live · OpenAI API
+daily: |md
+  ### Daily
 
-  - gpt-live-1 session
-  - Conversation + client delegation
+  - One private room per connection
+  - Expires and ejects everyone
+| {class: [card; external]}
+
+voice_agent: |md
+  ### Worker voice lane · voice agent
+
+  - interview.voice_agent Job
+  - Flux · Sol Ultrafast · ElevenLabs
 | {class: [card; reasoning]}
 
-session_tab -> fastapi: "SDP offer" {class: edge}
-fastapi -> gpt_live: "create session" {class: edge}
-gpt_live -> fastapi: "SDP answer" {class: edge}
-fastapi -> session_tab: "SDP answer" {class: edge}
-fastapi <-> gpt_live: "Sideband WebSocket" {class: edge}
-session_tab <-> gpt_live: "WebRTC audio + data channel" {class: edge}
+session_tab -> fastapi: "open connection" {class: edge}
+fastapi -> daily: "create room, or eject stale tab + token" {class: edge}
+fastapi -> session_tab: "room URL + meeting token" {class: edge}
+fastapi -> voice_agent: "queue Job" {class: edge}
+session_tab <-> daily: "WebRTC audio + RTVI events" {class: edge}
+voice_agent <-> daily: "joins with owner token" {class: edge}
 
 key: "" {
   near: bottom-center
   class: legend
   grid-rows: 1
-  grid-columns: 3
+  grid-columns: 4
   horizontal-gap: 16
   vertical-gap: 12
   k_people: "People · customer surfaces" {class: [key; people]}
   k_runtime: "uTrace control plane" {class: [key; runtime]}
   k_reasoning: "Reasoning models" {class: [key; reasoning]}
+  k_external: "External · blocked" {class: [key; external]}
 }

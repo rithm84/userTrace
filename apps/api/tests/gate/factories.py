@@ -465,7 +465,7 @@ async def approve_agreed_change(
 
     The decision row is written directly; authorizing the attempt runs the real
     lifecycle, which commits `implementation_attempt_authorized` and wakes the case's
-    live sideband. Returns the attempt's identifier.
+    voice agent. Returns the attempt's identifier.
     """
     decision_id = uuid7()
     window_id = uuid7()

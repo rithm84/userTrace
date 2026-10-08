@@ -23,18 +23,24 @@ import { SessionCharacter } from "./SessionCharacter";
 import { SessionControls } from "./SessionControls";
 import { TranscriptPanel } from "./TranscriptPanel";
 
-const ICE_GATHERING_TIMEOUT_MS = 5000;
-/** How many times, and how far apart, a lost voice connection is reopened before giving up. */
-const VOICE_REOPEN_ATTEMPTS = 3;
-const VOICE_REOPEN_DELAY_MS = 2000;
+/** How long the tab gives itself to join the voice call's room. */
+const VOICE_JOIN_TIMEOUT_MS = 20_000;
+/**
+ * How many times in a row a lost voice connection is reopened before the tab asks
+ * the participant to reconnect: at once, then after `VOICE_REOPEN_DELAY_MS`, three
+ * times that, and so on. A call that stays up for `VOICE_STABLE_MS` resets the count.
+ */
+const VOICE_REOPEN_ATTEMPTS = 4;
+const VOICE_REOPEN_DELAY_MS = 1000;
+const VOICE_STABLE_MS = 30_000;
 
 type VoiceStatus = "idle" | "connecting" | "connected" | "failed";
 
 /**
- * How the call is carried: GPT-Live over WebRTC, or the fixture's replayed
- * conversation when the control plane is the in-repository fixture.
+ * How the call is carried: a Daily call with the voice agent, or the fixture's
+ * replayed conversation when the control plane is the in-repository fixture.
  */
-export type VoiceTransport = "webrtc" | "fixture";
+export type VoiceTransport = "daily" | "fixture";
 
 /** The rig's canvas size: large on a roomy screen, smaller when height or width is short. */
 const CHARACTER_SIZE = { roomy: 300, compact: 200 } as const;
@@ -58,7 +64,7 @@ function useCharacterSize(): number {
  * It renders what the control plane's durable projection says and nothing it
  * inferred. Supabase Realtime only delivers newer revisions of that projection,
  * a control is applied from the revision the control plane returns, and voice
- * runs over WebRTC whose offer the uTrace API answers.
+ * runs over a Daily call the uTrace API opens.
  */
 /** Which runtime the session's preview serves: the base, or the candidate ready for validation. */
 type PreviewRuntimeStage = "base" | "candidate";
@@ -76,6 +82,10 @@ export function SessionTab(
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>("connecting");
   const [voice, setVoice] = useState<VoiceSession | null>(null);
   const [voiceFailure, setVoiceFailure] = useState<string | null>(null);
+  // The browser refused to play the agent's voice until the participant interacts.
+  const [audioBlocked, setAudioBlocked] = useState(false);
+  // Reopening failed too many times in a row; the participant reconnects by hand.
+  const [voiceGaveUp, setVoiceGaveUp] = useState(false);
   // Bumped to replace the voice connection with a new one.
   const [voiceRun, setVoiceRun] = useState(0);
   const voiceReopens = useRef(0);
@@ -119,16 +129,61 @@ export function SessionTab(
     [sessionId, acceptProjection],
   );
 
+  const playAgent = useCallback((): void => {
+    const element = audio.current;
+    if (element === null) return;
+    element.play().then(
+      () => setAudioBlocked(false),
+      (error: unknown) => {
+        if (error instanceof DOMException && error.name === "NotAllowedError") {
+          setAudioBlocked(true);
+        } else if (!(error instanceof DOMException && error.name === "AbortError")) {
+          setNotice(
+            `uTrace could not play the agent's voice: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+      },
+    );
+  }, []);
+
   useEffect(() => {
-    // GPT-Live ends the call when it loses this tab's media connection, and the
-    // session then reports `reconnecting`. The session outlives any one provider
-    // connection, so a new connection replaces the lost one.
+    // Any interaction lets the browser play the agent's voice, so the first one
+    // anywhere on the tab unlocks it, not only the "Turn on sound" button.
+    if (!audioBlocked) return;
+    window.addEventListener("pointerdown", playAgent);
+    window.addEventListener("keydown", playAgent);
+    return () => {
+      window.removeEventListener("pointerdown", playAgent);
+      window.removeEventListener("keydown", playAgent);
+    };
+  }, [audioBlocked, playAgent]);
+
+  /** Reopen the voice connection after a delay, unless it has failed too many times in a row. */
+  const reopenVoice = useCallback((): number | undefined => {
+    const attempt = voiceReopens.current;
+    if (attempt >= VOICE_REOPEN_ATTEMPTS) {
+      setVoiceFailure("The voice call could not be restored.");
+      setVoiceGaveUp(true);
+      return undefined;
+    }
+    voiceReopens.current = attempt + 1;
+    return window.setTimeout(
+      () => setVoiceRun((run) => run + 1),
+      VOICE_REOPEN_DELAY_MS * (2 ** attempt - 1),
+    );
+  }, []);
+
+  useEffect(() => {
+    // The voice agent ends the call once this tab has been gone from it for a
+    // while, and the session then reports `reconnecting`: the session outlives
+    // any one call, so a new connection replaces the ended one.
+    let reopen: number | undefined;
     if (reconnecting && !wasReconnecting.current) {
-      voiceReopens.current = 0;
-      setVoiceRun((run) => run + 1);
+      reopen = reopenVoice();
     }
     wasReconnecting.current = reconnecting;
-  }, [reconnecting]);
+    return () => window.clearTimeout(reopen);
+  }, [reconnecting, reopenVoice]);
 
   useEffect(() => {
     if (!wantsVoice) {
@@ -137,6 +192,7 @@ export function SessionTab(
     let cancelled = false;
     let opened: VoiceSession | null = null;
     let reopen: number | undefined;
+    let stable: number | undefined;
 
     void (async () => {
       try {
@@ -148,26 +204,28 @@ export function SessionTab(
           return;
         }
         const session = await connectVoice({
-          exchangeOffer: async (sdpOffer: string) => {
-            const result = await openVoiceConnection(sessionId, sdpOffer);
+          openConnection: async () => {
+            const result = await openVoiceConnection(sessionId);
             if (!result.ok) {
-              throw new VoiceError("negotiation_failed", result.message, {});
+              throw new VoiceError("join_failed", result.message, {});
             }
             return result.value;
           },
-          onRemoteStream: (stream) => {
+          onAgentAudio: (track) => {
             if (audio.current !== null) {
-              audio.current.srcObject = stream;
+              audio.current.srcObject = new MediaStream([track]);
+              playAgent();
             }
           },
-          onConnectionStateChange: (state) => {
-            if (state === "failed" || state === "disconnected") {
-              setVoiceFailure("The voice connection dropped. uTrace is trying to restore it.");
-            }
+          onDisconnected: () => {
+            if (cancelled) return;
+            setVoiceFailure("The voice connection dropped. uTrace is trying to restore it.");
+            window.clearTimeout(stable);
+            reopen = reopenVoice();
           },
           onTranscriptDelta: acceptTranscriptDelta,
-          onEventRejected: setNotice,
-          iceGatheringTimeoutMs: ICE_GATHERING_TIMEOUT_MS,
+          onNotice: setNotice,
+          joinTimeoutMs: VOICE_JOIN_TIMEOUT_MS,
         });
         if (cancelled) {
           session.close();
@@ -176,14 +234,14 @@ export function SessionTab(
         opened = session;
         setVoice(session);
         setVoiceFailure(null);
+        stable = window.setTimeout(() => {
+          voiceReopens.current = 0;
+        }, VOICE_STABLE_MS);
       } catch (error) {
         if (cancelled) {
           return;
         }
-        if (voiceRun > 0 && voiceReopens.current < VOICE_REOPEN_ATTEMPTS) {
-          voiceReopens.current += 1;
-          reopen = window.setTimeout(() => setVoiceRun((run) => run + 1), VOICE_REOPEN_DELAY_MS);
-        }
+        reopen = reopenVoice();
         setVoiceFailure(
           error instanceof VoiceError
             ? error.message
@@ -195,14 +253,15 @@ export function SessionTab(
     return () => {
       cancelled = true;
       window.clearTimeout(reopen);
+      window.clearTimeout(stable);
       opened?.close();
       setVoice(null);
     };
-  }, [wantsVoice, sessionId, voiceTransport, acceptTranscriptDelta, voiceRun]);
+  }, [wantsVoice, sessionId, voiceTransport, acceptTranscriptDelta, voiceRun, playAgent, reopenVoice]);
 
   useEffect(() => {
-    // Speech before the backend sideband attaches would reach GPT-Live with no
-    // durable transcript, so the microphone opens only once the backend listens.
+    // Speech before the voice agent's pipeline attaches would have no durable
+    // transcript, so the microphone opens only once the backend listens.
     voice?.setMicrophoneEnabled(microphoneEnabled && conversational);
   }, [voice, microphoneEnabled, conversational]);
 
@@ -335,6 +394,17 @@ export function SessionTab(
             {projection.agent_name}, a product agent helping the {projection.client_name} team.
           </p>
 
+          {audioBlocked ? (
+            <button
+              type="button"
+              className="pr-btn ss-preview"
+              onClick={playAgent}
+              data-testid="session-audio-unlock"
+            >
+              Turn on sound
+            </button>
+          ) : null}
+
           {projection.implementation_progress === null ? null : (
             <ProgressTrail progress={projection.implementation_progress} />
           )}
@@ -362,7 +432,21 @@ export function SessionTab(
           )}
           {voiceFailure === null ? null : (
             <p className="pr-message" role="status" data-testid="session-voice-failure">
-              {voiceFailure}
+              {voiceFailure}{" "}
+              {voiceGaveUp ? (
+                <button
+                  type="button"
+                  className="pr-link"
+                  onClick={() => {
+                    voiceReopens.current = 0;
+                    setVoiceGaveUp(false);
+                    setVoiceRun((run) => run + 1);
+                  }}
+                  data-testid="session-voice-retry"
+                >
+                  Reconnect
+                </button>
+              ) : null}
             </p>
           )}
           {notice === null ? null : (
@@ -388,7 +472,7 @@ export function SessionTab(
         agentColour={projection.agent_character}
         live={voiceStatus === "connected"}
       />
-      <audio ref={audio} autoPlay data-testid="session-audio" />
+      <audio ref={audio} data-testid="session-audio" />
     </div>
   );
 }

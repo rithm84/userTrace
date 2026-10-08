@@ -53,13 +53,14 @@ the agents what happened.
 
 ## The agent cursor
 
-![The voice agent speaks, Jev decides which on-screen control its latest words name, and the extension circles it.](docs/diagrams/svg/readme-cursor.svg)
+![The voice agent writes a mark before the words that name a control, and the extension circles that control as the words play.](docs/diagrams/svg/readme-cursor.svg)
 
-While the agent recaps a request or walks through a new version, its latest
-words are judged at every transcript fragment for the control they name, and the
-browser extension circles that control in the customer's preview while the
-words are heard. Controls, chart points, table rows, and reviews are all
-declared targets in the page's registry, so no screenshot is read.
+While the agent recaps a request, walks through a new version, or shows the
+customer where something is, its text model puts a mark with the control's ID
+before the words that name it. The mark is never spoken: as the next word plays,
+the browser extension circles that control in the customer's preview. Controls,
+chart points, table rows, and reviews are all declared targets in the page's
+registry, so no screenshot is read.
 
 ## Stack
 
@@ -69,9 +70,9 @@ declared targets in the page's registry, so no screenshot is read.
 | Data, auth, realtime, storage, queues | Supabase |
 | Web surfaces and preview front door | Next.js on Vercel |
 | Previews and coding workspaces | Vercel Sandbox |
-| Voice | OpenAI GPT-Live |
+| Voice | Pipecat on Daily: Deepgram Flux, GPT-6.1 Sol Ultrafast, ElevenLabs |
 | Reasoning and code changes | OpenAI GPT-6.1 Sol in Codex |
-| Intake and cursor decisions | TypeSafe AI Jev |
+| Intake and attention decisions | TypeSafe AI Jev |
 | Delivery | GitHub draft PRs, Stripe invoice credits, Discord |
 
 ## Repository map

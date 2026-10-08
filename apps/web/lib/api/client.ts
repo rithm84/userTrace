@@ -88,7 +88,7 @@ export interface ControlPlaneClient {
   getSession(sessionId: string): Promise<InterviewSession>;
   getSessionProjection(sessionId: string): Promise<SessionProjection>;
   submitPreflight(sessionId: string, report: PreflightReport): Promise<PreflightResult>;
-  createVoiceConnection(sessionId: string, sdpOffer: string): Promise<VoiceConnectionRecord>;
+  createVoiceConnection(sessionId: string): Promise<VoiceConnectionRecord>;
   sendControl(sessionId: string, action: SessionControlAction): Promise<SessionControlAck>;
   requestPreviewHandoff(sessionId: string): Promise<PreviewHandoff>;
   requestBindingOffer(sessionId: string): Promise<BindingOffer>;
@@ -246,11 +246,11 @@ export class HttpControlPlaneClient implements ControlPlaneClient {
     );
   }
 
-  createVoiceConnection(sessionId: string, sdpOffer: string): Promise<VoiceConnectionRecord> {
+  createVoiceConnection(sessionId: string): Promise<VoiceConnectionRecord> {
     return this.#write(
       "POST",
       `/v1/sessions/${segment(sessionId)}/voice/connections`,
-      { sdp_offer: sdpOffer },
+      null,
       voiceConnectionSchema,
     );
   }

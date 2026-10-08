@@ -229,7 +229,7 @@ async def test_a_scope_change_during_the_judgement_has_the_flow_judged_again(
                 client_id=case.client_id,
                 product_signal_id=case.product_signal_id,
                 interview_session_id=session_id,
-                purpose=BundlePurpose.VOICE_DELEGATION,
+                purpose=BundlePurpose.VOICE_TOOLS,
                 budget_items=32,
                 observations=(),
                 extra_items=(),

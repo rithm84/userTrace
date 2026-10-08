@@ -20,8 +20,8 @@ are outside the demo.
 ## Enforcement model
 
 The coding agent, GPT-6.1 Sol in Codex, performs implementation reasoning and
-coding inside a Vercel Sandbox workspace. Delegation answers during the interview
-may provide retrieval or explanation and Jev may return typed semantic-attention
+coding inside a Vercel Sandbox workspace. The voice agent's tools may read
+observed activity and record agreements, and Jev may return typed semantic-attention
 results, but neither can write code or authorize an effect. The control plane
 alone approves the Implementation Attempt, grants its fenced Environment Lease,
 accepts artifacts, and advances durable state.
@@ -51,11 +51,13 @@ template with the model catalog of that release. The control plane runs one
 `codex exec` per investigation or authoring cycle as the sandbox's non-root user,
 and pins its configuration in a Codex home written for that run:
 
-- model `gpt-6.1-sol` at low reasoning effort on the Fast service tier. On the
-  demo's change it matched GPT-6 Astra on the Fast tier at a sixth of the cost,
+- model `gpt-6.1-sol` at low reasoning effort: on the Ultrafast service tier for an
+  Implementation Attempt, which the participant waits on, and on the Fast tier for
+  code investigation, which runs during the interview. On the demo's change, Sol
+  on the Fast tier matched GPT-6 Astra on the Fast tier at a sixth of the cost,
   and ran about 30 seconds behind Astra on the Ultrafast tier at a seventeenth.
-  The template's catalog adds Astra's `ultrafast` tier, because Codex requests
-  only the tiers a model's catalog entry lists.
+  The template's catalog adds the `ultrafast` tier to Astra and Sol, because Codex
+  requests only the tiers a model's catalog entry lists.
 - the pinned checkout as the working directory, and a JSON Schema for the run's
   final report
 - Codex's own sandbox off: its read-only and write modes need bubblewrap, which a
@@ -143,7 +145,7 @@ No worker dispatches before commit. Workers recheck current authority and execut
 limits before new steps and enforce limits on in-flight work. Resume preserves all
 consumption; it never recreates an attempt to bypass a limit.
 
-Live implementation runs concurrently with the conversation. Once the gate approves, implementation and checks may proceed while GPT-Live continues a fluid interview. The agent does not narrate every command or progress change. Orchestration supplies the active conversation, critical facts, accepted corrections, current telemetry, and implementation updates to the relevant model roles so they work from the same revisioned context.
+Live implementation runs concurrently with the conversation. Once the gate approves, implementation and checks may proceed while the voice agent continues a fluid interview. The agent does not narrate every command or progress change. Orchestration supplies the active conversation, critical facts, accepted corrections, current telemetry, and implementation updates to the relevant model roles so they work from the same revisioned context.
 
 ## Conversation, pause, and interruption
 
@@ -165,7 +167,7 @@ The coding agent investigates code using filesystem search and exact file reads 
 the pinned revision inside Vercel Sandbox. The Product Overview describes the
 product; it is not a code index. Every inspected
 file and revision is recorded as provenance. Candidate files suggested by
-delegation answers or Jev, and the pre-gate findings the gate cited, are
+Jev, and the pre-gate findings the gate cited, are
 hints until the workspace reads the exact source.
 
 ## Required checks and scope control

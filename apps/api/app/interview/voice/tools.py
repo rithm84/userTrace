@@ -1,30 +1,29 @@
-"""The tools the application executes on GPT-6.1 Sol's behalf during a delegation.
+"""The tools the application executes on the voice agent's behalf.
 
-GPT-Live delegates to uTrace's backend, and the backend runs GPT-6.1 Sol with these
-tools as Responses API function tools. Every one of them is an application-executed function: the model names a
-tool and its typed arguments, code performs the work under the control plane's
-own authority, and the result is returned as data.
+The voice agent's text model calls these during the conversation. Every one of them
+is an application-executed function: the model names a tool and its typed
+arguments, code performs the work under the control plane's own authority, and the
+result is returned as data. Each call runs against a context bundle assembled for
+it, so a recorded agreement cites the conversation as it stood.
 
 Two rules shape every tool here:
 
-- Nothing returns internal implementation detail. Retrieved documents, observed
-  activity, and implementation state come back as customer-appropriate findings,
-  because what a tool returns can be spoken aloud.
-- No tool grants authority. A visual gesture still passes policy, permission,
-  readiness, and target-freshness checks; recorded claims and criteria are
-  written as typed, source-linked records.
+- Nothing returns internal implementation detail. Observed activity and
+  implementation state come back as customer-appropriate findings, because what a
+  tool returns can be spoken aloud.
+- No tool grants authority. Recorded claims and criteria are written as typed,
+  source-linked records, and the control plane's own guards decide what they start.
 """
 
 import json
 import re
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Final
 from uuid import UUID
 
-from openai.types.responses import FunctionToolParam
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from utrace_contracts.domain.lifecycle import (
     CriterionObservability,
     EvidenceClaimState,
@@ -32,7 +31,6 @@ from utrace_contracts.domain.lifecycle import (
 )
 
 from app.adapters.telemetry_evidence import TelemetryEvidenceQuery
-from app.connectors.typesafe_jev import JevClient
 from app.context.bundles import AssembledBundle
 from app.db.pool import Database
 from app.db.rows import as_optional_str, as_str
@@ -46,18 +44,7 @@ from app.interview.agreements import (
     record_change_request,
 )
 from app.interview.evidence import record_claim
-from app.interview.gesture_attention import select_visual_target
-from app.interview.judgements import AttentionResult
 from app.interview.observations import describe_activity, recent_activity
-from app.interview.ports import TargetRegistryPort
-from app.interview.voice.pointing import (
-    POINT_DWELL_MS,
-    bound_document_attachment,
-    circle_step,
-    gesture_at,
-    point_step,
-    target_option,
-)
 from app.logging import get_logger
 from app.validation.evidence import EvidenceStance
 from app.validation.session import (
@@ -91,43 +78,62 @@ _CRITERIA_SCHEMA: Final[dict[str, object]] = {
     },
 }
 
-__all__ = ["TOOL_DEFINITIONS", "ToolContext", "execute_tool"]
+__all__ = [
+    "TOOL_DEFINITIONS",
+    "ToolContext",
+    "ToolDefinition",
+    "answer_follows",
+    "execute_tool",
+    "progress_in_words",
+    "refused",
+]
+
+#: Tools the agent answers from: once one returns, it speaks or takes its next step.
+_CONTINUING_TOOLS: Final[frozenset[str]] = frozenset(
+    {"review_observed_activity", "implementation_status", "begin_validation"}
+)
+#: Tools whose recorded outcome the application follows at once with a cue of its own:
+#: a recorded validation outcome is followed by the closing.
+_CUED_TOOLS: Final[frozenset[str]] = frozenset({"record_validation_outcome"})
+#: The keys of a result that says the call did not do what was asked.
+_REFUSALS: Final[tuple[str, ...]] = ("error", "refused", "unavailable")
 
 _log = get_logger(__name__)
 
-_NO_TARGET = "no_target"
-_TARGET_LIMIT = 24
 _OBSERVATION_LIMIT = 20
-_GESTURES = ("point", "circle")
 _WORKFLOW_PATTERN = re.compile(r"[a-z][a-z0-9_]{2,63}")
 
 
 @dataclass(frozen=True, slots=True)
 class ToolContext:
-    """Everything one delegation's tools may touch, supplied explicitly."""
+    """Everything one tool call may touch, supplied explicitly."""
 
     database: Database
     client_id: UUID
     product_signal_id: UUID
     interview_session_id: UUID
     bundle: AssembledBundle
-    targets: TargetRegistryPort | None
-    jev: JevClient | None
-    visual_command_deadline_seconds: int
     observation_window_seconds: int
 
 
-TOOL_DEFINITIONS: tuple[FunctionToolParam, ...] = (
-    {
-        "type": "function",
-        "name": "review_observed_activity",
-        "description": (
+@dataclass(frozen=True, slots=True)
+class ToolDefinition:
+    """One tool as the model sees it: a name, what it is for, and its JSON Schema."""
+
+    name: str
+    description: str
+    parameters: Mapping[str, object]
+
+
+TOOL_DEFINITIONS: tuple[ToolDefinition, ...] = (
+    ToolDefinition(
+        name="review_observed_activity",
+        description=(
             "Return what uTrace observed in the person's product session recently, "
             "as plain summaries. Use it to ground a question about what they just "
             "did, never to describe internals."
         ),
-        "strict": True,
-        "parameters": {
+        parameters={
             "type": "object",
             "properties": {
                 "limit": {
@@ -140,47 +146,15 @@ TOOL_DEFINITIONS: tuple[FunctionToolParam, ...] = (
             "required": ["limit"],
             "additionalProperties": False,
         },
-    },
-    {
-        "type": "function",
-        "name": "point_at_product_element",
-        "description": (
-            "Point the agent cursor at, or circle, one element the person can see, "
-            "described in their own words. Use it whenever the person asks you to "
-            "show, point at, circle, or highlight something. The application chooses "
-            "the registered target and refuses if none matches."
-        ),
-        "strict": True,
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "description": {
-                    "type": "string",
-                    "description": "The element as the person would describe it.",
-                },
-                "gesture": {
-                    "type": "string",
-                    "enum": list(_GESTURES),
-                    "description": (
-                        "point moves the cursor onto the element; circle draws a mark "
-                        "around it that stays until the next gesture."
-                    ),
-                },
-            },
-            "required": ["description", "gesture"],
-            "additionalProperties": False,
-        },
-    },
-    {
-        "type": "function",
-        "name": "record_evidence_claim",
-        "description": (
+    ),
+    ToolDefinition(
+        name="record_evidence_claim",
+        description=(
             "Record what the person established, as a claim citing this "
             "conversation. Use `confirmed` only for a deliberate, criterion-bound "
             "confirmation."
         ),
-        "strict": True,
-        "parameters": {
+        parameters={
             "type": "object",
             "properties": {
                 "statement": {"type": "string"},
@@ -192,16 +166,15 @@ TOOL_DEFINITIONS: tuple[FunctionToolParam, ...] = (
             "required": ["statement", "claim_state"],
             "additionalProperties": False,
         },
-    },
-    {
-        "type": "function",
-        "name": "record_acceptance_criteria",
-        "description": (
+    ),
+    ToolDefinition(
+        name="record_acceptance_criteria",
+        description=(
             "Freeze the agreed scope and its observable acceptance criteria once the "
-            "person has agreed to them out loud."
+            "person has agreed to them out loud. Say that it is agreed first, in the "
+            "same reply, before calling this."
         ),
-        "strict": True,
-        "parameters": {
+        parameters={
             "type": "object",
             "properties": {
                 "agreed_outcome": {"type": "string"},
@@ -218,19 +191,17 @@ TOOL_DEFINITIONS: tuple[FunctionToolParam, ...] = (
             "required": ["agreed_outcome", "workflow", "criteria"],
             "additionalProperties": False,
         },
-    },
-    {
-        "type": "function",
-        "name": "record_requested_change",
-        "description": (
+    ),
+    ToolDefinition(
+        name="record_requested_change",
+        description=(
             "While the person tries a new version, record a change they asked for in "
             "it once they have agreed it out loud: the whole change as it now stands "
             "and the checks that now apply, earlier checks included unless the change "
             "replaces them. The application builds the next version while the "
             "voice agent waits in silence. Refused when the case has used all its versions."
         ),
-        "strict": True,
-        "parameters": {
+        parameters={
             "type": "object",
             "properties": {
                 "agreed_outcome": {
@@ -247,57 +218,32 @@ TOOL_DEFINITIONS: tuple[FunctionToolParam, ...] = (
             "required": ["agreed_outcome", "workflow", "criteria"],
             "additionalProperties": False,
         },
-    },
-    {
-        "type": "function",
-        "name": "begin_validation",
-        "description": (
+    ),
+    ToolDefinition(
+        name="begin_validation",
+        description=(
             "Begin or resume validating the person's ready preview. Validation "
             "normally begins by itself once the new version is ready, so this is "
             "needed only when it has not. Returns the agreed criteria, in order."
         ),
-        "strict": True,
-        "parameters": {
+        parameters={
             "type": "object",
             "properties": {},
             "required": [],
             "additionalProperties": False,
         },
-    },
-    {
-        "type": "function",
-        "name": "cite_validation_evidence",
-        "description": (
-            "Cite one observation from review_observed_activity as showing what the "
-            "product did for one criterion during validation. Cite only what was "
-            "observed; the application refuses anything outside this validation."
-        ),
-        "strict": True,
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "criterion_ordinal": {"type": "integer", "minimum": 0},
-                "observation_id": {"type": "string"},
-                "stance": {"type": "string", "enum": ["supports", "contradicts"]},
-                "summary": {
-                    "type": "string",
-                    "description": "What the product did, in one plain sentence.",
-                },
-            },
-            "required": ["criterion_ordinal", "observation_id", "stance", "summary"],
-            "additionalProperties": False,
-        },
-    },
-    {
-        "type": "function",
-        "name": "record_validation_outcome",
-        "description": (
+    ),
+    ToolDefinition(
+        name="record_validation_outcome",
+        description=(
             "Record the person's answer for every criterion once they have answered "
-            "each one out loud. Never record an answer they did not give; use "
-            "`unsure` when they did not settle it."
+            "each one out loud, each with the observations from "
+            "review_observed_activity that show what the product did for it. Never "
+            "record an answer they did not give; use `unsure` when they did not "
+            "settle it. Cite an observation as contradicting a criterion only when "
+            "the product did something other than it says for what they actually did."
         ),
-        "strict": True,
-        "parameters": {
+        parameters={
             "type": "object",
             "properties": {
                 "answers": {
@@ -307,7 +253,11 @@ TOOL_DEFINITIONS: tuple[FunctionToolParam, ...] = (
                     "items": {
                         "type": "object",
                         "properties": {
-                            "criterion_ordinal": {"type": "integer", "minimum": 0},
+                            "check_number": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "description": "The agreed check's number, as the application lists it.",
+                            },
                             "answer": {
                                 "type": "string",
                                 "enum": ["confirmed", "rejected", "unsure"],
@@ -316,8 +266,28 @@ TOOL_DEFINITIONS: tuple[FunctionToolParam, ...] = (
                                 "type": "string",
                                 "description": "What the person said, close to their words.",
                             },
+                            "evidence": {
+                                "type": "array",
+                                "maxItems": 4,
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "observation_id": {"type": "string"},
+                                        "stance": {
+                                            "type": "string",
+                                            "enum": ["supports", "contradicts"],
+                                        },
+                                        "summary": {
+                                            "type": "string",
+                                            "description": "What the product did, in one plain sentence.",
+                                        },
+                                    },
+                                    "required": ["observation_id", "stance", "summary"],
+                                    "additionalProperties": False,
+                                },
+                            },
                         },
-                        "required": ["criterion_ordinal", "answer", "statement"],
+                        "required": ["check_number", "answer", "statement", "evidence"],
                         "additionalProperties": False,
                     },
                 },
@@ -325,22 +295,20 @@ TOOL_DEFINITIONS: tuple[FunctionToolParam, ...] = (
             "required": ["answers"],
             "additionalProperties": False,
         },
-    },
-    {
-        "type": "function",
-        "name": "implementation_status",
-        "description": (
+    ),
+    ToolDefinition(
+        name="implementation_status",
+        description=(
             "Return the current user-facing progress of any work uTrace is doing for "
             "this person, in plain language."
         ),
-        "strict": True,
-        "parameters": {
+        parameters={
             "type": "object",
             "properties": {},
             "required": [],
             "additionalProperties": False,
         },
-    },
+    ),
 )
 
 
@@ -356,8 +324,6 @@ async def execute_tool(
     parsed = arguments
     if name == "review_observed_activity":
         return await _review_observed_activity(context, parsed)
-    if name == "point_at_product_element":
-        return await _point_at_product_element(context, parsed)
     if name == "record_evidence_claim":
         return await _record_evidence_claim(context, parsed)
     if name == "record_acceptance_criteria":
@@ -368,8 +334,6 @@ async def execute_tool(
         return await _implementation_status(context)
     if name == "begin_validation":
         return await _begin_validation(context)
-    if name == "cite_validation_evidence":
-        return await _cite_validation_evidence(context, parsed)
     if name == "record_validation_outcome":
         return await _record_validation_outcome(context, parsed)
     return _result({"error": f"no tool named {name!r}"})
@@ -403,89 +367,6 @@ async def _review_observed_activity(
             ]
         }
     )
-
-
-async def _point_at_product_element(
-    context: ToolContext, arguments: Mapping[str, object]
-) -> str:
-    """Select the registered target a description means and gesture at it."""
-    description = str(arguments.get("description", "")).strip()
-    if not description:
-        return _result({"error": "description is required"})
-    gesture = str(arguments.get("gesture", ""))
-    if gesture not in _GESTURES:
-        return _result({"error": f"gesture must be one of {list(_GESTURES)}"})
-    return _result(
-        await _gesture(
-            context,
-            gesture=gesture,
-            select=lambda targets: select_visual_target(
-                context.database,
-                _require_jev(context),
-                bundle=context.bundle,
-                description=description,
-                targets=targets,
-            ),
-        )
-    )
-
-
-async def _gesture(
-    context: ToolContext,
-    *,
-    gesture: str,
-    select: Callable[[Mapping[str, str]], Awaitable[AttentionResult]],
-) -> Mapping[str, JsonValue]:
-    """Choose one registered target with ``select`` and dispatch one gesture scene."""
-    if context.targets is None:
-        return {"refused": "target_registry_not_wired"}
-    if context.jev is None:
-        return {"refused": "target_selection_not_configured"}
-    document_attachment_id = await bound_document_attachment(
-        context.database, interview_session_id=context.interview_session_id
-    )
-    if document_attachment_id is None:
-        return {"refused": "no_current_binding"}
-    candidates = await context.targets.registered_targets(
-        client_id=context.client_id,
-        interview_session_id=context.interview_session_id,
-        document_attachment_id=document_attachment_id,
-        limit=_TARGET_LIMIT,
-    )
-    if not candidates:
-        return {"refused": "no_registered_targets"}
-
-    selection = await select(
-        {candidate.target_id: target_option(candidate) for candidate in candidates}
-    )
-    chosen = selection.selections.get("visual_target::selection")
-    if not selection.accepted or chosen is None or chosen == _NO_TARGET:
-        return {"refused": "no_matching_target", "detail": selection.detail}
-    target = next(candidate for candidate in candidates if candidate.target_id == chosen)
-    outcome = await gesture_at(
-        context.database,
-        client_id=context.client_id,
-        interview_session_id=context.interview_session_id,
-        steps=[
-            point_step(target, dwell_ms=POINT_DWELL_MS)
-            if gesture == "point"
-            else circle_step(target)
-        ],
-        deadline_seconds=context.visual_command_deadline_seconds,
-    )
-    if "refused" in outcome:
-        return outcome
-    return {
-        "pointed_at" if gesture == "point" else "circled": target.description,
-        **outcome,
-    }
-
-
-def _require_jev(context: ToolContext) -> JevClient:
-    """The Jev client `_gesture` already checked is configured."""
-    if context.jev is None:
-        raise RuntimeError("target selection ran without a configured Jev client")
-    return context.jev
 
 
 async def _record_evidence_claim(context: ToolContext, arguments: Mapping[str, object]) -> str:
@@ -659,7 +540,7 @@ async def _begin_validation(context: ToolContext) -> str:
         {
             "criteria": [
                 {
-                    "criterion_ordinal": criterion.ordinal,
+                    "check_number": criterion.ordinal + 1,
                     "statement": criterion.statement,
                     "observability": criterion.observability.value,
                 }
@@ -670,53 +551,42 @@ async def _begin_validation(context: ToolContext) -> str:
 
 
 class _Citation(BaseModel):
-    """One observation the model proposes as validation evidence."""
+    """One observation the model proposes as validation evidence for an answer."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    criterion_ordinal: int
     observation_id: UUID
     stance: EvidenceStance
     summary: str
 
 
-async def _cite_validation_evidence(
-    context: ToolContext, arguments: Mapping[str, object]
-) -> str:
-    """Promote one proposed observation after the controller checks it."""
-    try:
-        citation = _Citation.model_validate(arguments)
-    except ValidationError as error:
-        return _result({"error": f"the citation failed validation: {error.error_count()}"})
-    try:
-        evidence_id = await cite_session_observation(
-            context.database,
-            TelemetryEvidenceQuery(context.database),
-            interview_session_id=context.interview_session_id,
-            ordinal=citation.criterion_ordinal,
-            observation_id=citation.observation_id,
-            stance=citation.stance,
-            summary=citation.summary,
-        )
-    except ControlPlaneError as refusal:
-        return _result({"refused": "citation_rejected", "detail": str(refusal)})
-    return _result({"recorded_evidence_id": str(evidence_id)})
-
-
 class _Answer(BaseModel):
-    """One criterion answer as the model supplied it."""
+    """One criterion answer as the model supplied it, with its evidence.
+
+    The model numbers the agreed checks from 1, as people count; the controller's
+    criterion ordinals start at 0.
+    """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    criterion_ordinal: int
+    check_number: int = Field(ge=1)
     answer: CriterionAnswer
     statement: str
+    evidence: tuple[_Citation, ...]
+
+    @property
+    def criterion_ordinal(self) -> int:
+        return self.check_number - 1
 
 
 async def _record_validation_outcome(
     context: ToolContext, arguments: Mapping[str, object]
 ) -> str:
-    """Complete validation from the person's criterion-level answers."""
+    """Cite each answer's evidence, then complete validation from the answers.
+
+    One call does both, so recording the person's answers is one step for the agent
+    rather than a citation per check followed by the outcome.
+    """
     raw = arguments.get("answers")
     if not isinstance(raw, list) or not raw:
         return _result({"error": "at least one answer is required"})
@@ -724,10 +594,31 @@ async def _record_validation_outcome(
         answers = [_Answer.model_validate(item) for item in raw]
     except ValidationError as error:
         return _result({"error": f"an answer failed validation: {error.error_count()}"})
+    evidence = TelemetryEvidenceQuery(context.database)
+    for answer in answers:
+        for citation in answer.evidence:
+            try:
+                await cite_session_observation(
+                    context.database,
+                    evidence,
+                    interview_session_id=context.interview_session_id,
+                    ordinal=answer.criterion_ordinal,
+                    observation_id=citation.observation_id,
+                    stance=citation.stance,
+                    summary=citation.summary,
+                )
+            except ControlPlaneError as refusal:
+                return _result(
+                    {
+                        "refused": "citation_rejected",
+                        "check_number": answer.check_number,
+                        "detail": str(refusal),
+                    }
+                )
     try:
         completion = await finish_session_validation(
             context.database,
-            TelemetryEvidenceQuery(context.database),
+            evidence,
             interview_session_id=context.interview_session_id,
             answers=[
                 SpokenAnswer(
@@ -743,6 +634,39 @@ async def _record_validation_outcome(
     except ControlPlaneError as refusal:
         return _result({"refused": "validation_not_recorded", "detail": str(refusal)})
     return _result({"outcome": completion.outcome.value})
+
+
+def refused(result: object) -> bool:
+    """Whether a tool call's result says it did not do what was asked.
+
+    A result that is not this module's JSON object is Pipecat's stand-in for a call
+    whose handler raised.
+    """
+    return not isinstance(result, Mapping) or any(key in result for key in _REFUSALS)
+
+
+def answer_follows(name: str, *, refused: bool, answer_spoke: bool) -> bool:
+    """Whether the agent speaks again once a tool's result is in.
+
+    It does after a refusal, to fix the call or tell the person what they need to
+    do, and after a tool it answers from. A recorded validation outcome is followed
+    at once by the application's closing cue. Anything else it records, a claim,
+    an agreement, or a requested change, it speaks after only if the answer that
+    recorded it said nothing: the person is never left in silence, and never hears
+    a second turn after one that already answered them. What an agreement or a
+    requested change leads to, the application announces once the Implementation
+    Gate decides.
+    """
+    if refused or name in _CONTINUING_TOOLS:
+        return True
+    if name in _CUED_TOOLS:
+        return False
+    return not answer_spoke
+
+
+def progress_in_words(progress: str) -> str:
+    """The change's recorded implementation progress, as the person is told it."""
+    return _PROGRESS_LANGUAGE[progress]
 
 
 _PROGRESS_LANGUAGE: Mapping[str, str] = {

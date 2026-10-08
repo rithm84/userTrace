@@ -8,7 +8,7 @@ The following diagram shows the layers that constrain untrusted input, model pro
 
 ## Prompt injection and model containment
 
-Discord content, product text, documentation, repository files, telemetry labels, transcripts, and provider responses are untrusted data. They are source-tagged, minimized, and separated from system policy and tool schemas. GPT-Live, GPT-6.1 Sol, the coding agent, and Jev may propose speech, attention, retrieval, scope, code, and actions; none may authorize itself, mutate lifecycle state directly, or turn quoted text into a command.
+Discord content, product text, documentation, repository files, telemetry labels, transcripts, and provider responses are untrusted data. They are source-tagged, minimized, and separated from system policy and tool schemas. The voice agent, GPT-6.1 Sol, the coding agent, and Jev may propose speech, attention, retrieval, scope, code, and actions; none may authorize itself, mutate lifecycle state directly, or turn quoted text into a command.
 
 The control plane validates every proposed effect against authenticated actor, pinned configuration, current state revision, evidence sufficiency, Autonomy Policy, target identity, budget, and idempotency key. Tool outputs return typed data. Secrets are excluded before model context assembly. Prompt injection detected in one source cannot expand retrieval or network scope.
 
@@ -50,11 +50,12 @@ Client data is encrypted in transit and at rest. Supabase RLS, explicit membersh
 
 Long-lived credentials remain in the control plane's [credential custody](./deployment.md#secrets-and-credentials). Supabase service-role and secret keys, GitHub private keys, Discord secrets, model credentials, and Vercel tokens never enter browsers or model context. Short-lived lane credentials are audience-bound and revoked with the session.
 
-The OpenAI API key remains in backend adapters, and the workspace
-sandbox receives the OpenAI credential only as a header its firewall adds at
-egress. Participant authentication authorizes the
-[voice setup route](./interview-and-voice.md#webrtc-session-setup); it does not
-grant access to provider endpoints or other provider sessions. Provider processing
+The OpenAI, Daily, Deepgram, and ElevenLabs API keys remain in backend
+adapters, and the workspace sandbox receives the OpenAI credential only as a header
+its firewall adds at egress. Participant authentication authorizes the
+[call setup route](./interview-and-voice.md#call-setup); its meeting token admits
+the browser to that connection's room only, not to provider endpoints or other
+rooms. Provider processing
 follows the [data contract](./data-and-schema.md#model-data-and-cleanup).
 
 ## Audit
