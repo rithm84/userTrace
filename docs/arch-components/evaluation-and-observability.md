@@ -195,7 +195,9 @@ could place gestures. Here a mention is on time when the cursor arrives between
 to arrival is early without alignment to the audio. With pointing tools it made
 every call before speaking. Gemini 3.8 Live spoke the tool syntax aloud in 3 of
 its 11 recordings. The script-first cascade times gestures exactly but speaks
-with a second voice, so GPT-Live stays the voice.
+with a second voice, so GPT-Live stays the voice. A full script-first pipeline
+with its own turn-taking was measured later; see
+[voice and reasoning model measurements](#voice-and-reasoning-model-measurements).
 
 ### Measurement harness
 
@@ -217,6 +219,254 @@ The harness was not committed; it ran from a workstation. It consisted of:
 - Labeled recap, debrief, delegation, acknowledgement, and intake clauses, split
   into calibration and held-out sets, scored with the production acceptance
   rules.
+
+## Voice and reasoning model measurements
+
+These measurements, taken on 2026-10-07 from a workstation, are the evidence
+behind keeping GPT-6.1 Sol in every
+[reasoning role](./interview-and-voice.md#conversation-and-backend-work) and
+GPT-Live as the voice. They compare Claude Haiku 5.5 (`claude-haiku-5-5`) in Sol's
+roles, and a script-first voice pipeline ("option A") in which a text model writes
+the reply with inline gesture marks, a speech engine speaks it, and the
+application owns turn-taking. Provider models change under the same names, so
+these numbers are a dated snapshot; rerun them before changing a model or a
+pipeline.
+
+### Claude Haiku 5.5 in Sol's roles
+
+Sol ran each role as production pins it: `gpt-6.1-sol` on the Fast tier, at low
+effort for gate proposals, delegations, and code work, and medium for intake and
+Case File drafting. Haiku ran every role at low, medium, and high effort, each
+with adaptive thinking and with thinking disabled; its code work ran through the
+Claude Agent SDK. Each structured role answered frozen production inputs four
+times. The five Implementation Gate
+cases are an approval, a terminated preview environment, missing evidence, an
+exhausted Implementation Attempt budget, and another account's data.
+
+| Configuration | Gate proposals correct | Gate after controller checks | Gate p50 / p90 | Case File drafts verified | Case File p50 | Intake correct | Intake p50 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Sol, production efforts | 18/20 | 20/20 | 4.6 s / 10.7 s | 4/4 | 18.1 s | 16/16 | 2.1 s |
+| Haiku, low, adaptive | 12/20 | 20/20 | 6.2 s / 8.9 s | 3/4 | 9.5 s | 16/16 | 2.0 s |
+| Haiku, medium, adaptive | 12/20 | 19/20 | 7.3 s / 11.3 s | 4/4 | 11.5 s | 16/16 | 2.7 s |
+| Haiku, high, adaptive | 12/20 | 18/20 | 11.2 s / 14.2 s | 4/4 | 15.6 s | 16/16 | 2.7 s |
+| Haiku, low, thinking disabled | 6/20 | 18/20 | 3.4 s / 4.0 s | 4/4 | 7.9 s | 16/16 | 1.7 s |
+| Haiku, medium, thinking disabled | 6/20 | 17/20 | 3.3 s / 4.0 s | 3/4 | 7.8 s | 16/16 | 1.6 s |
+| Haiku, high, thinking disabled | 6/20 | 18/20 | 3.3 s / 4.3 s | 4/4 | 7.7 s | 16/16 | 1.6 s |
+
+Every Haiku configuration proposed live implementation in every run for the
+terminated environment and the missing evidence; Sol refused the first in 4 of 4
+runs and the second in 2 of 4. With thinking disabled, Haiku also approved the exhausted budget in every run and the
+other account's data in half. The gate controller's own checks caught most of
+these, but a proposal is not meant to depend on them. A structured Haiku call
+cost about USD 0.001.
+
+Delegations answered GPT-Live during the live realtime tests
+(`test_realtime_voice_live`, `test_realtime_journey_live`, and
+`test_realtime_vague_ask_live`), with each model in turn answering:
+
+| Delegation model | Answers | p50 | p90 | Slowest | Tests passed |
+| --- | --- | --- | --- | --- | --- |
+| Sol, low | 35 | 3.3 s | 7.0 s | 7.9 s | 10/12 |
+| Haiku, low, adaptive | 18 | 4.6 s | 6.3 s | 16.9 s | 5/6 |
+| Haiku, low, thinking disabled | 15 | 5.6 s | 22.2 s | 29.9 s | 4/6 |
+| Haiku, medium, adaptive | 9 | 5.2 s | 7.9 s | 7.9 s | 3/3 |
+| Haiku, high, adaptive | 5 | 9.6 s | 11.4 s | 11.4 s | 2/3 |
+
+Each model failed both of the same two tests at least once. Two of Haiku's four
+failures ended with GPT-Live saying "One moment" and never giving the answer,
+and a third never answered at all.
+
+Code work ran three times per configuration on the Saved Conversion Views change.
+Investigation counts how many of the eight files the production change touches
+were cited, every cited range having been verified; implementation counts runs
+whose candidate passed the acceptance suite.
+
+| Harness and model | Investigation p50 | Needed files cited | Implementation passed | Time to candidate, p50 | Cost per implementation |
+| --- | --- | --- | --- | --- | --- |
+| Codex, Sol, low | 18 s | 7, 7, 8 | 3/3 | 72 s | USD 0.34 |
+| Agent SDK, Haiku, low, adaptive | 21 s | 6, 7, 6 | 3/3 | 110 s | USD 0.024 |
+| Agent SDK, Haiku, medium, adaptive | 21 s | 6, 7, 6 | 3/3 | 106 s | USD 0.027 |
+| Agent SDK, Haiku, high, adaptive | 45 s | 6, 6, 6 | 3/3 | 148 s | USD 0.030 |
+| Agent SDK, Haiku, low, thinking disabled | 14 s | 5, 6, 6 | 2/3 | 72 s | USD 0.016 |
+
+The failed run stopped to report that the change needed a wider scope. With
+thinking on, Haiku implemented as reliably at under a tenth of the cost, but took
+half again as long or more, and cited fewer of the needed files.
+
+### Script-first voice with gesture marks
+
+The text model receives production's interview instructions with delegation
+replaced by an `<application>` block of on-screen controls under short handles
+(`T1`, `T2`, ...), and writes a mark before the words that name a control
+(`<c id="T5"/>the channel filter`) or wrapped around them. Nine scenarios, run four
+times each, cover the recap, a vague ask, a request to be shown a control, a
+question about which control is the segment, the debrief, and four moments that
+must not circle anything. A run is exact when it marks every required control,
+nothing outside the allowed set, and no malformed mark.
+
+| Text model | Exact, mark before | Exact, mark around | First token p50 |
+| --- | --- | --- | --- |
+| `claude-sonnet-5-5`, `between_tools` thinking, low effort | 34/36 | 36/36 | 732 ms |
+| `gpt-6.1-sol`, low, Fast tier | 36/36 | 32/36 | 872 ms |
+| `gemini-3.8-flash`, low thinking | 36/36 | 35/36 | 1,454 ms |
+| `gpt-6-luna`, no reasoning, Fast tier | 31/36 | 31/36 | 557 ms |
+| `gemini-3.5-flash-lite`, minimal thinking | 30/36 | 31/36 | 791 ms |
+| `claude-haiku-5-5`, low, thinking disabled | 30/36 | 27/36 | 585 ms |
+| `claude-haiku-5-5`, low, adaptive | 28/36 | 27/36 | 463 ms |
+
+End to end, a scripted participant's synthesized speech streamed in real time to
+Deepgram Flux (`flux-general-en`), whose eager end of turn started the text
+model; the text, marks removed, streamed to ElevenLabs. Each configuration ran
+two 12-turn interviews. Reply latency runs from the participant's last speech
+(RMS at least 0.01) to the first audio from ElevenLabs, before any network to a
+listener.
+
+| Text model | Speech engine | Marks | Reply p50 | Reply p90 | Required circles | Circles not asked for | Words per walkthrough step |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Sonnet 5.5 | Eleven v4 Turbo | Before | 1.63 s | 2.23 s | 18/18 | 0 | 1.0 |
+| Sonnet 5.5 | Eleven Flash v2.5 | Before | 1.96 s | 2.59 s | 18/18 | 0 | 1.0 |
+| Sol | Eleven v4 Turbo | Before | 1.85 s | 2.43 s | 18/18 | 0 | 1.0 |
+| Haiku 5.5, thinking disabled | Eleven v4 Turbo | Before | 1.26 s | 1.75 s | 16/18 | 0 | 23.8 |
+| `gpt-6-luna` | Eleven v4 Turbo | Around | 1.50 s | 2.02 s | 7/18 | 0 | 11.9 |
+| `gemini-3.5-flash-lite` | Eleven v4 Turbo | Around | 1.78 s | 2.41 s | 10/18 | 8 | 15.1 |
+
+Words per walkthrough step should be one ("Mm-hmm"); Haiku narrated the
+participant's steps. A circle lands on its word only as well as the speech
+engine's character timing matches the audio. Against Deepgram `nova-3` word
+timestamps on the same audio, Eleven v4 Turbo's timing was off by a median 53 ms
+(p90 193 ms), Flash v2.5 by 23 ms (p90 69 ms), and Eleven v4 ran a median 350 ms
+ahead of its audio, which rules it out. Eleven v4 and v4 Turbo stream only over
+the Text to Dialogue WebSocket.
+
+Flux's thresholds trade speed for cut-off turns. Over 22 turns each, the
+participant's last speech to Flux's end of turn took a median 665 ms at
+`eot_threshold` 0.5 with `eager_eot_threshold` 0.3, with two transcripts cut short;
+747 ms at 0.6 and 0.4, all complete; and 995 ms at 0.7 and 0.5. Option A uses 0.6
+and 0.4.
+
+The current architecture, recorded on the server during the live realtime
+tests, replied a median 1.45 s after the participant's last speech (p90
+4.0 s, 103 replies). Each stretch of agent speech counts as a reply, so a
+delegated answer counts from the participant's last speech even when a holding
+phrase came first. The 21 replies slower than 2.5 s were all delegated recaps,
+proposals, and answers waiting on Sol; 18 of them followed a quick "One moment".
+Its recap circles arrived a median 517 ms
+after their word (p90 742 ms, 62 circles), and the recaps circled 49 of the 56
+filters across 14 sessions.
+
+### Full-duplex turn-taking
+
+Option A was then built with full-duplex turn-taking on Pipecat 1.12.0, from its
+own components: Flux turn events with eager end of turn, Sonnet 5.5, ElevenLabs'
+Text to Dialogue service with Eleven v4 Turbo, and the WebRTC transport. A user
+turn interrupts the agent, the context keeps only the words that were played,
+and a pattern aggregator splits the marks out of the text. Four pieces are
+uTrace's own:
+
+- While the agent talks, an utterance opens a turn only once its new words are
+  neither a backchannel ("mm-hmm", "yeah", "right", "okay") nor echo. Echo means
+  no speech-level audio at the participant's microphone during the utterance, or
+  words that replay the agent's last four seconds in order. A backchannel that
+  outlasts the agent's reply opens the turn, because it may answer a question.
+- Text reaches the speech engine a whole word at a time instead of a sentence at
+  a time, and the first clause of each reply is flushed, because Eleven v4 Turbo
+  otherwise holds about 40 characters before it speaks. Together these saved
+  roughly 0.4 seconds before the first audio.
+- Pipecat releases a mark once the audio before it has been handed to the
+  transport, which ran a median 200 ms (up to 720 ms) before its word played.
+  Each gesture is instead sent with its word's text frame, which the transport
+  releases on its playout clock, and an interruption drops gestures still
+  waiting.
+- The page holds each circle back by the audio's measured lag, from the server's
+  "bot started speaking" message to that reply's audio being heard, so the
+  cursor lands as the word begins.
+
+A scripted participant joined over WebRTC as a browser would and spoke
+synthesized lines in real time: a long ask with two backchannels during the
+reply, a short answer, a sentence with a 1.4-second pause in the middle, a cut-in
+during the new version's walkthrough, and a cut-in 0.25 seconds into a reply.
+GPT-Live, created as production creates it but without the sideband, heard the
+same lines. With production's instructions and no delegation answers its
+replies stay short, so its cut-ins and backchannels were measured on 30-second
+monologues instead. All times are as the participant's client received the
+audio, after both network legs; option A ran on the same workstation, GPT-Live in
+OpenAI's cloud.
+
+| Clean audio | Option A | GPT-Live |
+| --- | --- | --- |
+| First audio after the participant's last speech, p50 / p90 | 2.03 s / 2.44 s (32 replies) | 1.78 s / 2.43 s (32 replies), often only "One moment" |
+| Silent after a cut-in, p50 / p90 | 0.74 s / 0.84 s (8 mid-walkthrough), 0.73 s / 0.82 s (8 at a reply's start) | 1.17 s / 1.48 s (19 mid-monologue) |
+| Backchannels that stopped the agent | 0/11 | 7/20 |
+| Agent heard during a 1.4-second pause | 0/8 | 0/8 |
+
+The reply rows are not comparable. Option A's first audio is its answer. Without
+the sideband, nothing answers GPT-Live's delegations, so its first audio was often
+the holding phrase, and no answer followed to be timed. With delegations answered,
+the current architecture's p90 is 4.0 seconds (see above).
+
+Option A's reply time divides into Flux's end of turn (a median 1.02 seconds after
+the participant's last speech reached the bot), the reply's first audio leaving
+the bot (0.86 seconds later, with Sonnet's first token at a median 0.81 seconds
+and the speech engine's first audio at 0.15 seconds), and 0.16 seconds of network
+and jitter buffer. A cut-in took 0.10 seconds to reach the bot, 0.51 seconds for
+Flux to report the turn, no measurable time to decide, and 0.13 seconds until the
+participant heard silence. When Flux ended a turn during the pause, the reply was
+cancelled before any of it played.
+
+Across the 8 clean option A runs, 28 gestures fired, each as its word started on
+the server. Their messages reached the client a median 164 ms before the word's
+audio, and with the page's delay the circle landed a median 2 ms before the word
+was heard (largest error 47 ms, 90th percentile 19 ms). No gesture fired after an
+interruption, and in all 73 assistant turns the context held exactly the words
+played, with the marks of the gestures shown. Asked where the save button is, the
+agent circled it in 8 of 8 runs. Asked to show the segment filter, it circled the
+filter in 5 of the 7 runs whose reply reached the control's name before the
+participant cut in; in the other 2 it named the filter without a mark.
+
+Echo is the open problem. The participant's microphone carried the agent's own
+audio, mixed in 60 ms late at 20 or 30 dB below the agent's level, standing in for
+what a browser's echo cancellation fails to remove.
+
+| Echo at the microphone | Option A: silent after a cut-in, p50 | Option A: backchannels that interrupted | Option A: echo utterances ignored | GPT-Live: silent after a cut-in, p50 | GPT-Live: backchannels that stopped it |
+| --- | --- | --- | --- | --- | --- |
+| None | 0.74 s | 0/11 | none occurred | 1.17 s | 7/20 |
+| 30 dB below | 0.80 s | 4/7 | 22 | 1.63 s | 3/8 |
+| 20 dB below | 1.86 s, and 1 of 4 never stopped it | 3/5 | 19 | 1.28 s | 1/8 |
+
+Flux transcribes leaked echo, often misheard ("Ruth" for "Wren", "Shore" for
+"short"), and folds it into the same turn as a backchannel spoken over it, so the
+echo's words are credited to the participant. GPT-Live hears its own output: echo
+slowed its cut-ins at 30 dB below but did not make it stop on backchannels more
+often. Option A's backchannel counts here come from its
+own turn decisions, which the client cannot see; GPT-Live's come from its audio.
+Option A therefore depends on echo cancellation removing the agent's voice
+before Flux hears it.
+
+### Voice and model measurement harness
+
+These harnesses were not committed; they ran from a workstation. They consisted
+of:
+
+- For Haiku: the five gate cases, a Case File drafting bundle, and intake
+  contexts frozen from production inputs and run through production's own
+  prompts and schemas; a pytest plugin that swapped the delegation model inside
+  the live realtime tests; and a code benchmark that ran Codex and the Claude
+  Agent SDK against the same Shopalytics checkout and acceptance suite.
+- For option A's text stage: the nine scenarios with their required and allowed
+  controls, scored per run.
+- For option A end to end: participant lines synthesized with `gpt-4o-mini-tts`,
+  streamed to Flux in 80 ms chunks in real time, with every turn's speech end,
+  Flux events, first token, first audio, and mark timing recorded; a check of each
+  speech engine's character timing against Deepgram `nova-3` word timestamps; and
+  a pytest plugin that recorded the current architecture's audio, transcript
+  fragments, and gestures during the live realtime tests.
+- For full duplex: a Python WebRTC participant (`aiortc`) that speaks the same
+  synthesized lines in real time, optionally mixes the agent's audio back into its
+  microphone, records the agent's audio level every 20 ms and every gesture
+  message, and mirrors the page's circle delay; the bot's own event log of
+  microphone activity, Flux events, turn decisions, words as they played,
+  gestures, and the final context; and a GPT-Live peer created with production's
+  session configuration.
 
 ## Operational observability
 
