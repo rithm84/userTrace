@@ -442,6 +442,49 @@ own turn decisions, which the client cannot see; GPT-Live's come from its audio.
 Option A therefore depends on echo cancellation removing the agent's voice
 before Flux hears it.
 
+### Option A over Daily, end to end
+
+On 2026-10-08 option A ran as a production voice agent over Daily, with its own
+call handling (a reload rejoins the same call, the agent introduces itself once
+per session, the tab plays audio under Chrome's autoplay policy) and its own
+turn-taking rules. Its tests were committed with it and left with it when
+GPT-Live was restored; both are in the repository's history at `30ba891`.
+
+A browser test drove the real session tab in Chrome under its autoplay policy,
+with the API, both worker lanes, and a production build of the web app. The
+greeting was heard 5.9 seconds after the tab opened. A reload rejoined the same
+call and agent, and the agent welcomed the participant back without introducing
+itself again. With the agent started 40 seconds late, the tab connected once and
+the greeting was heard 1.3 seconds after it did, with one connection and one agent.
+Each circle left as its word played: of the six filters named in a recap, every
+circle was dispatched within 10 ms of its word.
+
+An interview quality test held the scenario's whole interview over a live call:
+Maya was played by `claude-sonnet-5-5`, hearing the agent's played words and
+answering through synthesized speech; a terse persona answered in as few words as
+it could; `claude-opus-5-5` judged each transcript. Each row is one interview,
+and each design keeps the changes of the rows above it. Reply time runs from the
+end of the participant's speech to the agent's first played word.
+
+| Agent | Persona | Checks' findings | Judge: naturalness, efficiency | Judge's findings | Reply p50 | Reply p90 |
+| --- | --- | --- | --- | --- | --- | --- |
+| A tool call could end an answer in silence | Maya | a 20-second stall after the agreement; the build line twice | 7, 8 | stall, repetition, awkward | 1.52 s | 7.98 s |
+| It speaks after a silent recording | Maya | none | 8, 8 | closing on her word, which the rubric now accepts | 1.97 s | 5.50 s |
+| It speaks after a silent recording | Terse | none | 8, 8 | awkward, over-confirmation, repetition | 1.79 s | 7.23 s |
+| It lets them finish validating before asking | Maya | none | 9, 9 | none | 1.43 s | 6.85 s |
+| It lets them finish validating before asking | Terse | none | 9, 9 | none | 1.93 s | 7.20 s |
+| It acknowledges before recording | Maya | none | 9, 9 | none | 1.62 s | 2.39 s |
+| It acknowledges before recording | Terse | none | 9, 9 | none | 1.69 s | 2.54 s |
+
+Over the three rounds in which the acknowledgement came first, 5 of 6 interviews
+passed; the failure was two mild repetitions, a restated check list and an echoed
+thanks. Recorded silently, an agreement was acknowledged 5.6 seconds after the
+participant agreed; said first, 1.0 second after, with the recording running
+while it played. Thinking only between tool calls answered about as fast, but in
+two of four rounds the model spoke its reasoning aloud; adaptive thinking at low
+effort never did. The GPT-Live baseline above replied at a p50 of 1.45 seconds and
+a p90 of 4.0 seconds.
+
 ### Voice and model measurement harness
 
 These harnesses were not committed; they ran from a workstation. They consisted
