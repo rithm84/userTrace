@@ -99,11 +99,16 @@ class PreflightResult(ApiModel):
     checks: list[PreflightCheckResult]
 
 
-class VoiceConnectionResult(ApiModel):
-    """What admits the participant's browser to its own call."""
+class VoiceConnectionRequestBody(ApiModel):
+    """The browser's SDP offer for one voice connection."""
 
-    room_url: str
-    participant_token: str
+    sdp_offer: str = Field(min_length=1)
+
+
+class VoiceConnectionResult(ApiModel):
+    """The backend-authorized answer for one browser voice connection."""
+
+    sdp_answer: str
     connection_id: UUID
     voice_run_id: UUID
 
@@ -216,18 +221,19 @@ async def open_connection(
     participant: ParticipantOfPath,
     database: CurrentDatabase,
     session_id: Annotated[UUID, Path()],
+    body: VoiceConnectionRequestBody,
 ) -> VoiceConnectionResult:
-    """Authorize one voice connection and return what admits the browser to its call."""
+    """Authorize one voice connection and return the provider's SDP answer."""
     voice = provider_registry(request).require_voice()
     opened = await open_voice_connection(
         database,
         voice,
         participant=participant,
         interview_session_id=session_id,
+        sdp_offer=body.sdp_offer,
     )
     return VoiceConnectionResult(
-        room_url=opened.room_url,
-        participant_token=opened.participant_token,
+        sdp_answer=opened.sdp_answer,
         connection_id=opened.connection_id,
         voice_run_id=opened.voice_run_id,
     )

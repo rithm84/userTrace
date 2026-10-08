@@ -23,8 +23,7 @@ import { SessionCharacter } from "./SessionCharacter";
 import { SessionControls } from "./SessionControls";
 import { TranscriptPanel } from "./TranscriptPanel";
 
-/** How long the tab waits in the call for the voice agent's RTVI `bot-ready`. */
-const AGENT_READY_TIMEOUT_MS = 30_000;
+const ICE_GATHERING_TIMEOUT_MS = 5000;
 /** How many times, and how far apart, a lost voice connection is reopened before giving up. */
 const VOICE_REOPEN_ATTEMPTS = 3;
 const VOICE_REOPEN_DELAY_MS = 2000;
@@ -32,10 +31,10 @@ const VOICE_REOPEN_DELAY_MS = 2000;
 type VoiceStatus = "idle" | "connecting" | "connected" | "failed";
 
 /**
- * How the call is carried: a Daily call with the voice agent, or the fixture's
- * replayed conversation when the control plane is the in-repository fixture.
+ * How the call is carried: GPT-Live over WebRTC, or the fixture's replayed
+ * conversation when the control plane is the in-repository fixture.
  */
-export type VoiceTransport = "daily" | "fixture";
+export type VoiceTransport = "webrtc" | "fixture";
 
 /** The rig's canvas size: large on a roomy screen, smaller when height or width is short. */
 const CHARACTER_SIZE = { roomy: 300, compact: 200 } as const;
@@ -59,7 +58,7 @@ function useCharacterSize(): number {
  * It renders what the control plane's durable projection says and nothing it
  * inferred. Supabase Realtime only delivers newer revisions of that projection,
  * a control is applied from the revision the control plane returns, and voice
- * runs over a Daily call the uTrace API opens.
+ * runs over WebRTC whose offer the uTrace API answers.
  */
 /** Which runtime the session's preview serves: the base, or the candidate ready for validation. */
 type PreviewRuntimeStage = "base" | "candidate";
@@ -121,9 +120,9 @@ export function SessionTab(
   );
 
   useEffect(() => {
-    // The voice agent ends the call when this tab drops out of it, and the
-    // session then reports `reconnecting`. The session outlives any one call,
-    // so a new connection replaces the lost one.
+    // GPT-Live ends the call when it loses this tab's media connection, and the
+    // session then reports `reconnecting`. The session outlives any one provider
+    // connection, so a new connection replaces the lost one.
     if (reconnecting && !wasReconnecting.current) {
       voiceReopens.current = 0;
       setVoiceRun((run) => run + 1);
@@ -149,24 +148,26 @@ export function SessionTab(
           return;
         }
         const session = await connectVoice({
-          openConnection: async () => {
-            const result = await openVoiceConnection(sessionId);
+          exchangeOffer: async (sdpOffer: string) => {
+            const result = await openVoiceConnection(sessionId, sdpOffer);
             if (!result.ok) {
-              throw new VoiceError("join_failed", result.message, {});
+              throw new VoiceError("negotiation_failed", result.message, {});
             }
             return result.value;
           },
-          onAgentAudio: (track) => {
+          onRemoteStream: (stream) => {
             if (audio.current !== null) {
-              audio.current.srcObject = new MediaStream([track]);
+              audio.current.srcObject = stream;
             }
           },
-          onDisconnected: () => {
-            setVoiceFailure("The voice connection dropped. uTrace is trying to restore it.");
+          onConnectionStateChange: (state) => {
+            if (state === "failed" || state === "disconnected") {
+              setVoiceFailure("The voice connection dropped. uTrace is trying to restore it.");
+            }
           },
           onTranscriptDelta: acceptTranscriptDelta,
-          onNotice: setNotice,
-          agentReadyTimeoutMs: AGENT_READY_TIMEOUT_MS,
+          onEventRejected: setNotice,
+          iceGatheringTimeoutMs: ICE_GATHERING_TIMEOUT_MS,
         });
         if (cancelled) {
           session.close();
@@ -200,8 +201,8 @@ export function SessionTab(
   }, [wantsVoice, sessionId, voiceTransport, acceptTranscriptDelta, voiceRun]);
 
   useEffect(() => {
-    // Speech before the voice agent's pipeline attaches would have no durable
-    // transcript, so the microphone opens only once the backend listens.
+    // Speech before the backend sideband attaches would reach GPT-Live with no
+    // durable transcript, so the microphone opens only once the backend listens.
     voice?.setMicrophoneEnabled(microphoneEnabled && conversational);
   }, [voice, microphoneEnabled, conversational]);
 

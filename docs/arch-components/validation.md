@@ -30,8 +30,8 @@ which any open state can reach.
 
 Beginning an attempt requires the originating user's identity to match, the
 candidate to be ready, and observation readiness to be current. The live
-session's voice agent begins it as soon as those hold, rather than when the
-agent next asks for it, so the evidence window opens before the participant starts
+session's voice sideband begins it as soon as those hold, rather than when the
+agent next delegates, so the evidence window opens before the participant starts
 trying the candidate. Resuming an
 interrupted attempt requires all of that and the same exact candidate, so a
 rebuilt or replaced candidate cannot inherit an interrupted attempt. Completing
@@ -47,7 +47,7 @@ outcome may be recorded while the originating user is absent.
 
 Validation is a voice encounter using the same two-tab experience and the complete structured observation path. The user may discuss the problem while a candidate prepares, but criterion-level validation cannot start until the exact candidate, embedded browser SDK, Server SDK, extension binding, trace correlation, authenticated handoff, and dataset are ready. Confirm during criteria agreement that the approved preview can observe the affirmative evidence each criterion needs; an unobservable criterion is clarified or blocked before implementation authority depends on it. The preview runs on its dataset's fixture clock, so a criterion about dates or ranges is stated as what the preview shows on that date, and the agent is told the date so it never measures the preview against today's. A check the participant already performed in the candidate is [confirmed rather than repeated](./interview-and-voice.md#jevs-interview-responsibilities).
 
-There is no fixed demonstration duration. The conversation remains focused on the accepted workflow and adjacent surfaces materially touched by the diff. The voice agent carries the fluid conversation; orchestration supplies final accepted claims, corrections, criteria, telemetry, and candidate identity. Transcript fragments do not prove a final user turn or that the user heard an utterance.
+There is no fixed demonstration duration. The conversation remains focused on the accepted workflow and adjacent surfaces materially touched by the diff. GPT-Live carries the fluid conversation; orchestration supplies final accepted claims, corrections, criteria, telemetry, and candidate identity. Transcript fragments do not prove a final user turn or that the user heard an utterance.
 
 Cognitive assistance follows the [runtime roles](../ARCHITECTURE.md#system) and
 [context contract](./context-assembly.md#stage-boundaries). Its outputs are

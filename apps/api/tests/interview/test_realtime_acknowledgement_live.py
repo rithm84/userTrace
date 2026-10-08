@@ -1,6 +1,6 @@
 """Live: the agent acknowledges what the participant was waiting on, once, and nothing else.
 
-A real voice call (see `realtime_harness`) runs three moments of the Saved
+A real GPT-Live call (see `realtime_harness`) runs three moments of the Saved
 Conversion Views interview:
 
 1. The participant says they will pull up their conversion dashboard, and it
@@ -12,7 +12,7 @@ Conversion Views interview:
    debrief walks them through it. That debrief is the load's only acknowledgement.
 
 It reports each delay, from the committed activity to the speakable append and to
-the agent's first words. It costs about two minutes of voice plus a few Jev
+the agent's first words. It costs about two minutes of voice plus a few Sol and Jev
 calls, so it runs only when `UTRACE_REALTIME_E2E=1`.
 """
 
@@ -84,6 +84,8 @@ _SETTLE_SECONDS: Final[float] = 8.0
 #: Acknowledgements are spaced apart; the walkthrough starts after that spacing, so
 #: its steps are left to Jev's judgement rather than to the spacing.
 _SPACING_SECONDS: Final[float] = 15.0
+#: Clear of the revisions the call's own delegations stamp on their bundles.
+_AGREEMENT_BUNDLE_REVISION: Final[int] = 1000
 
 
 async def test_the_agent_acknowledges_what_was_awaited_once_and_narrates_nothing_else(
@@ -142,6 +144,7 @@ async def test_the_agent_acknowledges_what_was_awaited_once_and_narrates_nothing
             await asyncio.sleep(_PAUSE_SECONDS)
         ask_start, ask_end = await harness.say(call.microphone, ask)
         await harness.required_reply(database, session_id, after=ask_end)
+        # The recap may delegate for a proposal and speak it after a pause.
         while await harness.agent_reply(
             database, session_id=session_id, after=time.time(), deadline_seconds=_SETTLE_SECONDS
         ):
@@ -172,7 +175,7 @@ async def test_the_agent_acknowledges_what_was_awaited_once_and_narrates_nothing
     acknowledgements = [
         (at, content)
         for at, kind, content in report.appends
-        if kind == "say" and _ACKNOWLEDGED in content
+        if kind == "append_commentary" and _ACKNOWLEDGED in content
     ]
     dashboard_acks = [at for at, _ in acknowledgements if dashboard_at <= at < walk_start]
     walk_acks = [at for at, _ in acknowledgements if walk_start <= at < ask_end]
@@ -180,7 +183,7 @@ async def test_the_agent_acknowledges_what_was_awaited_once_and_narrates_nothing
     debriefs = [
         at
         for at, kind, content in report.appends
-        if kind == "say" and content.startswith(_DEBRIEF) and at >= loaded_at
+        if kind == "append_commentary" and content.startswith(_DEBRIEF) and at >= loaded_at
     ]
     walk_said = _utterances(words, after=walk_start, before=ask_start)
     speaking_after_dashboard = report.first_character_after("speaking", dashboard_at)
@@ -223,7 +226,7 @@ async def _appended(report: harness.Report, *, prefix: str, after: float) -> flo
             (
                 at
                 for at, kind, content in report.appends
-                if kind == "say" and content.startswith(prefix) and at >= after
+                if kind == "append_commentary" and content.startswith(prefix) and at >= after
             ),
             None,
         )
@@ -356,7 +359,8 @@ async def _ready_candidate(database: Database, call: harness.LiveCall) -> UUID:
     gate_id = await create_gate_decision(
         database, case=case, decision="approved_live", classification_revision=1, blocker_reason=None
     )
-    attempt_id, version_id, allocation_id = uuid7(), uuid7(), uuid7()
+    attempt_id, version_id, allocation_id, bundle_id = uuid7(), uuid7(), uuid7(), uuid7()
+    criterion_ids = [uuid7() for _ in _CRITERIA]
     seed = "sha256:seed-acknowledgement"
     async with database.transaction() as conn, conn.cursor() as cur:
         await cur.execute(
@@ -416,19 +420,70 @@ async def _ready_candidate(database: Database, call: harness.LiveCall) -> UUID:
         )
         await cur.execute(
             """
+            insert into public.context_bundles (
+                id, client_id, product_signal_id, interview_session_id, purpose,
+                context_revision, cutoff_at, budget_items, included_items,
+                omitted_items, dependencies, digest
+            )
+            values (%s, %s, %s, %s, 'voice_delegation', %s, now(), 1, 0, 0, %s, 'digest')
+            """,
+            (
+                bundle_id,
+                case.client_id,
+                case.product_signal_id,
+                call.session_id,
+                _AGREEMENT_BUNDLE_REVISION,
+                Jsonb({}),
+            ),
+        )
+        for ordinal, (criterion_id, statement) in enumerate(
+            zip(criterion_ids, _CRITERIA, strict=True)
+        ):
+            await cur.execute(
+                """
+                insert into public.validation_criteria (
+                    id, client_id, product_signal_id, criteria_revision, ordinal,
+                    statement, observability
+                )
+                values (%s, %s, %s, 1, %s, %s, 'observed')
+                """,
+                (criterion_id, case.client_id, case.product_signal_id, ordinal, statement),
+            )
+        await cur.execute(
+            """
+            insert into public.acceptance_criteria_agreements (
+                id, client_id, product_signal_id, interview_session_id,
+                acceptance_criteria_revision, agreed_scope, criterion_ids,
+                supporting_evidence_ids, context_bundle_id
+            )
+            values (%s, %s, %s, %s, 1, %s, %s, '{}', %s)
+            """,
+            (
+                uuid7(),
+                case.client_id,
+                case.product_signal_id,
+                call.session_id,
+                Jsonb(
+                    {
+                        "intended_outcome": (
+                            "Save the current conversion filters as a named view and "
+                            "reopen it in one click."
+                        ),
+                        "workflow_ref": "saved_conversion_views",
+                    }
+                ),
+                criterion_ids,
+                bundle_id,
+            ),
+        )
+        await cur.execute(
+            """
             update public.product_signals
             set state = %s, acceptance_criteria_revision = 1, revision = revision + 1
             where id = %s
             """,
             (ProductSignalState.AWAITING_VALIDATION.value, case.product_signal_id),
         )
-    await harness.record_agreement(
-        database,
-        case=case,
-        session_id=call.session_id,
-        outcome="Save the current conversion filters as a named view and reopen it in one click.",
-        criteria=_CRITERIA,
-    )
     return allocation_id
 
 

@@ -1,28 +1,29 @@
-"""The tools the application executes on the voice agent's behalf.
+"""The tools the application executes on GPT-6.1 Sol's behalf during a delegation.
 
-The voice agent's text model calls these during the conversation. Every one of them
-is an application-executed function: the model names a tool and its typed
-arguments, code performs the work under the control plane's own authority, and the
-result is returned as data. Each call runs against a context bundle assembled for
-it, so a recorded agreement cites the conversation as it stood.
+GPT-Live delegates to uTrace's backend, and the backend runs GPT-6.1 Sol with these
+tools as Responses API function tools. Every one of them is an application-executed function: the model names a
+tool and its typed arguments, code performs the work under the control plane's
+own authority, and the result is returned as data.
 
 Two rules shape every tool here:
 
-- Nothing returns internal implementation detail. Observed activity and
-  implementation state come back as customer-appropriate findings, because what a
-  tool returns can be spoken aloud.
-- No tool grants authority. Recorded claims and criteria are written as typed,
-  source-linked records, and the control plane's own guards decide what they start.
+- Nothing returns internal implementation detail. Retrieved documents, observed
+  activity, and implementation state come back as customer-appropriate findings,
+  because what a tool returns can be spoken aloud.
+- No tool grants authority. A visual gesture still passes policy, permission,
+  readiness, and target-freshness checks; recorded claims and criteria are
+  written as typed, source-linked records.
 """
 
 import json
 import re
-from collections.abc import Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Final
 from uuid import UUID
 
+from openai.types.responses import FunctionToolParam
 from pydantic import BaseModel, ConfigDict, ValidationError
 from utrace_contracts.domain.lifecycle import (
     CriterionObservability,
@@ -31,6 +32,7 @@ from utrace_contracts.domain.lifecycle import (
 )
 
 from app.adapters.telemetry_evidence import TelemetryEvidenceQuery
+from app.connectors.typesafe_jev import JevClient
 from app.context.bundles import AssembledBundle
 from app.db.pool import Database
 from app.db.rows import as_optional_str, as_str
@@ -44,7 +46,18 @@ from app.interview.agreements import (
     record_change_request,
 )
 from app.interview.evidence import record_claim
+from app.interview.gesture_attention import select_visual_target
+from app.interview.judgements import AttentionResult
 from app.interview.observations import describe_activity, recent_activity
+from app.interview.ports import TargetRegistryPort
+from app.interview.voice.pointing import (
+    POINT_DWELL_MS,
+    bound_document_attachment,
+    circle_step,
+    gesture_at,
+    point_step,
+    target_option,
+)
 from app.logging import get_logger
 from app.validation.evidence import EvidenceStance
 from app.validation.session import (
@@ -78,51 +91,43 @@ _CRITERIA_SCHEMA: Final[dict[str, object]] = {
     },
 }
 
-__all__ = ["READ_TOOLS", "TOOL_DEFINITIONS", "ToolContext", "ToolDefinition", "execute_tool"]
-
-#: Tools whose result the agent speaks from. The others record something; once they
-#: succeed the agent has usually already said what it needed to, so it does not
-#: speak again unless the call was refused.
-READ_TOOLS: Final[frozenset[str]] = frozenset(
-    {"review_observed_activity", "implementation_status", "begin_validation"}
-)
+__all__ = ["TOOL_DEFINITIONS", "ToolContext", "execute_tool"]
 
 _log = get_logger(__name__)
 
+_NO_TARGET = "no_target"
+_TARGET_LIMIT = 24
 _OBSERVATION_LIMIT = 20
+_GESTURES = ("point", "circle")
 _WORKFLOW_PATTERN = re.compile(r"[a-z][a-z0-9_]{2,63}")
 
 
 @dataclass(frozen=True, slots=True)
 class ToolContext:
-    """Everything one tool call may touch, supplied explicitly."""
+    """Everything one delegation's tools may touch, supplied explicitly."""
 
     database: Database
     client_id: UUID
     product_signal_id: UUID
     interview_session_id: UUID
     bundle: AssembledBundle
+    targets: TargetRegistryPort | None
+    jev: JevClient | None
+    visual_command_deadline_seconds: int
     observation_window_seconds: int
 
 
-@dataclass(frozen=True, slots=True)
-class ToolDefinition:
-    """One tool as the model sees it: a name, what it is for, and its JSON Schema."""
-
-    name: str
-    description: str
-    parameters: Mapping[str, object]
-
-
-TOOL_DEFINITIONS: tuple[ToolDefinition, ...] = (
-    ToolDefinition(
-        name="review_observed_activity",
-        description=(
+TOOL_DEFINITIONS: tuple[FunctionToolParam, ...] = (
+    {
+        "type": "function",
+        "name": "review_observed_activity",
+        "description": (
             "Return what uTrace observed in the person's product session recently, "
             "as plain summaries. Use it to ground a question about what they just "
             "did, never to describe internals."
         ),
-        parameters={
+        "strict": True,
+        "parameters": {
             "type": "object",
             "properties": {
                 "limit": {
@@ -135,15 +140,47 @@ TOOL_DEFINITIONS: tuple[ToolDefinition, ...] = (
             "required": ["limit"],
             "additionalProperties": False,
         },
-    ),
-    ToolDefinition(
-        name="record_evidence_claim",
-        description=(
+    },
+    {
+        "type": "function",
+        "name": "point_at_product_element",
+        "description": (
+            "Point the agent cursor at, or circle, one element the person can see, "
+            "described in their own words. Use it whenever the person asks you to "
+            "show, point at, circle, or highlight something. The application chooses "
+            "the registered target and refuses if none matches."
+        ),
+        "strict": True,
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "description": "The element as the person would describe it.",
+                },
+                "gesture": {
+                    "type": "string",
+                    "enum": list(_GESTURES),
+                    "description": (
+                        "point moves the cursor onto the element; circle draws a mark "
+                        "around it that stays until the next gesture."
+                    ),
+                },
+            },
+            "required": ["description", "gesture"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "type": "function",
+        "name": "record_evidence_claim",
+        "description": (
             "Record what the person established, as a claim citing this "
             "conversation. Use `confirmed` only for a deliberate, criterion-bound "
             "confirmation."
         ),
-        parameters={
+        "strict": True,
+        "parameters": {
             "type": "object",
             "properties": {
                 "statement": {"type": "string"},
@@ -155,14 +192,16 @@ TOOL_DEFINITIONS: tuple[ToolDefinition, ...] = (
             "required": ["statement", "claim_state"],
             "additionalProperties": False,
         },
-    ),
-    ToolDefinition(
-        name="record_acceptance_criteria",
-        description=(
+    },
+    {
+        "type": "function",
+        "name": "record_acceptance_criteria",
+        "description": (
             "Freeze the agreed scope and its observable acceptance criteria once the "
             "person has agreed to them out loud."
         ),
-        parameters={
+        "strict": True,
+        "parameters": {
             "type": "object",
             "properties": {
                 "agreed_outcome": {"type": "string"},
@@ -179,17 +218,19 @@ TOOL_DEFINITIONS: tuple[ToolDefinition, ...] = (
             "required": ["agreed_outcome", "workflow", "criteria"],
             "additionalProperties": False,
         },
-    ),
-    ToolDefinition(
-        name="record_requested_change",
-        description=(
+    },
+    {
+        "type": "function",
+        "name": "record_requested_change",
+        "description": (
             "While the person tries a new version, record a change they asked for in "
             "it once they have agreed it out loud: the whole change as it now stands "
             "and the checks that now apply, earlier checks included unless the change "
             "replaces them. The application builds the next version while the "
             "voice agent waits in silence. Refused when the case has used all its versions."
         ),
-        parameters={
+        "strict": True,
+        "parameters": {
             "type": "object",
             "properties": {
                 "agreed_outcome": {
@@ -206,29 +247,33 @@ TOOL_DEFINITIONS: tuple[ToolDefinition, ...] = (
             "required": ["agreed_outcome", "workflow", "criteria"],
             "additionalProperties": False,
         },
-    ),
-    ToolDefinition(
-        name="begin_validation",
-        description=(
+    },
+    {
+        "type": "function",
+        "name": "begin_validation",
+        "description": (
             "Begin or resume validating the person's ready preview. Validation "
             "normally begins by itself once the new version is ready, so this is "
             "needed only when it has not. Returns the agreed criteria, in order."
         ),
-        parameters={
+        "strict": True,
+        "parameters": {
             "type": "object",
             "properties": {},
             "required": [],
             "additionalProperties": False,
         },
-    ),
-    ToolDefinition(
-        name="cite_validation_evidence",
-        description=(
+    },
+    {
+        "type": "function",
+        "name": "cite_validation_evidence",
+        "description": (
             "Cite one observation from review_observed_activity as showing what the "
             "product did for one criterion during validation. Cite only what was "
             "observed; the application refuses anything outside this validation."
         ),
-        parameters={
+        "strict": True,
+        "parameters": {
             "type": "object",
             "properties": {
                 "criterion_ordinal": {"type": "integer", "minimum": 0},
@@ -242,15 +287,17 @@ TOOL_DEFINITIONS: tuple[ToolDefinition, ...] = (
             "required": ["criterion_ordinal", "observation_id", "stance", "summary"],
             "additionalProperties": False,
         },
-    ),
-    ToolDefinition(
-        name="record_validation_outcome",
-        description=(
+    },
+    {
+        "type": "function",
+        "name": "record_validation_outcome",
+        "description": (
             "Record the person's answer for every criterion once they have answered "
             "each one out loud. Never record an answer they did not give; use "
             "`unsure` when they did not settle it."
         ),
-        parameters={
+        "strict": True,
+        "parameters": {
             "type": "object",
             "properties": {
                 "answers": {
@@ -278,20 +325,22 @@ TOOL_DEFINITIONS: tuple[ToolDefinition, ...] = (
             "required": ["answers"],
             "additionalProperties": False,
         },
-    ),
-    ToolDefinition(
-        name="implementation_status",
-        description=(
+    },
+    {
+        "type": "function",
+        "name": "implementation_status",
+        "description": (
             "Return the current user-facing progress of any work uTrace is doing for "
             "this person, in plain language."
         ),
-        parameters={
+        "strict": True,
+        "parameters": {
             "type": "object",
             "properties": {},
             "required": [],
             "additionalProperties": False,
         },
-    ),
+    },
 )
 
 
@@ -307,6 +356,8 @@ async def execute_tool(
     parsed = arguments
     if name == "review_observed_activity":
         return await _review_observed_activity(context, parsed)
+    if name == "point_at_product_element":
+        return await _point_at_product_element(context, parsed)
     if name == "record_evidence_claim":
         return await _record_evidence_claim(context, parsed)
     if name == "record_acceptance_criteria":
@@ -352,6 +403,89 @@ async def _review_observed_activity(
             ]
         }
     )
+
+
+async def _point_at_product_element(
+    context: ToolContext, arguments: Mapping[str, object]
+) -> str:
+    """Select the registered target a description means and gesture at it."""
+    description = str(arguments.get("description", "")).strip()
+    if not description:
+        return _result({"error": "description is required"})
+    gesture = str(arguments.get("gesture", ""))
+    if gesture not in _GESTURES:
+        return _result({"error": f"gesture must be one of {list(_GESTURES)}"})
+    return _result(
+        await _gesture(
+            context,
+            gesture=gesture,
+            select=lambda targets: select_visual_target(
+                context.database,
+                _require_jev(context),
+                bundle=context.bundle,
+                description=description,
+                targets=targets,
+            ),
+        )
+    )
+
+
+async def _gesture(
+    context: ToolContext,
+    *,
+    gesture: str,
+    select: Callable[[Mapping[str, str]], Awaitable[AttentionResult]],
+) -> Mapping[str, JsonValue]:
+    """Choose one registered target with ``select`` and dispatch one gesture scene."""
+    if context.targets is None:
+        return {"refused": "target_registry_not_wired"}
+    if context.jev is None:
+        return {"refused": "target_selection_not_configured"}
+    document_attachment_id = await bound_document_attachment(
+        context.database, interview_session_id=context.interview_session_id
+    )
+    if document_attachment_id is None:
+        return {"refused": "no_current_binding"}
+    candidates = await context.targets.registered_targets(
+        client_id=context.client_id,
+        interview_session_id=context.interview_session_id,
+        document_attachment_id=document_attachment_id,
+        limit=_TARGET_LIMIT,
+    )
+    if not candidates:
+        return {"refused": "no_registered_targets"}
+
+    selection = await select(
+        {candidate.target_id: target_option(candidate) for candidate in candidates}
+    )
+    chosen = selection.selections.get("visual_target::selection")
+    if not selection.accepted or chosen is None or chosen == _NO_TARGET:
+        return {"refused": "no_matching_target", "detail": selection.detail}
+    target = next(candidate for candidate in candidates if candidate.target_id == chosen)
+    outcome = await gesture_at(
+        context.database,
+        client_id=context.client_id,
+        interview_session_id=context.interview_session_id,
+        steps=[
+            point_step(target, dwell_ms=POINT_DWELL_MS)
+            if gesture == "point"
+            else circle_step(target)
+        ],
+        deadline_seconds=context.visual_command_deadline_seconds,
+    )
+    if "refused" in outcome:
+        return outcome
+    return {
+        "pointed_at" if gesture == "point" else "circled": target.description,
+        **outcome,
+    }
+
+
+def _require_jev(context: ToolContext) -> JevClient:
+    """The Jev client `_gesture` already checked is configured."""
+    if context.jev is None:
+        raise RuntimeError("target selection ran without a configured Jev client")
+    return context.jev
 
 
 async def _record_evidence_claim(context: ToolContext, arguments: Mapping[str, object]) -> str:

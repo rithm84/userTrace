@@ -47,22 +47,22 @@ highlighting are out of scope.
 
 Verification uses no fixed demonstration duration. It assesses whether the agent
 gathers sufficient evidence while maintaining a fluid conversation and whether
-implementation progresses without repetitive status narration. Voice transcript
+implementation progresses without repetitive status narration. GPT-Live transcript
 fragments are provisional: they cannot prove a final utterance or that speech was
 heard.
 
 ## Provider integration checks
 
-Voice integration checks exercise Daily room and meeting-token creation, the voice
-agent joining the call, Flux turns, the model's tool calls and gesture marks,
-playback, reconnection, and revocation. Reject cross-session or stale setup
-results and verify that browser responses contain no provider credential.
+Voice integration checks exercise the GPT-Live session handshake, direct WebRTC
+media, sideband attachment, client delegation, reconnection, and revocation.
+Reject cross-session or stale setup results and verify that browser responses
+contain no OpenAI credential.
 
-Model checks run the voice agent's tools against real records, check GPT-6.1 Sol
-gate proposals, intake interpretations, and Case File drafts against their
-schemas, and run the
+Model checks run a GPT-6.1 Sol delegation tool run with the real strict function
+tools, check GPT-6.1 Sol gate proposals, intake interpretations, and Case File
+drafts against their schemas, and run the
 Codex harness in a Vercel Sandbox with the credential added at egress. Record provider configuration revisions, and measure
-the voice agent's reply latency and control-plane-to-provider model latency separately.
+browser-to-OpenAI voice latency and control-plane-to-provider model latency separately.
 
 ## Outreach Offers verification
 
@@ -75,12 +75,10 @@ sandbox/live mismatches.
 
 ## Agent cursor measurements
 
-These measurements, taken on 2026-10-06, are the evidence behind grounding the
-[agent cursor](./interview-and-voice.md#agent-cursor) in the target registry. They
-also record the GPT-Live design it replaced, in which Jev judged every transcript
-fragment of the agent's speech; the active design places each gesture from the
-voice agent's own inline mark, measured under
-[voice and reasoning model measurements](#voice-and-reasoning-model-measurements). Jev is served under the unversioned ID
+These measurements, taken on 2026-10-06, are the evidence behind the
+[agent cursor's design](./interview-and-voice.md#jevs-interview-responsibilities):
+the target registry as the only grounding source, Jev as the judge, and judging
+every transcript fragment. Jev is served under the unversioned ID
 `typesafe-ai/jev` and the Decisions API was in public beta, so these numbers are a
 dated snapshot; rerun them before changing a floor, a question, or a model.
 Latency was measured from a workstation, not from the deployed control plane.
@@ -196,9 +194,9 @@ could place gestures. Here a mention is on time when the cursor arrives between
 `gpt-realtime-2` delivers its audio seconds ahead of playback, so a gesture keyed
 to arrival is early without alignment to the audio. With pointing tools it made
 every call before speaking. Gemini 3.8 Live spoke the tool syntax aloud in 3 of
-its 11 recordings. The script-first cascade timed gestures exactly but spoke
-with a second voice, so GPT-Live stayed the voice until a full script-first
-pipeline with its own turn-taking was measured; see
+its 11 recordings. The script-first cascade times gestures exactly but speaks
+with a second voice, so GPT-Live stays the voice. A full script-first pipeline
+with its own turn-taking was measured later; see
 [voice and reasoning model measurements](#voice-and-reasoning-model-measurements).
 
 ### Measurement harness
@@ -225,14 +223,12 @@ The harness was not committed; it ran from a workstation. It consisted of:
 ## Voice and reasoning model measurements
 
 These measurements, taken on 2026-10-07 from a workstation, are the evidence
-behind keeping GPT-6.1 Sol in its
-[reasoning roles](./interview-and-voice.md#conversation-and-backend-work) and
-behind the active voice design. They compare Claude Haiku 5.5 (`claude-haiku-5-5`)
-in Sol's roles, and a script-first voice pipeline ("option A") in which a text
-model writes the reply with inline gesture marks, a speech engine speaks it, and
-the application owns turn-taking. Option A, built on Pipecat with Sonnet 5.5 and
-Eleven v4 Turbo, is the active [voice agent](./interview-and-voice.md#conversation-and-backend-work);
-GPT-Live with delegation to Sol is the baseline it replaced. Provider models change under the same names, so
+behind keeping GPT-6.1 Sol in every
+[reasoning role](./interview-and-voice.md#conversation-and-backend-work) and
+GPT-Live as the voice. They compare Claude Haiku 5.5 (`claude-haiku-5-5`) in Sol's
+roles, and a script-first voice pipeline ("option A") in which a text model writes
+the reply with inline gesture marks, a speech engine speaks it, and the
+application owns turn-taking. Provider models change under the same names, so
 these numbers are a dated snapshot; rerun them before changing a model or a
 pipeline.
 
@@ -348,7 +344,7 @@ participant's last speech to Flux's end of turn took a median 665 ms at
 747 ms at 0.6 and 0.4, all complete; and 995 ms at 0.7 and 0.5. Option A uses 0.6
 and 0.4.
 
-The GPT-Live baseline, recorded on the server during the live realtime
+The current architecture, recorded on the server during the live realtime
 tests, replied a median 1.45 s after the participant's last speech (p90
 4.0 s, 103 replies). Each stretch of agent speech counts as a reply, so a
 delegated answer counts from the participant's last speech even when a holding
@@ -362,8 +358,7 @@ filters across 14 sessions.
 
 Option A was then built with full-duplex turn-taking on Pipecat 1.12.0, from its
 own components: Flux turn events with eager end of turn, Sonnet 5.5, ElevenLabs'
-Text to Dialogue service with Eleven v4 Turbo, and Pipecat's WebRTC transport.
-Production runs the same pipeline over Daily's transport. A user
+Text to Dialogue service with Eleven v4 Turbo, and the WebRTC transport. A user
 turn interrupts the agent, the context keeps only the words that were played,
 and a pattern aggregator splits the marks out of the text. Four pieces are
 uTrace's own:
@@ -384,8 +379,7 @@ uTrace's own:
   waiting.
 - The page holds each circle back by the audio's measured lag, from the server's
   "bot started speaking" message to that reply's audio being heard, so the
-  cursor lands as the word begins. Production dispatches each circle through the
-  extension's visual-command path instead, without this delay.
+  cursor lands as the word begins.
 
 A scripted participant joined over WebRTC as a browser would and spoke
 synthesized lines in real time: a long ask with two backchannels during the
@@ -408,7 +402,7 @@ OpenAI's cloud.
 The reply rows are not comparable. Option A's first audio is its answer. Without
 the sideband, nothing answers GPT-Live's delegations, so its first audio was often
 the holding phrase, and no answer followed to be timed. With delegations answered,
-the GPT-Live baseline's p90 is 4.0 seconds (see above).
+the current architecture's p90 is 4.0 seconds (see above).
 
 Option A's reply time divides into Flux's end of turn (a median 1.02 seconds after
 the participant's last speech reached the bot), the reply's first audio leaving
@@ -464,7 +458,7 @@ of:
   streamed to Flux in 80 ms chunks in real time, with every turn's speech end,
   Flux events, first token, first audio, and mark timing recorded; a check of each
   speech engine's character timing against Deepgram `nova-3` word timestamps; and
-  a pytest plugin that recorded the GPT-Live baseline's audio, transcript
+  a pytest plugin that recorded the current architecture's audio, transcript
   fragments, and gestures during the live realtime tests.
 - For full duplex: a Python WebRTC participant (`aiortc`) that speaks the same
   synthesized lines in real time, optionally mixes the agent's audio back into its
@@ -476,7 +470,7 @@ of:
 
 ## Operational observability
 
-OpenTelemetry traces cover Vercel-to-control-plane requests, Supabase operations, the voice agent's Daily, Deepgram, Anthropic, and ElevenLabs calls, GPT-6.1 Sol and Jev calls, Discord, GitHub, and Stripe adapters, Vercel Sandbox workspaces and harness runs, and preview routing. Trace context joins operational spans to typed business IDs without placing sensitive content in span attributes. Durable events and evidence remain the authoritative audit path.
+OpenTelemetry traces cover Vercel-to-control-plane requests, Supabase operations, GPT-Live session delegation, GPT-6.1 Sol and Jev calls, Discord, GitHub, and Stripe adapters, Vercel Sandbox workspaces and harness runs, and preview routing. Trace context joins operational spans to typed business IDs without placing sensitive content in span attributes. Durable events and evidence remain the authoritative audit path.
 
 The web surfaces report to Vercel Observability. Always-on tracing samples every production request to `utrace-web`, `@vercel/otel` adds Next.js framework and outbound fetch spans, and Web Analytics and Speed Insights record page views and Core Web Vitals. A reported page URL carries route parameters in place of identifiers and no query string, because an invitation path holds a bearer token and query strings hold OAuth codes. The preview front door runs none of this instrumentation: it forwards the browser's `traceparent` untouched, and a second injector fails its propagation probe.
 

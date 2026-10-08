@@ -54,7 +54,7 @@ export default async function SessionPage(
       <SessionTab
         initialProjection={read.projection}
         extensionId={readPublicEnvironment().extensionId}
-        voiceTransport={usesFixtureControlPlane() ? "fixture" : "daily"}
+        voiceTransport={usesFixtureControlPlane() ? "fixture" : "webrtc"}
       />
     </ProductShell>
   );

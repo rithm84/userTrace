@@ -7,7 +7,7 @@ out loud, how a new statement relates to existing claims, which of the supplied
 lookups deserves attention, and which flow the evidence now supports. These judgements
 run on relevant updates, never as a serial approval step before every utterance,
 and they authorize nothing: the controller commits the decision. What the agent
-cursor shows comes from the voice agent's own gesture marks.
+cursor shows is decided in `app.interview.gesture_attention`.
 
 Every batch is checked by `app.connectors.jev_acceptance` against thresholds
 calibrated for that exact question, and the bundle it used is rechecked for
@@ -170,8 +170,8 @@ async def relate_claim(
 ) -> AttentionResult:
     """Compare a new contextualized statement with the supplied relevant claims.
 
-    A flag never rewrites the canonical account. Complex interpretation is the voice
-    agent's; this only labels the relationship.
+    A flag never rewrites the canonical account. Complex interpretation goes to a
+    delegation; this only labels the relationship.
     """
     if not claims:
         raise ValueError("claim relationship needs at least one supplied claim")
