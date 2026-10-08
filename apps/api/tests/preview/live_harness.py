@@ -458,12 +458,11 @@ class PreviewBrowser:
         self._socket = socket
         self._origin = origin
         self._next_id = 0
-        self._console: list[str] = []
 
     async def _call(
         self, method: str, params: Mapping[str, object]
     ) -> Mapping[str, object]:
-        """Send one command and return its result, recording console errors."""
+        """Send one command and return its result."""
         self._next_id += 1
         request_id = self._next_id
         await self._socket.send(
@@ -472,11 +471,6 @@ class PreviewBrowser:
         while True:
             raw = await asyncio.wait_for(self._socket.recv(), timeout=60)
             message = json.loads(raw)
-            if message.get("method") == "Runtime.consoleAPICalled":
-                entry = message["params"]
-                if entry.get("type") == "error":
-                    self._console.append(json.dumps(entry.get("args", [])))
-                continue
             if message.get("id") != request_id:
                 continue
             if "error" in message:
@@ -594,11 +588,6 @@ class PreviewBrowser:
     async def url(self) -> str:
         """Where the page ended up."""
         return str(await self.evaluate("window.location.href"))
-
-    @property
-    def console_errors(self) -> tuple[str, ...]:
-        """Console errors seen while this page was driven."""
-        return tuple(self._console)
 
 
 async def _debugger_endpoint() -> str:

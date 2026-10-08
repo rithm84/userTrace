@@ -41,27 +41,33 @@ _CASE: frozenset[BundleDependency] = frozenset(
 class BundlePurpose(StrEnum):
     """The closed set of bundle purposes."""
 
-    VOICE_TOOLS = "voice_delegation"
-    """A voice agent tool call's working context; its tools record agreements.
-
-    The stored value predates the voice agent, and stays so the column's enum is unchanged.
-    """
+    VOICE_DELEGATION = "voice_delegation"
+    """A delegation's working context; its tools record agreements and choose targets."""
     FLOW_CLASSIFICATION = "flow_classification"
     """The interview-established flow classification the gate screens against."""
     JEV_ATTENTION = "jev_attention"
     """Which agreed checks the person's activity in a new version showed."""
+    DELEGATION_ROUTING = "delegation_routing"
+    """Whether a delegation needs a control shown, which, or only the change's progress."""
+    SPEECH_GESTURE = "speech_gesture"
+    """Whether the words the agent is saying are about a control on screen, and which."""
 
     @property
     def dependencies(self) -> frozenset[BundleDependency]:
         """The revisions a result of this purpose depends on.
 
         An agreement or a classification rests on the case itself. A shown-checks
-        verdict rests on the criteria it judged. No result rests on telemetry
+        verdict rests on the criteria it judged. A gesture or routing judgement
+        reads only the recent conversation, which no revision describes, and its
+        gesture is authorized afresh against session state, readiness, binding,
+        and target freshness when it is dispatched. No result rests on telemetry
         readiness or on the session's own revision, which moves with Mute, Pause,
         phase, and implementation progress.
         """
         match self:
-            case BundlePurpose.VOICE_TOOLS | BundlePurpose.FLOW_CLASSIFICATION:
+            case BundlePurpose.VOICE_DELEGATION | BundlePurpose.FLOW_CLASSIFICATION:
                 return _CASE
             case BundlePurpose.JEV_ATTENTION:
                 return frozenset({BundleDependency.ACCEPTANCE_CRITERIA_REVISION})
+            case BundlePurpose.DELEGATION_ROUTING | BundlePurpose.SPEECH_GESTURE:
+                return frozenset()

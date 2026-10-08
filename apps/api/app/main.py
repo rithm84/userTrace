@@ -35,7 +35,7 @@ from app.auth.jwt import SupabaseJwtVerifier
 from app.db.pool import Database
 from app.execution.reconcile import reconcile_startup
 from app.ingestion.wiring import close_ingestion
-from app.interview.settings import get_voice_settings
+from app.interview.settings import get_openai_voice_settings
 from app.interview.voice.adapter import build_voice_adapter
 from app.logging import configure_logging, get_logger
 from app.ports import PortRegistry
@@ -126,14 +126,14 @@ def create_default_app() -> FastAPI:
     Settings are read when the factory runs, not at import, so tools that only
     need the route shapes can import this module without credentials. Run it with
     ``uvicorn --factory app.main:create_default_app``. The deployed API holds the
-    Daily voice adapter; the ingestion-backed ports are installed once the
+    GPT-Live voice adapter; the ingestion-backed ports are installed once the
     database is open.
     """
     configure_logging(INFO)
     return create_app(
         get_settings(),
         PortRegistry(
-            voice=build_voice_adapter(settings=get_voice_settings()),
+            voice=build_voice_adapter(settings=get_openai_voice_settings()),
             observation=None,
             evidence=None,
         ),

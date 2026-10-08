@@ -177,7 +177,7 @@ Before an Interview Session starts, the claimed invitation runs a participant co
   session's current binding, readiness, and character state. Each connection
   names the session the service worker serves when it opens.
 - The control plane pushes; it does not wait to be asked. Any control-plane
-  process, whether an API request, the worker's voice agent, or an ingestion
+  process, whether an API request, the worker's voice sideband, or an ingestion
   Job, changes a session's binding, readiness, character state, or visual
   commands only by committing durable state. The commit notifies the
   `extension_control` Postgres channel with the session, which wakes the API
@@ -273,7 +273,7 @@ Before an Interview Session starts, the claimed invitation runs a participant co
   state with Resume, Return to session, and End available.
 - The authoritative Pause transition also blocks new live implementation steps;
   already-running operations may only reach a safe checkpoint. A spoken request
-  such as “give me a moment” quiets the voice agent without invoking this
+  such as “give me a moment” quiets GPT-Live conversation without invoking this
   transition and does not by itself pause authorized implementation.
 - The shared runtime emits no session-correlated browser telemetry while paused.
   The user may continue using the product, but uTrace neither observes nor acts.
@@ -308,10 +308,12 @@ Before an Interview Session starts, the claimed invitation runs a participant co
 - The extension owns browser-command lifecycle and visible choreography. The SDK
   owns structured target resolution. Commands address an exact registered target
   revision, never raw screen coordinates, arbitrary selectors, or JavaScript.
-- The voice agent's model places each gesture with an inline mark before the
-  words that name its control, and the gesture is dispatched as the word after
-  the mark plays; speech never waits for cursor arrival. Cue IDs and ordering
-  prevent an older gesture from replacing a newer one.
+- Speech may begin before or during cursor movement. GPT-Live, informed by the
+  active orchestration context and typed delegation or Jev results, chooses the
+  natural relation between speech and the gesture; the visual tool returns after
+  validated dispatch rather than forcing conversation to wait for cursor
+  arrival. Cue IDs and ordering prevent an older gesture from replacing a newer
+  one.
 - Before execution, customer scrolling or a layout change that invalidates the
   target revision cancels the visual command. uTrace never blocks customer input.
 - The agent cursor is command-only and hidden between uses: it fades a few

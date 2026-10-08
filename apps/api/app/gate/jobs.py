@@ -78,7 +78,7 @@ from app.interview.projection import (
     return_to_validation_on_connection,
 )
 from app.interview.settings import get_jev_settings
-from app.interview.voice.session_changes import wake_voice_agents
+from app.interview.voice.session_changes import wake_case_sidebands
 from app.lifecycle.attempts import AttemptRequest, create_implementation_attempt
 from app.lifecycle.product_signal import ProductSignalFacts
 from app.lifecycle.signal_transitions import advance_product_signal_on_connection
@@ -510,7 +510,7 @@ async def _close_without_implementation(
                 ),
             ),
         )
-        await wake_voice_agents(conn, product_signal_id=product_signal_id)
+        await wake_case_sidebands(conn, product_signal_id=product_signal_id)
 
 
 async def settle_failed_gate(
@@ -524,7 +524,7 @@ async def settle_failed_gate(
     declined, and its validation goes on; any other case closes with its blocker
     Case File, and the Outreach Offer is evaluated as a technical blocker. The
     committed fact names which, and the case's open sessions are woken so the
-    voice agent is told at once.
+    sideband tells the agent at once.
     """
     product_signal_id = UUID(str(claimed.input["product_signal_id"]))
     async with conn.cursor() as cur:
@@ -611,7 +611,7 @@ async def settle_failed_gate(
         ),
         jobs=jobs,
     )
-    await wake_voice_agents(conn, product_signal_id=product_signal_id)
+    await wake_case_sidebands(conn, product_signal_id=product_signal_id)
     _log.warning(
         "gate_failed_terminally",
         client_id=str(claimed.client_id),

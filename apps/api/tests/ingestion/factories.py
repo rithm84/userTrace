@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from base64 import b64encode
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import rfc8785
@@ -338,11 +337,3 @@ async def start_server_activation(
     )
 
 
-def rfc3339(moment: datetime) -> str:
-    """Render one instant the way the wire contract does."""
-    return moment.astimezone(UTC).isoformat().replace("+00:00", "Z")
-
-
-def recent(offset_seconds: int) -> datetime:
-    """Return a time close enough to now that the clock-quality bound accepts it."""
-    return datetime.now(tz=UTC) - timedelta(seconds=offset_seconds)

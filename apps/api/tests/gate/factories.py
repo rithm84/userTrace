@@ -395,11 +395,6 @@ def shopalytics_checks() -> tuple[dict[str, object], ...]:
     )
 
 
-def far_future() -> datetime:
-    """A deadline no test run reaches."""
-    return datetime.now(tz=UTC) + timedelta(days=7)
-
-
 def gate_policy(
     *, live_implementation_allowed: bool = True, live_window_seconds: int = 1800
 ) -> dict[str, object]:
@@ -470,7 +465,7 @@ async def approve_agreed_change(
 
     The decision row is written directly; authorizing the attempt runs the real
     lifecycle, which commits `implementation_attempt_authorized` and wakes the case's
-    voice agent. Returns the attempt's identifier.
+    live sideband. Returns the attempt's identifier.
     """
     decision_id = uuid7()
     window_id = uuid7()

@@ -6,9 +6,9 @@ walkthrough or gesture at each filter as it is set; once the participant has
 finished and asked for what they want, the agent restates the request in one
 pass, with the cursor showing the controls it names. This replays that moment
 from the 2026-10-03 demo session, where the agent echoed every filter mid-way and
-circled it, over a real voice call (see `realtime_harness`).
+circled it, over a real GPT-Live call (see `realtime_harness`).
 
-It costs about a minute of voice plus a few Jev calls, so it runs only
+It costs about a minute of voice plus a few Sol and Jev calls, so it runs only
 when `UTRACE_REALTIME_E2E=1`.
 """
 
@@ -104,6 +104,7 @@ async def test_the_agent_listens_through_a_walkthrough_and_recaps_it_after(
             await asyncio.sleep(_PAUSE_SECONDS)
         ask_start, ask_end = await harness.say(call.microphone, ask)
         recap = await harness.required_reply(database, call.session_id, after=ask_end)
+        # The recap may follow a delegation ("One moment"), so wait for what it shows.
         deadline = time.time() + _RECAP_DEADLINE_SECONDS
         while time.time() < deadline and not [
             d for d in await harness.dispatches(database, call.session_id) if _at(d) >= ask_end

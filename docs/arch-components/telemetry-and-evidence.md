@@ -308,7 +308,7 @@ of product operations, and exposes bounded evidence views to the control plane.
 ## Evidence windows and promotion
 
 - Normalized telemetry is an observation source, not automatically a confirmed
-  Product Signal claim. The voice agent's tools or Jev may propose evidence from
+  Product Signal claim. GPT-Live, the delegation model, or Jev may propose evidence from
   it within their typed roles; the control plane
   validates and promotes evidence to the Product Signal ledger.
 - Every promoted telemetry item preserves its canonical record or artifact

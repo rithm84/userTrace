@@ -479,18 +479,6 @@ export const caseFileListSchema = z.object({
 });
 export type CaseFileList = z.infer<typeof caseFileListSchema>;
 
-export const caseFileAmendmentsSchema = z.object({
-  case_file_id: uuid,
-  amendments: z.array(
-    z.object({
-      id: uuid,
-      case_file_id: uuid,
-      ordinal: z.int(),
-      reason: z.string(),
-      recorded_at: timestamp,
-    }),
-  ),
-});
 
 /* ------------------------------------------------------------- offers */
 

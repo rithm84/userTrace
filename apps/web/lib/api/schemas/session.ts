@@ -266,10 +266,8 @@ export const preflightResultSchema = z.object({
 });
 export type PreflightResult = z.infer<typeof preflightResultSchema>;
 
-/** What admits the participant's browser to its own Daily call with the voice agent. */
 export const voiceConnectionSchema = z.object({
-  room_url: z.url(),
-  participant_token: text,
+  sdp_answer: text,
   connection_id: uuid,
   voice_run_id: uuid,
 });

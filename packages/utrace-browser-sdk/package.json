@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "description": "uTrace embedded browser SDK and shared browser observation runtime for uTrace-prepared previews.",
-  "license": "AGPL-3.0-only",
+  "license": "UNLICENSED",
   "engines": {
     "node": "24.x"
   },

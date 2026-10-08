@@ -30,27 +30,24 @@ The system has one durable authority and several specialized execution planes.
 
 ![Browser, voice, reasoning, authority, data, preview compute, and delivery relationships.](./diagrams/svg/architecture-system-landscape.svg)
 
-The voice agent handles conversational voice: a Pipecat pipeline in the worker
-that joins the call's private Daily room, hears the participant through Deepgram
-Flux, writes its words and calls uTrace's tools with Claude Sonnet 5.5, and speaks
-through ElevenLabs. Every other reasoning role runs GPT-6.1 Sol on the OpenAI API's
-Fast service tier at its own pinned effort, because its speed is what a waiting
-participant feels: between the participant's agreement and the preview they
+GPT-Live handles conversational voice. Every reasoning role runs GPT-6.1 Sol on
+the OpenAI API's Fast service tier at its own pinned effort, because its speed is
+what a waiting participant feels: answers to GPT-Live's delegated questions during
+the conversation; between the participant's agreement and the preview they
 validate, pre-gate code investigation and Implementation Attempts, inside Codex in
 a Vercel Sandbox, and Implementation Gate proposals; intake assistance; and Case
 File drafting. The code investigation and the case's
 implementation workspace are prepared while the interview runs, so the gate and
 the coding agent start from them the moment the participant agrees. Jev is the default intake
 decision model. During interviews it concurrently assesses relevance, claim
-relationships, criterion-level evidence gaps, retrieval/model routing, which
-activity to acknowledge, and which agreed checks a new version already showed. It
-also proposes the interview-established flow
+relationships, criterion-level evidence gaps, retrieval/model routing, and
+supplied target choices. It also proposes the interview-established flow
 classification. The [Jev decision contract](./arch-components/cross-component-contracts.md#jev-decision-contract)
 defines question types and acceptance checks. Jev neither serializes every spoken
 turn nor grants authority.
 
-uTrace calls every model provider directly from its own runtime; no provider's
-agent platform owns orchestration. The
+uTrace calls the OpenAI API directly from its own runtime; OpenAI's agent
+platform does not own orchestration. The
 [deployment contract](./arch-components/deployment.md#model-access) defines model
 access and configuration.
 
@@ -127,7 +124,7 @@ and browser/server evidence path. Losing that path stops dependent work without
 necessarily ending healthy conversation.
 
 The [voice contract](./arch-components/interview-and-voice.md) owns backend-authorized
-call setup, the voice agent's pipeline, application cues, and conversation evidence.
+OpenAI session setup, direct browser WebRTC, delegation, and conversation evidence.
 The [context assembler](./arch-components/context-assembly.md) supplies revisioned
 inputs so controllers can reject results invalidated by changed requirements or corrections.
 
@@ -182,7 +179,7 @@ controls without granting lifecycle-editing authority.
 
 The deployment map places each workload at its owning service.
 
-![Deployment across Vercel, Supabase Compute, Supabase, Daily, and the model providers with backend provider dependencies.](./diagrams/svg/architecture-deployment-topology.svg)
+![Deployment across Vercel, Supabase Compute, Supabase, and the OpenAI API with backend provider dependencies.](./diagrams/svg/architecture-deployment-topology.svg)
 
 [Data and Schema](./arch-components/data-and-schema.md) owns durable records,
 artifacts, and their cleanup contracts.
@@ -208,11 +205,8 @@ billing authority.
 | --- | --- |
 | Staff and participant authentication | Supabase Auth; explicit uTrace authorization; Discord sign-in for participants |
 | Customer Surface | One configured Discord server per client |
-| Full-duplex voice call | Pipecat (`pipecat-ai` 1.12) voice agent in the worker; one private Daily room per voice connection, created by the backend |
-| Speech recognition and turn detection | Deepgram Flux (`flux-general-en`) |
-| Voice agent text model | Claude Sonnet 5.5 (`claude-sonnet-5-5`) through the Anthropic API |
-| Speech synthesis | ElevenLabs Eleven v4 Turbo (`eleven_v4_turbo`) |
-| Implementation Gate proposals, intake assistance, Case File synthesis | GPT-6.1 Sol (`gpt-6.1-sol`), Fast tier, through the OpenAI Responses API |
+| Full-duplex conversational voice | OpenAI GPT-Live (`gpt-live-1`) through the OpenAI API; backend-created WebRTC session and server-side client delegation |
+| GPT-Live delegation answers, Implementation Gate proposals, intake assistance, Case File synthesis | GPT-6.1 Sol (`gpt-6.1-sol`), Fast tier, through the OpenAI Responses API |
 | Code investigation and implementation harness | Codex CLI running GPT-6.1 Sol, Fast tier, inside Vercel Sandbox |
 | Default intake decisions and concurrent typed semantic attention | TypeSafe AI Jev (`typesafe-ai/jev`) through Vercel AI Gateway |
 | Durable workflow state | Supabase Postgres |

@@ -1,23 +1,23 @@
 ...@_style
 
-cells: "The agent cursor: a mark in the reply, circled as the word plays" {
+cells: "The agent cursor: Jev decides what to circle, live" {
   class: grid
   grid-rows: 1
   grid-columns: 4
   horizontal-gap: 220
 
   agent: |md
-    ### Claude writes the reply
-    - "...the `<c id="T3"/>`channel
-    - filter set to **TikTok**..."
+    ### GPT-Live speaks
+    - "...channel **TikTok**,"
+    - "segment **Women 25 to 34**..."
   | {class: [card; reasoning]; width: 330}
 
-  tap: |md
-    ### Playback tap
-    - the mark is never spoken
-    - sent as the next word plays
-    - an interruption drops it
-  | {class: [card; runtime]; width: 330}
+  jev: |md
+    ### Jev judges every fragment
+    - the last six words
+    - which control named last
+    - ~0.3 s · how sure
+  | {class: [card; reasoning]; width: 330}
 
   sdk: |md
     ### Browser SDK
@@ -32,6 +32,6 @@ cells: "The agent cursor: a mark in the reply, circled as the word plays" {
   | {class: [card; runtime]; width: 330}
 }
 
-cells.agent -> cells.tap: each mark {class: edge}
-cells.tap -> cells.sdk: resolve target {class: edge-dashed}
-cells.sdk -> cells.extension: circle {class: edge-ok}
+cells.agent -> cells.jev: each fragment {class: edge}
+cells.jev -> cells.sdk: resolve target {class: edge-dashed}
+cells.sdk -> cells.extension: confident: circle {class: edge-ok}

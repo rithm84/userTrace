@@ -1,12 +1,13 @@
 """Showing the participant a registered control: the gesture and its dispatch.
 
 A gesture is one scene step at an exact registered target revision, played in the
-bound preview document by the extension; one scene plays several in order. The voice
-agent's model chooses the control by putting its mark in what it says
-(`app.interview.voice.pipeline`).
+bound preview document by the extension; one scene plays several in order. Which control to show, and whether to
+show one at all, is decided elsewhere: by Jev from the conversation when the
+agent delegates (`delegation`), or by the delegation model's own tool.
 """
 
 from collections.abc import Mapping, Sequence
+from typing import Final
 from uuid import UUID
 
 from app.db.pool import Database
@@ -22,16 +23,31 @@ from app.ids import uuid7
 from app.interview.ports import RegisteredTarget
 
 __all__ = [
+    "POINT_DWELL_MS",
     "bound_document_attachment",
     "circle_step",
     "gesture_at",
+    "point_step",
     "target_option",
 ]
+
+#: How long the agent cursor rests on a control it points at.
+POINT_DWELL_MS: Final[int] = 1200
 
 
 def target_option(target: RegisteredTarget) -> str:
     """How a target is offered to a model choosing which control is meant."""
     return f"{target.role}: {target.description} ({target.placement})"
+
+
+def point_step(target: RegisteredTarget, *, dwell_ms: int) -> PointStep:
+    """Move the agent cursor onto a target and rest there."""
+    return PointStep(
+        step="point",
+        target_id=target.target_id,
+        target_revision=target.target_revision,
+        dwell_ms=dwell_ms,
+    )
 
 
 def circle_step(target: RegisteredTarget) -> CircleStep:

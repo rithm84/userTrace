@@ -113,7 +113,7 @@ async def test_a_bundle_is_source_linked_budgeted_and_stamped(
                     end_ms=index * 100 + 90,
                     text=f"fragment {index}",
                 ),
-                provenance={"provider": "utrace_voice_agent"},
+                provenance={"provider": "openai_gpt_live"},
             )
 
     bundle = await assemble_bundle(
@@ -155,8 +155,8 @@ async def test_a_bundle_is_source_linked_budgeted_and_stamped(
 async def test_concurrent_bundles_for_one_purpose_take_successive_revisions(
     database: Database, auth_users: dict[str, SignedInUser]
 ) -> None:
-    # The voice agent's concurrent tool calls each assemble their own bundle; none
-    # may lose a race for the same revision.
+    # The cursor judges every fragment of the agent's speech at once, each against
+    # its own bundle; none may lose a race for the same revision.
     case = await _case(database, auth_users, "context-concurrent")
     session_id = await create_live_session(
         database, case=case, phase=InterviewPhase.DISCOVERY
@@ -169,7 +169,7 @@ async def test_concurrent_bundles_for_one_purpose_take_successive_revisions(
                 client_id=case.client_id,
                 product_signal_id=case.product_signal_id,
                 interview_session_id=session_id,
-                purpose=BundlePurpose.VOICE_TOOLS,
+                purpose=BundlePurpose.SPEECH_GESTURE,
                 recent_fragment_limit=10,
             )
             for _ in range(12)

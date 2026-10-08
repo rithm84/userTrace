@@ -11,23 +11,23 @@ cells: "Voice runtime · fluid conversation, controlled effects" {
     ### Session tab
   
     - Authenticated originating user
-    - Daily call audio + controls
+    - WebRTC audio + controls
     - Live transcript captions
   | {class: [card; people]}
 
-  voice_agent: |md
-    ### Voice agent · Pipecat
+  gpt_live: |md
+    ### GPT-Live
   
-    - Flux · Sonnet 5.5 · ElevenLabs
+    - OpenAI API
     - Conversation + interruption
-    - Gesture marks in its words
+    - Backend session control
   | {class: [card; reasoning]}
 
-  backend_work: |md
-    ### Tools and cues
+  backend_delegation: |md
+    ### Backend delegation
   
-    - uTrace tools · application cues
-    - Jev attention · coding agent
+    - Jev attention · GPT-6.1 Sol answers
+    - Coding agent in the workspace
   | {class: [card; runtime]}
 
   observed_preview: |md
@@ -51,14 +51,14 @@ cells: "Voice runtime · fluid conversation, controlled effects" {
     - Scope · budget
   | {class: [card; gate]}
 
-  session_tab <-> voice_agent: "audio +\ncaptions" {class: edge}
-  voice_agent <-> backend_work: "tool calls +\ncues" {class: edge}
+  session_tab <-> gpt_live: "audio + captions" {class: edge}
+  gpt_live -> backend_delegation: "delegations +\nits own words" {class: edge}
   session_tab -> observed_preview: "two tabs" {class: edge}
   observed_preview -> application_context: "observations" {class: edge}
-  application_context -> backend_work: "selected facts" {class: edge}
-  backend_work -> control_plane: "proposals" {class: edge}
+  application_context -> backend_delegation: "selected facts" {class: edge}
+  backend_delegation -> control_plane: "proposals" {class: edge}
   control_plane -> application_context: "verified\nresults" {class: edge}
-  application_context <-> voice_agent: "played words + screen state" {class: edge}
+  application_context -> gpt_live: "quiet context" {class: edge}
 }
 
 key: "" {

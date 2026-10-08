@@ -310,8 +310,8 @@ permissions, account linking, and voice setup. If required setup is impossible
 or its bounded setup window expires, uTrace explains the blocker and closes
 without an interview, Case File, or reward.
 
-The live interview is voice-only. The voice agent handles full-duplex conversation
-and interruption while backend agents investigate and implement concurrently. The
+The live interview is voice-only. GPT-Live handles full-duplex conversation and
+interruption while backend agents investigate and implement concurrently. The
 agent remains conversational, asks useful questions, and avoids repeated filler
 or continuous progress narration. Text communicates setup and connection status;
 it does not replace the voice interview.
