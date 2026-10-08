@@ -19,7 +19,10 @@ Before interviewing begins, invitation claim runs the [participant compatibility
 GPT-Live (`gpt-live-1`) runs through the OpenAI API and owns full-duplex audio,
 conversational timing, and native interruption. The session tab carries WebRTC
 audio after backend-authenticated setup. The extension does not capture or relay
-audio. Supabase Realtime carries application updates, not media.
+audio. Supabase Realtime carries application updates, not media. The
+[voice and reasoning model measurements](./evaluation-and-observability.md#voice-and-reasoning-model-measurements)
+compare it with a script-first pipeline that owns its turn-taking, and Sol with
+Claude Haiku 5.5 in Sol's roles.
 
 Use GPT-Live client delegation. Here, client means uTrace's application backend,
 not the browser. GPT-Live announces each delegation with
