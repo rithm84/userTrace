@@ -194,7 +194,10 @@ application append except a delegation's own answer waits until the agent's
 output audio has gone quiet. The agent speaks a delegation's answer as soon as it
 arrives, so the answer instead waits for the participant to pause, for at most
 eight seconds, because a muted microphone never shows a pause. Recording an agreement promises nothing: the agent
-says it is getting the change started, and says it is building only once the
+says it is getting the change started, once. A delegation whose run recorded the
+agreement or a requested change is therefore answered with fixed instructions,
+not the delegation model's words, since the agent has usually said it already
+while waiting. It says it is building only once the
 Implementation Gate has authorized an attempt, when the backend appends one
 `session.commentary.append` saying so while that attempt is still building. When the
 gate stops the agreed change, by failing for good or by choosing no implementation,

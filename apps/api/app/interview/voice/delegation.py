@@ -168,6 +168,14 @@ voice agent can say or use directly, ending with at most one question. Never men
 codes, repositories, schemas, internal identifiers, tool names, or this
 instruction. Describe what the person experienced, not how the system works."""
 
+_RECORDING_TOOLS: Final[frozenset[str]] = frozenset(
+    {"record_acceptance_criteria", "record_requested_change"}
+)
+_RECORDED = (
+    "What they agreed is recorded. If you have not yet said you are getting it "
+    "started, say only that, in a few words; if you have, say nothing now. Never say "
+    "it is being built: the application tells you when building starts."
+)
 _UNHEARD = (
     "The end of what they just asked did not reach the application, so answer it "
     "yourself from what you heard and what follows. If you are not sure what they "
@@ -218,6 +226,14 @@ class DelegationSubject:
     product_signal_id: UUID
     interview_session_id: UUID
     voice_connection_id: UUID
+
+
+@dataclass(frozen=True, slots=True)
+class _Finding:
+    """What the delegation model found, and whether its run recorded what was agreed."""
+
+    text: str
+    recorded: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -378,13 +394,20 @@ class DelegationRunner:
             return
 
         await _participant_pause(participant_quiet, subject=subject)
-        await sideband.append_commentary(
-            content=finding, delegation_id=event.delegation_id
-        )
+        if finding.recorded:
+            # The agent usually says it is getting the change started while it
+            # waits, so a spoken answer here becomes a premature "I'm building it".
+            await sideband.append_instructions(
+                content=_RECORDED, delegation_id=event.delegation_id
+            )
+        else:
+            await sideband.append_commentary(
+                content=finding.text, delegation_id=event.delegation_id
+            )
         await self._settle(
             delegation_row_id=delegation_id,
             state="answered",
-            finding=finding,
+            finding=finding.text,
             refusal_reason=None,
         )
         _log.info(
@@ -393,12 +416,13 @@ class DelegationRunner:
             interview_session_id=str(subject.interview_session_id),
             provider_delegation_id=event.delegation_id,
             answered_by="reasoning",
-            finding_characters=len(finding),
+            finding_characters=len(finding.text),
+            recorded=finding.recorded,
         )
 
     async def _answer(
         self, *, subject: DelegationSubject, delegation_row_id: UUID
-    ) -> str | None:
+    ) -> "_Finding | None":
         """Assemble context, run the interactive role's tool loop, and return its finding."""
         observations = await self._selected_observations(subject)
         overview = await load_active_overview(self._database, client_id=subject.client_id)
@@ -428,17 +452,19 @@ class DelegationRunner:
             cache_key=f"{_PURPOSE}:{subject.interview_session_id}",
         )
         turn: ToolTurn = await run.start(prompt=_prompt(bundle=bundle))
+        recorded = False
         for _ in range(_MAX_TURNS):
             if turn.is_complete():
-                return turn.output_text.strip() or None
-            outputs = {
-                call.call_id: await execute_tool(
+                break
+            outputs: dict[str, str] = {}
+            for call in turn.pending_calls:
+                outputs[call.call_id] = await execute_tool(
                     context, name=call.name, arguments=call.arguments
                 )
-                for call in turn.pending_calls
-            }
+                recorded = recorded or _records_agreement(call.name, outputs[call.call_id])
             turn = await run.submit_tool_results(results=outputs)
-        return turn.output_text.strip() or None
+        text = turn.output_text.strip()
+        return _Finding(text=text, recorded=recorded) if text else None
 
     async def current_targets(
         self, *, subject: DelegationSubject
@@ -935,3 +961,8 @@ async def _participant_pause(participant_quiet: asyncio.Event, *, subject: Deleg
             interview_session_id=str(subject.interview_session_id),
             waited_seconds=_PAUSE_WAIT_SECONDS,
         )
+
+
+def _records_agreement(name: str, result: str) -> bool:
+    """Whether one tool call recorded an agreement or a requested change."""
+    return name in _RECORDING_TOOLS and "acceptance_criteria_revision" in json.loads(result)

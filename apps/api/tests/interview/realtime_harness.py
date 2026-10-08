@@ -69,7 +69,7 @@ _FRAME_SAMPLES: Final[int] = int(AUDIO_PTIME * _SAMPLE_RATE)
 _FRAME_BYTES: Final[int] = _FRAME_SAMPLES * 2
 _DEVICE_KEY: Final[str] = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEtoolstestkeyfortheinstallationrecord"
 _QUIET_SECONDS: Final[float] = 2.0
-REPLY_DEADLINE_SECONDS: Final[float] = 30.0
+REPLY_DEADLINE_SECONDS: Final[float] = 45.0
 #: How long a participant waits in silence before taking the agent's turn as over.
 _TURN_OVER_SECONDS: Final[float] = 6.0
 INTRO_REPLY_SECONDS: Final[float] = 6.0
