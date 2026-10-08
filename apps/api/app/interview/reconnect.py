@@ -1,6 +1,6 @@
 """The bounded reconnect window after a lost voice connection.
 
-When the participant leaves the call or loses its connection, the session reports
+When GPT-Live loses the participant's media connection, the session reports
 `reconnecting` and the session tab opens a new connection. A connection that is
 not replaced within the window is a departure: the encounter is checkpointed
 exactly as **Finish later** checkpoints it, and the case's return deadline starts,

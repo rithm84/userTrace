@@ -3,7 +3,7 @@
 Each client has one active immutable Product Overview Version covering product
 purpose, terminology, primary users, workflows, known capabilities, entities,
 integrations, constraints, and sources. Routing pins the version it used, and
-the voice agent's instructions carry it whole: at a few thousand characters it travels
+interview delegations carry it whole: at a few thousand characters it travels
 with every bundle that needs product knowledge rather than through a search
 index.
 

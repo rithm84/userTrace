@@ -1,9 +1,11 @@
 """Telling the agent what the participant does in the preview, as they do it.
 
-The agent knows only what the application tells it. While the observation path
-is ready, this reads the session's newest activity each time new activity is
-committed and adds what is new to the conversation quietly (`AgentChannel.note`),
-which the agent uses in its next turn without speaking it on arrival.
+GPT-Live knows only what the application tells it. Without this feed the agent
+learns about the person's clicks only by delegating, and a turn that does not
+delegate misses them. While the observation path is ready, this reads the
+session's newest activity each time new activity is committed and appends what is
+new as quiet context (`session.thinking.append`), which the agent uses in its next
+turn without speaking it on arrival.
 
 Each line says what changed, the way the person would: a milestone the agent has
 not heard of yet is described whole, and one it has heard of again is described
@@ -16,7 +18,7 @@ activity and what it proved together and answers once.
 
 Context appended while the agent is talking can make it break off mid-sentence,
 so what the person does then is held and sent, combined, the moment the agent
-stops: `agent_quiet` is set exactly while it is neither answering nor speaking.
+stops: `agent_quiet` is set exactly while it is not speaking.
 
 A moment the person expects the agent to notice, such as the screen they said
 they would open coming up, is sent speakably instead, asking the agent to
@@ -32,12 +34,13 @@ from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Final
 
+from app.connectors.openai_live import SidebandConnection
 from app.db.pool import Database
 from app.db.rows import as_bool
 from app.interview.observations import ObservedActivity, describe_activity, recent_activity
 from app.interview.voice.acknowledgements import Acknowledgements
-from app.interview.voice.channel import AgentChannel, VoiceSubject
 from app.interview.voice.checks_shown import ShownChecks
+from app.interview.voice.delegation import DelegationSubject
 from app.interview.voice.session_changes import SessionChanges
 from app.logging import get_logger
 
@@ -47,7 +50,7 @@ _log = get_logger(__name__)
 
 _WINDOW: Final[timedelta] = timedelta(minutes=2)
 _READ_LIMIT: Final[int] = 30
-#: Keeps one note short enough that the agent's next reply is not slowed by it.
+#: Keeps one append well under GPT-Live's 500-token limit.
 _MAX_CHARACTERS: Final[int] = 1600
 _PREFIX: Final[str] = "In the preview, the person just did this, oldest first: "
 _ACKNOWLEDGE: Final[str] = (
@@ -60,8 +63,8 @@ _ACKNOWLEDGE: Final[str] = (
 async def feed_activity(
     database: Database,
     changes: SessionChanges,
-    subject: VoiceSubject,
-    agent: AgentChannel,
+    subject: DelegationSubject,
+    sideband: SidebandConnection,
     agent_quiet: asyncio.Event,
     checks: ShownChecks,
     acknowledgements: Acknowledgements,
@@ -104,8 +107,12 @@ async def feed_activity(
                 if report is not None:
                     held_checks = report
         if (held or held_checks is not None) and agent_quiet.is_set():
-            spoken = bool(moment) and await acknowledgements.worth_saying(moment, read_at=read_at)
-            await _append(agent, subject=subject, lines=held, checks=held_checks, spoken=spoken)
+            spoken = bool(moment) and await acknowledgements.worth_saying(
+                moment, read_at=read_at
+            )
+            await _append(
+                sideband, subject=subject, lines=held, checks=held_checks, spoken=spoken
+            )
             held = []
             held_checks = None
 
@@ -173,9 +180,9 @@ def _words(identifier: str) -> str:
 
 
 async def _append(
-    agent: AgentChannel,
+    sideband: SidebandConnection,
     *,
-    subject: VoiceSubject,
+    subject: DelegationSubject,
     lines: Sequence[str],
     checks: str | None,
     spoken: bool,
@@ -185,9 +192,9 @@ async def _append(
         # A newly shown check already has the agent ask them to confirm it, which
         # acknowledges what they did; a second acknowledgement only repeats it.
         tail = _ACKNOWLEDGE if checks is None else checks
-        await agent.say(_content(lines, tail=tail))
+        await sideband.append_commentary(content=_content(lines, tail=tail), delegation_id=None)
     else:
-        await agent.note(_content(lines, tail=checks))
+        await sideband.append_thinking(content=_content(lines, tail=checks), delegation_id=None)
     _log.info(
         "voice_activity_fed",
         interview_session_id=str(subject.interview_session_id),
@@ -215,7 +222,7 @@ def _content(lines: Sequence[str], *, tail: str | None) -> str:
     return body if tail is None else f"{body} {tail}"
 
 
-async def _observation_ready(database: Database, *, subject: VoiceSubject) -> bool:
+async def _observation_ready(database: Database, *, subject: DelegationSubject) -> bool:
     """Whether the complete observation path currently backs product-activity claims."""
     async with database.connection() as conn, conn.cursor() as cur:
         await cur.execute(

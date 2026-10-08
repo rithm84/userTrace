@@ -37,7 +37,9 @@ class PortRegistry:
     def require_voice(self) -> VoicePort:
         """Return the voice adapter or refuse with the owning workstream named."""
         if self.voice is None:
-            raise NotYetWiredError(capability="voice_call", owning_workstream="provider-adapters")
+            raise NotYetWiredError(
+                capability="gpt_live_voice_session", owning_workstream="provider-adapters"
+            )
         return self.voice
 
     def require_observation(self) -> ObservationReadinessPort:

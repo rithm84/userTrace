@@ -1,10 +1,10 @@
-"""What the voice agent is told on its own as the session's committed state changes.
+"""What the voice sideband does on its own as the session's committed state changes.
 
 Each of these waits on `SessionChanges` rather than polling: it re-reads the
 session's state whenever a trigger says that state may have changed.
 
 - Mute: the participant's Mute and Unmute reach the worker as queued Commands,
-  which it applies to the call, so a worker restart still applies
+  which it applies to the provider connection, so a worker restart still applies
   them and a lost socket cannot swallow them.
 - Open preview: once the preview has stayed ready but unopened for a grace
   period, the agent is asked to have the participant open it, and told if they
@@ -17,7 +17,7 @@ session's state whenever a trigger says that state may have changed.
 - Validation: each new version's Validation Attempt begins as soon as its guards
   allow, the exact candidate ready and observation current on it, so the evidence
   window opens before the participant starts trying it rather than when the agent
-  next asks for it.
+  next delegates.
 - Gate failure: once the Implementation Gate has failed for good, the agent is
   told the change cannot start, so it never promises a version that is not coming.
 """
@@ -40,6 +40,7 @@ from utrace_contracts.domain.lifecycle import (
     ProductSignalState,
 )
 
+from app.connectors.openai_live import SidebandConnection
 from app.db.pool import Database
 from app.db.rows import as_int, as_str, as_uuid
 from app.envelope import Actor
@@ -57,17 +58,17 @@ from app.ingestion.target_registry import (
     screen_region,
 )
 from app.interview.ports import RegisteredTarget
-from app.interview.voice.channel import AgentChannel, Floor, VoiceSubject
-from app.interview.voice.judge import VoiceJudge
+from app.interview.voice.delegation import DelegationRunner, DelegationSubject
 from app.interview.voice.pointing import bound_document_attachment
 from app.interview.voice.session_changes import SessionChanges
+from app.interview.voice.speech_gestures import GestureMoments
+from app.interview.voice.turns import Floor
 from app.lifecycle.case_stop import close_open_sessions
 from app.logging import get_logger
 from app.validation.records import load_criteria_on_connection
 from app.validation.session import start_session_validation
 
 __all__ = [
-    "agreed_change",
     "announce_gate_outcome",
     "announce_ready_preview",
     "announce_validation_outcome",
@@ -83,7 +84,8 @@ _READY: Final[str] = ImplementationProgress.READY_FOR_VALIDATION.value
 _APPROVED: Final[str] = GateDecisionKind.APPROVED_LIVE.value
 
 #: How long a ready preview may stay unopened before the agent is asked to prompt
-#: for it. Participants usually open it unprompted.
+#: for it. Participants usually open it unprompted, and GPT-Live speaks an
+#: instruction at its next pause, which may be well after it was sent.
 _OPEN_PREVIEW_GRACE_SECONDS: Final[float] = 20.0
 
 #: Sent once the participant's preview is ready while they have not opened it, so
@@ -117,8 +119,9 @@ _DEBRIEF_CUE: Final[str] = (
     "The new version has loaded in their preview. Before they try it, walk them "
     "through what changed: a separate short sentence for each new control that "
     "delivers what you agreed, in the order they will use it, naming it plainly "
-    'and saying where it is and what it does, such as "The new export button '
-    'at the top right downloads this report."; circle each one as you name it. Mention a moved control only if it matters to what '
+    "and saying where it is and what it does, such as \"The new export button "
+    "at the top right downloads this report.\"; the cursor circles each one as you name "
+    "it. Mention a moved control only if it matters to what "
     "you agreed. {changes} What you agreed: {outcome} Then ask them to try it and go "
     "through the agreed checks one at a time, waiting for their answer to each "
     "before the next. If they try several at once, the application tells you which "
@@ -169,7 +172,7 @@ _BUILDING_CUE: Final[str] = (
 _GOODBYE_POLL_SECONDS: Final[float] = 0.1
 #: How long the agent has to start its goodbye before the session closes without it.
 _GOODBYE_START_SECONDS: Final[float] = 20.0
-_CUES_ACTOR: Final[Actor] = Actor(kind=ActorKind.SERVICE, ref="interview.voice.cues")
+_SIDEBAND_ACTOR: Final[Actor] = Actor(kind=ActorKind.SERVICE, ref="interview.voice.cues")
 
 #: Sent once the person's validation of the new version is recorded as validated,
 #: so the agent closes the conversation instead of waiting to be asked.
@@ -214,9 +217,9 @@ async def apply_controls(
     *,
     client_id: UUID,
     interview_session_id: UUID,
-    agent: AgentChannel,
+    sideband: SidebandConnection,
 ) -> None:
-    """Apply each queued session-control Command to the call."""
+    """Apply each queued session-control Command to the provider connection."""
     woken = changes.watch()
     while True:
         await woken.wait()
@@ -225,12 +228,12 @@ async def apply_controls(
             database, interview_session_id=interview_session_id
         ):
             muted = bool(payload.get("muted"))
-            await agent.set_input_muted(muted=muted)
+            await sideband.set_input_muted(muted=muted)
             await record_terminal_result(
                 database,
                 message_id=uuid7(),
                 client_id=client_id,
-                source="voice_agent",
+                source="openai_gpt_live",
                 result=TerminalResult(
                     result_id=uuid7(),
                     command_id=command_id,
@@ -247,12 +250,18 @@ async def announce_ready_preview(
     database: Database,
     changes: SessionChanges,
     *,
-    subject: VoiceSubject,
-    judge: VoiceJudge,
-    agent: AgentChannel,
+    subject: DelegationSubject,
+    delegations: DelegationRunner,
+    sideband: SidebandConnection,
     agent_quiet: asyncio.Event,
+    moments: GestureMoments,
 ) -> None:
-    """Announce each new version: that it is loading, then what changed once it loads."""
+    """Announce each new version: that it is loading, then what changed once it loads.
+
+    The announcement starts as the version is found ready, so nothing else
+    acknowledges its loading, and the debrief moment opens just before its cue, so
+    the controls the agent names in it are circled as it names them.
+    """
     woken = changes.watch()
     announced: UUID | None = None
     declined: UUID | None = None
@@ -275,11 +284,14 @@ async def announce_ready_preview(
             if refusal is not None:
                 declined, reason = refusal
                 await agent_quiet.wait()
-                await agent.say(_DECLINED_CUE.format(reason=reason))
+                await sideband.append_instructions(
+                    content=_DECLINED_CUE.format(reason=reason), delegation_id=None
+                )
             continue
         announced = version
+        moments.announce()
         await agent_quiet.wait()
-        await agent.say(_READY_CUE)
+        await sideband.append_commentary(content=_READY_CUE, delegation_id=None)
         _log.info(
             "voice_ready_preview_announced",
             interview_session_id=str(subject.interview_session_id),
@@ -290,12 +302,15 @@ async def announce_ready_preview(
         ):
             await woken.wait()
             woken.clear()
-        new_controls = await _controls_once_observed(database, woken, judge=judge, subject=subject)
+        new_controls = await _controls_once_observed(
+            database, woken, delegations=delegations, subject=subject
+        )
         checks = await _agreed_checks(database, product_signal_id=subject.product_signal_id)
         await agent_quiet.wait()
         outcome = await _agreed_outcome(database, subject=subject)
-        await agent.say(
-            _DEBRIEF_CUE.format(
+        moments.open_debrief(frozenset(control.identity for control in new_controls))
+        await sideband.append_commentary(
+            content=_DEBRIEF_CUE.format(
                 changes=(
                     "What this version shows differently: "
                     f"{'; '.join(control.line for control in new_controls)}."
@@ -307,7 +322,8 @@ async def announce_ready_preview(
                 checks=" ".join(
                     f"{number}. {check}" for number, check in enumerate(checks, start=1)
                 ),
-            )
+            ),
+            delegation_id=None,
         )
         _log.info(
             "voice_change_debrief_cued",
@@ -323,7 +339,7 @@ async def announce_gate_outcome(
     changes: SessionChanges,
     *,
     product_signal_id: UUID,
-    agent: AgentChannel,
+    sideband: SidebandConnection,
     agent_quiet: asyncio.Event,
 ) -> None:
     """Tell the agent, once per connection, what the gate decided about the agreed change.
@@ -345,7 +361,7 @@ async def announce_gate_outcome(
             continue
         announced, cue, outcome = decided
         await agent_quiet.wait()
-        await agent.say(cue)
+        await sideband.append_commentary(content=cue, delegation_id=None)
         _log.info(
             "voice_gate_outcome_announced",
             product_signal_id=str(product_signal_id),
@@ -360,15 +376,15 @@ async def announce_validation_outcome(
     *,
     client_id: UUID,
     product_signal_id: UUID,
-    agent: AgentChannel,
+    sideband: SidebandConnection,
     floor: Floor,
 ) -> None:
     """Have the agent close the conversation once validation is recorded, then end the session.
 
     Without the cue the agent waits silently for the person to ask whether they are
-    done. The outcome is usually recorded by one of the agent's tools, so the cue
-    waits until nobody holds the floor, that tool's run included; otherwise the
-    agent's next turn could be its reply to the tool rather than the goodbye. Once the
+    done. The outcome is usually recorded inside a delegation, so the cue waits until
+    nobody holds the floor, including a delegation still being answered; otherwise
+    the agent's next turn could be that answer rather than the goodbye. Once the
     goodbye has played the session closes; the Case File, the pull request, and
     cleanup finish after the person leaves, as validated work may.
     """
@@ -383,7 +399,10 @@ async def announce_validation_outcome(
         announced, outcome = completed
         while not floor.free():
             await asyncio.sleep(_GOODBYE_POLL_SECONDS)
-        await agent.say(_VALIDATED_CUE if outcome == "validated" else _NOT_VALIDATED_CUE)
+        await sideband.append_commentary(
+            content=_VALIDATED_CUE if outcome == "validated" else _NOT_VALIDATED_CUE,
+            delegation_id=None,
+        )
         _log.info(
             "voice_validation_outcome_announced",
             product_signal_id=str(product_signal_id),
@@ -408,7 +427,7 @@ async def announce_validation_outcome(
                 conn,
                 product_signal_id=product_signal_id,
                 client_id=client_id,
-                actor=_CUES_ACTOR,
+                actor=_SIDEBAND_ACTOR,
                 now=datetime.now(tz=UTC),
                 closure_reason="completed" if outcome == "validated" else "not_validated",
                 event_type="interview_session_closed_after_validation",
@@ -485,7 +504,7 @@ async def begin_validation_when_ready(
 
     The controller refuses until the new version is ready and observation is
     current on it; each refusal waits for the next committed change and tries
-    again. Beginning is idempotent, so a reconnected agent resumes the same
+    again. Beginning is idempotent, so a reconnected sideband resumes the same
     attempt rather than opening another, and a later version of the change begins
     its own attempt once it is ready.
     """
@@ -531,7 +550,7 @@ async def prompt_open_preview(
     changes: SessionChanges,
     *,
     interview_session_id: UUID,
-    agent: AgentChannel,
+    sideband: SidebandConnection,
     agent_quiet: asyncio.Event,
 ) -> None:
     """Ask the agent, once per connection, to have the participant open a ready preview.
@@ -562,7 +581,7 @@ async def prompt_open_preview(
     await agent_quiet.wait()
     if (await _preview_state(database, interview_session_id=interview_session_id))[1]:
         return
-    await agent.say(_OPEN_PREVIEW_CUE)
+    await sideband.append_instructions(content=_OPEN_PREVIEW_CUE, delegation_id=None)
     _log.info("voice_open_preview_prompted", interview_session_id=str(interview_session_id))
     while True:
         await woken.wait()
@@ -570,7 +589,7 @@ async def prompt_open_preview(
         if (await _preview_state(database, interview_session_id=interview_session_id))[1]:
             break
     await agent_quiet.wait()
-    await agent.note(_OPEN_PREVIEW_DONE)
+    await sideband.append_instructions(content=_OPEN_PREVIEW_DONE, delegation_id=None)
     _log.info("voice_open_preview_done", interview_session_id=str(interview_session_id))
 
 
@@ -713,8 +732,8 @@ async def _controls_once_observed(
     database: Database,
     woken: asyncio.Event,
     *,
-    judge: VoiceJudge,
-    subject: VoiceSubject,
+    delegations: DelegationRunner,
+    subject: DelegationSubject,
 ) -> tuple[_ChangedControl, ...]:
     """The loaded version's changed controls, once its page has reported them.
 
@@ -724,7 +743,7 @@ async def _controls_once_observed(
     """
     deadline = asyncio.get_running_loop().time() + _NEW_CONTROLS_WAIT_SECONDS
     while True:
-        controls = await _new_controls(database, judge=judge, subject=subject)
+        controls = await _new_controls(database, delegations=delegations, subject=subject)
         remaining = deadline - asyncio.get_running_loop().time()
         if controls or remaining <= 0:
             return controls
@@ -732,11 +751,11 @@ async def _controls_once_observed(
         try:
             await asyncio.wait_for(woken.wait(), timeout=remaining)
         except TimeoutError:
-            return await _new_controls(database, judge=judge, subject=subject)
+            return await _new_controls(database, delegations=delegations, subject=subject)
 
 
 async def _new_controls(
-    database: Database, *, judge: VoiceJudge, subject: VoiceSubject
+    database: Database, *, delegations: DelegationRunner, subject: DelegationSubject
 ) -> tuple[_ChangedControl, ...]:
     """What the loaded version shows differently: new controls first, then moved ones.
 
@@ -747,7 +766,7 @@ async def _new_controls(
     before also showed, changed: a value of a different width shifts the controls
     after it without moving any of them.
     """
-    current = await judge.current_targets(subject=subject)
+    current = await delegations.current_targets(subject=subject)
     bound = await bound_document_attachment(
         database, interview_session_id=subject.interview_session_id
     )
@@ -835,16 +854,8 @@ async def _earlier_documents(
     return tuple(as_uuid(row, "document_attachment_id") for row in rows)
 
 
-async def _agreed_outcome(database: Database, *, subject: VoiceSubject) -> str:
+async def _agreed_outcome(database: Database, *, subject: DelegationSubject) -> str:
     """The agreed change, as recorded with the case's current acceptance criteria."""
-    outcome = await agreed_change(database, interview_session_id=subject.interview_session_id)
-    if outcome is None:
-        raise AggregateNotFoundError("acceptance_criteria_agreements", subject.interview_session_id)
-    return outcome
-
-
-async def agreed_change(database: Database, *, interview_session_id: UUID) -> str | None:
-    """The session's latest agreed change, or `None` before one is recorded."""
     async with database.connection() as conn, conn.cursor() as cur:
         await cur.execute(
             """
@@ -854,11 +865,11 @@ async def agreed_change(database: Database, *, interview_session_id: UUID) -> st
             order by recorded_at desc
             limit 1
             """,
-            (interview_session_id,),
+            (subject.interview_session_id,),
         )
         row = await cur.fetchone()
     if row is None or row["intended_outcome"] is None:
-        return None
+        raise AggregateNotFoundError("acceptance_criteria_agreements", subject.interview_session_id)
     return as_str(row, "intended_outcome")
 
 

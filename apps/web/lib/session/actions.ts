@@ -19,6 +19,7 @@ import { sessionPath } from "@/lib/routes";
 import type { ActionResult } from "./results";
 
 const sessionIdSchema = z.string().min(1).max(128);
+const sdpOfferSchema = z.string().min(1).max(200_000);
 
 async function run<Value>(
   sessionId: string,
@@ -76,12 +77,14 @@ export async function submitSessionPreflight(
   return run(id, (api) => api.submitPreflight(id, parsed));
 }
 
-/** Opens a new voice connection and returns the Daily room and token that admit this browser to it. */
+/** Posts the browser's SDP offer and returns the answer the API obtained. */
 export async function openVoiceConnection(
   sessionId: string,
+  sdpOffer: string,
 ): Promise<ActionResult<VoiceConnectionRecord>> {
   const id = sessionIdSchema.parse(sessionId);
-  return run(id, (api) => api.createVoiceConnection(id));
+  const offer = sdpOfferSchema.parse(sdpOffer);
+  return run(id, (api) => api.createVoiceConnection(id, offer));
 }
 
 /** Applies a session control and returns the state revision the control plane recorded. */

@@ -1,6 +1,6 @@
 """Same-user validation driven from the live Interview Session.
 
-The voice agent's model runs validation through three tools, and
+The delegated reasoning agent runs validation through three voice tools, and
 these are the operations they call. Every identity a step binds comes from
 durable rows, never from the model's arguments, and the validation controller
 rechecks each of them:

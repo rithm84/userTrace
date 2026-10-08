@@ -53,16 +53,16 @@ Historical replay preserves IDs, versions, causation, timestamps, and sequence. 
 
 ## Conversation and cognitive results
 
-Voice transcript fragments are provisional transport artifacts. An application evidence claim has an explicit identity and revision and cites its source fragment span; Flux's end of turn bounds a fragment but does not establish what the user meant. The record also distinguishes what the user said from what uTrace can prove it delivered or the user heard. Corrections append superseding facts and invalidate downstream claims whose cited premises no longer hold.
+GPT-Live transcript fragments are provisional transport artifacts. An application evidence claim has an explicit identity and revision and cites its source fragment span; the application does not invent a provider final-turn event. The record also distinguishes what the user said from what uTrace can prove it delivered or the user heard. Corrections append superseding facts and invalidate downstream claims whose cited premises no longer hold.
 
-Voice agent tool calls, GPT-6.1 Sol gate proposal, Codex coding agent, intake assistance, and Case File drafting, and Jev intake decisions and semantic attention all return typed advisory Results with context and dependency revisions. Jev returns bounded semantic judgments under the [decision contract](#jev-decision-contract); it is not a serial speech gate. The control plane rejects stale results and alone authorizes effects. Advisory means the application commits and enforces the decision; it does not require another model to approve Jev's result.
+GPT-6.1 Sol delegation answers, gate proposal, Codex coding agent, intake assistance, and Case File drafting, and Jev intake decisions and semantic attention all return typed advisory Results with context and dependency revisions. Jev returns bounded semantic judgments under the [decision contract](#jev-decision-contract); it is not a serial speech gate. The control plane rejects stale results and alone authorizes effects. Advisory means the application commits and enforces the decision; it does not require another model to approve Jev's result.
 
 Orchestration supplies each role with a revisioned view of active conversation, critical facts, corrections, telemetry, implementation state, criteria, and open contradictions. Product Overview references carry the overview version and each section's content digest. Code references must identify exact files and revisions read inside Vercel Sandbox.
 
-OpenAI response references and Daily room references are scoped to the pinned
-[model configuration](./deployment.md#model-access) and the current voice
-connection, not just a model label or opaque provider ID. Browser-supplied voice
-events cannot authorize backend tools or replace the voice agent's own record.
+OpenAI response and GPT-Live session references are scoped to the pinned
+[model configuration](./deployment.md#model-access), not just a model label or
+opaque provider ID. Browser-supplied voice events cannot
+authorize backend tools or replace authenticated sideband results.
 
 ## Jev decision contract
 

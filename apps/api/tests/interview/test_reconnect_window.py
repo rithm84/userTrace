@@ -1,8 +1,8 @@
-"""The bounded reconnect window after the participant's call is lost.
+"""The bounded reconnect window after GPT-Live loses the participant's connection.
 
-A real connection is opened (a Daily room), and the call ends as the voice agent ends
-it when the participant leaves (`record_call_ended`). The window's Job is then made
-due and run as the worker would.
+The sideband runs against the scripted GPT-Live server, which ends the provider
+session as GPT-Live does when it loses the browser's media connection. The window's
+Job is then made due and run as the worker would.
 """
 
 from collections.abc import Mapping
@@ -11,39 +11,66 @@ from uuid import UUID
 from utrace_contracts.domain.lifecycle import InterviewSessionState
 
 from app.db.pool import Database
+from app.envelope import JsonValue
 from app.execution.jobs import claim_job
+from app.interview.handlers import run_voice_sideband_with
 from app.interview.reconnect import EXPIRE_RECONNECT_WINDOW, expire_reconnect_window
-from app.interview.settings import get_voice_settings
-from app.interview.voice.adapter import build_voice_adapter
-from app.interview.voice.agent import record_call_ended, subject_from_job
-from app.interview.voice.connections import VOICE_AGENT, open_voice_connection
+from app.interview.settings import get_interview_settings
+from app.interview.voice.connections import open_voice_connection
+from app.interview.voice.delegation import DelegationRunner
 from tests.factories import CaseFixture, create_interview_session
 from tests.helpers import record_session_readiness
 from tests.interview.fixtures import create_preview_allocation
-from tests.interview.test_voice_runtime import participant_of, routed_case
+from tests.interview.gpt_live_server import ScriptedSession, run_test_server
+from tests.interview.local_voice import local_voice_adapter
+from tests.interview.test_voice_runtime import (
+    _OFFER_SDP,
+    _case,
+    _claim_sideband_job,
+    _participant,
+)
 from tests.supabase_auth import SignedInUser
+
+_PORT = 8138
+
+_CONNECTION_LOST: Mapping[str, JsonValue] = {
+    "type": "session.closed",
+    "event_id": "evt_closed_lost",
+    "reason": "connection_lost",
+    "session": {"id": "sess_lost", "model": "gpt-live-1", "status": "active"},
+    "usage": {"seconds": 5.0},
+}
 
 
 async def _lose_the_connection(database: Database, case: CaseFixture, session_id: UUID) -> None:
-    """Open a connection, then end its call as the agent does when the participant leaves."""
-    async with build_voice_adapter(settings=get_voice_settings()) as adapter:
-        opened = await open_voice_connection(
-            database, adapter, participant=participant_of(case), interview_session_id=session_id
-        )
-        claimed = await claim_job(
-            database, job_types=[VOICE_AGENT], worker_id="reconnect-test", lease_seconds=60
-        )
-        assert claimed is not None
-        await record_call_ended(
-            database, subject=await subject_from_job(database, claimed), reason="participant_left"
-        )
-        await adapter.rooms.delete_room(room_name=opened.provider_session_ref)
+    """Open a connection and run its sideband until GPT-Live reports it lost."""
+    script = ScriptedSession(events=(_CONNECTION_LOST,))
+    async with run_test_server(port=_PORT, script=script) as server:
+        adapter = local_voice_adapter(base_url=server.base_url)
+        async with adapter:
+            await open_voice_connection(
+                database,
+                adapter,
+                participant=_participant(case),
+                interview_session_id=session_id,
+                sdp_offer=_OFFER_SDP,
+            )
+            await run_voice_sideband_with(
+                database,
+                await _claim_sideband_job(database),
+                adapter=adapter,
+                delegations=DelegationRunner(
+                    database=database,
+                    reasoning=None,
+                    jev=None,
+                    targets=None,
+                    settings=get_interview_settings(),
+                ),
+            )
 
 
-async def _live_session(
-    database: Database, auth_users: dict[str, SignedInUser], name: str
-) -> tuple[CaseFixture, UUID]:
-    case = await routed_case(database, auth_users, name)
+async def _live_session(database: Database, auth_users: dict[str, SignedInUser], name: str) -> tuple[CaseFixture, UUID]:
+    case = await _case(database, auth_users, name)
     session_id = await create_interview_session(
         database, case=case, state=InterviewSessionState.LIVE, conversational_ready=True
     )
@@ -122,11 +149,17 @@ async def test_a_replaced_connection_keeps_the_session_live(
     case, session_id = await _live_session(database, auth_users, "reconnect-replaced")
     await _lose_the_connection(database, case, session_id)
     # The session tab reopens the call within the window.
-    async with build_voice_adapter(settings=get_voice_settings()) as adapter:
-        reopened = await open_voice_connection(
-            database, adapter, participant=participant_of(case), interview_session_id=session_id
-        )
-        await adapter.rooms.delete_room(room_name=reopened.provider_session_ref)
+    script = ScriptedSession(events=())
+    async with run_test_server(port=_PORT, script=script) as server:
+        adapter = local_voice_adapter(base_url=server.base_url)
+        async with adapter:
+            await open_voice_connection(
+                database,
+                adapter,
+                participant=_participant(case),
+                interview_session_id=session_id,
+                sdp_offer=_OFFER_SDP,
+            )
     await _run_the_window(database)
 
     session = await _session(database, session_id)

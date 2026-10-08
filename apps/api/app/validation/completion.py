@@ -45,7 +45,7 @@ from app.db.pool import Database
 from app.envelope import Actor, AuditIntent, EventAppend, JobIntent, JsonValue, StreamRef
 from app.errors import GuardRejectedError
 from app.ids import uuid7
-from app.interview.voice.session_changes import wake_voice_agents
+from app.interview.voice.session_changes import wake_case_sidebands
 from app.lifecycle.machine import plan_transition
 from app.lifecycle.validation import VALIDATION_ATTEMPT_MACHINE, ValidationAttemptFacts
 from app.logging import get_logger
@@ -466,5 +466,6 @@ async def _complete_attempt(
         additional_locks=(),
     )
     await apply_transition_on_connection(conn, request)
-    # The voice agent closes the conversation on this outcome.
-    await wake_voice_agents(conn, product_signal_id=attempt.product_signal_id)
+    # The voice sideband closes the conversation on this outcome.
+    await wake_case_sidebands(conn, product_signal_id=attempt.product_signal_id)
+

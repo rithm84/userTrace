@@ -1,7 +1,8 @@
-"""The voice runtime.
+"""The GPT-Live voice runtime.
 
-Backend-authorized call setup, the voice agent that holds the conversation in the
-call and records it, and the adapter that binds a call to one `voice_run_id`.
+Backend-authorized session setup, the durable sideband worker that persists
+transcript fragments and answers client delegations, and the adapter that binds
+a provider session to one `voice_run_id`.
 
-The contract is [interview and voice](../../../../../docs/arch-components/interview-and-voice.md).
+The contract is [interview and voice](../../../../../docs/arch-components/interview-and-voice.md#webrtc-session-setup).
 """

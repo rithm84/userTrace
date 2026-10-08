@@ -415,7 +415,7 @@ The following diagram shows the browser SDK's activation and single observation 
 ## Authorized detail queries
 
 - When the realtime interview needs more detail than the current evidence view,
-  the voice agent's model requests a typed detail query through the control plane;
+  GPT-Live or the delegation model requests a typed detail query through the control plane;
   Jev may recommend the target and fields as typed semantic attention. The
   control plane authorizes it, sends it through the extension control path to the
   exact bound runtime, and returns the redacted result to interview context.

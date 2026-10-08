@@ -24,7 +24,7 @@ not FastAPI in-process background tasks.
 
 Modules own identity and membership, policy, intake, Product Signals, outreach and sessions, implementation and leases, preview and validation, Case Files and delivery, Outreach Offers and invoice credits, context, evidence, execution, connectors, and authenticated APIs. Another module may submit a typed fact or intent; it may not mutate the owner's projection.
 
-Connectors adapt Discord, OpenAI (GPT-6.1 Sol), Daily and the voice agent's providers (Deepgram, Anthropic, and ElevenLabs), Jev (through Vercel AI Gateway), Vercel (web, front door, and Sandbox), GitHub, Stripe, Supabase services, and OpenTelemetry to provider-neutral contracts. Credentials remain in the server-side [credential custody](./deployment.md#secrets-and-credentials) the deployment contract defines.
+Connectors adapt Discord, OpenAI (GPT-Live and GPT-6.1 Sol), Jev (through Vercel AI Gateway), Vercel (web, front door, and Sandbox), GitHub, Stripe, Supabase services, and OpenTelemetry to provider-neutral contracts. Credentials remain in the server-side [credential custody](./deployment.md#secrets-and-credentials) the deployment contract defines.
 
 ## Authority and transactions
 
@@ -42,10 +42,9 @@ policy, gate acceptance, lifecycle transitions, and effects. Jev does not
 preapprove speech serially or require another model's routine approval.
 
 Model calls follow the [model access contract](./deployment.md#model-access).
-The control plane authorizes [call setup](./interview-and-voice.md#call-setup)
-and binds the call's Daily room to the current voice run. No provider runs a second
-lifecycle controller or authorizes application tools: the voice agent's tools run
-in the worker under the control plane's guards, and the Codex harness runs
+The control plane authorizes the [GPT-Live handshake](./interview-and-voice.md#webrtc-session-setup)
+and binds its provider session to the current voice run. No provider runs a second
+lifecycle controller or authorizes application tools, and the Codex harness runs
 only inside a workspace sandbox the control plane fences.
 
 [Context Assembly](./context-assembly.md) owns revisioned role-specific bundles,

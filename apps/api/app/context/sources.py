@@ -83,7 +83,7 @@ async def recent_conversation_items(
 ) -> tuple[ContextItem, ...]:
     """Return what was said in the last `limit` transcript fragments, as turns, oldest first.
 
-    A turn can arrive as several fragments, so consecutive fragments of one
+    GPT-Live transcribes a few words per fragment, so consecutive fragments of one
     speaker are joined into the turn they belong to: one item per turn carries the
     exchange in a fraction of the items and tokens, so the window can reach back
     over the conversation rather than its last few seconds. A turn cites its first

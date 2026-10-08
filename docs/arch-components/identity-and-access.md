@@ -72,10 +72,10 @@ token: minting one would create an audience nothing checks. Refresh is permitted
 only while the durable session is eligible; revocation stops refresh and queued
 effects.
 
-The voice call uses a backend-created private Daily room bound to the
-authenticated participant and current connection; the browser holds only a meeting
-token for that room, never a provider key. Revocation also deletes that room. The
-[call setup contract](./interview-and-voice.md#call-setup) owns the handshake.
+GPT-Live uses a backend-created session bound to the authenticated
+participant and current connection, rather than a browser-held provider token.
+Revocation also closes that provider session. The
+[voice setup contract](./interview-and-voice.md#webrtc-session-setup) owns the handshake.
 
 The two required browser tabs use different origins. The session tab authenticates through the claimed invitation, the preview through a one-time handoff and origin-bound cookie, and the extension through an authenticated handshake with the embedded SDK. The control plane joins those lanes on one session ID. Cookie sharing or client-side identity transfer is never assumed. A mismatch blocks observation-dependent probing and validation.
 
