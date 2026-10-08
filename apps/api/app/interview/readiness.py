@@ -1,8 +1,9 @@
 """The two readiness boundaries.
 
 Conversational readiness admits greeting and problem discussion: an
-authenticated participant, working voice transport and controls, an attached
-backend sideband, and a current backend session context.
+authenticated participant, working voice transport and controls, the voice agent
+in the call (recorded as `sideband_attached`), and a current backend session
+context.
 
 Observation readiness additionally requires the exact preview allocation, the
 extension binding, and the three observation kinds telemetry ingestion projects:

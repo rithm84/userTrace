@@ -5,7 +5,7 @@ what each control *means* for the rest of the runtime:
 
 - **Mute / Unmute** changes caller input on the existing voice runtime. The
   extension never captures audio, so the control is a durable Command the
-  sideband worker applies.
+  voice agent applies.
 - **Pause** withdraws authority for voice, observation, and new live
   implementation steps. Observation readiness is withdrawn immediately, pending
   visual commands are canceled, the session's server SDKs are paused over their
@@ -255,7 +255,7 @@ async def _queue_input_mute(
 ) -> UUID:
     """Queue the durable Command that changes caller input on the voice runtime.
 
-    The sideband worker owns the provider connection, so the control reaches it
+    The voice agent owns the call, so the control reaches it
     as committed state rather than as an in-process call that a restart loses.
     """
     command_id = uuid7()

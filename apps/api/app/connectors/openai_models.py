@@ -1,17 +1,14 @@
 """OpenAI reasoning models: the pinned configuration, its prices, and Responses API requests.
 
 The roles a waiting participant feels run OpenAI models, because their speed is what
-the participant notices: answers to GPT-Live's delegations during the conversation,
-and, between the participant's agreement and the preview they validate, code
-investigation, the Implementation Gate proposal, and implementation. Each role pins a
+the participant notices: between the participant's agreement and the preview they
+validate, code investigation, the Implementation Gate proposal, and implementation. Each role pins a
 model, a reasoning effort, and a service tier: `fast` buys priority processing, and
 `ultrafast` is the fastest tier, available for GPT-6 Astra. The coding roles run the
 model inside Codex in the workspace sandbox (`app.implementation.agent_author`); the
-gate proposal is one structured request and a delegation is a function-calling run,
-both through `OpenAIResponsesGateway`.
+gate proposal is one structured request through `OpenAIResponsesGateway`.
 
-Nothing is stored at OpenAI (`store=False`): a function-calling run resends its earlier
-output on each turn, with the reasoning carried as encrypted content.
+Nothing is stored at OpenAI (`store=False`).
 
 The gateway disables the SDK's own retries and maps every error onto a typed
 `ConnectorFailure`; the Job that called it owns retrying.
@@ -19,20 +16,16 @@ The gateway disables the SDK's own retries and maps every error onto a typed
 
 from __future__ import annotations
 
-import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from types import TracebackType
-from typing import Final, Self, cast
+from typing import Final, Self
 
 import structlog
 from openai import APIConnectionError, APIStatusError, APITimeoutError, AsyncOpenAI
 from openai.types.responses import (
     EasyInputMessageParam,
-    FunctionToolParam,
-    Response,
-    ResponseFunctionToolCall,
     ResponseInputParam,
 )
 from pydantic import BaseModel, ConfigDict
@@ -51,14 +44,11 @@ from app.connectors.failures import (
 __all__ = [
     "GPT_6_1_SOL",
     "GPT_6_ASTRA",
-    "FunctionCall",
     "OpenAIEffort",
     "OpenAIModelConfiguration",
     "OpenAIResponsesGateway",
     "OpenAIServiceTier",
-    "OpenAIToolRun",
     "TokenUsage",
-    "ToolTurn",
     "cost_usd",
 ]
 
@@ -250,210 +240,6 @@ class OpenAIResponsesGateway:
             output_tokens=usage.output_tokens if usage is not None else None,
         )
         return parsed
-
-    def begin_tool_run(
-        self,
-        *,
-        instructions: str,
-        tools: Sequence[FunctionToolParam],
-        max_output_tokens: int,
-        cache_key: str,
-    ) -> OpenAIToolRun:
-        """Open one function-calling run under this gateway's pinned configuration.
-
-        Runs that share a `cache_key` share their instructions, tools, and often much
-        of their context, so OpenAI routes them to the same prompt cache.
-        """
-        return OpenAIToolRun(
-            client=self._client,
-            configuration=self._configuration,
-            instructions=instructions,
-            tools=tools,
-            max_output_tokens=max_output_tokens,
-            cache_key=cache_key,
-        )
-
-
-@dataclass(frozen=True, slots=True)
-class FunctionCall:
-    """One application-executed function call the model requested."""
-
-    call_id: str
-    name: str
-    arguments: Mapping[str, object]
-    """The arguments exactly as the model produced them; the caller validates them."""
-
-
-@dataclass(frozen=True, slots=True)
-class ToolTurn:
-    """One turn of a function-calling run."""
-
-    response_id: str
-    output_text: str
-    """The assistant text of this turn; empty while the model is calling functions."""
-    pending_calls: tuple[FunctionCall, ...]
-
-    def is_complete(self) -> bool:
-        """True when the model asked for no further application-executed work."""
-        return len(self.pending_calls) == 0
-
-
-class OpenAIToolRun:
-    """One multi-turn function-calling exchange on the Responses API.
-
-    Every turn sends the whole exchange so far, because nothing is stored at OpenAI:
-    the model's earlier output items, its encrypted reasoning, and each function
-    result in turn.
-    """
-
-    def __init__(
-        self,
-        *,
-        client: AsyncOpenAI,
-        configuration: OpenAIModelConfiguration,
-        instructions: str,
-        tools: Sequence[FunctionToolParam],
-        max_output_tokens: int,
-        cache_key: str,
-    ) -> None:
-        self._client = client
-        self._cache_key = cache_key
-        self._configuration = configuration
-        self._instructions = instructions
-        self._tools = list(tools)
-        self._max_output_tokens = max_output_tokens
-        self._input: ResponseInputParam = []
-        self._pending: frozenset[str] = frozenset()
-
-    async def start(self, *, prompt: str) -> ToolTurn:
-        """Send the opening prompt and return the model's first turn."""
-        self._input.append({"role": "user", "content": prompt})
-        return await self._turn()
-
-    async def submit_tool_results(self, *, results: Mapping[str, str]) -> ToolTurn:
-        """Return each function's output to the model and read its next turn.
-
-        `results` must answer exactly the pending calls; a missing or unknown call id
-        is refused rather than silently dropped.
-        """
-        if set(results) != self._pending:
-            raise ConnectorFailure(
-                FailureDetail(
-                    provider=_PROVIDER,
-                    operation="tool_run_submit",
-                    category=TechnicalCategory.PROVIDER_REJECTED,
-                    retry_advice=RetryAdvice.NEVER,
-                    effect_state=EffectState.ABSENT,
-                    message=(
-                        "tool results must answer exactly the pending calls: expected "
-                        f"{sorted(self._pending)}, got {sorted(results)}"
-                    ),
-                )
-            )
-        for call_id, output in results.items():
-            self._input.append(
-                {"type": "function_call_output", "call_id": call_id, "output": output}
-            )
-        return await self._turn()
-
-    async def _turn(self) -> ToolTurn:
-        configuration = self._configuration
-        parameters = redacted_parameters(
-            {
-                "model": configuration.model_id,
-                "effort": configuration.effort.value,
-                "service_tier": configuration.service_tier.value,
-                "tools": ",".join(tool["name"] for tool in self._tools),
-                "turn_items": str(len(self._input)),
-            }
-        )
-        try:
-            response = await self._client.responses.create(
-                model=configuration.model_id,
-                instructions=self._instructions,
-                input=self._input,
-                tools=self._tools,
-                reasoning={"effort": configuration.effort.value},
-                service_tier=configuration.service_tier.value,
-                max_output_tokens=self._max_output_tokens,
-                include=["reasoning.encrypted_content"],
-                prompt_cache_key=self._cache_key,
-                store=False,
-            )
-        except (APIStatusError, APITimeoutError, APIConnectionError) as error:
-            raise _request_failure(error, operation="tool_turn", parameters=parameters) from error
-        if response.status != "completed":
-            raise ConnectorFailure(
-                FailureDetail(
-                    provider=_PROVIDER,
-                    operation="tool_turn",
-                    category=TechnicalCategory.PROVIDER_REJECTED,
-                    retry_advice=RetryAdvice.NEVER,
-                    effect_state=EffectState.COMPLETED,
-                    message=(
-                        f"response {response.id} ended {response.status} "
-                        f"({response.incomplete_details})"
-                    ),
-                    request_parameters=parameters,
-                )
-            )
-        # The output items go back as the next turn's input. They are the SDK's own
-        # response objects, which the Responses API accepts verbatim as input items.
-        self._input.extend(cast(ResponseInputParam, [item.to_dict() for item in response.output]))
-        calls = tuple(
-            _function_call(item, parameters=parameters)
-            for item in response.output
-            if isinstance(item, ResponseFunctionToolCall)
-        )
-        self._pending = frozenset(call.call_id for call in calls)
-        _log_turn(configuration, response=response, calls=len(calls))
-        return ToolTurn(
-            response_id=response.id, output_text=response.output_text, pending_calls=calls
-        )
-
-
-def _function_call(
-    item: ResponseFunctionToolCall, *, parameters: Mapping[str, str]
-) -> FunctionCall:
-    """Decode one function call's JSON arguments; malformed JSON is a contract violation."""
-    try:
-        arguments = json.loads(item.arguments)
-    except json.JSONDecodeError as error:
-        raise _malformed_call(item, parameters=parameters, reason=str(error)) from error
-    if not isinstance(arguments, dict):
-        raise _malformed_call(item, parameters=parameters, reason="arguments are not an object")
-    return FunctionCall(call_id=item.call_id, name=item.name, arguments=arguments)
-
-
-def _malformed_call(
-    item: ResponseFunctionToolCall, *, parameters: Mapping[str, str], reason: str
-) -> ConnectorFailure:
-    return ConnectorFailure(
-        FailureDetail(
-            provider=_PROVIDER,
-            operation="tool_turn",
-            category=TechnicalCategory.VALIDATION,
-            retry_advice=RetryAdvice.NEVER,
-            effect_state=EffectState.COMPLETED,
-            message=f"function call {item.call_id} to {item.name} has unusable arguments: {reason}",
-            request_parameters=dict(parameters),
-        )
-    )
-
-
-def _log_turn(configuration: OpenAIModelConfiguration, *, response: Response, calls: int) -> None:
-    usage = response.usage
-    _logger.info(
-        "openai.responses.tool_turn",
-        model=configuration.model_id,
-        effort=configuration.effort.value,
-        requested_tier=configuration.service_tier.value,
-        served_tier=response.service_tier,
-        response_id=response.id,
-        function_calls=calls,
-        input_tokens=usage.input_tokens if usage is not None else None,
-        output_tokens=usage.output_tokens if usage is not None else None,
-    )
 
 
 def _request_failure(

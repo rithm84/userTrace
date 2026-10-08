@@ -34,7 +34,7 @@ from app.db.rows import as_datetime, as_int, as_str, as_uuid
 from app.envelope import Actor, AuditIntent, EventAppend, JobIntent, JsonValue, StreamRef
 from app.errors import AggregateNotFoundError, GuardRejectedError, RevisionConflictError
 from app.ids import uuid7
-from app.interview.voice.session_changes import wake_case_sidebands
+from app.interview.voice.session_changes import wake_voice_agents
 from app.lifecycle.machine import plan_transition
 from app.lifecycle.product_signal import PRODUCT_SIGNAL_MACHINE, ProductSignalFacts
 from app.logging import get_logger
@@ -300,8 +300,8 @@ async def create_implementation_attempt(
             additional_locks=(),
         )
         outcome = await apply_transition_on_connection(conn, transition_request)
-        # The case's live sideband says it is building only once it is.
-        await wake_case_sidebands(conn, product_signal_id=request.product_signal_id)
+        # The case's voice agent says it is building only once it is.
+        await wake_voice_agents(conn, product_signal_id=request.product_signal_id)
 
     return AttemptCreation(attempt_id=attempt_id, replayed=False, transition=outcome)
 

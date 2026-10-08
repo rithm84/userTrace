@@ -49,7 +49,7 @@ The transactional outbox is the only path from committed workflow state to Disco
 
 ## Model data and cleanup
 
-The OpenAI Responses API (with `store=False`) and the GPT-Live session keep no workflow state for uTrace;
+The OpenAI Responses API (with `store=False`), the Anthropic API, Deepgram, ElevenLabs, and Daily keep no workflow state for uTrace;
 uTrace persists the scoped context and accepted results it needs, and provider
 retention follows each provider's API data terms. Apply the permitted data classes
 to model inputs; keep authoritative evidence in uTrace. No training corpus or

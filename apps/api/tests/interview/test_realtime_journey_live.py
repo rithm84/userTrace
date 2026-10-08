@@ -1,4 +1,4 @@
-"""Live: one interview from greeting to a ready new version, over a real GPT-Live call.
+"""Live: one interview from greeting to a ready new version, over a real voice call.
 
 The participant opens the call, walks through their weekly filters in the preview,
 asks to save them, and agrees to the change the agent proposes. The gate then
@@ -8,7 +8,7 @@ before the gate approves, the build announced once it does, the ready version
 announced) and the run's health: no failed Job, no stale cursor target, no
 connection idling inside a transaction, and bounded telemetry readiness writes.
 
-It costs a few minutes of voice plus Sol and Jev calls, so it runs only when
+It costs a few minutes of voice plus a few Jev calls, so it runs only when
 `UTRACE_REALTIME_E2E=1` (see `realtime_harness`).
 """
 
@@ -184,7 +184,7 @@ async def test_one_interview_from_greeting_to_a_ready_version(
                     (
                         at
                         for at, kind, content in report.appends
-                        if at >= approved_at and kind == "append_commentary" and "being built" in content
+                        if at >= approved_at and kind == "say" and "being built" in content
                     ),
                     None,
                 )

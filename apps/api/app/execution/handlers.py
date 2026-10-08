@@ -36,6 +36,7 @@ from app.implementation.prepared import prepare_workspace, release_prepared_work
 from app.ingestion.jobs import build_ingestion_handlers
 from app.intake.worker import intake_handlers
 from app.interview.handlers import interview_handlers
+from app.interview.voice.connections import VOICE_AGENT
 from app.lifecycle.case_stop import CLOSE_CASE_AFTER_STOP
 from app.lifecycle.machine import plan_transition
 from app.lifecycle.outreach import OUTREACH_ATTEMPT_MACHINE, OutreachAttemptFacts
@@ -49,6 +50,7 @@ from app.validation.return_expiry import expire_validation_return
 
 __all__ = [
     "EXPIRE_OUTREACH_ATTEMPT",
+    "VOICE_JOB_TYPES",
     "build_exhausted_handlers",
     "build_handlers",
     "expire_outreach_attempt",
@@ -121,6 +123,10 @@ async def expire_outreach_attempt(database: Database, claimed: ClaimedJob) -> No
         outreach_attempt_id=str(attempt_id),
         revision=outcome.revision,
     )
+
+
+#: The Job types the worker's voice lane runs in its own process (`app.execution.voice_lane`).
+VOICE_JOB_TYPES: frozenset[str] = frozenset({VOICE_AGENT})
 
 
 def build_handlers() -> Mapping[str, Callable[[Database, ClaimedJob], Awaitable[None]]]:

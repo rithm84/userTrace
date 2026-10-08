@@ -4,8 +4,7 @@ Every attention question in the interview runtime goes through here: the batch i
 checked by `app.connectors.jev_acceptance` against the thresholds calibrated for
 its exact questions, the bundle it used is rechecked for freshness, and the
 answers and verdict are written as one immutable `semantic_judgements` row. The
-questions themselves live with their callers in `app.interview.attention` and
-`app.interview.gesture_attention`.
+questions themselves live with their callers in `app.interview.attention`.
 """
 
 from collections.abc import Mapping, Sequence
