@@ -1,11 +1,10 @@
-"""What the agent cursor shows while the agent speaks, which checks the new version showed,
-and which of the participant's moments the agent acknowledges.
+"""Which controls a new version changed, which checks it showed, and which of the
+participant's moments the agent acknowledges.
 
-Each judgement runs against the real Jev model: the clause test over targets
-ingestion recorded for the bound document, with the gesture going through the real
-dispatch path; the checks test over the activity lines a validation pass produces;
-the acknowledgement test over a recorded conversation. No extension socket is open,
-so a dispatched gesture stays recorded for the socket to route.
+The controls test reads the targets ingestion recorded for each bound document. The
+other judgements run against the real Jev model: the checks test over the activity
+lines a validation pass produces, the acknowledgement test over a recorded
+conversation.
 """
 
 import json
@@ -20,9 +19,9 @@ from app.ids import uuid7
 from app.ingestion.target_registry import IngestionTargetRegistry
 from app.interview.evidence import TranscriptFragment, record_transcript_fragment
 from app.interview.ports import RegisteredTarget
-from app.interview.settings import get_interview_settings
+from app.interview.voice.channel import VoiceSubject
 from app.interview.voice.cues import _new_controls
-from app.interview.voice.delegation import DelegationRunner, DelegationSubject
+from app.interview.voice.judge import VoiceJudge
 from tests.connectors.conftest import optional_env, require_env
 from tests.factories import CaseFixture, create_case
 from tests.helpers import record_session_readiness
@@ -112,14 +111,8 @@ async def _bound_session(database: Database, *, case: CaseFixture) -> UUID:
     return session_id
 
 
-def _runner(database: Database, jev: JevClient) -> DelegationRunner:
-    return DelegationRunner(
-        database=database,
-        reasoning=None,
-        jev=jev,
-        targets=IngestionTargetRegistry(database),
-        settings=get_interview_settings(),
-    )
+def _judge(database: Database, jev: JevClient) -> VoiceJudge:
+    return VoiceJudge(database=database, jev=jev, targets=IngestionTargetRegistry(database))
 
 
 def _jev() -> JevClient:
@@ -129,54 +122,6 @@ def _jev() -> JevClient:
         model_id=optional_env("UTRACE_JEV_MODEL_ID") or "typesafe-ai/jev",
         timeout_seconds=30.0,
     )
-
-
-async def _dispatched_targets(database: Database, *, session_id: UUID) -> list[object]:
-    async with database.connection() as conn, conn.cursor() as cur:
-        await cur.execute(
-            "select targets from public.visual_command_dispatches "
-            "where interview_session_id = %s order by created_at",
-            (session_id,),
-        )
-        return [row["targets"] for row in await cur.fetchall()]
-
-
-async def test_a_debrief_clause_circles_the_new_control_it_names(
-    database: Database, auth_users: dict[str, SignedInUser]
-) -> None:
-    case = await _case(database, auth_users)
-    session_id = await _bound_session(database, case=case)
-    subject = DelegationSubject(
-        client_id=case.client_id,
-        product_signal_id=case.product_signal_id,
-        interview_session_id=session_id,
-        voice_connection_id=uuid7(),
-    )
-    new_controls = frozenset({"conversion_filter_channel"})
-    async with _jev() as jev:
-        runner = _runner(database, jev)
-        naming = await runner.debrief_gesture(
-            subject=subject,
-            saying="At the top, the channel filter now keeps the choice you made.",
-            controls=new_controls,
-        )
-        unrelated = await runner.debrief_gesture(
-            subject=subject, saying="Thanks for walking me through that.", controls=new_controls
-        )
-        assert naming is not None
-        assert naming.target_id == "filter-channel"
-        assert await runner.show_targets(
-            subject=subject, targets=(naming,), circle=True, cause="debrief"
-        )
-        # The same control shown again within moments is one gesture, not two.
-        assert await runner.show_targets(
-            subject=subject, targets=(naming,), circle=True, cause="debrief"
-        )
-
-    assert unrelated is None
-    assert await _dispatched_targets(database, session_id=session_id) == [
-        [{"target_id": "filter-channel", "target_revision": 1}]
-    ]
 
 
 def _controls(names: tuple[str, ...]) -> tuple[RegisteredTarget, ...]:
@@ -224,21 +169,14 @@ async def test_a_new_version_names_a_control_moved_only_when_its_order_changed(
         document_attachment_id=attachment_id,
         targets=_controls(filters),
     )
-    runner = DelegationRunner(
-        database=database,
-        reasoning=None,
-        jev=None,
-        targets=IngestionTargetRegistry(database),
-        settings=get_interview_settings(),
-    )
-    subject = DelegationSubject(
+    subject = VoiceSubject(
         client_id=case.client_id,
         product_signal_id=case.product_signal_id,
         interview_session_id=session_id,
         voice_connection_id=uuid7(),
     )
 
-    async def load(names: tuple[str, ...]) -> list[str]:
+    async def load(judge: VoiceJudge, names: tuple[str, ...]) -> list[str]:
         nonlocal page
         attachment = uuid7()
         async with database.transaction() as conn, conn.cursor() as cur:
@@ -256,18 +194,20 @@ async def test_a_new_version_names_a_control_moved_only_when_its_order_changed(
             targets=_controls(names),
         )
         return [
-            control.line
-            for control in await _new_controls(database, delegations=runner, subject=subject)
+            control.line for control in await _new_controls(database, judge=judge, subject=subject)
         ]
 
-    # Filters around a new control keep their order, so only the new control is named.
-    assert await load((*filters, "saved_view_save_control")) == [
-        "new: saved view save control (top left of the screen)"
-    ]
-    # Placing the topic filter first moves it, and only it.
-    assert await load(
-        ("filter_review_topic", "filter_channel", "filter_segment", "saved_view_save_control")
-    ) == ["moved: filter review topic, now top left of the screen"]
+    async with _jev() as jev:
+        judge = _judge(database, jev)
+        # Filters around a new control keep their order, so only the new control is named.
+        assert await load(judge, (*filters, "saved_view_save_control")) == [
+            "new: saved view save control (top left of the screen)"
+        ]
+        # Placing the topic filter first moves it, and only it.
+        assert await load(
+            judge,
+            ("filter_review_topic", "filter_channel", "filter_segment", "saved_view_save_control"),
+        ) == ["moved: filter review topic, now top left of the screen"]
 
 
 async def test_agreed_checks_count_as_shown_only_once_the_new_version_showed_them(
@@ -275,18 +215,18 @@ async def test_agreed_checks_count_as_shown_only_once_the_new_version_showed_the
 ) -> None:
     case = await _case(database, auth_users)
     session_id = await create_live_session(database, case=case, phase=InterviewPhase.VALIDATION)
-    subject = DelegationSubject(
+    subject = VoiceSubject(
         client_id=case.client_id,
         product_signal_id=case.product_signal_id,
         interview_session_id=session_id,
         voice_connection_id=uuid7(),
     )
     async with _jev() as jev:
-        runner = _runner(database, jev)
-        before_reopen = await runner.checks_shown(
+        judge = _judge(database, jev)
+        before_reopen = await judge.checks_shown(
             subject=subject, checks=_CHECKS, activity=_SAVED_THEN_RELOADED
         )
-        after_reopen = await runner.checks_shown(subject=subject, checks=_CHECKS, activity=_REOPENED)
+        after_reopen = await judge.checks_shown(subject=subject, checks=_CHECKS, activity=_REOPENED)
 
     assert before_reopen is not None
     assert before_reopen.shown == frozenset({"save"})
@@ -337,9 +277,9 @@ async def test_the_agent_acknowledges_what_the_conversation_awaited_not_each_ste
         ),
     )
     async with _jev() as jev:
-        runner = _runner(database, jev)
-        dashboard = await runner.acknowledgement(subject=awaited, activity=_DASHBOARD_LOADED)
-        step = await runner.acknowledgement(subject=walking, activity=_CHANNEL_SET)
+        judge = _judge(database, jev)
+        dashboard = await judge.acknowledgement(subject=awaited, activity=_DASHBOARD_LOADED)
+        step = await judge.acknowledgement(subject=walking, activity=_CHANNEL_SET)
 
     assert dashboard
     assert not step
@@ -347,7 +287,7 @@ async def test_the_agent_acknowledges_what_the_conversation_awaited_not_each_ste
 
 async def _conversation(
     database: Database, *, case: CaseFixture, turns: tuple[tuple[str, str], ...]
-) -> DelegationSubject:
+) -> VoiceSubject:
     """A live session whose transcript is ``turns``, one fragment each."""
     session_id = await create_live_session(database, case=case, phase=InterviewPhase.DISCOVERY)
     connection_id = uuid7()
@@ -374,17 +314,15 @@ async def _conversation(
                     provider_session_ref="sess_test",
                     speaker=speaker,
                     provider_event_type=(
-                        "session.output_transcript.delta"
-                        if speaker == "agent"
-                        else "session.input_transcript.delta"
+                        "agent.word_played" if speaker == "agent" else "flux.end_of_turn"
                     ),
                     start_ms=index * 4000,
                     end_ms=index * 4000 + 3000,
                     text=text,
                 ),
-                provenance={"provider": "openai_gpt_live"},
+                provenance={"provider": "utrace_voice_agent"},
             )
-    return DelegationSubject(
+    return VoiceSubject(
         client_id=case.client_id,
         product_signal_id=case.product_signal_id,
         interview_session_id=session_id,

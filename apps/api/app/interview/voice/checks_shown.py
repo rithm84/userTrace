@@ -5,14 +5,14 @@ in one go. Left alone, the agent walks the agreed checks in order and asks them 
 repeat what they just did. While a Validation Attempt is in progress, each time new
 product milestones arrive, Jev judges per agreed check whether the person's
 activity since the attempt opened shows the product doing it
-(`DelegationRunner.checks_shown`). A check newly judged shown, or contradicted,
+(`VoiceJudge.checks_shown`). A check newly judged shown, or contradicted,
 becomes one line the activity feed sends with the activity that showed it, so the
 agent hears both together and asks the person to confirm what they saw instead of
 asking them to do it again.
 
 This informs the conversation and records nothing: a check still needs the
 person's own confirmation, and the validation outcome is recorded with the
-observations cited, as before, when the agent delegates their answers.
+observations cited, as before, when the agent records their answers.
 """
 
 from collections.abc import Sequence
@@ -24,7 +24,8 @@ from uuid import UUID
 from app.db.pool import Database
 from app.db.rows import as_datetime, as_int, as_uuid
 from app.interview.observations import ObservedActivity, describe_activity, recent_activity
-from app.interview.voice.delegation import DelegationRunner, DelegationSubject
+from app.interview.voice.channel import VoiceSubject
+from app.interview.voice.judge import VoiceJudge
 from app.logging import get_logger
 from app.validation.records import CriterionRow, load_criteria_on_connection
 
@@ -52,12 +53,12 @@ class ShownChecks:
         self,
         database: Database,
         *,
-        subject: DelegationSubject,
-        delegations: DelegationRunner,
+        subject: VoiceSubject,
+        judge: VoiceJudge,
     ) -> None:
         self._database = database
         self._subject = subject
-        self._delegations = delegations
+        self._judge = judge
         self._attempt: UUID | None = None
         self._reported: set[str] = set()
 
@@ -94,7 +95,7 @@ class ShownChecks:
         }
         if not pending:
             return None
-        verdict = await self._delegations.checks_shown(
+        verdict = await self._judge.checks_shown(
             subject=self._subject, checks=pending, activity=_lines(activity)
         )
         if verdict is None or not (verdict.shown or verdict.contradicted):
@@ -148,7 +149,7 @@ def _report(*, shown: Sequence[str], contradicted: Sequence[str], remaining: Seq
     else:
         parts.append(
             "Every agreed check has now been tried. Once they have confirmed each, "
-            "delegate once so the application records their answers."
+            "record their answers."
         )
     return " ".join(parts)
 

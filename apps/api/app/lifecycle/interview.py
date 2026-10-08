@@ -54,7 +54,7 @@ def _admittable(facts: InterviewSessionFacts) -> str | None:
     if not facts.conversational_ready:
         return (
             "conversational readiness requires the authenticated participant, working "
-            "voice transport and controls, and an attached backend sideband"
+            "voice transport and controls, and the voice agent in the call"
         )
     return None
 
