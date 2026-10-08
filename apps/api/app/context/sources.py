@@ -83,11 +83,12 @@ async def recent_conversation_items(
 ) -> tuple[ContextItem, ...]:
     """Return what was said in the last `limit` transcript fragments, as turns, oldest first.
 
-    GPT-Live transcribes a few words per fragment, so consecutive fragments of one
+    A turn can arrive as several fragments, so consecutive fragments of one
     speaker are joined into the turn they belong to: one item per turn carries the
     exchange in a fraction of the items and tokens, so the window can reach back
     over the conversation rather than its last few seconds. A turn cites its first
-    fragment and spans the time range of all of them.
+    fragment and spans the time range of all of them. Each connection's fragments
+    are timed on its own clock, so a session's calls come in the order they opened.
 
     Fragments are provisional transport artifacts. They travel as what the
     speaker said, never as a completed turn or an established agreement.
@@ -95,10 +96,14 @@ async def recent_conversation_items(
     async with conn.cursor() as cur:
         await cur.execute(
             """
-            select id, speaker, start_ms, end_ms, fragment_text
-            from public.voice_transcript_fragments
-            where interview_session_id = %s
-            order by start_ms desc, recorded_at desc
+            select fragments.id, fragments.speaker, fragments.start_ms, fragments.end_ms,
+                   fragments.fragment_text
+            from public.voice_transcript_fragments as fragments
+            join public.voice_connections as connections
+              on connections.id = fragments.voice_connection_id
+            where fragments.interview_session_id = %s
+            order by connections.created_at desc, fragments.start_ms desc,
+                     fragments.recorded_at desc
             limit %s
             """,
             (interview_session_id, limit),

@@ -14,12 +14,12 @@ cells: "uTrace · system landscape" {
     - Session + preview tabs
   | {class: [card; people]}
 
-  gpt_live: |md
-    ### OpenAI API
+  providers: |md
+    ### Voice and reasoning providers
   
-    - GPT-Live: full-duplex voice
-    - Client delegation to the backend
-    - GPT-6.1 Sol: every reasoning role
+    - Daily: one private room per call
+    - Flux · Claude Sonnet 5.5 · ElevenLabs
+    - OpenAI API: GPT-6.1 Sol reasoning
   | {class: [card; reasoning]}
 
   jev: |md
@@ -78,10 +78,10 @@ cells: "uTrace · system landscape" {
   | {class: [card; outcome]}
 
   utrace_control_plane -> jev: "via AI Gateway" {class: edge}
-  originating_user -> gpt_live: "WebRTC" {class: edge}
+  originating_user -> providers: "Daily call" {class: edge}
   originating_user -> observed_preview: "uses" {class: edge}
   observed_preview -> utrace_control_plane: "evidence" {class: edge}
-  utrace_control_plane <-> gpt_live: "delegation + findings" {class: edge}
+  utrace_control_plane <-> providers: "voice agent + reasoning" {class: edge}
   vercel_sandbox -> observed_preview: "serves" {class: edge}
   utrace_control_plane -> vercel_sandbox: "authorized work" {class: edge}
   utrace_control_plane -> supabase: "commit" {class: edge}

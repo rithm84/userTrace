@@ -1,18 +1,17 @@
 """Live: the agent hears what the participant does in the preview, in real time.
 
-A real GPT-Live call over WebRTC runs through the production path: the voice
-connection route, the sideband Job with its activity feed, GPT-6.1 Sol delegations,
-Jev target selection, and visual-command dispatch, against the test database.
-`aiortc` plays the session tab and speaks lines synthesized with OpenAI's
-text-to-speech. Between lines the test commits the browser activity a participant
-applying the demo's filters produces, then asks the agent what it saw, to circle a
-control, and how the change is going, and marks the new version ready. It reports
-how long each hop took: when each delegation arrived against the words around it,
-which path answered it, when the gesture was dispatched, and when the agent was
-told the new version is ready.
+A real call over Daily runs through the production path: the voice connection
+route, the voice agent Job with its activity feed, its gesture marks, and
+visual-command dispatch, against the test database. A Daily participant plays the
+session tab and speaks lines synthesized with OpenAI's text-to-speech. Between
+lines the test commits the browser activity a participant applying the demo's
+filters produces, then asks the agent what it saw, to circle a control, and how the
+change is going, and marks the new version ready. It reports how long each hop
+took: each reply against the words before it, when the gesture was dispatched, and
+when the agent was told the new version is ready.
 
-It costs about two minutes of voice plus a few Sol and Jev calls, so it runs only
-when `UTRACE_REALTIME_E2E=1`.
+It costs about two minutes of voice plus a few Jev calls, so it runs only when
+`UTRACE_REALTIME_E2E=1`.
 """
 
 from __future__ import annotations
@@ -119,38 +118,22 @@ async def test_the_agent_sees_preview_activity_and_answers_in_realtime(
         )
         await asyncio.sleep(2.0)
 
+        await harness.record_agreement(
+            database,
+            case=call.case,
+            session_id=session_id,
+            outcome="Save the current conversion filters as a named view and reopen it in one click.",
+            criteria=("Saving the view under a name keeps every filter.",),
+        )
         await harness.set_progress(database, session_id, "making_changes")
         microphone.say(ask_progress)
         await asyncio.sleep(0.2)
         progress_start = microphone.started_at
         await microphone.finished.wait()
         progress_end = time.time()
-        progress_reply_at, progress_reply = await harness.required_reply(
+        progress_reply_at, progress_reply = await harness.whole_turn(
             database, session_id, after=progress_end
         )
-        # The status answers the delegation after the agent's lead-in, and the
-        # ready cue waits for the agent to finish saying it.
-        settled_at = None
-        for _ in range(100):
-            settled_at = next(
-                (
-                    d["settled_at"].timestamp()  # type: ignore[union-attr]
-                    for d in await harness.delegations(database, session_id)
-                    if d["settled_at"] is not None
-                    and str(d["finding"]).startswith("reported the change's progress")
-                ),
-                None,
-            )
-            if settled_at is not None:
-                break
-            await asyncio.sleep(0.1)
-        if settled_at is not None:
-            await harness.agent_reply(
-                database,
-                session_id=session_id,
-                after=settled_at,
-                deadline_seconds=harness.INTRO_REPLY_SECONDS,
-            )
 
         await create_ready_version(database, case=call.case)
         ready_at = time.time()
@@ -161,7 +144,7 @@ async def test_the_agent_sees_preview_activity_and_answers_in_realtime(
                 (
                     at
                     for at, kind, content in report.appends
-                    if kind == "append_commentary"
+                    if kind == "say"
                     and at >= ready_at
                     and content.startswith("The new version is ready")
                 ),
@@ -172,7 +155,6 @@ async def test_the_agent_sees_preview_activity_and_answers_in_realtime(
             await asyncio.sleep(0.1)
         await asyncio.sleep(2.0)
         dispatches = await harness.dispatches(database, session_id)
-        delegations = await harness.delegations(database, session_id)
         words = await harness.words(database, session_id, after=seen_start, before=time.time())
 
 
@@ -186,39 +168,45 @@ async def test_the_agent_sees_preview_activity_and_answers_in_realtime(
     if intro is None:
         print("  intro met with silence while they show the workflow")
     else:
-        print(f"  intro reply began {intro[0] - report.lines['intro_end']:.2f}s after the line: {intro[1][:100]!r}")
-    print(f"  activity fed {None if fed_at is None else round(fed_at - filters_at, 2)}s after the filters committed")
-    print(f"  listening shown {None if listening_seen is None else round(listening_seen - seen_start, 2)}s after the question began")
-    print(f"  'what did I apply' answered {seen_reply_at - seen_end:.2f}s after it ended: {seen_reply!r}")
-    print(f"  listening shown {None if listening_circle is None else round(listening_circle - circle_start, 2)}s after the circle ask began")
-    print(f"  'circle' answered {circle_reply_at - circle_end:.2f}s after it ended: {circle_reply!r}")
-    print(f"  circle dispatched {None if dispatch_at is None else round(dispatch_at - circle_end, 2)}s after the ask ended")
-    print(f"  'not sure which is the segment' answered: {None if unsure_reply is None else unsure_reply[1]!r}")
-    print(f"  gestures the agent chose after that: {[(d['step'], d['targets']) for d in unsure_gestures]}")
-    progress_answers = [
-        d
-        for d in delegations
-        if d["created_at"].timestamp() >= progress_start  # type: ignore[union-attr]
-        and str(d["finding"]).startswith("reported the change's progress")
-    ]
-    print(f"  'how is the change going' answered {progress_reply_at - progress_end:.2f}s after it ended: {progress_reply!r}")
-    for delegation in progress_answers:
-        print(f"  progress delegation settled in {delegation['settled_at'].timestamp() - delegation['created_at'].timestamp():.2f}s")  # type: ignore[union-attr]
-    print(f"  ready cue appended {None if ready_cue_at is None else round(ready_cue_at - ready_at, 2)}s after the new version was marked ready")
-    for delegation in delegations:
-        settled = delegation["settled_at"]
-        took = None if settled is None else round(settled.timestamp() - delegation["created_at"].timestamp(), 2)  # type: ignore[union-attr]
-        print(f"  delegation at +{delegation['created_at'].timestamp() - connected_at:.2f}s settled in {took}s: {delegation['state']} {delegation['finding']!r}")  # type: ignore[union-attr]
+        print(
+            f"  intro reply began {intro[0] - report.lines['intro_end']:.2f}s after the line: {intro[1][:100]!r}"
+        )
+    print(
+        f"  activity fed {None if fed_at is None else round(fed_at - filters_at, 2)}s after the filters committed"
+    )
+    print(
+        f"  listening shown {None if listening_seen is None else round(listening_seen - seen_start, 2)}s after the question began"
+    )
+    print(
+        f"  'what did I apply' answered {seen_reply_at - seen_end:.2f}s after it ended: {seen_reply!r}"
+    )
+    print(
+        f"  listening shown {None if listening_circle is None else round(listening_circle - circle_start, 2)}s after the circle ask began"
+    )
+    print(
+        f"  'circle' answered {circle_reply_at - circle_end:.2f}s after it ended: {circle_reply!r}"
+    )
+    print(
+        f"  circle dispatched {None if dispatch_at is None else round(dispatch_at - circle_end, 2)}s after the ask ended"
+    )
+    print(
+        f"  'not sure which is the segment' answered: {None if unsure_reply is None else unsure_reply[1]!r}"
+    )
+    print(
+        f"  gestures the agent chose after that: {[(d['step'], d['targets']) for d in unsure_gestures]}"
+    )
+    print(
+        f"  'how is the change going' answered {progress_reply_at - progress_end:.2f}s after it ended: {progress_reply!r}"
+    )
+    print(
+        f"  ready cue appended {None if ready_cue_at is None else round(ready_cue_at - ready_at, 2)}s after the new version was marked ready"
+    )
     for at, kind, content in report.appends:
         print(f"  append {kind} at +{at - connected_at:.2f}s: {content[:140]!r}")
     print("  timeline (seconds after connect):")
     events = [(at, f"character {state}") for at, state in report.character]
     events += [(at, f"line {name}") for name, at in report.lines.items()]
     events += [(at, f"{speaker} said {text!r}") for at, speaker, text in words]
-    events += [
-        (d["created_at"].timestamp(), f"delegation arrived ({d['state']}: {d['finding']!r})")  # type: ignore[union-attr]
-        for d in delegations
-    ]
     events += [
         (d["created_at"].timestamp(), f"dispatched {d['step']} at {d['targets']}")  # type: ignore[union-attr]
         for d in dispatches
@@ -239,8 +227,18 @@ async def test_the_agent_sees_preview_activity_and_answers_in_realtime(
     for at, label in sorted(events):
         print(f"    +{at - connected_at:6.2f}  {label}")
 
-    assert fed_at is not None and fed_at - filters_at < 2.5
+    # Activity committed while the agent talks is held until it stops, so it is fed
+    # promptly once the agent is quiet.
+    speaking = [state for at, state in report.character if at <= filters_at]
+    quiet_at = (
+        report.first_character_after("listening", filters_at)
+        if speaking and speaking[-1] == "speaking"
+        else None
+    )
+    assert fed_at is not None and fed_at - max(filters_at, quiet_at or filters_at) < 2.5
     assert "tiktok" in seen_reply.lower()
     assert circles, "no circle was dispatched for the circle request"
-    assert progress_answers, "the progress question was not answered from recorded state"
+    assert any(word in progress_reply.lower() for word in ("making", "building", "built", "working")), (
+        "the progress question was not answered from the recorded progress"
+    )
     assert ready_cue_at is not None and ready_cue_at - ready_at < 3.0

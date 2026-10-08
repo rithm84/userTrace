@@ -2,13 +2,13 @@
 
 Every role runs GPT-6.1 Sol on the Fast tier, chosen by measurement on the demo's
 change: code investigation and implementation inside Codex in the workspace sandbox,
-and the Implementation Gate proposal, answers to GPT-Live's delegations, intake
-assistance, and Case File synthesis through the Responses API. The roles a waiting
+and the Implementation Gate proposal, intake assistance, and Case File synthesis
+through the Responses API. The roles a waiting
 participant feels in the conversation run at low effort; the two that interpret or
 write for a reader run at medium.
 
 The API key is read from `OPENAI_API_KEY`, a Supabase Compute project secret on a
-deployed compute and the same credential GPT-Live uses. It never enters a workspace: the sandbox firewall adds it at egress.
+deployed compute. It never enters a workspace: the sandbox firewall adds it at egress.
 """
 
 from collections.abc import Mapping
@@ -42,8 +42,6 @@ _REQUEST_TIMEOUT_SECONDS: Final[float] = 120.0
 class OpenAIRole(StrEnum):
     """The reasoning roles."""
 
-    VOICE_DELEGATION = "voice_delegation"
-    """Answers GPT-Live's delegations with application-executed tools."""
     INTAKE_ASSISTANCE = "intake_assistance"
     """Interprets a batch intake routing could not resolve from supplied facts."""
     CASE_FILE_SYNTHESIS = "case_file_synthesis"
@@ -56,10 +54,7 @@ class OpenAIRole(StrEnum):
     """Implements the approved change in Codex."""
 
 
-_ROLE_CONFIGURATION: Final[
-    Mapping[OpenAIRole, tuple[str, OpenAIEffort, OpenAIServiceTier]]
-] = {
-    OpenAIRole.VOICE_DELEGATION: (GPT_6_1_SOL, OpenAIEffort.LOW, OpenAIServiceTier.FAST),
+_ROLE_CONFIGURATION: Final[Mapping[OpenAIRole, tuple[str, OpenAIEffort, OpenAIServiceTier]]] = {
     OpenAIRole.INTAKE_ASSISTANCE: (GPT_6_1_SOL, OpenAIEffort.MEDIUM, OpenAIServiceTier.FAST),
     OpenAIRole.CASE_FILE_SYNTHESIS: (GPT_6_1_SOL, OpenAIEffort.MEDIUM, OpenAIServiceTier.FAST),
     OpenAIRole.CODE_INVESTIGATION: (GPT_6_1_SOL, OpenAIEffort.LOW, OpenAIServiceTier.FAST),

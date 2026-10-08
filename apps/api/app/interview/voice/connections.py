@@ -1,7 +1,7 @@
-"""The voice connection lifecycle and the SDP exchange's success path.
+"""The voice connection lifecycle and the call setup's success path.
 
-Every provider connection gets a new `voice_run_id`, a provider session
-reference, and a participant connection id. Only one connection holds current
+Every connection gets a new `voice_run_id`, its own call (the provider session
+reference names it), and a participant connection id. Only one connection holds current
 participant authority: an authenticated takeover supersedes the previous one,
 closes its provider session, and stops accepting its events.
 
@@ -45,33 +45,32 @@ from app.ids import uuid7
 from app.interview.character import CharacterState, set_character
 from app.interview.projection import publish_projection_on_connection
 from app.interview.readiness import record_conversational_facts
-from app.interview.voice.instructions import session_instructions
 from app.lifecycle.interview import VOICE_CONNECTION_MACHINE, VoiceConnectionFacts
 from app.lifecycle.machine import plan_transition
 from app.logging import get_logger
-from app.ports.voice import VoiceConnectionRequest, VoicePort
+from app.ports.voice import VoiceConnectionRequest, VoicePort, VoiceRejoinRequest
 
 __all__ = [
     "CLOSE_PROVIDER_SESSION",
-    "VOICE_SIDEBAND",
+    "VOICE_AGENT",
     "OpenedVoiceConnection",
+    "agent_job_intent",
     "close_voice_connection",
     "open_voice_connection",
-    "sideband_job_intent",
 ]
 
 _log = get_logger(__name__)
 
 CLOSE_PROVIDER_SESSION = "interview.close_provider_session"
-VOICE_SIDEBAND = "interview.voice_sideband"
+VOICE_AGENT = "interview.voice_agent"
 
-_SIDEBAND_TIMEOUT_SECONDS = 7200
-_SIDEBAND_MAX_RUNS = 8
-_SIDEBAND_BACKOFF_BASE_SECONDS = 2
-_SIDEBAND_BACKOFF_MAX_SECONDS = 30
+_AGENT_TIMEOUT_SECONDS = 7200
+_AGENT_MAX_RUNS = 8
+_AGENT_BACKOFF_BASE_SECONDS = 2
+_AGENT_BACKOFF_MAX_SECONDS = 30
 _CLEANUP_TIMEOUT_SECONDS = 60
 _CLEANUP_MAX_RUNS = 5
-# The canonical technical categories a sideband or cleanup Job may be retried
+# The canonical technical categories an agent or cleanup Job may be retried
 # for. A category outside this set fails the Job rather than repeating it.
 _RETRYABLE: tuple[str, ...] = tuple(
     category.value
@@ -83,6 +82,8 @@ _RETRYABLE: tuple[str, ...] = tuple(
     )
 )
 
+#: A running call whose room expires sooner than this is replaced rather than rejoined.
+_REJOIN_MARGIN = timedelta(minutes=15)
 _OPENABLE_STATES = frozenset(
     {InterviewSessionState.PREPARING.value, InterviewSessionState.LIVE.value}
 )
@@ -90,9 +91,10 @@ _OPENABLE_STATES = frozenset(
 
 @dataclass(frozen=True, slots=True)
 class OpenedVoiceConnection:
-    """What the SDP route returns once the provider session is bound."""
+    """What the connection route returns once the call is bound."""
 
-    sdp_answer: str
+    room_url: str
+    participant_token: str
     connection_id: UUID
     voice_run_id: UUID
     provider_session_ref: str
@@ -104,9 +106,13 @@ async def open_voice_connection(
     *,
     participant: ParticipantPrincipal,
     interview_session_id: UUID,
-    sdp_offer: str,
 ) -> OpenedVoiceConnection:
-    """Authorize one connection, create its provider session, and bind the two."""
+    """Admit the participant to their session's call, creating it when none is running.
+
+    A call whose agent is still running is the participant's call to rejoin, as a
+    reload or a second browser does: they get a new token for the same room, and any
+    browser of theirs still in it is removed. Otherwise a new call replaces the old.
+    """
     connection_id = uuid7()
     voice_run_id = uuid7()
 
@@ -122,45 +128,20 @@ async def open_voice_connection(
                     f"live, found '{state}'"
                 ),
             )
-        superseded = await _supersede_current(
-            conn,
-            client_id=participant.client_id,
-            interview_session_id=interview_session_id,
-        )
-        async with conn.cursor() as cur:
-            await cur.execute(
-                """
-                insert into public.voice_connections (
-                    id, client_id, interview_session_id, state, voice_run_id,
-                    participant_connection_id
-                )
-                values (%s, %s, %s, %s, %s, %s)
-                """,
-                (
-                    connection_id,
-                    participant.client_id,
-                    interview_session_id,
-                    VoiceConnectionState.CONNECTING.value,
-                    voice_run_id,
-                    connection_id,
-                ),
+        running = await _running_call(conn, interview_session_id=interview_session_id)
+        if running is None:
+            await _start_replacement(
+                conn,
+                client_id=participant.client_id,
+                interview_session_id=interview_session_id,
+                connection_id=connection_id,
+                voice_run_id=voice_run_id,
             )
-            if superseded:
-                # The link is written after the row it points at exists, which is
-                # also after the one-current index has seen the old rows closed.
-                await cur.execute(
-                    """
-                    update public.voice_connections
-                    set superseded_by_id = %s, revision = revision + 1,
-                        updated_at = now()
-                    where id = any(%s)
-                    """,
-                    (connection_id, list(superseded)),
-                )
+    if running is not None:
+        return await _rejoin(
+            voice, participant=participant, interview_session_id=interview_session_id, call=running
+        )
 
-    instructions = await session_instructions(
-        database, interview_session_id=interview_session_id
-    )
     try:
         result = await voice.open_connection(
             VoiceConnectionRequest(
@@ -168,8 +149,7 @@ async def open_voice_connection(
                 interview_session_id=interview_session_id,
                 voice_run_id=voice_run_id,
                 participant_connection_id=connection_id,
-                sdp_offer=sdp_offer,
-                instructions=instructions,
+                participant_user_id=participant.client_user_id,
             )
         )
     except ConnectorFailure as failure:
@@ -197,8 +177,8 @@ async def open_voice_connection(
                 machine="voice_connection",
                 trigger="activate",
                 reason=(
-                    "this connection was superseded while its provider session was "
-                    "being created; the unused provider session is being closed"
+                    "this connection was superseded while its call was being created; "
+                    "the unused call is being closed"
                 ),
             )
         await apply_transition_on_connection(
@@ -233,12 +213,14 @@ async def open_voice_connection(
                     occurred_at=datetime.now(tz=UTC),
                 ),
                 jobs=(
-                    sideband_job_intent(
+                    agent_job_intent(
                         client_id=participant.client_id,
                         interview_session_id=interview_session_id,
                         connection_id=connection_id,
                         voice_run_id=voice_run_id,
                         provider_session_ref=result.provider_session_ref,
+                        room_url=result.room_url,
+                        room_expires_at=result.room_expires_at,
                     ),
                 ),
                 commands=(),
@@ -285,7 +267,8 @@ async def open_voice_connection(
         voice_run_id=str(voice_run_id),
     )
     return OpenedVoiceConnection(
-        sdp_answer=result.sdp_answer,
+        room_url=result.room_url,
+        participant_token=result.participant_token,
         connection_id=connection_id,
         voice_run_id=voice_run_id,
         provider_session_ref=result.provider_session_ref,
@@ -335,34 +318,38 @@ async def close_voice_connection(
     )
 
 
-def sideband_job_intent(
+def agent_job_intent(
     *,
     client_id: UUID,
     interview_session_id: UUID,
     connection_id: UUID,
     voice_run_id: UUID,
     provider_session_ref: str,
+    room_url: str,
+    room_expires_at: datetime,
 ) -> JobIntent:
-    """The durable Job that attaches and drains one connection's sideband."""
+    """The durable Job in which the agent joins one connection's call and holds it."""
     now = datetime.now(tz=UTC)
     return JobIntent(
         job_id=uuid7(),
-        job_type=VOICE_SIDEBAND,
+        job_type=VOICE_AGENT,
         input={
             "client_id": str(client_id),
             "interview_session_id": str(interview_session_id),
             "voice_connection_id": str(connection_id),
             "voice_run_id": str(voice_run_id),
             "provider_session_ref": provider_session_ref,
+            "room_url": room_url,
+            "room_expires_at": room_expires_at.isoformat(),
         },
-        deadline_at=now + timedelta(seconds=_SIDEBAND_TIMEOUT_SECONDS),
-        timeout_seconds=_SIDEBAND_TIMEOUT_SECONDS,
-        max_runs=_SIDEBAND_MAX_RUNS,
-        resource_budget={"sideband_seconds": _SIDEBAND_TIMEOUT_SECONDS},
+        deadline_at=now + timedelta(seconds=_AGENT_TIMEOUT_SECONDS),
+        timeout_seconds=_AGENT_TIMEOUT_SECONDS,
+        max_runs=_AGENT_MAX_RUNS,
+        resource_budget={"call_seconds": _AGENT_TIMEOUT_SECONDS},
         retryable_categories=_RETRYABLE,
-        backoff_base_seconds=_SIDEBAND_BACKOFF_BASE_SECONDS,
-        backoff_max_seconds=_SIDEBAND_BACKOFF_MAX_SECONDS,
-        concurrency_key=f"voice_sideband:{interview_session_id}",
+        backoff_base_seconds=_AGENT_BACKOFF_BASE_SECONDS,
+        backoff_max_seconds=_AGENT_BACKOFF_MAX_SECONDS,
+        concurrency_key=f"voice_agent:{interview_session_id}",
         cancellation_scope_id=None,
         not_before=now,
     )
@@ -371,7 +358,7 @@ def sideband_job_intent(
 def _cleanup_job_intent(
     *, connection_id: UUID, provider_session_ref: str, reason: str
 ) -> JobIntent:
-    """The durable Job that closes a superseded or unused provider session."""
+    """The durable Job that closes a superseded or unused call."""
     now = datetime.now(tz=UTC)
     return JobIntent(
         job_id=uuid7(),
@@ -386,8 +373,8 @@ def _cleanup_job_intent(
         max_runs=_CLEANUP_MAX_RUNS,
         resource_budget={},
         retryable_categories=_RETRYABLE,
-        backoff_base_seconds=_SIDEBAND_BACKOFF_BASE_SECONDS,
-        backoff_max_seconds=_SIDEBAND_BACKOFF_MAX_SECONDS,
+        backoff_base_seconds=_AGENT_BACKOFF_BASE_SECONDS,
+        backoff_max_seconds=_AGENT_BACKOFF_MAX_SECONDS,
         concurrency_key=None,
         cancellation_scope_id=None,
         not_before=now,
@@ -402,7 +389,7 @@ async def _schedule_provider_cleanup(
     provider_session_ref: str,
     reason: str,
 ) -> None:
-    """Record the cleanup of a provider session no connection may use."""
+    """Record the cleanup of a call no connection may use."""
     await append_fact(
         conn,
         client_id=client_id,
@@ -434,6 +421,130 @@ async def _schedule_provider_cleanup(
             ),
         ),
     )
+
+
+@dataclass(frozen=True, slots=True)
+class _RunningCall:
+    """A session's active connection whose agent is still holding its call."""
+
+    connection_id: UUID
+    voice_run_id: UUID
+    provider_session_ref: str
+    room_url: str
+    room_expires_at: datetime
+
+
+async def _running_call(
+    conn: AsyncConnection[DictRow], *, interview_session_id: UUID
+) -> _RunningCall | None:
+    """The session's call the participant can rejoin, if its agent is still running it.
+
+    A room this close to expiring is not rejoined: a new call outlives it.
+    """
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            select connections.id, connections.voice_run_id, connections.provider_session_ref,
+                   jobs.input ->> 'room_url' as room_url,
+                   jobs.input ->> 'room_expires_at' as room_expires_at
+            from public.voice_connections as connections
+            join public.jobs
+              on jobs.job_type = %s
+             and jobs.input ->> 'voice_connection_id' = connections.id::text
+            where connections.interview_session_id = %s
+              and connections.state = %s
+              and jobs.state in ('pending', 'ready', 'leased')
+            """,
+            (VOICE_AGENT, interview_session_id, VoiceConnectionState.ACTIVE.value),
+        )
+        row = await cur.fetchone()
+    if row is None:
+        return None
+    expires_at = datetime.fromisoformat(as_str(row, "room_expires_at"))
+    if expires_at - datetime.now(tz=UTC) < _REJOIN_MARGIN:
+        return None
+    return _RunningCall(
+        connection_id=as_uuid(row, "id"),
+        voice_run_id=as_uuid(row, "voice_run_id"),
+        provider_session_ref=as_str(row, "provider_session_ref"),
+        room_url=as_str(row, "room_url"),
+        room_expires_at=expires_at,
+    )
+
+
+async def _rejoin(
+    voice: VoicePort,
+    *,
+    participant: ParticipantPrincipal,
+    interview_session_id: UUID,
+    call: _RunningCall,
+) -> OpenedVoiceConnection:
+    """Admit the participant to the call their session's agent is still holding."""
+    token = await voice.rejoin_connection(
+        VoiceRejoinRequest(
+            client_id=participant.client_id,
+            interview_session_id=interview_session_id,
+            provider_session_ref=call.provider_session_ref,
+            room_expires_at=call.room_expires_at,
+            participant_user_id=participant.client_user_id,
+        )
+    )
+    _log.info(
+        "voice_connection_rejoined",
+        client_id=str(participant.client_id),
+        interview_session_id=str(interview_session_id),
+        voice_connection_id=str(call.connection_id),
+    )
+    return OpenedVoiceConnection(
+        room_url=call.room_url,
+        participant_token=token,
+        connection_id=call.connection_id,
+        voice_run_id=call.voice_run_id,
+        provider_session_ref=call.provider_session_ref,
+    )
+
+
+async def _start_replacement(
+    conn: AsyncConnection[DictRow],
+    *,
+    client_id: UUID,
+    interview_session_id: UUID,
+    connection_id: UUID,
+    voice_run_id: UUID,
+) -> None:
+    """Close the session's open connections and insert the one that replaces them."""
+    superseded = await _supersede_current(
+        conn, client_id=client_id, interview_session_id=interview_session_id
+    )
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            insert into public.voice_connections (
+                id, client_id, interview_session_id, state, voice_run_id,
+                participant_connection_id
+            )
+            values (%s, %s, %s, %s, %s, %s)
+            """,
+            (
+                connection_id,
+                client_id,
+                interview_session_id,
+                VoiceConnectionState.CONNECTING.value,
+                voice_run_id,
+                connection_id,
+            ),
+        )
+        if superseded:
+            # The link is written after the row it points at exists, which is
+            # also after the one-current index has seen the old rows closed.
+            await cur.execute(
+                """
+                update public.voice_connections
+                set superseded_by_id = %s, revision = revision + 1, updated_at = now()
+                where id = any(%s)
+                """,
+                (connection_id, list(superseded)),
+            )
 
 
 async def _supersede_current(
