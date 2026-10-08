@@ -16,7 +16,6 @@ The file is never written by tests and its values never reach an assertion messa
 from __future__ import annotations
 
 import os
-from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -74,8 +73,3 @@ def repository_root() -> Path:
     """Absolute path to the checkout that owns this worktree's `.env.local`."""
     return _REPOSITORY_ROOT
 
-
-@pytest.fixture
-def unique_suffix() -> Iterator[str]:
-    """A short suffix that keeps concurrent live runs from colliding on provider names."""
-    yield os.urandom(4).hex()

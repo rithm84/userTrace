@@ -6,9 +6,9 @@ import type { VoiceSession } from "./voice";
 /**
  * The voice call when the control plane is the in-repository fixture.
  *
- * There is no voice agent behind the fixture, so instead of joining a Daily
- * call it replays the Shopalytics discovery conversation as transcript
- * fragments, one word at a time. It exists for
+ * There is no GPT-Live session behind the fixture, so instead of negotiating
+ * WebRTC it replays the Shopalytics discovery conversation as the same
+ * transcript fragments GPT-Live streams, one word at a time. It exists for
  * local previews and browser tests of the session tab and is loaded only when
  * `UTRACE_CONTROL_PLANE_FIXTURES=1`.
  */
@@ -58,11 +58,18 @@ export function connectFixtureVoice(
 
   for (const turn of CONVERSATION) {
     clock += TURN_GAP_MS;
-    for (const word of turn.text.split(" ")) {
-      const delta: TranscriptDelta = { speaker: turn.speaker, text: ` ${word}` };
-      timers.push(window.setTimeout(() => parameters.onTranscriptDelta(delta), clock));
-      clock += WORD_MS;
-    }
+    turn.text.split(" ").forEach((word, index) => {
+      const startMs = clock;
+      const endMs = clock + WORD_MS;
+      const delta: TranscriptDelta = {
+        speaker: turn.speaker,
+        text: index === 0 ? word : ` ${word}`,
+        startMs,
+        endMs,
+      };
+      timers.push(window.setTimeout(() => parameters.onTranscriptDelta(delta), startMs));
+      clock = endMs;
+    });
   }
 
   return {

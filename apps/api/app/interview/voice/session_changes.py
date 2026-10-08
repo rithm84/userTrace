@@ -1,11 +1,10 @@
-"""Waking the voice agent when its Interview Session's committed state changes.
+"""Waking the voice sideband when its Interview Session's committed state changes.
 
-The voice agent acts on state other processes commit: a queued mute, the preview
+The sideband acts on state other processes commit: a queued mute, the preview
 route and readiness, implementation progress, and the participant's preview
-activity. Database triggers notify the `voice_sideband` channel (named for the
-earlier voice design, kept to avoid a schema change) with the session
+activity. Database triggers notify the `voice_sideband` channel with the session
 each change belongs to, and a controller whose committed fact no trigger covers
-notifies it in the same transaction (`wake_voice_agents`). This listener wakes
+notifies it in the same transaction (`wake_case_sidebands`). This listener wakes
 every watcher of that session, so each re-reads its state at once instead of
 polling for it.
 
@@ -24,7 +23,7 @@ from psycopg.rows import DictRow
 from app.db.pool import Database
 from app.logging import get_logger
 
-__all__ = ["VOICE_SIDEBAND_CHANNEL", "SessionChanges", "wake_voice_agents"]
+__all__ = ["VOICE_SIDEBAND_CHANNEL", "SessionChanges", "wake_case_sidebands"]
 
 _log = get_logger(__name__)
 
@@ -95,8 +94,8 @@ class SessionChanges:
             watcher.set()
 
 
-async def wake_voice_agents(conn: AsyncConnection[DictRow], *, product_signal_id: UUID) -> None:
-    """Wake the voice agent of every open Interview Session of a case when the caller commits.
+async def wake_case_sidebands(conn: AsyncConnection[DictRow], *, product_signal_id: UUID) -> None:
+    """Wake the sideband of every open Interview Session of a case when the caller commits.
 
     Postgres delivers a notification only once its transaction commits, so a
     watcher never re-reads before the fact it is woken for exists.

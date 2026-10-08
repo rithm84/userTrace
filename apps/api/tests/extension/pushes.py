@@ -1,7 +1,7 @@
 """Changes the push tests make from outside the extension's own socket.
 
 Each one reaches the control plane the way a real producer does: a gesture from
-another operating-system process, as the worker's voice agent dispatches it,
+another operating-system process, as the worker's voice sideband dispatches it,
 and a participant control posted to the session API, as the session tab posts
 it. The socket under test learns of either only from committed state.
 """

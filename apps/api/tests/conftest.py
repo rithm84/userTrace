@@ -14,7 +14,6 @@ from __future__ import annotations
 import os
 from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
-from uuid import UUID
 
 import pytest
 import pytest_asyncio
@@ -206,12 +205,6 @@ async def _truncate(database: Database) -> None:
     async with database.transaction() as conn, conn.cursor() as cur:
         await cur.execute(statement)
         await cur.execute("select pgmq.purge_queue('utrace_outbox')")
-
-
-@pytest.fixture
-def new_id() -> Iterator[UUID]:
-    """A fresh UUIDv7 for a test that needs one identifier."""
-    yield uuid7()
 
 
 @pytest.fixture(scope="session")
