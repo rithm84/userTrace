@@ -88,8 +88,8 @@ async def record_transcript_fragment(
 ) -> UUID | None:
     """Persist one fragment, or return ``None`` when it was already recorded.
 
-    Sideband delivery is at least once, so the provider event and its exact span
-    are the natural idempotency boundary.
+    A rejoined call can record a turn again, so the event and its exact span are
+    the natural idempotency boundary.
     """
     fragment_id = uuid7()
     try:

@@ -41,7 +41,7 @@ function projectionWith(overrides: Partial<SessionProjection>): SessionProjectio
 }
 
 function renderSession(projection: SessionProjection) {
-  return render(<SessionTab initialProjection={projection} extensionId={EXTENSION_ID} voiceTransport="webrtc" />);
+  return render(<SessionTab initialProjection={projection} extensionId={EXTENSION_ID} voiceTransport="daily" />);
 }
 
 beforeEach(() => {
@@ -93,7 +93,7 @@ describe("session tab", () => {
     });
   });
 
-  it("opens the microphone only once the backend sideband is listening", async () => {
+  it("opens the microphone only once the backend voice agent is listening", async () => {
     const microphone = vi.fn();
     voice.connectVoice.mockResolvedValue({
       connectionId: "conn-1",
@@ -168,7 +168,7 @@ describe("session tab", () => {
     });
     expect(closes[0]).toHaveBeenCalledTimes(1);
 
-    // Still reconnecting until the new sideband attaches: no second replacement.
+    // Still reconnecting until the new voice agent attaches: no second replacement.
     act(() => {
       publish(projectionWith({ revision: revision + 2, state: "reconnecting" }));
     });
@@ -251,9 +251,9 @@ describe("session tab", () => {
   it("streams what each side says into the transcript, one turn per speaker", async () => {
     voice.connectVoice.mockImplementation(
       async (parameters: { onTranscriptDelta: (delta: object) => void }) => {
-        parameters.onTranscriptDelta({ speaker: "agent", text: "Walk me", startMs: 0, endMs: 300 });
-        parameters.onTranscriptDelta({ speaker: "agent", text: " through Monday.", startMs: 300, endMs: 900 });
-        parameters.onTranscriptDelta({ speaker: "participant", text: " Sure.", startMs: 1200, endMs: 1500 });
+        parameters.onTranscriptDelta({ speaker: "agent", text: " Walk me" });
+        parameters.onTranscriptDelta({ speaker: "agent", text: " through Monday." });
+        parameters.onTranscriptDelta({ speaker: "participant", text: " Sure." });
         return { connectionId: "conn-1", voiceRunId: "vr-1", setMicrophoneEnabled: vi.fn(), close: vi.fn() };
       },
     );
@@ -265,6 +265,52 @@ describe("session tab", () => {
     expect(screen.getByTestId("session-transcript-turn-0")).toHaveTextContent("Ivo");
     expect(screen.getByTestId("session-transcript-turn-0")).toHaveTextContent("Walk me through Monday.");
     expect(screen.getByTestId("session-transcript-turn-1")).toHaveTextContent("YouSure.");
+  });
+
+  it("opens each connection through the API and plays the agent's audio", async () => {
+    actions.openVoiceConnection.mockResolvedValue({
+      ok: true,
+      value: {
+        room_url: "https://utrace.daily.co/room-1",
+        participant_token: "token-1",
+        connection_id: "conn-1",
+        voice_run_id: "vr-1",
+      },
+    });
+    const agentAudio = { kind: "audio" } as MediaStreamTrack;
+    vi.stubGlobal(
+      "MediaStream",
+      class {
+        readonly tracks: MediaStreamTrack[];
+        constructor(tracks: MediaStreamTrack[]) {
+          this.tracks = tracks;
+        }
+      },
+    );
+    voice.connectVoice.mockImplementation(
+      async (parameters: {
+        openConnection: () => Promise<{ connection_id: string; voice_run_id: string }>;
+        onAgentAudio: (track: MediaStreamTrack) => void;
+      }) => {
+        const record = await parameters.openConnection();
+        parameters.onAgentAudio(agentAudio);
+        return {
+          connectionId: record.connection_id,
+          voiceRunId: record.voice_run_id,
+          setMicrophoneEnabled: vi.fn(),
+          close: vi.fn(),
+        };
+      },
+    );
+    renderSession(fixtureSessionProjection);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("session-connection")).toHaveTextContent("Connected");
+    });
+    expect(actions.openVoiceConnection).toHaveBeenCalledWith(fixtureSessionProjection.session_id);
+    const audio = screen.getByTestId("session-audio") as HTMLAudioElement;
+    expect((audio.srcObject as unknown as { tracks: MediaStreamTrack[] }).tracks).toEqual([agentAudio]);
+    vi.unstubAllGlobals();
   });
 
   it("marks the implementation progress state the control plane reports", () => {

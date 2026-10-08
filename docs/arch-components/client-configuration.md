@@ -46,7 +46,7 @@ The client compatibility contract explicitly declares repository, environment,
 startup, health, and seeding requirements. uTrace does not infer an arbitrary
 application stack or invent startup and health behavior from repository contents.
 
-Model configuration pins the GPT-6.1 Sol and GPT-Live settings described in the
+Model configuration pins the GPT-6.1 Sol and voice provider settings described in the
 [model access contract](./deployment.md#model-access). These are uTrace platform
 integrations, not provider accounts that the originating user must supply.
 

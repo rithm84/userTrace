@@ -23,8 +23,8 @@ Product knowledge reaches every role through the client's active Product Overvie
 rather than a search index. The overview is a few thousand characters, so it
 travels whole: intake routing reads its purpose, capabilities, workflows, and
 terminology for every judgement and the remaining sections when a judgement
-reports a fact it could not resolve, and every voice delegation carries all of it
-as the bundle's product-knowledge section, each section citing the overview
+reports a fact it could not resolve, and the voice agent's instructions and every
+voice tool call's bundle carry all of it as their product-knowledge section, each section citing the overview
 version and its content digest. Nothing is looked up while a participant waits.
 
 ## Code investigation
@@ -73,30 +73,30 @@ status explicitly. Critical facts must not depend on semantic search finding
 them. The live interview itself is never indexed for search; product
 documentation is derived knowledge, and exact files and canonical evidence stay
 authoritative. The
-orchestration supplies updates across GPT-Live, Jev, the delegation model, and the
+orchestration supplies updates across the voice agent, Jev, GPT-6.1 Sol, and the
 coding agent; none automatically knows what another worker discovered. Bundles also carry
 lifecycle and policy revisions, prior Commands and Results, and delivered-speech
 evidence where available.
 
 The backend retains transcript fragments, source evidence, and previous results.
 It selects bounded recent conversation and source-linked summaries when useful.
-GPT-Live transcribes a few words per fragment, so a bundle carries the recent
-conversation as turns: consecutive fragments of one speaker joined, each turn
+The agent's speech is recorded a word per fragment as it plays, so a bundle
+carries the recent conversation as turns: consecutive fragments of one speaker joined, each turn
 citing its first fragment and spanning their time range. A bundle that cannot
 hold the whole window keeps the latest turns.
 Summaries remain derived and cannot replace a user's correction or canonical
-record. Provider-managed voice summarization does not control authoritative state.
+record. The voice agent's in-call context does not control authoritative state.
 See [Interview and Voice](./interview-and-voice.md).
 
 ## Stage boundaries
 
-The reasoning roles receive application-assembled context through the OpenAI
+GPT-6.1 Sol's roles receive application-assembled context through the OpenAI
 Responses API, each request pinning its reasoning effort and service tier. A request
-that needs a typed result uses strict structured outputs, and a delegation's tools
-are strict function tools under automatic tool choice. Nothing is stored at OpenAI:
-within one scoped run the history is append-only and each turn resends the earlier
-output with its encrypted reasoning. That carried reasoning preserves model
-continuity; it is not evidence or shared cross-client memory.
+that needs a typed result uses strict structured outputs. Nothing is stored at
+OpenAI. The voice agent's model receives its instructions, the conversation,
+`<application>` messages, and tool results through the Anthropic API; each tool
+call runs against a bundle assembled for it. Neither carries evidence or shared
+cross-client memory.
 
 Intake receives its immutable message batch and direct conversation context,
 authenticated identity, Product Overview, and routing policy. Application code
@@ -108,18 +108,17 @@ telemetry and unrestricted code do not enter the routing context.
 
 Jev receives question-specific subsets of these bundles: the relevant source
 statement with necessary conversational context, named claims or criteria, selected
-observations, and supplied alternatives. The routing judgement at a voice delegation
-receives a bundle of the recent conversation alone, with the bound document's
-targets as its alternatives, because the full working context would only slow it. Pre-filter by scope and exact metadata in
+observations, and supplied alternatives. Jev's acknowledgement and shown-checks
+judgements during a call receive a bundle of the recent conversation alone,
+because the full working context would only slow them. Pre-filter by scope and exact metadata in
 code before semantic selection. Preserve negations, corrections, and uncertainty;
 do not send the full transcript, DOM, or telemetry history to every judgment.
 
 The interview receives relevant product knowledge, same-user/same-client context,
 and selected correlated evidence. Jev prioritizes semantic attention and can
-anticipate a scoped lookup while conversation continues. GPT-6.1 Sol interprets
-findings at a low effort on the Fast tier, because the participant is waiting. Voice
-receives concise customer-appropriate
-facts and question guidance, not raw repositories or internal diagnostics.
+anticipate a scoped lookup while conversation continues. The voice agent receives
+concise customer-appropriate facts through its screen state, cues, and tool
+results, not raw repositories or internal diagnostics.
 
 The gate receives the signal, agreed outcome, sufficient evidence, exact code
 findings, and policy. Implementation receives
@@ -146,11 +145,10 @@ used after dependency checks. Fast Jev judgments use the same freshness rule.
 A bundle pins every revision it was assembled against, but its purpose declares
 the ones its applied result depends on, and only those can make it stale:
 
-- `voice_delegation` and `flow_classification`: the Product Signal's revision,
-  classification, acceptance criteria, concern, and pinned configuration release.
+- `voice_delegation`, a voice agent tool call's context, and
+  `flow_classification`: the Product Signal's revision, classification, acceptance
+  criteria, concern, and pinned configuration release.
 - `jev_attention`: the acceptance criteria the shown checks were judged against.
-- `delegation_routing` and `speech_gesture`: none, because they read only the
-  recent conversation and their gesture is authorized afresh at dispatch.
 
 No purpose depends on telemetry readiness or on the Interview Session's own
 revision. A correction that supersedes cited evidence invalidates the bundle

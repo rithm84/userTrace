@@ -107,7 +107,7 @@ class Worker:
             job_types=sorted(self._handlers),
             concurrency=self._config.concurrency,
         )
-        # Jobs run side by side: a voice sideband lives as long as its interview,
+        # Jobs run side by side: a voice agent lives as long as its interview,
         # and the gate, implementation, and ingestion work must keep moving
         # meanwhile rather than wait behind it.
         running: set[asyncio.Task[None]] = set()

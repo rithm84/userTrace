@@ -2,8 +2,8 @@
 
 A failing gate runs the real handler in the worker against a case whose pinned
 policy cannot be read, which fails every run. A declining gate commits the gate's
-own no-implementation outcome. In both, the sideband runs unmodified against the
-local test GPT-Live server and is already listening when the outcome commits.
+own no-implementation outcome. In both, the voice agent's gate-outcome cue runs
+unmodified and is already listening when the outcome commits.
 """
 
 import asyncio
@@ -19,12 +19,10 @@ from utrace_contracts.domain.lifecycle import (
     ProductSignalState,
 )
 
-from app.auth.principals import ParticipantPrincipal
 from app.context.bundles import AssembledBundle, assemble_bundle
 from app.context.purposes import BundlePurpose
 from app.db.pool import Database
 from app.execution.handlers import build_exhausted_handlers
-from app.execution.jobs import claim_job
 from app.execution.worker import Worker, WorkerConfig
 from app.gate.controller import GateOutcome
 from app.gate.job_types import DECIDE_GATE, GATE_FAILED_EVENT, GATE_NO_IMPLEMENTATION_EVENT
@@ -36,23 +34,16 @@ from app.interview.agreements import (
     record_acceptance_criteria_agreement,
     record_flow_classification,
 )
-from app.interview.handlers import run_voice_sideband_with
-from app.interview.settings import get_interview_settings
-from app.interview.voice.connections import VOICE_SIDEBAND, open_voice_connection
-from app.interview.voice.delegation import DelegationRunner
+from app.interview.voice.cues import announce_gate_outcome
+from app.interview.voice.session_changes import SessionChanges
 from app.outputs.job_types import ASSEMBLE_CASE_FILE
 from tests.factories import CaseFixture, create_case, create_interview_session
 from tests.gate.factories import approve_agreed_change
-from tests.interview.gpt_live_server import ScriptedSession, run_test_server
-from tests.interview.local_voice import local_voice_adapter
+from tests.interview.recording_agent import RecordingAgent
 from tests.supabase_auth import SignedInUser
 
-_SIDEBAND_PORT: Final[int] = 8135
-_OFFER_SDP: Final[str] = (
-    "v=0\r\no=- 0 0 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\n"
-)
 _LISTENING_SECONDS: Final[float] = 1.0
-"""Long enough for every sideband watcher to finish its first read before the failure."""
+"""Long enough for the cue's watcher to finish its first read before the outcome."""
 _CUE_DEADLINE_SECONDS: Final[float] = 15.0
 
 
@@ -95,7 +86,7 @@ async def _gate_pending_case(database: Database, auth_users: dict[str, SignedInU
     )
     await record_acceptance_criteria_agreement(
         database,
-        bundle=await bundle(BundlePurpose.VOICE_DELEGATION),
+        bundle=await bundle(BundlePurpose.VOICE_TOOLS),
         agreed_scope={"intended_outcome": "save and reopen a conversion view"},
         criteria=[
             CriterionDraft(
@@ -114,55 +105,34 @@ async def _cue_heard_after(
     case: CaseFixture,
     session_id: UUID,
     commit: Callable[[], Awaitable[None]],
-) -> dict[str, object]:
-    """Run the case's sideband, commit the gate outcome once it listens, and return its cue."""
-    script = ScriptedSession(events=(), close_after_command_types=("session.commentary.append",))
-    async with run_test_server(port=_SIDEBAND_PORT, script=script) as server:
-        adapter = local_voice_adapter(base_url=server.base_url)
-        async with adapter:
-            await open_voice_connection(
-                database,
-                adapter,
-                participant=ParticipantPrincipal(
-                    auth_user_id=uuid7(),
-                    utrace_user_id=case.utrace_user_id,
-                    client_user_id=case.client_user_id,
-                    client_id=case.client_id,
-                ),
-                interview_session_id=session_id,
-                sdp_offer=_OFFER_SDP,
-            )
-            claimed = None
-            while claimed is None:
-                claimed = await claim_job(
-                    database,
-                    job_types=[VOICE_SIDEBAND],
-                    worker_id="gate-outcome-sideband",
-                    lease_seconds=120,
-                )
-            sideband = asyncio.create_task(
-                run_voice_sideband_with(
-                    database,
-                    claimed,
-                    adapter=adapter,
-                    delegations=DelegationRunner(
-                        database=database,
-                        reasoning=None,
-                        jev=None,
-                        targets=None,
-                        settings=get_interview_settings(),
-                    ),
-                )
-            )
-            await script.attached.wait()
-            await asyncio.sleep(_LISTENING_SECONDS)
-            assert script.received_commands == []
-
-            await commit()
-            # The server ends the session on the cue; without one the run would wait.
-            async with asyncio.timeout(_CUE_DEADLINE_SECONDS):
-                await sideband
-    return script.received_commands[0]
+) -> str:
+    """Run the case's gate-outcome cue, commit the outcome once it listens, and return the cue."""
+    changes = SessionChanges(database, interview_session_id=session_id)
+    listener = asyncio.create_task(changes.run())
+    await changes.listening()
+    agent = RecordingAgent()
+    agent_quiet = asyncio.Event()
+    agent_quiet.set()
+    cue = asyncio.create_task(
+        announce_gate_outcome(
+            database,
+            changes,
+            product_signal_id=case.product_signal_id,
+            agent=agent,
+            agent_quiet=agent_quiet,
+        )
+    )
+    try:
+        await asyncio.sleep(_LISTENING_SECONDS)
+        assert agent.said == []
+        await commit()
+        async with asyncio.timeout(_CUE_DEADLINE_SECONDS):
+            await agent.spoke.wait()
+    finally:
+        for task in (cue, listener):
+            task.cancel()
+        await asyncio.gather(cue, listener, return_exceptions=True)
+    return agent.said[0]
 
 
 async def test_a_failed_gate_closes_with_a_blocker_and_the_agent_hears_it(
@@ -190,8 +160,7 @@ async def test_a_failed_gate_closes_with_a_blocker_and_the_agent_hears_it(
         assert await worker.run_once() is True
 
     cue = await _cue_heard_after(database, case, session_id, fail_the_gate)
-    assert cue["type"] == "session.commentary.append"
-    assert "cannot be started" in str(cue["content"])
+    assert "cannot be started" in cue
 
     async with database.connection() as conn, conn.cursor() as cur:
         await cur.execute(
@@ -255,9 +224,8 @@ async def test_a_gate_that_chooses_no_implementation_tells_the_agent(
 
     cue = await _cue_heard_after(database, case, session_id, decline)
 
-    assert cue["type"] == "session.commentary.append"
-    assert "will not be built" in str(cue["content"])
-    assert "do not say a new version is coming" in str(cue["content"])
+    assert "will not be built" in cue
+    assert "do not say a new version is coming" in cue
     async with database.connection() as conn, conn.cursor() as cur:
         await cur.execute(
             "select 1 from public.events where stream_id = %s and event_type = %s",
@@ -282,5 +250,4 @@ async def test_an_approved_gate_has_the_agent_say_it_is_building(
 
     cue = await _cue_heard_after(database, case, session_id, approve)
 
-    assert cue["type"] == "session.commentary.append"
-    assert "being built now" in str(cue["content"])
+    assert "being built now" in cue

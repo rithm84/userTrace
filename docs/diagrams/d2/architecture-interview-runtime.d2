@@ -14,18 +14,18 @@ cells: "Live interview · conversation and investigation in parallel" {
     - Authentication readiness
   | {class: [card; people]}
 
-  gpt_live: |md
-    ### GPT-Live
+  voice_agent: |md
+    ### Voice agent
   
-    - OpenAI API
+    - Pipecat pipeline in the worker
     - Natural full-duplex speech
     - Interruptible conversation
   | {class: [card; reasoning]}
 
-  backend_delegation: |md
-    ### Backend delegation
+  backend_work: |md
+    ### Backend work
   
-    - Jev + GPT-6.1 Sol
+    - uTrace tools · Jev · GPT-6.1 Sol
     - Control plane gates effects
   | {class: [card; runtime]}
 
@@ -50,14 +50,14 @@ cells: "Live interview · conversation and investigation in parallel" {
     - Bounded authorized scope
   | {class: [card; runtime]}
 
-  session_tab -> gpt_live: "WebRTC" {class: edge}
-  gpt_live -> backend_delegation: "delegate" {class: edge}
+  session_tab -> voice_agent: "Daily call" {class: edge}
+  voice_agent -> backend_work: "tool calls" {class: edge}
   session_tab -> preview_tab: "two tabs" {class: edge}
   preview_tab -> evidence_context: "correlated\nfacts" {class: edge}
-  evidence_context -> backend_delegation: "context" {class: edge}
-  backend_delegation -> live_implementation: "control-plane gate approval" {class: edge}
+  evidence_context -> backend_work: "context" {class: edge}
+  backend_work -> live_implementation: "control-plane gate approval" {class: edge}
   live_implementation -> evidence_context: "verified\nresults" {class: edge}
-  evidence_context -> gpt_live: "quiet updates" {class: edge}
+  evidence_context -> voice_agent: "cues + screen state" {class: edge}
 }
 
 key: "" {

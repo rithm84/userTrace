@@ -1,7 +1,7 @@
 """Dispatch one pointing gesture from a process that holds no extension socket.
 
 The control-socket tests run this as its own operating-system process, the way
-the worker compute's voice sideband dispatches a gesture: it opens its own pool,
+the worker compute's voice agent dispatches a gesture: it opens its own pool,
 authorizes and records the command, and exits. Nothing links it to the API
 process that holds the extension's socket except the committed rows.
 
