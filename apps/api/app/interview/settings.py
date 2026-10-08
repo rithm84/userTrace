@@ -16,16 +16,18 @@ from functools import lru_cache
 from pydantic import Field, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.connectors.openai_models import GPT_6_1_SOL, OpenAIEffort, OpenAIServiceTier
+
 __all__ = [
     "AgentCharacter",
     "InterviewConfigurationError",
     "InterviewSettings",
     "JevSettings",
-    "OpenAIVoiceSettings",
     "UnknownAgentCharacterError",
+    "VoiceSettings",
     "get_interview_settings",
     "get_jev_settings",
-    "get_openai_voice_settings",
+    "get_voice_settings",
 ]
 
 _AGENT_CHARACTER_VARIABLE = "UTRACE_AGENT_CHARACTER"
@@ -119,8 +121,8 @@ class InterviewSettings(_EnvSettings):
     selected_observation_limit: int = Field(
         default=20, validation_alias="UTRACE_CONTEXT_OBSERVATION_LIMIT"
     )
-    delegation_deadline_seconds: int = Field(
-        default=45, validation_alias="UTRACE_DELEGATION_DEADLINE_SECONDS"
+    tool_deadline_seconds: int = Field(
+        default=45, validation_alias="UTRACE_VOICE_TOOL_DEADLINE_SECONDS"
     )
     agent_display_name: str = Field(
         default="Wren", validation_alias="UTRACE_AGENT_DISPLAY_NAME"
@@ -130,18 +132,42 @@ class InterviewSettings(_EnvSettings):
     )
 
 
-class OpenAIVoiceSettings(_EnvSettings):
-    """The OpenAI API credential and the pinned GPT-Live session configuration.
+class VoiceSettings(_EnvSettings):
+    """The voice call's providers and their pinned configuration.
 
-    On a deployed compute `OPENAI_API_KEY` is a Supabase Compute project secret, the
-    same one the reasoning roles read.
+    Daily carries the call's audio, Deepgram Flux hears the participant, GPT-6.1 Sol
+    at the Ultrafast tier writes the agent's words, and ElevenLabs speaks them. On a
+    deployed compute each key is a Supabase Compute project secret.
     """
 
-    api_key: str = Field(validation_alias="OPENAI_API_KEY", min_length=1)
-    model: str = Field(default="gpt-live-1", validation_alias="UTRACE_GPT_LIVE_MODEL")
-    voice: str = Field(default="marin", validation_alias="UTRACE_GPT_LIVE_VOICE")
+    daily_api_key: str = Field(validation_alias="DAILY_API_KEY", min_length=1)
+    deepgram_api_key: str = Field(validation_alias="DEEPGRAM_API_KEY", min_length=1)
+    openai_api_key: str = Field(validation_alias="OPENAI_API_KEY", min_length=1)
+    elevenlabs_api_key: str = Field(validation_alias="ELEVENLABS_API_KEY", min_length=1)
+    text_model: str = Field(default=GPT_6_1_SOL, validation_alias="UTRACE_VOICE_TEXT_MODEL")
+    text_service_tier: OpenAIServiceTier = Field(
+        default=OpenAIServiceTier.ULTRAFAST, validation_alias="UTRACE_VOICE_TEXT_SERVICE_TIER"
+    )
+    text_effort: OpenAIEffort = Field(
+        default=OpenAIEffort.LOW, validation_alias="UTRACE_VOICE_TEXT_EFFORT"
+    )
+    speech_model: str = Field(
+        default="eleven_v4_turbo", validation_alias="UTRACE_VOICE_SPEECH_MODEL"
+    )
+    voice_id: str = Field(
+        # ElevenLabs' shared "Siren - Natural realistic conversational voice".
+        default="eXpIbVcVbLo8ZJQDlDnl",
+        validation_alias="UTRACE_VOICE_ID",
+    )
+    end_of_turn_threshold: float = Field(default=0.7, validation_alias="UTRACE_VOICE_EOT_THRESHOLD")
+    eager_end_of_turn_threshold: float = Field(
+        default=0.4, validation_alias="UTRACE_VOICE_EAGER_EOT_THRESHOLD"
+    )
+    room_lifetime_seconds: int = Field(
+        default=7200, validation_alias="UTRACE_VOICE_ROOM_LIFETIME_SECONDS"
+    )
     request_timeout_seconds: float = Field(
-        default=30.0, validation_alias="UTRACE_GPT_LIVE_REQUEST_TIMEOUT_SECONDS"
+        default=15.0, validation_alias="UTRACE_VOICE_REQUEST_TIMEOUT_SECONDS"
     )
 
 
@@ -176,10 +202,10 @@ def get_interview_settings() -> InterviewSettings:
 
 
 @lru_cache(maxsize=1)
-def get_openai_voice_settings() -> OpenAIVoiceSettings:
-    """Return the OpenAI credential and pinned GPT-Live configuration, read once."""
+def get_voice_settings() -> VoiceSettings:
+    """Return the voice providers' credentials and pinned configuration, read once."""
     try:
-        return OpenAIVoiceSettings()  # type: ignore[call-arg]
+        return VoiceSettings()  # type: ignore[call-arg]
     except ValidationError as error:
         raise InterviewConfigurationError(_offending_variables(error)) from None
 

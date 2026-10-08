@@ -2,8 +2,8 @@
 
 The workspace is Vercel's default sandbox image (a non-root user, Node 24, Python,
 and git) plus the pinned Codex CLI under `/opt/utrace/codex` and Codex's own model
-catalog for that release, with GPT-6 Astra's `ultrafast` service tier added: Codex
-sends a tier only when the model's catalog entry advertises it. The snapshot is
+catalog for that release, with the `ultrafast` service tier added to GPT-6 Astra and
+GPT-6.1 Sol: Codex sends a tier only when the model's catalog entry advertises it. The snapshot is
 client-independent: the repository is cloned at attempt time, and nothing here holds
 a credential. It is taken with no expiry, and its ID is what a client's
 implementation policy pins as `workspace_snapshot_id`.
@@ -23,7 +23,7 @@ from typing import Final
 
 import httpx
 
-from app.connectors.openai_models import GPT_6_ASTRA, OpenAIServiceTier
+from app.connectors.openai_models import GPT_6_1_SOL, GPT_6_ASTRA, OpenAIServiceTier
 from app.connectors.vercel_sandboxes import (
     EgressPolicy,
     VercelSandboxes,
@@ -48,6 +48,7 @@ _CATALOG_URL: Final[str] = (
     f"https://raw.githubusercontent.com/openai/codex/rust-v{CODEX_VERSION}"
     "/codex-rs/models-manager/models.json"
 )
+_ULTRAFAST_MODELS: Final[tuple[str, ...]] = (GPT_6_ASTRA, GPT_6_1_SOL)
 _ULTRAFAST_TIER: Final[dict[str, str]] = {
     "id": OpenAIServiceTier.ULTRAFAST.value,
     "name": "Ultrafast",
@@ -75,23 +76,20 @@ _VERIFY = (
 
 
 def _model_catalog() -> bytes:
-    """Codex's catalog for the pinned release, with Astra's `ultrafast` tier added."""
+    """Codex's catalog for the pinned release, with the `ultrafast` tier added to Astra and Sol."""
     response = httpx.get(_CATALOG_URL, timeout=60.0)
     response.raise_for_status()
     catalog = response.json()
-    patched = 0
-    for model in catalog["models"]:
-        if model["slug"] != GPT_6_ASTRA:
-            continue
-        tiers = model.setdefault("service_tiers", [])
+    for slug in _ULTRAFAST_MODELS:
+        entries = [model for model in catalog["models"] if model["slug"] == slug]
+        if len(entries) != 1:
+            raise RuntimeError(
+                f"Codex {CODEX_VERSION}'s catalog at {_CATALOG_URL} lists {len(entries)} "
+                f"{slug} entries, not one"
+            )
+        tiers = entries[0].setdefault("service_tiers", [])
         if all(tier["id"] != _ULTRAFAST_TIER["id"] for tier in tiers):
             tiers.append(_ULTRAFAST_TIER)
-        patched += 1
-    if patched != 1:
-        raise RuntimeError(
-            f"Codex {CODEX_VERSION}'s catalog at {_CATALOG_URL} lists {patched} "
-            f"{GPT_6_ASTRA} entries, not one"
-        )
     return json.dumps(catalog).encode("utf-8")
 
 

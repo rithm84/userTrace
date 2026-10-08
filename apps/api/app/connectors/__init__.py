@@ -5,8 +5,8 @@ One class per architectural role in the
 
 | Role | Class |
 | --- | --- |
-| Delegation answers, gate proposals, intake assistance, Case File synthesis | `OpenAIResponsesGateway` |
-| Full-duplex conversational voice | `GptLiveSessions` |
+| Gate proposals, intake assistance, Case File synthesis | `OpenAIResponsesGateway` |
+| Voice call rooms and tokens (the call itself runs in `app.interview.voice.agent`) | `DailyRooms` |
 | Default intake decisions and concurrent semantic attention | `JevClient` |
 | Isolated implementation and preview compute | `VercelSandboxes` |
 | Branches, diffs, and PRs | `GitHubAppDelivery` |

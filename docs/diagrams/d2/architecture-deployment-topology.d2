@@ -11,6 +11,13 @@ customer_browser: |md
   - Separate preview origin
 | {class: [card; people]}
 
+daily: |md
+  ### Daily
+
+  - One private WebRTC room per call
+  - Browser and voice agent join
+| {class: [card; external]}
+
 vercel: |md
   ### Vercel
 
@@ -32,11 +39,19 @@ supabase_compute: |md
   - Coordinator and workers
 | {class: [card; runtime]}
 
+voice_models: |md
+  ### Speech models
+
+  - Deepgram Flux speech recognition
+  - ElevenLabs Eleven v4 Turbo
+| {class: [card; reasoning]}
+
 openai_api: |md
   ### OpenAI API
 
-  - GPT-Live voice · WebRTC
-  - GPT-6.1 Sol: every reasoning role
+  - GPT-6.1 Sol Ultrafast voice agent
+  - GPT-6.1 Sol reasoning roles
+  - Codex coding agent
 | {class: [card; reasoning]}
 
 supabase: |md
@@ -48,16 +63,18 @@ supabase: |md
 
 customer_browser -> vercel: "HTTPS" {class: edge}
 vercel -> vercel_sandbox: "scoped proxy" {class: edge}
-customer_browser -> openai_api: "audio" {class: edge}
+customer_browser <-> daily: "call audio" {class: edge}
 vercel -> supabase_compute: "API" {class: edge}
-supabase_compute -> openai_api: "voice sideband + reasoning" {class: edge}
+daily <-> supabase_compute: "voice agent" {class: edge}
+supabase_compute -> voice_models: "speech" {class: edge}
+supabase_compute -> openai_api: "agent words + reasoning" {class: edge}
 vercel_sandbox -> openai_api: "coding agent" {class: edge}
 supabase_compute -> supabase: "durable state" {class: edge}
 
 key: "" {
   class: legend
-  grid-rows: 5
-  grid-columns: 1
+  grid-rows: 3
+  grid-columns: 2
   horizontal-gap: 16
   vertical-gap: 12
   k_people: "People · customer surfaces" {class: [key; people]}
@@ -65,4 +82,5 @@ key: "" {
   k_reasoning: "Reasoning models" {class: [key; reasoning]}
   k_observation: "SDKs · previews" {class: [key; observation]}
   k_outcome: "Validated · durable" {class: [key; outcome]}
+  k_external: "External · blocked" {class: [key; external]}
 }

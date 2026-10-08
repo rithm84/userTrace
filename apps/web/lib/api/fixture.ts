@@ -59,9 +59,6 @@ import type {
   VoiceConnectionRecord,
 } from "./schemas";
 
-const FIXTURE_SDP_ANSWER =
-  "v=0\r\no=- 0 0 IN IP4 127.0.0.1\r\ns=utrace-fixture\r\nt=0 0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\n";
-
 /** Far enough away that a fixture preview stays usable; a real one is minutes. */
 const FIXTURE_EXPIRY = "2126-09-20T09:05:00Z";
 
@@ -298,23 +295,11 @@ export class FixtureControlPlaneClient implements ControlPlaneClient {
     return { passed, revision: fixtureSessionProjection.revision + 1, checks };
   }
 
-  async createVoiceConnection(sessionId: string, sdpOffer: string): Promise<VoiceConnectionRecord> {
+  async createVoiceConnection(sessionId: string): Promise<VoiceConnectionRecord> {
     await this.getSession(sessionId);
-    if (!sdpOffer.startsWith("v=0")) {
-      throw new ControlPlaneError(
-        {
-          code: "rejected",
-          method: "POST",
-          path: `/v1/sessions/${sessionId}/voice/connections`,
-          status: 422,
-          responseBody: null,
-        },
-        "The session description offer is not a valid SDP document.",
-        {},
-      );
-    }
     return {
-      sdp_answer: FIXTURE_SDP_ANSWER,
+      room_url: "https://utrace.daily.co/fixture-interview",
+      participant_token: "fixture-participant-token",
       connection_id: "0199a0c0-0000-7aaa-8000-000000000101",
       voice_run_id: "0199a0c0-0000-7aaa-8000-000000000102",
     };

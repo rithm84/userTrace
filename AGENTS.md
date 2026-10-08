@@ -140,7 +140,8 @@ non-overlapping set, and read every selected `SKILL.md` in full.
   `npm run stripe -- <arguments>` and `npm run supabase -- <arguments>`.
   Use the Supabase skill for Supabase architecture and integrations.
   For the Claude API and the Claude Agent SDK, use the `claude-api` skill
-  and Anthropic's documentation; for GPT-Live, use OpenAI's documentation.
+  and Anthropic's documentation; for the voice agent, use the Pipecat, Daily,
+  Deepgram, ElevenLabs, and OpenAI documentation.
   Use official vendor documentation when no installed skill fits. Treat the
   OpenTelemetry skills as vendor-neutral; they do not authorize Dash0 adoption.
 - **General** (`general/`): use `gh-cli` for GitHub operations. For any work

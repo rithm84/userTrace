@@ -18,18 +18,18 @@ Retries use durable budgets, jittered backoff, idempotency keys, and provider ci
 
 ## Voice, cognition, and observation failure
 
-GPT-Live uses direct browser WebRTC for full-duplex voice with server-side application-backend delegation. Temporary transport or voice loss starts a bounded reconnect window. Current already-authorized implementation and checks may continue; new validation evidence cannot be accepted without the same user.
+The voice agent holds full-duplex voice in a private Daily room the session tab joins over WebRTC. Temporary transport or voice loss starts a bounded reconnect window. Current already-authorized implementation and checks may continue; new validation evidence cannot be accepted without the same user.
 
-GPT-Live transcript fragments are provisional. They do not establish a final turn or proof that synthesized speech was heard. Reconnection creates a new transport identity and context revision; accepted corrections invalidate derived claims that depended on the earlier wording.
+Voice transcript fragments are provisional. They do not establish what the user meant or prove that synthesized speech was heard. Reconnection creates a new transport identity and context revision; accepted corrections invalidate derived claims that depended on the earlier wording.
 
-GPT-Live session creation and sideband failures follow the
-[voice setup contract](./interview-and-voice.md#webrtc-session-setup). Missing
-sideband control makes voice unready for dependent probing and validation. A
-replacement connection repeats backend-authorized setup; it does not refresh a
-browser-held provider token. Close superseded provider sessions and reject their
+Room creation and voice agent failures follow the
+[call setup contract](./interview-and-voice.md#call-setup). A voice agent that is
+not in the call makes voice unready for dependent probing and validation. A
+replacement connection repeats backend-authorized setup with a new room; it does
+not refresh a browser-held credential. Delete superseded rooms and reject their
 late results. Voice failures never trigger a switch to another provider.
 
-OpenAI API or Jev unavailability pauses only work that requires that role. There is no silent substitute or lower-fidelity path, and no model is substituted for another. Routine Jev intake with complete pinned context does not depend on GPT-6.1 Sol availability; a Jev outage blocks that route after bounded retries. Conditional assistance follows the [intake contract](./signal-and-outreach.md#conditional-assistance). During interviews Jev supplies concurrent semantic attention and never a serial speech preapproval gate. Product-specific claims and validation pause whenever extension, browser SDK, Server SDK, trace correlation, target freshness, or exact candidate readiness is incomplete.
+OpenAI API, voice provider, or Jev unavailability pauses only work that requires that role. There is no silent substitute or lower-fidelity path, and no model is substituted for another. Routine Jev intake with complete pinned context does not depend on GPT-6.1 Sol availability; a Jev outage blocks that route after bounded retries. Conditional assistance follows the [intake contract](./signal-and-outreach.md#conditional-assistance). During interviews Jev supplies concurrent semantic attention and never a serial speech preapproval gate. Product-specific claims and validation pause whenever extension, browser SDK, Server SDK, trace correlation, target freshness, or exact candidate readiness is incomplete.
 
 ## User intent during interruption
 

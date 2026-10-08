@@ -30,7 +30,7 @@ from app.ingestion.signing import Signer
 from app.interview.settings import (
     get_interview_settings,
     get_jev_settings,
-    get_openai_voice_settings,
+    get_voice_settings,
 )
 from app.main import create_app
 from app.ports import PortRegistry
@@ -54,7 +54,7 @@ os.environ["UTRACE_EXTENSION_API_AUDIENCE"] = API_AUDIENCE
 os.environ["UTRACE_EXTENSION_SOCKET_AUDIENCE"] = SOCKET_AUDIENCE
 for _cached in (
     get_interview_settings,
-    get_openai_voice_settings,
+    get_voice_settings,
     get_jev_settings,
 ):
     _cached.cache_clear()

@@ -1,4 +1,4 @@
-"""Live: a request that names its controls only in general, over a real GPT-Live call.
+"""Live: a request that names its controls only in general, over a real voice call.
 
 The participant sets their filters while describing them generically ("channel,
 segment, review topic, and sentiment") and asks to save the setup, so the agent
@@ -8,7 +8,7 @@ behind it, so the cursor circles it; never claim the
 product can already do what is asked; and, once the participant answers, carry
 on with its next question or proposal rather than stopping at an acknowledgement.
 
-It costs a few minutes of voice plus Sol and Jev calls, so it runs only when
+It costs a few minutes of voice plus a few Jev calls, so it runs only when
 `UTRACE_REALTIME_E2E=1` (see `realtime_harness`).
 """
 
