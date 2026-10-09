@@ -301,6 +301,10 @@ async function run(): Promise<void> {
     return false;
   };
 
+  // How much agent speech had been heard when the participant last began a line. A
+  // reply can start as the line's last syllable plays, before the line's step ends,
+  // so the next wait for speech counts from when the line began.
+  let heardBeforeLine: number | null = null;
   for (const step of config.steps) {
     log("step", JSON.stringify(step));
     switch (step.do) {
@@ -326,6 +330,7 @@ async function run(): Promise<void> {
         const path = config.clips[step.clip];
         if (path === undefined) throw new Error(`no clip named ${step.clip}`);
         const audio = readFileSync(path).toString("base64");
+        heardBeforeLine = hearing.heardAt.length;
         const ms: unknown = await page.evaluate(`window.__utraceSay(${JSON.stringify(audio)})`);
         if (typeof ms !== "number") throw new Error(`the page could not queue clip ${step.clip}`);
         log("participant_speaking", step.clip);
@@ -334,7 +339,8 @@ async function run(): Promise<void> {
         break;
       }
       case "waitAgentSpeech": {
-        const heard = hearing.heardAt.length;
+        const heard = heardBeforeLine ?? hearing.heardAt.length;
+        heardBeforeLine = null;
         if (await until(() => hearing.heardAt.length > heard, step.timeoutMs, `no agent speech for ${step.label}`)) {
           log("heard", step.label);
         }
