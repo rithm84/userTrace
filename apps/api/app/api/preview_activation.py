@@ -7,11 +7,6 @@ context in ``x-utrace-session-credential``, and returns the control plane's
 signed answer unchanged. It never mints, inspects, or caches an attestation or a
 telemetry credential.
 
-The propagation probe echo has the same shape: the front door serves
-``/__utrace/propagation-probe`` and relays here, so the control plane sees what
-trace context actually crossed the authenticated preview boundary and can prove
-there is exactly one injector.
-
 Contract: docs/arch-components/browser-sdk.md#activation-and-session-attestation
 """
 
@@ -43,7 +38,6 @@ _log = get_logger(__name__)
 router = APIRouter(prefix="/v1/preview", tags=["front-door"])
 
 _PREVIEW_HOST = r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$"
-_TRACEPARENT = r"^00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$"
 
 _INGEST_PATH = "/v1/ingest/browser"
 
@@ -134,32 +128,6 @@ class TelemetryCredentialResponse(ApiModel):
 
     credential: TelemetryCredentialBody
     limits: BrowserLimits
-
-
-class PropagationProbeRequest(ApiModel):
-    """What the front door observed on one propagation-probe request."""
-
-    schema_version: Literal["utrace_preview_propagation_probe_request_v1"]
-    public_preview_host: str = Field(pattern=_PREVIEW_HOST, max_length=253)
-    traceparent: str = Field(pattern=_TRACEPARENT)
-    tracestate: str = Field(max_length=512)
-    traceparent_count: int = Field(ge=0, le=16)
-
-
-class PropagationProbeResponse(ApiModel):
-    """The echo the SDK compares against what it injected.
-
-    ``traceparent_count`` above one means a second injector is running, which
-    fails the probe instead of being merged.
-    """
-
-    schema_version: Literal["utrace_preview_propagation_probe_v1"] = (
-        "utrace_preview_propagation_probe_v1"
-    )
-    traceparent: str
-    tracestate: str
-    traceparent_count: int
-    single_injector: bool
 
 
 async def _session_scope(
@@ -256,34 +224,4 @@ async def create_telemetry_credential(
             ingest_url=f"{ingestion.ingest_websocket_origin.rstrip('/')}{_INGEST_PATH}",
         ),
         limits=limits,
-    )
-
-
-@router.post("/propagation-probes", response_model=PropagationProbeResponse)
-async def echo_propagation_probe(
-    service: FrontDoorService,
-    database: CurrentDatabase,
-    settings: CurrentSettings,
-    body: PropagationProbeRequest,
-    x_utrace_session_credential: Annotated[str, Header()],
-) -> PropagationProbeResponse:
-    """Echo the trace context the front door saw on the probe request.
-
-    The front door serves ``/__utrace/propagation-probe`` on the preview origin
-    and relays here. The echo proves what context actually crossed the
-    authenticated preview boundary and that exactly one injector produced it.
-    """
-    session_id = await _session_scope(
-        database, settings, x_utrace_session_credential, body.public_preview_host
-    )
-    _log.info(
-        "propagation_probe_echoed",
-        interview_session_id=str(session_id),
-        traceparent_count=body.traceparent_count,
-    )
-    return PropagationProbeResponse(
-        traceparent=body.traceparent,
-        tracestate=body.tracestate,
-        traceparent_count=body.traceparent_count,
-        single_injector=body.traceparent_count == 1,
     )

@@ -17,7 +17,7 @@ import { build, type InlineConfig } from "vite";
 
 import { parseBuildOrigins, type BuildOrigins } from "../src/build/buildOrigins.ts";
 import { createIconPng } from "../src/build/icon.ts";
-import { createManifest, ICON_SIZES } from "../src/build/manifest.ts";
+import { createManifest, ICON_SIZES, MINIMUM_CHROME_VERSION } from "../src/build/manifest.ts";
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -79,7 +79,7 @@ function sharedConfig(
     build: {
       outDir,
       emptyOutDir: false,
-      target: "chrome116",
+      target: `chrome${MINIMUM_CHROME_VERSION}`,
       minify: false,
       sourcemap: false,
       modulePreload: false,

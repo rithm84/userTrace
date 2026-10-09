@@ -1,7 +1,7 @@
 """Interview Session and voice connection machines.
 
 Session: ``invited -> claimed -> preparing -> live -> closed``.
-Voice: ``connecting -> active -> reconnecting -> closed``.
+Voice: ``connecting -> active -> closed``.
 
 The two readiness boundaries are separate. Conversational readiness admits
 greeting and problem discussion; observation readiness additionally gates
@@ -116,12 +116,6 @@ def _activatable(facts: VoiceConnectionFacts) -> str | None:
     return None
 
 
-def _restorable(facts: VoiceConnectionFacts) -> str | None:
-    if facts.superseded:
-        return "an authenticated takeover already revoked this connection"
-    return None
-
-
 VOICE_CONNECTION_MACHINE: Machine[VoiceConnectionFacts] = Machine(
     name="voice_connection",
     version=MACHINE_VERSION,
@@ -135,25 +129,9 @@ VOICE_CONNECTION_MACHINE: Machine[VoiceConnectionFacts] = Machine(
             guard=_activatable,
         ),
         Transition(
-            trigger="lose_transport",
-            sources=frozenset({VoiceConnectionState.ACTIVE.value}),
-            target=VoiceConnectionState.RECONNECTING.value,
-            guard=None,
-        ),
-        Transition(
-            trigger="restore",
-            sources=frozenset({VoiceConnectionState.RECONNECTING.value}),
-            target=VoiceConnectionState.ACTIVE.value,
-            guard=_restorable,
-        ),
-        Transition(
             trigger="close",
             sources=frozenset(
-                {
-                    VoiceConnectionState.CONNECTING.value,
-                    VoiceConnectionState.ACTIVE.value,
-                    VoiceConnectionState.RECONNECTING.value,
-                }
+                {VoiceConnectionState.CONNECTING.value, VoiceConnectionState.ACTIVE.value}
             ),
             target=VoiceConnectionState.CLOSED.value,
             guard=None,

@@ -259,12 +259,7 @@ def test_interview_session_and_voice_connection_paths() -> None:
 
     voice = VoiceConnectionFacts(provider_session_bound=True, superseded=False)
     assert resolve(VOICE_CONNECTION_MACHINE, "connecting", "activate", voice).target == "active"
-    assert (
-        resolve(VOICE_CONNECTION_MACHINE, "active", "lose_transport", voice).target
-        == "reconnecting"
-    )
-    assert resolve(VOICE_CONNECTION_MACHINE, "reconnecting", "restore", voice).target == "active"
-    assert resolve(VOICE_CONNECTION_MACHINE, "reconnecting", "close", voice).target == "closed"
+    assert resolve(VOICE_CONNECTION_MACHINE, "active", "close", voice).target == "closed"
 
 
 def test_interview_session_readiness_boundaries_are_separate() -> None:
@@ -300,8 +295,6 @@ def test_superseded_voice_connection_cannot_become_current() -> None:
     superseded = VoiceConnectionFacts(provider_session_bound=True, superseded=True)
     with pytest.raises(GuardRejectedError, match="superseded"):
         resolve(VOICE_CONNECTION_MACHINE, "connecting", "activate", superseded)
-    with pytest.raises(GuardRejectedError, match="takeover"):
-        resolve(VOICE_CONNECTION_MACHINE, "reconnecting", "restore", superseded)
 
 
 def _attempt_facts(**overrides: object) -> ImplementationAttemptFacts:

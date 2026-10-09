@@ -390,8 +390,6 @@ async def test_interview_session_and_voice_connection_transitions_commit(
     voice_facts = VoiceConnectionFacts(provider_session_bound=True, superseded=False)
     for trigger, expected in (
         ("activate", VoiceConnectionState.ACTIVE),
-        ("lose_transport", VoiceConnectionState.RECONNECTING),
-        ("restore", VoiceConnectionState.ACTIVE),
         ("close", VoiceConnectionState.CLOSED),
     ):
         reached = await _commit(

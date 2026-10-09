@@ -63,12 +63,10 @@
         },
         "role": {
           "enum": [
-            "gpt_live",
-            "terra",
             "sol",
             "jev"
           ],
-          "description": "GPT-Live handles voice, Terra interactive reasoning and retrieval, Sol deep investigation and coding, Jev intake decisions and concurrent semantic attention."
+          "description": "Sol handles reasoning, investigation, and coding; Jev intake decisions and concurrent semantic attention."
         },
         "model_version": {
           "type": "string",

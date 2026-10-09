@@ -14,7 +14,7 @@ hold without being a confirmed correction: conversation and independent work
 continue while interpretation resolves it.
 """
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID
@@ -40,12 +40,10 @@ from app.logging import get_logger
 
 __all__ = [
     "CorrectionOutcome",
-    "PlaybackSegment",
     "TranscriptFragment",
     "accept_correction",
     "implementation_hold_active",
     "record_claim",
-    "record_playback_segments",
     "record_transcript_fragment",
 ]
 
@@ -126,55 +124,6 @@ async def record_transcript_fragment(
     if row is None:
         return None
     return as_uuid(row, "id")
-
-
-@dataclass(frozen=True, slots=True)
-class PlaybackSegment:
-    """One span of generated audio on the provider session's timeline."""
-
-    start_ms: int
-    end_ms: int
-    audio_byte_length: int
-
-
-async def record_playback_segments(
-    conn: AsyncConnection[DictRow],
-    *,
-    client_id: UUID,
-    interview_session_id: UUID,
-    voice_connection_id: UUID,
-    segments: Sequence[PlaybackSegment],
-    delivery: str,
-) -> None:
-    """Persist generated-audio segments where the transport exposes them, in one batch.
-
-    Generated speech, transmitted audio, and heard speech are different facts.
-    ``delivery`` never claims more than the transport proved.
-    """
-    async with conn.cursor() as cur:
-        await cur.executemany(
-            """
-            insert into public.voice_playback_segments (
-                id, client_id, interview_session_id, voice_connection_id,
-                start_ms, end_ms, audio_byte_length, delivery
-            )
-            values (%s, %s, %s, %s, %s, %s, %s, %s)
-            on conflict do nothing
-            """,
-            [
-                (
-                    uuid7(),
-                    client_id,
-                    interview_session_id,
-                    voice_connection_id,
-                    segment.start_ms,
-                    segment.end_ms,
-                    segment.audio_byte_length,
-                    delivery,
-                )
-                for segment in segments
-            ],
-        )
 
 
 async def record_claim(
