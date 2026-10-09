@@ -161,6 +161,32 @@ describe("extension bridge", () => {
     expect(payload.not_found).toEqual(["tgt_never_mounted"]);
   });
 
+  it("lets the agent show a disabled control, such as a save button waiting for a name", async () => {
+    const targetId = (await queryByDefinition("saved_view_save_button")).targets[0]?.target_id;
+    expect(targetId).toBeDefined();
+
+    const resolved = await harness.page.evaluate(async (id: string) => {
+      const surface = window.__utraceTest;
+      if (surface === undefined) throw new Error("fixture is not ready");
+      const button = document.querySelector<HTMLButtonElement>('[data-utrace-target="saved_view_save_button"]');
+      if (button === null) throw new Error("the fixture has no save button");
+      button.disabled = true;
+      try {
+        return await surface.bridge.send("target_query", "request", {
+          document_attachment_id: surface.health().document_attachment_id,
+          query: { by: "target_ids", target_ids: [id] },
+          deadline_ms: 400,
+        });
+      } finally {
+        button.disabled = false;
+      }
+    }, String(targetId));
+
+    const target = (resolved.body as unknown as GeometryPayload).targets[0];
+    expect(target?.target_id).toBe(targetId);
+    expect(target?.supports_visual_guidance).toBe(true);
+  });
+
   it("answers an authorized detail query and refuses an unsupported or sensitive field", async () => {
     const context = await harness.page.evaluate(async () => {
       const surface = window.__utraceTest;

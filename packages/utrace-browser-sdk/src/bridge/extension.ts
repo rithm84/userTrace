@@ -245,7 +245,9 @@ export class ExtensionBridge {
       visible_fraction: geometry.visible_fraction,
       occluded: geometry.occluded,
       in_viewport: geometry.visibility === "visible",
-      supports_visual_guidance: !target.semantic_state.disabled,
+      // Every registered target may be shown, a disabled one included: showing where
+      // a control is never implies it is actionable, and its state travels separately.
+      supports_visual_guidance: true,
     };
   }
 

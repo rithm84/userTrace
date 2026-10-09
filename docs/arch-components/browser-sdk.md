@@ -259,6 +259,9 @@ The following diagram shows the browser SDK's activation and single observation 
   shows one of them; no screenshot is interpreted to find a point inside a chart.
 - Targets expose only observation and visual guidance. Clicking,
   typing, submission, and product navigation are not command capabilities.
+  Every registered target may be pointed to or circled, a disabled one
+  included: showing where a control is never implies it is actionable, and its
+  disabled state is reported with it.
   Automatic target discovery preserves broad visual communication without
   granting product-action authority.
 - Portal, frame, shadow-root, visibility, occlusion, and top-level geometry
