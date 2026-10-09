@@ -91,7 +91,7 @@ provider's `retry-after` delay within the Job's retry budget.
 
 The voice agent pins its providers in its voice settings: Deepgram
 `flux-general-en`, `gpt-6.1-sol` at the `ultrafast` service tier with reasoning
-effort `low`, and ElevenLabs `eleven_v4_turbo` in the Siren voice. The backend
+effort `low`, and ElevenLabs `eleven_v4_turbo` in the premade Jessica voice. The backend
 creates each Daily room and the voice agent joins it; the
 [voice contract](./interview-and-voice.md#call-setup) owns that flow. Codex in each
 workspace sandbox calls the OpenAI API with the

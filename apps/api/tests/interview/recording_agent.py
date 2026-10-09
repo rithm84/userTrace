@@ -18,13 +18,16 @@ class RecordingAgent:
         self.noted: list[str] = []
         self.muted: list[bool] = []
         self.spoke = asyncio.Event()
+        self.told = asyncio.Event()
 
     async def say(self, content: str) -> None:
         self.said.append(content)
         self.spoke.set()
+        self.told.set()
 
     async def note(self, content: str) -> None:
         self.noted.append(content)
+        self.told.set()
 
     async def set_input_muted(self, *, muted: bool) -> None:
         self.muted.append(muted)

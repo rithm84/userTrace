@@ -26,8 +26,8 @@ import pytest
 from openai import AsyncOpenAI
 from utrace_contracts.domain.lifecycle import (
     InterviewPhase,
-    JobState,
     InterviewSessionState,
+    JobState,
     ProductSignalState,
 )
 

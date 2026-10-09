@@ -3,10 +3,11 @@
 The participant opens the call, walks through their weekly filters in the preview,
 asks to save them, and agrees to the change the agent proposes. The gate then
 approves it, the new version becomes ready, and the call ends. The test checks the
-conversation's shape (a recap that circles what it names, no promise of a build
-before the gate approves, the build announced once it does, the ready version
-announced) and the run's health: no failed Job, no stale cursor target, no
-connection idling inside a transaction, and bounded telemetry readiness writes.
+conversation's shape (a recap that circles what it names, one line at the
+agreement saying the agent will get the change started without promising a build,
+nothing spoken when the gate approves, the ready version announced) and the run's
+health: no failed Job, no stale cursor target, no connection idling inside a
+transaction, and bounded telemetry readiness writes.
 
 It costs a few minutes of voice plus a few Jev calls, so it runs only when
 `UTRACE_REALTIME_E2E=1` (see `realtime_harness`).
@@ -37,6 +38,8 @@ _DECLINE_MORE = "No, that's everything. That sounds right to me."
 #: How many times the participant answers the agent before the agreement must be recorded.
 _AGREEMENT_TURNS: Final[int] = 4
 _CUE_DEADLINE_SECONDS: Final[float] = 30.0
+#: How long the agent must stay silent after the approval reaches it.
+_SILENCE_SECONDS: Final[float] = 8.0
 _IDLE_TRANSACTION_SECONDS: Final[float] = 5.0
 _BUILD_WORDS: Final[tuple[str, ...]] = ("building it", "i'm building", "i am building", "build it now")
 
@@ -184,16 +187,21 @@ async def test_one_interview_from_greeting_to_a_ready_version(
                     (
                         at
                         for at, kind, content in report.appends
-                        if at >= approved_at and kind == "say" and "being built" in content
+                        if at >= approved_at and kind == "note" and "being built" in content
                     ),
                     None,
                 )
                 if building_cue_at is not None:
                     break
                 await asyncio.sleep(0.1)
-            building_reply = await harness.required_reply(
-                database, call.session_id, after=building_cue_at or approved_at
-            )
+            await asyncio.sleep(_SILENCE_SECONDS)
+            spoken_while_building = [
+                text
+                for _, speaker, text in await harness.words(
+                    database, call.session_id, after=approved_at, before=time.time()
+                )
+                if speaker == "agent"
+            ]
 
             # The new version becomes ready.
             await create_ready_version(database, case=call.case)
@@ -212,7 +220,8 @@ async def test_one_interview_from_greeting_to_a_ready_version(
     print("\njourney report")
     print(f"  agreement answer: {agreement_answer!r}")
     print(f"  recap circles: {[(d['step'], d['targets']) for d in recap_dispatches]}")
-    print(f"  building cue at +{(building_cue_at or 0) - approved_at:.2f}s: {building_reply[1]!r}")
+    print(f"  building cue at +{(building_cue_at or 0) - approved_at:.2f}s")
+    print(f"  spoken while building: {spoken_while_building!r}")
     print(f"  ready announcement: {ready_reply[1]!r}")
     print(f"  health: {health}, longest idle transaction {idle[0]:.1f}s over {elapsed:.0f}s")
     print("  character:", [(round(at - call.connected_at, 1), state) for at, state in report.character])
@@ -224,9 +233,12 @@ async def test_one_interview_from_greeting_to_a_ready_version(
     assert not any(word in agreement_answer.lower() for word in _BUILD_WORDS), (
         f"the agent promised a build before the gate approved it: {agreement_answer!r}"
     )
+    assert "start" in agreement_answer.lower(), (
+        f"the agent did not say it will get the change started: {agreement_answer!r}"
+    )
     assert building_cue_at is not None, "the approval never reached the agent"
-    assert any(word in building_reply[1].lower() for word in ("build", "working on")), (
-        f"the agent did not say it is building once approved: {building_reply[1]!r}"
+    assert not spoken_while_building, (
+        f"the agent spoke again once the gate approved: {spoken_while_building!r}"
     )
     assert health["failed_jobs"] == 0
     assert health["stale_targets"] == 0

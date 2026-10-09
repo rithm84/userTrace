@@ -105,8 +105,9 @@ async def _cue_heard_after(
     case: CaseFixture,
     session_id: UUID,
     commit: Callable[[], Awaitable[None]],
-) -> str:
-    """Run the case's gate-outcome cue, commit the outcome once it listens, and return the cue."""
+) -> RecordingAgent:
+    """Run the case's gate-outcome cue, commit the outcome once it listens, and return
+    the agent once the outcome reached it, spoken or noted."""
     changes = SessionChanges(database, interview_session_id=session_id)
     listener = asyncio.create_task(changes.run())
     await changes.listening()
@@ -124,15 +125,15 @@ async def _cue_heard_after(
     )
     try:
         await asyncio.sleep(_LISTENING_SECONDS)
-        assert agent.said == []
+        assert agent.said == [] and agent.noted == []
         await commit()
         async with asyncio.timeout(_CUE_DEADLINE_SECONDS):
-            await agent.spoke.wait()
+            await agent.told.wait()
     finally:
         for task in (cue, listener):
             task.cancel()
         await asyncio.gather(cue, listener, return_exceptions=True)
-    return agent.said[0]
+    return agent
 
 
 async def test_a_failed_gate_closes_with_a_blocker_and_the_agent_hears_it(
@@ -159,7 +160,7 @@ async def test_a_failed_gate_closes_with_a_blocker_and_the_agent_hears_it(
     async def fail_the_gate() -> None:
         assert await worker.run_once() is True
 
-    cue = await _cue_heard_after(database, case, session_id, fail_the_gate)
+    (cue,) = (await _cue_heard_after(database, case, session_id, fail_the_gate)).said
     assert "cannot be started" in cue
 
     async with database.connection() as conn, conn.cursor() as cur:
@@ -222,7 +223,7 @@ async def test_a_gate_that_chooses_no_implementation_tells_the_agent(
             ),
         )
 
-    cue = await _cue_heard_after(database, case, session_id, decline)
+    (cue,) = (await _cue_heard_after(database, case, session_id, decline)).said
 
     assert "will not be built" in cue
     assert "do not say a new version is coming" in cue
@@ -234,10 +235,11 @@ async def test_a_gate_that_chooses_no_implementation_tells_the_agent(
         assert await cur.fetchone() is not None
 
 
-async def test_an_approved_gate_has_the_agent_say_it_is_building(
+async def test_an_approved_gate_tells_the_agent_without_a_second_line(
     database: Database, auth_users: dict[str, SignedInUser]
 ) -> None:
-    """The agent says it is building only once the gate has authorized an attempt."""
+    """Once the gate authorizes an attempt the agent is told it is building, and says nothing:
+    the agreement's one line already said it will get the change started."""
     case, session_id = await _gate_pending_case(database, auth_users)
 
     async def approve() -> None:
@@ -248,6 +250,8 @@ async def test_an_approved_gate_has_the_agent_say_it_is_building(
             configuration_release_id=case.configuration_release_id,
         )
 
-    cue = await _cue_heard_after(database, case, session_id, approve)
+    agent = await _cue_heard_after(database, case, session_id, approve)
 
+    assert agent.said == []
+    (cue,) = agent.noted
     assert "being built now" in cue

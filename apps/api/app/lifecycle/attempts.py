@@ -300,7 +300,7 @@ async def create_implementation_attempt(
             additional_locks=(),
         )
         outcome = await apply_transition_on_connection(conn, transition_request)
-        # The case's voice agent says it is building only once it is.
+        # The case's voice agent is told it is building only once it is.
         await wake_voice_agents(conn, product_signal_id=request.product_signal_id)
 
     return AttemptCreation(attempt_id=attempt_id, replayed=False, transition=outcome)

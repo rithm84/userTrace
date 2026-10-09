@@ -93,6 +93,7 @@ from app.interview.voice.pipeline import (
     FluxSTT,
     MicGate,
     NearEnd,
+    OneSpeculation,
     PlaybackTap,
     Screen,
     ScreenState,
@@ -296,6 +297,7 @@ async def run_voice_agent(
     )
     strategies = EagerUserTurnStrategies()
     strategies.start = [BargeInStrategy(spoken=spoken, near_end=near_end)]
+    strategies.stop = [OneSpeculation()]
     aggregators = LLMContextAggregatorPair(
         context, user_params=LLMUserAggregatorParams(user_turn_strategies=strategies)
     )
