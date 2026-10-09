@@ -232,7 +232,17 @@ async def test_a_workflow_comparison_separates_base_from_candidate(
             (session.activation_id,),
         )
         rows = list(await cur.fetchall())
+        await cur.execute(
+            """
+            select id from public.browser_observations
+            where activation_id = %s and id <> all(%s)
+            order by source_sequence limit 1
+            """,
+            (session.activation_id, [row["id"] for row in rows]),
+        )
+        reload = await cur.fetchone()
     assert len(rows) == 2
+    assert reload is not None
 
     await query.promote_observation(
         client_id=session.preview.case.client_id,
@@ -266,6 +276,24 @@ async def test_a_workflow_comparison_separates_base_from_candidate(
         coverage_limit=None,
         observed_at=None,
     )
+    # A criterion may cite an observation that is no product milestone, such as the
+    # page reload that shows a saved view survives a refresh.
+    await query.promote_observation(
+        client_id=session.preview.case.client_id,
+        product_signal_id=session.preview.case.product_signal_id,
+        interview_session_id=session.preview.interview_session_id,
+        telemetry_window_id=rolling.evidence_window_id,
+        source_class="browser_observation",
+        source_record_id=UUID(str(reload["id"])),
+        criterion_id=criterion_id,
+        stance=EvidenceStance.SUPPORTS,
+        summary="the page reloaded",
+        workflow_ref="saved_conversion_views",
+        milestone=None,
+        preview_version_id=candidate_id,
+        coverage_limit=None,
+        observed_at=None,
+    )
 
     now = datetime.now(tz=UTC)
     window = await query.freeze_window(
@@ -283,9 +311,8 @@ async def test_a_workflow_comparison_separates_base_from_candidate(
         base_preview_version_id=None,
         candidate_preview_version_id=candidate_id,
     )
-    assert len(comparison.candidate_observations) == 1
-    assert comparison.candidate_observations[0].milestone == "view_reopened"
-    assert comparison.candidate_observations[0].preview_version_id == candidate_id
+    assert [o.milestone for o in comparison.candidate_observations] == ["view_reopened", None]
+    assert {o.preview_version_id for o in comparison.candidate_observations} == {candidate_id}
     # An observation with no Preview Version is the base run of the workflow.
     assert len(comparison.base_observations) == 1
     assert comparison.coverage_limits == ("no server span accompanied the reload",)

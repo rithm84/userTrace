@@ -107,12 +107,14 @@ class CriterionEvidenceItem(_Frozen):
 
 
 class WorkflowObservation(_Frozen):
-    """One observed milestone of the agreed workflow on a named Preview Version."""
+    """One cited observation of the agreed workflow on a named Preview Version."""
 
     evidence_record_id: UUID
     evidence_class: EvidenceClass
     source_ref: str
-    milestone: str
+    milestone: str | None
+    """The product milestone it shows; ``None`` for one that is not a milestone, such
+    as the page reload that shows a saved view survives a refresh."""
     summary: str
     preview_version_id: UUID | None
     recorded_at: datetime
@@ -382,6 +384,15 @@ def _text(body: Mapping[str, object], key: str) -> str:
     return value
 
 
+def _optional_text(body: Mapping[str, object], key: str) -> str | None:
+    value = body.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise TypeError(f"evidence body field '{key}' is not text")
+    return value
+
+
 def _observed_at(body: Mapping[str, object]) -> datetime | None:
     """When the cited product behaviour happened, if the evidence recorded it."""
     value = body.get("observed_at")
@@ -416,7 +427,7 @@ def _to_workflow_observation(row: DictRow) -> WorkflowObservation:
         evidence_record_id=as_uuid(row, "id"),
         evidence_class=EvidenceClass(as_str(row, "evidence_class")),
         source_ref=as_str(row, "source_ref"),
-        milestone=_text(body, "milestone"),
+        milestone=_optional_text(body, "milestone"),
         summary=_text(body, "summary"),
         preview_version_id=(
             UUID(preview_version) if isinstance(preview_version, str) else None
