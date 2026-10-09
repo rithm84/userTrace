@@ -35,7 +35,8 @@ that joins the call's private Daily room, hears the participant through Deepgram
 Flux, writes its words and calls uTrace's tools with GPT-6.1 Sol on the OpenAI
 API's Ultrafast service tier, and speaks through ElevenLabs. Every other reasoning
 role runs GPT-6.1 Sol at its own pinned effort, on the Ultrafast tier for
-Implementation Attempts and the Fast tier otherwise, because its speed is what a
+Implementation Gate proposals and Implementation Attempts and the Fast tier
+otherwise, because its speed is what a
 waiting participant feels: between the participant's agreement and the preview they
 validate, pre-gate code investigation and Implementation Attempts, inside Codex in
 a Vercel Sandbox, and Implementation Gate proposals; intake assistance; and Case
@@ -213,7 +214,7 @@ billing authority.
 | Speech recognition and turn detection | Deepgram Flux (`flux-general-en`) |
 | Voice agent text model | GPT-6.1 Sol (`gpt-6.1-sol`), Ultrafast tier, through the OpenAI Responses API over WebSocket |
 | Speech synthesis | ElevenLabs Eleven v4 Turbo (`eleven_v4_turbo`) |
-| Implementation Gate proposals, intake assistance, Case File synthesis | GPT-6.1 Sol (`gpt-6.1-sol`), Fast tier, through the OpenAI Responses API |
+| Implementation Gate proposals, intake assistance, Case File synthesis | GPT-6.1 Sol (`gpt-6.1-sol`) through the OpenAI Responses API: Ultrafast tier for gate proposals, Fast tier otherwise |
 | Code investigation and implementation harness | Codex CLI running GPT-6.1 Sol inside Vercel Sandbox: Ultrafast tier for Implementation Attempts, Fast tier for code investigation |
 | Default intake decisions and concurrent typed semantic attention | TypeSafe AI Jev (`typesafe-ai/jev`) through Vercel AI Gateway |
 | Durable workflow state | Supabase Postgres |

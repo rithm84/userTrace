@@ -3,8 +3,9 @@
 Every role runs GPT-6.1 Sol, chosen by measurement on the demo's change: code
 investigation and implementation inside Codex in the workspace sandbox, and the
 Implementation Gate proposal, intake assistance, and Case File synthesis through the
-Responses API. Implementation, which the participant waits on before they can
-validate, runs on the Ultrafast tier; the others run on the Fast tier. The roles a waiting
+Responses API. The Implementation Gate proposal and implementation, which the
+participant waits on between agreeing and validating, run on the Ultrafast tier;
+the others run on the Fast tier. The roles a waiting
 participant feels in the conversation run at low effort; the two that interpret or
 write for a reader run at medium.
 
@@ -59,7 +60,7 @@ _ROLE_CONFIGURATION: Final[Mapping[OpenAIRole, tuple[str, OpenAIEffort, OpenAISe
     OpenAIRole.INTAKE_ASSISTANCE: (GPT_6_1_SOL, OpenAIEffort.MEDIUM, OpenAIServiceTier.FAST),
     OpenAIRole.CASE_FILE_SYNTHESIS: (GPT_6_1_SOL, OpenAIEffort.MEDIUM, OpenAIServiceTier.FAST),
     OpenAIRole.CODE_INVESTIGATION: (GPT_6_1_SOL, OpenAIEffort.LOW, OpenAIServiceTier.FAST),
-    OpenAIRole.GATE_PROPOSAL: (GPT_6_1_SOL, OpenAIEffort.LOW, OpenAIServiceTier.FAST),
+    OpenAIRole.GATE_PROPOSAL: (GPT_6_1_SOL, OpenAIEffort.LOW, OpenAIServiceTier.ULTRAFAST),
     OpenAIRole.IMPLEMENTATION: (GPT_6_1_SOL, OpenAIEffort.LOW, OpenAIServiceTier.ULTRAFAST),
 }
 """GPT-6.1 Sol at low effort except the two roles that interpret or write for a reader.
