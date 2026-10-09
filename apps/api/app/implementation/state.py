@@ -46,7 +46,7 @@ __all__ = [
 
 _logger = structlog.get_logger(__name__)
 
-_ATTEMPT_ACTOR = Actor(kind=ActorKind.UTRACE_AGENT_ROLE, ref="implementation_controller")
+_ATTEMPT_ACTOR = Actor(kind=ActorKind.SERVICE, ref="implementation.controller")
 
 
 @dataclass(frozen=True, slots=True)
