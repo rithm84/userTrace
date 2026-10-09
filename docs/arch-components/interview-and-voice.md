@@ -356,7 +356,10 @@ together with extension readiness and the typed blockers. The two summary
 boundaries above are derived from those components in the same transaction that
 writes them, so a summary can never disagree with its parts. Any other copy of
 those two flags is a read convenience, never a second source, and a reader that
-must explain *why* readiness is missing reads the component row.
+must explain *why* readiness is missing reads the component row. Only a writer
+holds the row while it recombines it; a reader takes the last committed record
+without waiting, so a slow write never holds back the extension's projection, and
+with it the agent's character and cursor.
 
 Each time telemetry ingestion publishes browser, server, or correlation
 readiness, it recombines the open session's preview-allocation and observation

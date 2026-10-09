@@ -123,6 +123,8 @@ export class SessionCoordinator {
   /** The session the character projection belongs to; revisions are per session. */
   private projectionSessionId: string | null = null;
   private controls: ControlsState = INITIAL_CONTROLS;
+  /** The session the controls belong to; their revisions are per session. */
+  private controlsSessionId: string | null = null;
   private readiness: ReadinessFrame["payload"] | null = null;
   private preferences: PreferencesCache;
   private orb: OrbSettings;
@@ -447,7 +449,11 @@ export class SessionCoordinator {
         });
         return;
       case "control_action_result":
-        await this.applyControlResult(frame.payload);
+        this.updateControls({ pendingAction: null });
+        await this.applySessionControls(frame.payload);
+        return;
+      case "controls_state":
+        await this.applySessionControls(frame.payload);
         return;
       case "recovery_state":
         if (frame.payload.disposition === "restarted") {
@@ -492,17 +498,25 @@ export class SessionCoordinator {
     this.surface.send({ kind: "character_state", projection: this.projection });
   }
 
-  private async applyControlResult(
-    payload: Extract<InboundFrame, { kind: "control_action_result" }>["payload"],
+  /**
+   * Show one session's mute and pause state. Within a session an older revision
+   * loses; a different session's state replaces whatever the pills showed, so
+   * nothing a previous interview left behind carries into the next.
+   */
+  private async applySessionControls(
+    payload: Extract<InboundFrame, { kind: "control_action_result" | "controls_state" }>["payload"],
   ): Promise<void> {
-    if (payload.session_control_revision < this.controls.sessionControlRevision) {
+    if (
+      payload.session_id === this.controlsSessionId &&
+      payload.session_control_revision < this.controls.sessionControlRevision
+    ) {
       return;
     }
+    this.controlsSessionId = payload.session_id;
     this.updateControls({
       sessionControlRevision: payload.session_control_revision,
       mute: payload.mute_state,
       pause: payload.pause_state,
-      pendingAction: null,
     });
 
     if (payload.pause_state === "paused" || payload.pause_state === "ended") {

@@ -6,6 +6,7 @@ bind a document with a real signed page proof, and exchange commands, controls,
 and results.
 """
 
+import time
 from uuid import UUID
 
 import pytest
@@ -52,6 +53,8 @@ _SAVE_VIEW = RegisteredTarget(
     role="button",
     visible=True,
 )
+#: How soon a dispatched gesture must reach the bound tab.
+_PROMPT_SECONDS = 2.0
 
 
 async def test_the_socket_authenticates_resumes_and_binds_one_document(
@@ -96,6 +99,7 @@ async def test_the_socket_authenticates_resumes_and_binds_one_document(
         )
         frames = await client.until(
             lambda frames: "character_state" in kinds(frames)
+            and "controls_state" in kinds(frames)
             and "readiness" in kinds(frames)
             and last_of(frames, "readiness")["payload"]["combined_readiness"] == "ready"
         )
@@ -104,6 +108,12 @@ async def test_the_socket_authenticates_resumes_and_binds_one_document(
     binding = last_of(frames, "binding_state")
     readiness = last_of(frames, "readiness")
     character = last_of(frames, "character_state")
+    controls = last_of(frames, "controls_state")
+    # The session's own controls, so nothing an earlier session left carries over.
+    assert controls["payload"]["session_id"] == str(prepared.session_id)
+    assert controls["payload"]["mute_state"] == "unmuted"
+    assert controls["payload"]["pause_state"] == "running"
+    assert kinds(frames).count("controls_state") == 1
     # Preferences did not change, so the projection does not send them again.
     assert "preferences_state" not in kinds(frames)
     assert binding["payload"]["status"] == "bound"
@@ -341,6 +351,63 @@ async def test_a_command_another_process_dispatches_reaches_the_bound_tab(
     assert row["routed_at"] is not None
     assert row["state"] == "terminal"
     assert row["provider_ref"] == binding_id
+
+
+async def test_a_gesture_reaches_the_bound_tab_while_a_writer_holds_readiness(
+    database: Database,
+    running_api: FastAPI,
+    page_proof_signer: Signer,
+    auth_users: dict[str, SignedInUser],
+) -> None:
+    """A readiness write that stalls holding the row never holds back the cursor.
+
+    In a live interview one readiness write held the session's readiness row for 13
+    seconds, and every circle the agent spoke meanwhile reached the preview at once
+    afterwards. The socket reads readiness without taking the row, so a gesture
+    dispatched while another transaction holds it still arrives promptly.
+    """
+    prepared = await prepare_session(database, auth_users, "socket-readiness-held")
+    attachment_id = uuid7()
+    install_observation_readiness(
+        running_api, RecordingObservationReadiness(readiness=complete_readiness())
+    )
+    await observe_document(
+        database,
+        case=prepared.case,
+        interview_session_id=prepared.session_id,
+        preview_runtime_allocation_id=prepared.allocation_id,
+        document_attachment_id=attachment_id,
+        targets=(_SAVE_VIEW,),
+    )
+
+    async with connect(
+        device=prepared.device, installation_id=prepared.installation_id
+    ) as client:
+        await bind_document(
+            client,
+            database=database,
+            prepared=prepared,
+            signer=page_proof_signer,
+            document_attachment_id=attachment_id,
+        )
+        async with database.transaction() as holder, holder.cursor() as cur:
+            await cur.execute(
+                "select 1 from public.session_readiness "
+                "where interview_session_id = %s for update",
+                (prepared.session_id,),
+            )
+            assert await cur.fetchone() is not None
+            outcome = await dispatch_point(
+                client_id=prepared.case.client_id,
+                session_id=prepared.session_id,
+                target=_SAVE_VIEW,
+            )
+            assert outcome["dispatched"] is True, outcome
+            dispatched_at = time.monotonic()
+            await client.until(has_command(str(outcome["command_id"])))
+            delivered = time.monotonic() - dispatched_at
+
+    assert delivered < _PROMPT_SECONDS, f"the gesture took {delivered:.1f}s to arrive"
 
 
 async def test_ending_the_session_from_the_session_tab_revokes_the_extension(
