@@ -9,7 +9,7 @@ its lease. `WorkspaceShell` is what both run them through; `SandboxShell` is the
 lease-free one.
 
 The install writes its exit status to `DEPENDENCY_INSTALL_STATUS`, where the agent
-waits for it before running a check.
+waits for it before running anything that needs the dependencies.
 """
 
 from __future__ import annotations

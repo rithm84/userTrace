@@ -1,12 +1,7 @@
 """Ingestion configuration.
 
 These values are read from the process environment like the rest of the control
-plane's configuration, but they live in this module rather than in
-``app.settings`` so the ingestion workstream does not add required variables to
-every other workstream's start-up while the branches are still separate. Merging
-them into ``Settings`` is a one-line move per field.
-
-Every value is required. An unset variable fails with the variable's name; the
+plane's configuration. Every value is required. An unset variable fails with the variable's name; the
 value itself is never echoed, because two of them are private keys.
 """
 

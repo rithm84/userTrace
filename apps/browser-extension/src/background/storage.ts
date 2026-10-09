@@ -3,9 +3,8 @@
  *
  * Durable `chrome.storage.local` holds only installation identity, device-local
  * presentation settings, protocol metadata, and a cache of the control-plane
- * owned global preferences. `chrome.storage.session` holds the minimum
- * short-lived credential and recovery checkpoint needed across a service-worker
- * suspension. Neither is workflow truth, and neither keeps session content.
+ * owned global preferences. `chrome.storage.session` holds the recovery
+ * checkpoint needed across a service-worker suspension. Neither is workflow truth, and neither keeps session content.
  */
 import { z } from "zod";
 

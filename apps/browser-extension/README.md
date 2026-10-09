@@ -35,9 +35,9 @@ else.
 
 The wire contracts live in
 [`packages/utrace-contracts/schemas/extension-protocol/`](../../packages/utrace-contracts/schemas/extension-protocol/README.md)
-with fixtures beside them. TypeScript bindings stay in `src/protocol/` until the
-contracts workstream generates package-wide bindings; `tests/unit/protocol.test.ts`
-checks both validators against every fixture so they cannot drift.
+with fixtures beside them. The TypeScript bindings live in `src/protocol/`, and
+`tests/unit/protocol.test.ts` checks them and the JSON Schemas against every
+fixture so they cannot drift.
 
 ## What the build produces
 
@@ -62,12 +62,12 @@ required (test builds, which cannot answer Chrome's permission prompt).
 - Commands address an exact registered target revision. Selectors, coordinates,
   and expressions are not representable in the protocol, and visibility,
   occlusion, and revision are rechecked immediately before each gesture.
-- The control-plane credential never leaves the service worker; the main-world
-  bridge cannot reach the closed shadow root.
+- The device key never leaves the service worker, and no bearer or binding
+  credential exists; the main-world bridge cannot reach the closed shadow root.
 - Readiness, character state, binding, and control outcomes are revisioned
   control-plane records. The extension renders them and never infers them.
 
-## Integration notes for the control plane and the browser SDK
+## Wire details
 
 - The socket authenticates with a DPoP-style proof of possession of the
   installation's non-exportable device key, carried in the WebSocket

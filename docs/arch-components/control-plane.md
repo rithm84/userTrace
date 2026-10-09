@@ -14,17 +14,18 @@ eligible Product Signal owns at most one Case File and at most one draft PR.
 
 ## Runtime shape and modules
 
-The control plane is a modular application with one Supabase Postgres transaction authority. Persistent API, Discord, telemetry, and session-coordinator processes run on Supabase Compute and scale as the [deployment contract](./deployment.md#scaling-and-availability) defines, while Supabase Queues and Cron wake durable work. Supabase Realtime distributes notifications and projection changes but never owns state, media delivery, command proof, or authorization.
+The control plane is a modular application with one Supabase Postgres transaction authority. Its API and worker run on Supabase Compute and its voice agent on Pipecat Cloud, and each scales as the [deployment contract](./deployment.md#scaling-and-availability) defines, while Supabase Queues and Cron wake durable work. Supabase Realtime distributes notifications and projection changes but never owns state, media delivery, command proof, or authorization.
 
 The [implementation stack](../ARCHITECTURE.md#implementation-stack) applies to both
 the API and workers. FastAPI handles request validation and HTTP routing; shared
-application modules own lifecycle and policy logic. Durable Jobs execute in
-separate worker processes using the committed dispatch and lease contracts below,
-not FastAPI in-process background tasks.
+application modules own lifecycle and policy logic. Durable Jobs execute in the
+separate worker process, and each call's voice agent Job in its Pipecat Cloud
+session, using the committed dispatch and lease contracts below, not FastAPI
+in-process background tasks.
 
 Modules own identity and membership, policy, intake, Product Signals, outreach and sessions, implementation and leases, preview and validation, Case Files and delivery, Outreach Offers and invoice credits, context, evidence, execution, connectors, and authenticated APIs. Another module may submit a typed fact or intent; it may not mutate the owner's projection.
 
-Connectors adapt Discord, OpenAI (GPT-6.1 Sol), Daily and the voice agent's providers (Deepgram and ElevenLabs), Jev (through Vercel AI Gateway), Vercel (web, front door, and Sandbox), GitHub, Stripe, Supabase services, and OpenTelemetry to provider-neutral contracts. Credentials remain in the server-side [credential custody](./deployment.md#secrets-and-credentials) the deployment contract defines.
+Connectors adapt Discord, OpenAI (GPT-6.1 Sol), Daily, Pipecat Cloud, and the voice agent's providers (Deepgram and ElevenLabs), Jev (through Vercel AI Gateway), Vercel (web, front door, and Sandbox), GitHub, Stripe, and Supabase services to provider-neutral contracts. Credentials remain in the server-side [credential custody](./deployment.md#secrets-and-credentials) the deployment contract defines.
 
 ## Authority and transactions
 
@@ -110,7 +111,7 @@ Only an active attempt-scoped Environment Lease grants workspace mutation. The l
 
 ### Implementation Attempt and Preview Version
 
-An attempt progresses through authorized, queued, environment acquisition, executing/checking, candidate publication, and `candidate_ready`; it may instead pause, become infrastructure-blocked, require a scope change, exhaust budget, or be canceled. A Product Signal holds at most one attempt in flight and at most its pinned `implementation_limit` in all, one per approving gate decision, and creation follows the [attempt protocol](./implementation.md#attempt-protocol).
+An attempt progresses through authorized, queued, environment acquisition, executing/checking, candidate publication, and `candidate_ready`; it may instead pause, become infrastructure-blocked, require a scope change, fail its checks (`checks_failed`), be found `unsafe`, exhaust budget, or be canceled. A Product Signal holds at most one attempt in flight and at most its pinned `implementation_limit` in all, one per approving gate decision, and creation follows the [attempt protocol](./implementation.md#attempt-protocol).
 
 The gate approves live work or records no implementation. Each candidate Preview Version binds one attempt and exact source/build artifact; readiness requires the complete observation path. A referenced candidate cannot be replaced during a Validation Attempt.
 

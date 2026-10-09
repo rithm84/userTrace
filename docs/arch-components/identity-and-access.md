@@ -26,7 +26,8 @@ Supabase Auth authenticates owners and admins. Authorization comes from explicit
 
 - The `utrace.dev` web application performs sign-in, sign-out, callback, and session refresh using server-safe Supabase patterns.
 - The API verifies the token issuer, audience, signature, subject, session, and expiry, then resolves an active membership for the requested `client_id`.
-- One client has exactly one `owner` and zero or more `admins`.
+- One client has exactly one `owner` and zero or more `admins`. The database
+  refuses a second active owner.
 - RLS and API authorization both require the client membership predicate. Tables exposed through the Data API have RLS enabled; privileged service credentials never enter the browser.
 - User-editable metadata is never an authorization source. Authorization-changing writes use restricted server-side paths and are audited.
 - Offboarding, membership deactivation, session revocation, invalid tokens, conflicting identity mappings, and unavailable verification fail closed without rewriting product lifecycle state.
@@ -67,10 +68,8 @@ The participant's own surfaces do not use a lane credential. Session routes
 authorize the participant's authenticated Supabase identity directly, the
 extension proves possession of its registered device key during its socket
 handshake, and the browser telemetry stream carries a write-only ingestion
-credential minted for one observation activation. There is no separate session-tab
-token: minting one would create an audience nothing checks. Refresh is permitted
-only while the durable session is eligible; revocation stops refresh and queued
-effects.
+credential minted for one observation activation. Refresh is permitted only while
+the durable session is eligible; revocation stops refresh and queued effects.
 
 The voice call uses a backend-created private Daily room bound to the
 authenticated participant and current connection; the browser holds only a meeting

@@ -43,7 +43,7 @@ supabase_compute: |md
   ### Supabase Compute
 
   - API · Discord · telemetry
-  - Coordinator and workers
+  - Worker and durable Jobs
 | {class: [card; runtime]}
 
 voice_models: |md
@@ -61,6 +61,12 @@ openai_api: |md
   - Codex coding agent
 | {class: [card; reasoning]}
 
+ai_gateway: |md
+  ### Vercel AI Gateway
+
+  - TypeSafe AI Jev decisions
+| {class: [card; reasoning]}
+
 supabase: |md
   ### Supabase
 
@@ -69,17 +75,20 @@ supabase: |md
 | {class: [card; outcome]}
 
 customer_browser -> vercel: "HTTPS" {class: edge}
-vercel -> vercel_sandbox: "scoped proxy" {class: edge}
-customer_browser <-> daily: "call audio" {class: edge}
+supabase_compute -> daily: "create room" {class: edge}
 vercel -> supabase_compute: "API" {class: edge}
 supabase_compute -> pipecat_cloud: "start session" {class: edge}
-daily <-> pipecat_cloud: "agent audio" {class: edge}
-pipecat_cloud -> voice_models: "speech" {class: edge}
-pipecat_cloud -> openai_api: "agent words" {class: edge}
-pipecat_cloud -> supabase: "Job + call record" {class: edge}
-supabase_compute -> openai_api: "reasoning" {class: edge}
-vercel_sandbox -> openai_api: "coding agent" {class: edge}
+customer_browser <-> daily: "call audio" {class: edge}
 supabase_compute -> supabase: "durable state" {class: edge}
+vercel_sandbox -> openai_api: "coding agent" {class: edge}
+daily <-> pipecat_cloud: "agent audio" {class: edge}
+pipecat_cloud -> supabase: "Job + call record" {class: edge}
+supabase_compute -> ai_gateway: "Jev" {class: edge}
+supabase_compute -> openai_api: "reasoning" {class: edge}
+vercel -> vercel_sandbox: "scoped proxy" {class: edge}
+pipecat_cloud -> voice_models: "speech" {class: edge}
+pipecat_cloud -> ai_gateway: "Jev" {class: edge}
+pipecat_cloud -> openai_api: "agent words" {class: edge}
 
 key: "" {
   class: legend

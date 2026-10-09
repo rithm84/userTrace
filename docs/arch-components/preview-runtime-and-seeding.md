@@ -19,11 +19,22 @@ Each client configuration pins a Vercel Sandbox runtime template: a custom image
 Vercel Container Registry pinned by digest, a template snapshot taken after the
 product is installed and built, and the product revision, SDK versions, database
 shape, explicit startup and health contract, seed manifest revision, and supported
-preview origin. The warm pool is created from that template. A runtime is ready
-only after service health, data identity, authenticated handoff, extension
-binding, browser/server correlation, redaction, and public front-door probes pass.
-Failures identify the incompatible or missing configuration and the action needed
-to repair it; uTrace does not infer arbitrary stack behavior.
+preview origin. The warm pool is created from that template.
+
+The template recipe divides the readiness probes into gating and advisory sets.
+The gating set is `service_health`, `data_identity`, `authenticated_handoff`,
+`route_resolution`, `stale_route_rejection`, `server_sdk_activation`,
+`redaction`, and `side_effect_neutering`. A pooled runtime passes service health,
+data identity, redaction, and side-effect neutering before it joins the pool; a
+route revision carries traffic only after every gating probe passes.
+`browser_observation` and `trace_correlation` are advisory because they need the
+participant's own traffic: once the participant opens the route, they are asked
+again with `server_sdk_activation`, and all three gate observation-dependent
+work. The probes reach the runtime through its port with a signed route context;
+a session base's traffic probes go through the public front door only when
+`UTRACE_PREVIEW_PUBLIC_PATH_ENABLED` is set. Failures identify the incompatible
+or missing configuration and the action needed to repair it; uTrace does not
+infer arbitrary stack behavior.
 
 Template identity is derived rather than chosen. The template record stores a
 recipe digest, a SHA-256 over the canonical recipe, its build arguments, the
@@ -63,15 +74,18 @@ references, not lifecycle identity.
 
 An allocation carries a pool role. A runtime provisioned into the warm pool
 exists before any Product Signal claims it, so its case columns start empty and
-its role is the pooled one; the claim sets the role to session base or candidate
-and fills the Product Signal, Interview Session or Preview Version, and session
-origin in one transaction. One base allocation per Interview Session and one live
-candidate per Preview Version are database constraints rather than conventions.
+its role is `warm_pool`. The claim locks the runtime and, in the same
+transaction, sets the role to `session_base` and binds the Product Signal and
+Interview Session; the session origin is minted after the claim. A candidate
+allocation never passes through the pool: it is inserted with the `candidate`
+role, its Product Signal, and its Preview Version. One base allocation per
+Interview Session and one live candidate per Preview Version are database
+constraints rather than conventions.
 
 Claim-time configuration is therefore a required step, not an optimization. A
 pooled runtime has no Interview Session and no preview origin, so it cannot yet
-hold a Server SDK bootstrap credential bound to either. After the claim mints the
-session origin, uTrace writes the Server SDK's activation settings into the
+hold a Server SDK bootstrap credential bound to either. Once the session origin
+is minted, uTrace writes the Server SDK's activation settings into the
 runtime's application directory, restarts the product's supervisor with a sandbox
 command so the supervised process reads them, and only then probes health through
 the runtime's port, commits the route, and records readiness. The supervisor's own

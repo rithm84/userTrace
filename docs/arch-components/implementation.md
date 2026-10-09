@@ -30,12 +30,15 @@ The workspace starts from a uTrace-owned, digest-pinned image or snapshot. It co
 
 - **Network:** the sandbox's network policy permits only required public or
   client-declared registries, uTrace callback and artifact endpoints, and the
-  OpenAI API. Credentials remain in uTrace-controlled services. Every blocked
-  connection is logged. Repeated or exfiltration-shaped violations end the attempt
-  as `unsafe`.
+  OpenAI API. Credentials remain in uTrace-controlled services. The sandbox reports
+  no per-connection block events, so after every cycle the controller scans the
+  commands the run executed, the agent's own included, for hosts the policy does
+  not permit. Repeated or exfiltration-shaped violations end the attempt as
+  `unsafe`.
 - **Code surfaces:** after every edit/check cycle, the diff is checked against the approved-scope object. Blocked paths remain readable when their interfaces are necessary, but cannot appear in the accepted diff.
-- **Compute:** elapsed-time, token, cost, process, and artifact budgets are pinned
-  by the Product Signal's policy and the gate decision. Each agent run is bounded
+- **Compute:** elapsed-time, agent-turn, cost, process, artifact-byte,
+  correction-cycle, and changed-file budgets are all required, pinned by the
+  Product Signal's policy and frozen by the gate decision. Each agent run is bounded
   by its command timeout and charged afterwards, and the control plane refuses the
   next step once a budget is spent.
 - **Lease:** the lease fences the sandbox itself. The control plane creates the
@@ -79,10 +82,10 @@ any new interface from the repository's own design system components, to wire th
 client's declared uTrace targets and milestones for the workflow it changes, and
 to run none of the required checks itself. The control plane runs every required
 check once when the agent reports, and sends any new failure back as a correction
-cycle. Codex streams its events on the command's output; the control plane
-records them as attempt logs, and every command and file change the agent makes
-becomes provenance. The agent's own report of success is evidence to check, not a
-result: the control plane's own run of the required checks and the scope check
+cycle. Codex writes its event stream to a file outside the checkout, and the
+control plane reads it after the run: every command and file change the agent
+made becomes provenance in the attempt's journal. The agent's own report of
+success is evidence to check, not a result: the control plane's own run of the required checks and the scope check
 decides whether it accepts a candidate. See [Codex non-interactive mode](https://developers.openai.com/codex/noninteractive).
 
 The OpenAI credential never enters the sandbox. `CODEX_API_KEY` holds a
@@ -95,9 +98,11 @@ attempt cannot continue past, and its Job does not retry it.
 ## Attempt protocol
 
 The control plane dispatches a typed attempt specification containing the Product
-Signal and attempt IDs, repository reference, pinned base revision, approved-scope
-object, required checks, policy and gate revisions, context-bundle references,
-harness options, budgets, and lease token. The attempt claims the case's
+Signal, attempt, and gate decision IDs, the pinned configuration release, the
+repository reference and pinned base revision, the approved-scope object with its
+required checks and budgets, the workspace snapshot, context-bundle references,
+the code findings the gate cited, the permitted callback hosts, and the lease's
+fencing token. The attempt claims the case's
 [prepared workspace](#prepared-workspace) for that lease, or creates the workspace
 sandbox from the pinned template when there is none to claim, and the harness runs
 inside it. Logs and artifacts are written through uTrace-controlled storage.
@@ -106,9 +111,7 @@ A later attempt, for a change the person asked for, builds on the version they
 asked to change: before the change is authored, the case's newest ready Preview
 Version's frozen files are written into a fresh workspace checked out at the same
 base revision, so its candidate holds the earlier change and this one, and the
-case's first attempt starts from the clean base. Creation counts the case's
-attempts against the pinned limit in the same transaction that commits the new
-one.
+case's first attempt starts from the clean base.
 
 ## Prepared workspace
 
@@ -128,20 +131,22 @@ starts the first cycle at once with the recorded baseline. The attempt claims on
 a workspace prepared from the pins its own specification carries: template
 snapshot, clone URL, base revision, install command, required checks, and vCPUs.
 It waits for a preparation still running, which is further along than a fresh
-start; with no workspace to claim, it prepares its own as before and authors the
-first cycle while the dependencies install. A prepared workspace that no attempt
+start; with no workspace to claim, it prepares its own and authors the first
+cycle while the dependencies install. A prepared workspace that no attempt
 claims is released, and its sandbox destroyed, once its case ends or its
 one-hour window passes.
 
 One nonterminal Implementation Attempt exists per Product Signal. Technical retries
 and check-fix cycles stay inside that attempt while its scope and budget remain
-valid. Changed acceptance criteria, product outcome, risk, or implementation scope
-would require another attempt, which the demo does not allow, so they close the
-case with a blocker Case File.
+valid. An attempt that discovers it needs changed acceptance criteria, product
+outcome, risk, or implementation scope ends as `scope_change_required` and closes
+the case with a blocker Case File. Only a change the originating user asks for
+while trying a ready version returns the case to the gate for another attempt.
 
 Attempt creation locks the Product Signal, rechecks lifecycle, classification,
-gate and policy revisions, and remaining budgets, and atomically commits the
-attempt with its dispatch intent. Replayed requests return the existing attempt.
+gate decision, configuration release, and the case's attempts against the pinned
+`implementation_limit`, and atomically commits the attempt with its dispatch
+intent. Replayed requests return the existing attempt.
 No worker dispatches before commit. Workers recheck current authority and execution
 limits before new steps and enforce limits on in-flight work. Resume preserves all
 consumption; it never recreates an attempt to bypass a limit.
@@ -162,18 +167,17 @@ After the originating user departs following successful validation, Case File as
 
 ## Repository binding and exact-file inspection
 
-The base revision is pinned before code mutation and the gate approves against that pin. A working branch exists only inside the workspace until delivery; nothing reaches the client's GitHub repository before successful validation.
+The base revision is pinned before code mutation and the gate approves against that pin. The workspace never commits: after successful validation, [delivery](./client-outputs.md#github-delivery) builds the branch and commit from the validated files through the GitHub Git Data API, so nothing reaches the client's repository before then.
 
 The coding agent investigates code using filesystem search and exact file reads at
 the pinned revision inside Vercel Sandbox. The Product Overview describes the
 product; it is not a code index. Every inspected
-file and revision is recorded as provenance. Candidate files suggested by
-Jev, and the pre-gate findings the gate cited, are
-hints until the workspace reads the exact source.
+file and revision is recorded as provenance. The pre-gate findings the gate
+cited are hints until the workspace reads the exact source.
 
 ## Required checks and scope control
 
-Required commands come from the Product Signal's pinned client policy and gate decision. The workspace runs them on the clean base to establish a comparable baseline and again against the candidate. The baseline runs on the base revision exported from git beside the checkout, with the installed dependencies linked in: in a prepared workspace before the attempt begins, and otherwise while the agent authors the first cycle, in which case the first comparison waits for it. The checks of one run start together, except that a check waits for the earlier checks its policy entry names in `after`, such as a build that writes files the type check reads. Pre-existing failures are reported as integration health; the candidate must not introduce new failures. While a cycle's checks run, the [candidate preview build](./preview-build.md) starts from the same staged files, so an accepted candidate only has to start.
+Required commands come from the Product Signal's pinned client policy and gate decision. The control plane runs them in the workspace on the clean base to establish a comparable baseline and again against the candidate. The baseline runs on the base revision exported from git beside the checkout, with the installed dependencies linked in: in a prepared workspace before the attempt begins, and otherwise while the agent authors the first cycle, in which case the first comparison waits for it. The checks of one run start together, except that a check waits for the earlier checks its policy entry names in `after`, such as a build that writes files the type check reads. Pre-existing failures are reported as integration health; the candidate must not introduce new failures. While a cycle's checks run, the [candidate preview build](./preview-build.md) starts from the same staged files, so an accepted candidate only has to start.
 
 After every correction cycle, the controller verifies files, repositories, dependencies, and other approved bounds. The diff's size in lines is not bounded: a complete change is never sent back to shrink. Mechanical violations return for correction while budget remains. A persistent violation, or a semantic discovery that the solution needs a different outcome or scope, stops mutation and closes the case with a blocker Case File. Scope never grows inside the workspace.
 

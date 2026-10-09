@@ -19,6 +19,7 @@ domain. The `utrace-preview-front-door` production environment is configured;
 | --- | --- | --- |
 | Control-plane API | Supabase Compute `api`, public | [`compute/deploy.py`](./compute/deploy.py), `[compute.api]` in `supabase/config.toml` |
 | Control-plane worker | Supabase Compute `worker`, private, one instance | [`compute/deploy.py`](./compute/deploy.py), `[compute.worker]` in `supabase/config.toml` |
+| Voice agent | Pipecat Cloud agent `utrace-voice-agent`, `us-west`, `agent-2x`, one warm instance and up to ten | [`pipecat-cloud/deploy.py`](./pipecat-cloud/deploy.py), [`pipecat-cloud/Dockerfile`](./pipecat-cloud/Dockerfile) |
 | Preview front door | Vercel project `utrace-preview-front-door` | `apps/preview-front-door`, configured here |
 | Web surfaces | Vercel project `utrace-web`, serving `utrace.dev` | `apps/web`; deploys automatically from `main` of `rithm84/userTrace` |
 | Implementation workspaces, preview runtimes | Vercel Sandbox | `vercel/` in this directory |
@@ -55,8 +56,9 @@ deliver every watched-channel message twice. `[compute.worker]` names no
 `instances`, so a push keeps the recorded count, which defaults to one. Never push
 the worker with `--instances` greater than `1`.
 
-On SIGTERM the worker lets the Job in flight finish and closes the gateway
-sessions within the consumers' shutdown window
+On SIGTERM the worker stops claiming, waits for every running Job to finish (it
+runs up to `UTRACE_WORKER_CONCURRENCY`, six by default, at once), and closes the
+gateway sessions within the consumers' shutdown window
 (`UTRACE_INTAKE_CONSUMER_SHUTDOWN_SECONDS`, ten seconds). Intake can miss messages
 while the worker is replaced during a push; the staff route below recovers them.
 
@@ -88,13 +90,17 @@ set -a; source .env.local; set +a
 
 ### Release order
 
-A release runs three steps in this order, each one only when its input changed:
+A release runs these steps in this order, each one only when its input changed:
 
 1. Database migrations, because new code may depend on the new schema, and
    schema changes are expand-and-contract, so the running code keeps working on
    it.
-2. `deploy.py secrets`, so the computes start with the new environment.
-3. `deploy.py push`.
+2. `compute/deploy.py secrets` and `pipecat-cloud/deploy.py secrets`, so the
+   computes and the voice agent start with the new environment.
+3. `compute/deploy.py push`.
+4. `pipecat-cloud/deploy.py push`. The voice agent is built from the same
+   `apps/api/app` package as the computes, so a change to that package releases
+   both.
 
 ### Apply migrations
 
@@ -109,7 +115,7 @@ allows. `UTRACE_DATABASE_URL` in `.env.local` is the session pooler connection
 string: Supabase's direct database host is IPv6-only without the IPv4 add-on, so
 workstation tools use the pooler.
 
-### Sync the runtime environment
+### Sync the computes' runtime environment
 
 ```sh
 uv run deploy/compute/deploy.py secrets
@@ -141,6 +147,28 @@ a `git archive` of HEAD, limited to the files the Dockerfile copies, into
 appends the worker's command to its copy, and runs `supabase compute push api
 worker`. Supabase builds both images server-side; the script fails unless both
 builds become `active`, then waits for `/health` on the project URL.
+
+### Sync and deploy the voice agent
+
+```sh
+uv run deploy/pipecat-cloud/deploy.py secrets
+uv run deploy/pipecat-cloud/deploy.py push
+```
+
+Both authenticate with `PIPECAT_CLOUD_PRIVATE_API_KEY` from `.env.local`. That key
+only deploys the agent and enters neither runtime environment; the API starts
+sessions with `PIPECAT_CLOUD_PUBLIC_API_KEY`, a Compute project secret.
+
+`secrets` writes the agent's runtime environment into the
+`utrace-voice-agent-secrets` secret set in `us-west`, waits until the set is ready,
+and prints a count only. The values come from `.env.local`, apart from the policy
+in [values the deployment supplies](#values-the-deployment-supplies).
+
+`push` refuses a dirty working tree. It uploads a `git archive` of HEAD, limited to
+the files [`pipecat-cloud/Dockerfile`](./pipecat-cloud/Dockerfile) copies, has
+Pipecat Cloud build it, and points the agent at the build with the secret set, the
+`agent-2x` profile, one to ten instances, and a two-hour session limit. It returns
+once the agent's new deployment is ready.
 
 ### Inspect and read logs
 
@@ -181,9 +209,9 @@ vercel deploy --prod --yes
 `https://api.utrace.dev/compute/v1/api`.
 
 `UTRACE_UPSTREAM_APPLICATION_PORT` is `3300`, the application port in
-[`deploy/vercel/preview/shopalytics-recipe.json`](./vercel/preview/shopalytics-recipe.json),
-not the `3000` in the app's `.env.example`. The door refuses to route to a port
-the resolved route does not name, so this value and the recipe move together.
+[`deploy/vercel/preview/shopalytics-recipe.json`](./vercel/preview/shopalytics-recipe.json).
+The door refuses to route to a port the resolved route does not name, so this
+value and the recipe move together.
 
 ### Roll back
 
@@ -202,6 +230,11 @@ stay as last synced; if the environment changed since that commit, run
 rolled back: expand-and-contract keeps the earlier code working on the newer
 schema. To roll back the front door: `vercel rollback --scope rithm84s-projects`.
 
+Roll back the voice agent the same way, from the same detached checkout, with
+`uv run deploy/pipecat-cloud/deploy.py push`, which builds that commit again. The
+earlier commit must contain `deploy/pipecat-cloud/deploy.py`, and the secret set
+stays as last synced unless `pipecat-cloud/deploy.py secrets` runs first.
+
 `npm run supabase -- compute delete <name> --project-ref "$SUPABASE_PROJECT_REF"`
 removes a compute entirely. It is irreversible; the CLI keeps the staged
 directory and the `supabase/config.toml` entry.
@@ -216,16 +249,22 @@ they are facts about the deployment rather than about a developer's machine:
 | --- | --- | --- |
 | `UTRACE_DATABASE_URL` | `.env.local`'s `UTRACE_DATABASE_DIRECT_URL` | The computes reach Postgres directly inside Supabase's network, so the session pooler's client limit does not bind them. |
 | `UTRACE_DB_POOL_MAX` | `6` | Each compute's pool cap; listeners hold connections outside it. |
+| `UTRACE_VOICE_AGENT_RUNTIME` | `pipecat_cloud` | The API starts each voice agent session on Pipecat Cloud; a local run sets `in_process` to run the agent in the API's own process. |
 | `UTRACE_WEB_ORIGIN` | `https://utrace.dev` | `.env.local` carries a local origin; Session Links must be public. |
 | `UTRACE_INGEST_WEBSOCKET_ORIGIN`, `UTRACE_PREVIEW_SERVER_CONTROL_URL` | `wss://api.utrace.dev/compute/v1/api` | The ingestion edge and the Server SDK control channel are served by this API. |
 | `UTRACE_PREVIEW_SERVER_INGEST_URL` | `https://api.utrace.dev/compute/v1/api` | The Server SDK exports to this API. |
 | `UTRACE_PREVIEW_ORIGIN_SUFFIX` | `preview.utrace.dev` | The preview apex the front door serves. |
 
 The rest of the policy (preview TTLs and timeouts, intake consumer retries) is
-listed in the script. Compute injects `SUPABASE_URL` and refuses secrets whose
-names start with `SUPABASE_`, so the control plane reads its Supabase keys as
-`UTRACE_SUPABASE_SECRET_KEY` and `UTRACE_SUPABASE_PUBLISHABLE_KEY`. The GitHub App
-private key is the `UTRACE_GITHUB_PRIVATE_KEY` secret.
+listed in the script. The GitHub App private key is the
+`UTRACE_GITHUB_PRIVATE_KEY` secret.
+
+[`pipecat-cloud/deploy.py`](./pipecat-cloud/deploy.py) names the voice agent's
+variables the same way. Its `UTRACE_DATABASE_URL` is `.env.local`'s own session
+pooler string, because Pipecat Cloud is outside Supabase's network, and its
+`UTRACE_DB_POOL_MAX` is `4`. It also sets `UTRACE_VOICE_AGENT_RUNTIME` and
+`UTRACE_PREVIEW_ORIGIN_SUFFIX` to the computes' values, and it passes
+`SUPABASE_URL`, which Compute injects into the computes but Pipecat Cloud does not.
 
 The preview template is built from a workstation with
 `apps/api/scripts/build_preview_template.py`, so its fixture-checkout and
@@ -234,7 +273,8 @@ registry variables are never part of the deployed computes.
 ## Production checklist
 
 1. Apply migrations if any changed.
-2. `uv run deploy/compute/deploy.py secrets` if any runtime value changed.
+2. `uv run deploy/compute/deploy.py secrets` and
+   `uv run deploy/pipecat-cloud/deploy.py secrets` if any runtime value changed.
 3. `uv run deploy/compute/deploy.py push` from a clean tree.
 4. `curl -fsS https://api.utrace.dev/compute/v1/api/health` answers
    `{"status":"ok"}`.
@@ -244,20 +284,19 @@ registry variables are never part of the deployed computes.
 6. An unauthenticated WebSocket upgrade to `/v1/ingest/browser` under the base URL
    closes 1008 with a `credential_rejected` error frame — the API's refusal, not
    the platform's.
-7. `vercel deploy --prod` for the front door, then a bare session origin
+7. `uv run deploy/pipecat-cloud/deploy.py push` from a clean tree prints
+   `deployed <sha> to utrace-voice-agent`, which it reaches only once the new
+   deployment is ready. A voice connection opened from a session tab then logs
+   `pipecat_cloud.session_started` in the `api` compute's `app` logs.
+8. `vercel deploy --prod` for the front door, then a bare session origin
    returns the neutral interstitial and a claim with a bad code is refused.
-8. `preview.utrace.dev` shares the `utrace.dev` site, which the
+9. `preview.utrace.dev` shares the `utrace.dev` site, which the
    [Shopalytics demo](../docs/SCENARIO.md#starting-state-and-fixture) accepts only
    because Shopalytics is a uTrace-owned fixture.
 
 ## Constraints this deployment is built around
 
-- **Secrets are project-scoped.** Every compute receives every project secret
-  (see [secrets and credentials](../docs/arch-components/deployment.md#secrets-and-credentials)),
-  so keep only control-plane credentials in the project's secrets.
-- **The `SUPABASE_` prefix is reserved.** Compute injects those names itself and
-  refuses project secrets that use it.
-- **One worker instance.** See
-  [the worker holds the Discord gateway](#the-worker-holds-the-discord-gateway).
-- **A prefixed base URL.** The API is reachable only under `/compute/v1/api`, so
-  every client is configured with the full base URL, not the bare origin.
+- [Project-scoped secrets and the reserved `SUPABASE_` prefix](../docs/arch-components/deployment.md#secrets-and-credentials)
+- [One worker instance](#the-worker-holds-the-discord-gateway)
+- [The API's prefixed base URL](../docs/arch-components/deployment.md#network-and-public-boundaries)
+- [The connection budget, including the voice agent's pooler connections](../docs/arch-components/deployment.md#deployment-scope)

@@ -11,8 +11,8 @@ budgets.
 
 ## Build once, run the same bytes
 
-An approved attempt begins at the pinned GitHub revision inside its fenced Vercel Sandbox workspace. The coding agent inspects exact files through filesystem search and reads, applies only the frozen scope, and runs the required baseline and changed-surface checks. The workspace emits a source manifest, patch, dependency lock identity, build recipe, check results, and content-addressed artifacts. Publication never rebuilds from an unpinned branch. The source manifest pins the
-[SDK build/startup profiles](./client-configuration.md#sdk-source-integration) already merged
+An approved attempt begins at the pinned GitHub revision inside its fenced Vercel Sandbox workspace. The coding agent inspects exact files through filesystem search and reads and applies only the frozen scope; the control plane runs the required checks on the clean base and once on the candidate. The workspace emits a source manifest, patch, dependency lock identity, build recipe, check results, and content-addressed artifacts. Publication never rebuilds from an unpinned branch. The build recipe pins the
+[SDK build/startup profile](./client-configuration.md#sdk-source-integration) already merged
 by the client. Required checks verify preview instrumentation and production
 exclusion; implementation cannot silently change those profiles. The Preview
 Version identifies the preview artifact, not a claim that production bytes are
@@ -30,9 +30,9 @@ Database changes run only against the candidate's isolated database. Migration p
 
 ## Readiness and Preview Version lifecycle
 
-A Preview Version becomes `ready` only after source and artifact digest verification, service health, database readiness, browser and Server SDK correlation, extension compatibility, authenticated identity handoff, front-door route, redaction, side-effect-neutering probes, and a changed-workflow smoke check all pass. The durable record binds attempt revision, artifact manifest, data identity, template, route revision, and check evidence.
+A Preview Version becomes `ready` only after its installed files match the artifact's digests, its dataset verifies against the approved seed identity, and the candidate runtime passes the template's [gating readiness probes](./preview-runtime-and-seeding.md#template-and-readiness) against the route revision it is about to receive. The probes reach the candidate through its runtime port, never through the public front door. The durable record binds attempt revision, artifact manifest, data identity, template, route revision, and check evidence.
 
-Preview Versions are immutable. The system never patches a candidate in place; in the demo an unsuccessful validation closes the case rather than producing another candidate.
+Preview Versions are immutable. The system never patches a candidate in place: a change the originating user asks for during validation produces a new Preview Version from a new gate-approved attempt, and an unsuccessful validation closes the case rather than producing another candidate.
 
 ## Candidate handoff
 

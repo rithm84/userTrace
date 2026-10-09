@@ -34,21 +34,26 @@ a re-publish as a no-op and lets a dashboard or an SDK compare what it holds
 against what the case pinned. The digest is an identity for comparison, not a
 second copy of the policy.
 
-The release manifest pins typed versions and digests for the B2B account model;
-Discord installation and watched channels; repository and branch scope; GitHub
-grant; browser SDK, Server SDK, observation schemas and redaction; the seed
-manifest; Vercel Sandbox preview and implementation templates; preview build and
-front-door contracts; Autonomy Policy; model, prompt, tool and Jev schemas; Product
-Overview sources; Outreach Offers policy, issuance limit, and customer mapping; and
-operational telemetry.
+A release pins:
+
+- the Customer Surface: the Discord installation and its watched channels
+- the implementation policy, which is the Autonomy Policy the
+  [Implementation Gate](./policy-and-permissions.md#client-policy-model) narrows
+- the data seeding contract: seed manifest digest, fixture clock, and preview
+  template
+- the Outreach Offers policy and the private-contact budget
+- the Product Overview digest
+- the annotation manifest and the signed server instrumentation manifest
+- the dashboard origin a draft PR links its Case File from
 
 The client compatibility contract explicitly declares repository, environment,
 startup, health, and seeding requirements. uTrace does not infer an arbitrary
 application stack or invent startup and health behavior from repository contents.
 
-Model configuration pins the GPT-6.1 Sol and voice provider settings described in the
-[model access contract](./deployment.md#model-access). These are uTrace platform
-integrations, not provider accounts that the originating user must supply.
+A release carries no model configuration. The GPT-6.1 Sol, Jev, and voice
+provider settings in the [model access contract](./deployment.md#model-access)
+are platform-wide uTrace integrations, not provider accounts that the client or
+the originating user must supply.
 
 ## SDK source integration
 

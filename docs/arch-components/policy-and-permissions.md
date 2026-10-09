@@ -14,11 +14,13 @@ The demo supports live implementation for Feature Request Flow in one authorized
 
 Policy is part of the [client configuration](./client-configuration.md) and becomes active only through a verified immutable client configuration release.
 
-Per-flow policy may configure:
+The release's policy configures:
 
 - allowed implementation modes (`live` or `none`)
 - one authorized repository and its blocked or allowed code surfaces
-- required checks and optional file, line, elapsed-time, and cost bounds
+- required checks, the per-case `implementation_limit`, and the
+  [resource budgets](./implementation.md#enforcement-model), every one of them
+  required
 - dependency policy (`none | allowlist | open`) and permitted license classes
 - visual-command classes and registered-target constraints
 - private Discord outreach and reminder budgets
@@ -34,7 +36,7 @@ There is no runtime human state editor, manual handoff, or per-action client app
 
 ## Implementation Gate contract
 
-The gate receives the Product Signal, interview-established flow classification and its revision, acceptance criteria, confirmed user evidence, correlated telemetry, exact-revision code findings, prepared-environment readiness, pinned policy, and budget consumption. GPT-6.1 Sol produces a typed, cited proposal at a low pinned effort on the Ultrafast tier; Jev may identify missing or contradictory evidence. The proposal cites evidence and findings by short handles the bundle assigns (`E1`, `F1`), because a participant waits on it and its time is mostly the tokens it writes; the controller maps each handle back to its record before validating, so a handle the bundle never offered fails citation like any unknown identifier. The deterministic controller validates all inputs and owns the durable decision.
+The gate receives the Product Signal, interview-established flow classification and its revision, acceptance criteria, confirmed user evidence, correlated telemetry, exact-revision code findings, prepared-environment readiness, pinned policy, and budget consumption. When the interview has not recorded a flow classification, Jev proposes one first; Jev has no other role at the gate. GPT-6.1 Sol produces a typed, cited proposal at a low pinned effort on the Ultrafast tier. The proposal cites evidence and findings by short handles the bundle assigns (`E1`, `F1`), because a participant waits on it and its time is mostly the tokens it writes; the controller maps each handle back to its record before validating, so a handle the bundle never offered fails citation like any unknown identifier. The deterministic controller validates all inputs and owns the durable decision.
 
 The gate returns `approved_live` or `no_implementation` with a typed blocker. It
 applies the rules for the interview-established flow type from the Product
@@ -47,7 +49,7 @@ pre-dispatch check.
 
 An approval freezes the classification revision, intended user-visible outcome, acceptance criteria, authorized repository, in-scope and excluded changes, permitted code areas, required checks, dependencies, resource budgets, and cited evidence revision. Missing evidence, unresolved disagreement, policy denial, excessive live scope, or safety risk cannot be hidden by a model confidence score.
 
-A task that would exceed approved scope stops mutation. A changed outcome or scope would need another attempt, which the demo does not allow, so denied scope or exhausted budgets close with a blocker Case File after participation.
+A task that would exceed approved scope stops mutation, and denied scope or exhausted budgets close with a blocker Case File after participation. A change the originating user asks for during validation returns the case to `gate_pending` for a new attempt, up to the pinned `implementation_limit`; a refused change, or one beyond the limit, leaves them validating the version they have.
 
 ## Client case stop
 

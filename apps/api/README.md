@@ -9,12 +9,12 @@ follows [control plane internals](../../docs/arch-components/control-plane.md#ru
 app/settings.py             required configuration; an unset variable fails start-up
 app/ids.py                  UUIDv7 generation (identifiers are minted in Python)
 app/errors.py               the typed refusals every layer raises
-app/envelope.py             local envelope fields until the shared contract area lands
+app/envelope.py             commit-time intents the kernel writes, built on `utrace_contracts.envelope`
 app/db/                     Postgres connector, typed row accessors, transition kernel
 app/lifecycle/              pure state machines plus the controllers that commit them
 app/execution/              Jobs, Job Runs, Commands, outbox, inbox, worker, recovery
 app/auth/                   Supabase JWT verification, lane credentials, dependencies
-app/ports/                  provider seams the provider-adapters workstream implements
+app/ports/                  provider seams the provider adapters implement
 app/adapters/               ports one area fills from another's durable state
 app/api/                    routers, typed responses, and the error contract
 app/interview/              voice runtime, readiness, character and session projections,
@@ -28,7 +28,7 @@ app/queries.py              tenant-scoped read projections
 
 ```sh
 uv sync                                   # install into apps/api/.venv
-uv run pytest                             # integration tests against the real database
+uv run pytest                             # integration tests; local database only, see Configuration
 uv run ruff check .                        # lint
 uv run mypy app                            # strict type check
 uv run python -m scripts.export_openapi     # regenerate openapi.json
@@ -53,13 +53,14 @@ describes how to change it.
 The application is a factory so tools can import it without credentials:
 
 ```sh
-uv run uvicorn --factory app.main:create_default_app
+UTRACE_VOICE_AGENT_RUNTIME=in_process uv run uvicorn --factory app.main:create_default_app
 uv run utrace-worker
 ```
 
 `create_app(settings, ports)` takes a `PortRegistry`; a provider adapter installs
-its implementations there. A route whose behaviour belongs to another workstream
-returns a typed `501` naming that workstream rather than a silent stub.
+its implementations there. A route whose port is not registered raises
+`NotYetWiredError`, a typed `501` naming the missing capability, rather than
+returning a silent stub.
 
 Two seams are filled from inside this application rather than by a provider.
 `app/adapters/` implements the preview area's `ObservationReadinessPort` and the
@@ -68,10 +69,15 @@ state, and `create_app` installs them once the database pool is open.
 
 ## Configuration
 
-Every variable in [`.env.example`](./.env.example) is required. Database-backed
-tests read them from the repository `.env.local` and skip with the missing
-variable named. Tests truncate only the `public` tables this workstream owns, so
-they are safe to rerun and never touch another workstream's schema.
+The settings classes are the source of truth for required variables; start from
+[`.env.example`](./.env.example).
+
+Database-backed tests truncate every owned table in whatever
+`UTRACE_DATABASE_URL` names. Run them only against the local Supabase stack, with
+`UTRACE_DATABASE_URL` and `SUPABASE_URL` pointing at it; never with `.env.local`
+loaded as is. `tests/conftest.py` fills any variable the environment leaves unset
+from the repository `.env.local`, so export both before running. A test whose
+variable is missing skips with the variable named.
 
 ## Server SDK control channel
 
@@ -81,7 +87,8 @@ service in `tests/ingestion/server_sdk/` under `node --import`, and observes the
 activation, export, probe, rotation, and control commands it produces. Node 22.12
 or later is the only extra prerequisite; the build and the package install run on
 first use. The service reads its rows from the `utrace_ingestion_control_test`
-schema in the same project database.
+schema in the same database, so the local-database rule under
+[Configuration](#configuration) applies here too.
 
 ```sh
 uv run pytest tests/ingestion tests/adapters
@@ -108,9 +115,10 @@ Environment variables the connectors and their smokes read:
 
 | Provider | Variables |
 | --- | --- |
-| OpenAI API (GPT-Live voice, GPT-6.1 Sol reasoning) | `OPENAI_API_KEY`; optional `UTRACE_GPT_LIVE_MODEL`, `UTRACE_GPT_LIVE_VOICE`, `UTRACE_GPT_LIVE_REQUEST_TIMEOUT_SECONDS` |
-| Vercel AI Gateway (Jev) | `VERCEL_AI_GATEWAY_API_KEY`, `UTRACE_JEV_MODEL_ID` |
-| Vercel Sandbox | `UTRACE_VERCEL_SANDBOX_TOKEN`, `UTRACE_VERCEL_TEAM_ID`, `UTRACE_VERCEL_PROJECT_ID`, `UTRACE_IMPLEMENTATION_WORKSPACE_SNAPSHOT_ID` |
+| OpenAI API (GPT-6.1 Sol for the voice agent and every reasoning role) | `OPENAI_API_KEY` |
+| Voice agent (Pipecat on Daily, Deepgram Flux, ElevenLabs) | `DAILY_API_KEY`, `DEEPGRAM_API_KEY`, `ELEVENLABS_API_KEY`, `UTRACE_VOICE_AGENT_RUNTIME` (`pipecat_cloud` in deployment, `in_process` locally); `PIPECAT_CLOUD_PUBLIC_API_KEY` only when the runtime is `pipecat_cloud`; optional `UTRACE_VOICE_ID` and the other `UTRACE_VOICE_*` overrides in `app/interview/settings.py` |
+| Vercel AI Gateway (Jev) | `VERCEL_AI_GATEWAY_API_KEY`, `UTRACE_JEV_MODEL_ID`, `UTRACE_JEV_TIMEOUT_SECONDS` |
+| Vercel Sandbox | `UTRACE_VERCEL_SANDBOX_TOKEN`, `UTRACE_VERCEL_TEAM_ID`, `UTRACE_VERCEL_PROJECT_ID`; `UTRACE_IMPLEMENTATION_WORKSPACE_SNAPSHOT_ID` for the client seed script only |
 | Stripe sandbox | `STRIPE_SANDBOX_SECRET_KEY`, `UTRACE_STRIPE_SMOKE_CUSTOMER_ID` |
 | Discord | `UTRACE_DISCORD_BOT_TOKEN`, `UTRACE_DISCORD_SERVER_ID`, `UTRACE_DISCORD_FEATURE_REQUEST_CHANNEL_ID`, `UTRACE_DISCORD_DM_TEST_USER_ID`, `UTRACE_DISCORD_SMOKE_MESSAGE_ID`, `UTRACE_DISCORD_ALLOW_TEST_DM` |
 | GitHub App | `UTRACE_GITHUB_APP_ID`, `UTRACE_GITHUB_INSTALLATION_ID`, `UTRACE_GITHUB_PRIVATE_KEY`; `UTRACE_GITHUB_OWNER`, `UTRACE_GITHUB_REPOSITORY` (smokes) |

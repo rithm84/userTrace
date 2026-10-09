@@ -41,9 +41,9 @@ recovers the missing receipt instead of creating a second Intake Item.
 
 ## Routing context and cognition
 
-The base context contains sealed messages, direct reply/thread context,
-authenticated scope, routing configuration, and a source-linked Product Overview
-revision. [Context Assembly](./context-assembly.md#product-overview-lifecycle)
+The base context contains sealed messages, their direct reply and thread
+references, authenticated scope, routing configuration, and a source-linked
+Product Overview revision. [Context Assembly](./context-assembly.md#product-overview-lifecycle)
 owns preparation and freshness of that overview.
 
 Jev is the default semantic decision model for intake. Python
@@ -65,38 +65,32 @@ contact limits, and durable dispatch remain application responsibilities.
 
 ### Conditional assistance
 
-When required facts are absent, the controller adds the Product Overview sections
-the routing excerpt leaves out. Intake fetches nearby Discord context or earlier
-same-author feedback only when the batch explicitly requires it. It has no ambient
-production telemetry and does not use repository search for intake. A document
-describing a capability does not show that the user's need is already met.
+Code checks Jev's answers before accepting a route. When a required fact stays
+unresolved under the question-specific acceptance checks, intake widens the
+context once: the Product Overview sections the routing excerpt left out join it,
+with the messages the batch replies to, and Jev answers again. Intake fetches no
+other Discord context, has no ambient production telemetry, and does not use
+repository search. A document describing a capability does not show that the
+user's need is already met.
 
-Code checks Jev's answers before accepting a route. When required facts are
-missing, retrieve relevant context and re-evaluate. If ambiguity remains under
-the question-specific acceptance checks, invoke conditional assistance. Re-evaluate
-Jev only when new context or a dependent choice requires another request.
-
-Use GPT-6.1 Sol when interpretation, query formulation, or concern extraction cannot
-be resolved from the supplied facts and typed choices. It never runs as a routine
-verifier of Jev. Assistance is an explicit, budgeted routing branch with a recorded
-reason, not a silent replacement for an unavailable provider. Results return to
-the same source and policy checks before commitment. Unresolved uncertainty,
-exhausted analysis budget, or unavailable required context produces
-`routing_blocked`, never fabricated noise.
+If a fact is still unresolved, GPT-6.1 Sol restates what the batch reports or asks
+for, from the batch, its replied-to messages, and the Product Overview, and Jev
+answers once more with that restatement as labeled context. GPT-6.1 Sol never
+decides the route and never runs as a routine verifier of Jev. Each branch records
+its reason and is not a silent replacement for an unavailable provider. A batch
+GPT-6.1 Sol cannot interpret, or one still unresolved after its restatement,
+commits `routing_blocked`, never fabricated noise.
 
 ### Product Signal evidence and presentation
 
-Create routine Product Signals from typed classifications and selected source
-messages or spans. Application code supplies selectable evidence references and
-checks that every selected reference belongs to the pinned context. Preserve the
-originating user's wording for the goal, pain, expected behavior, and impact;
-record unspecified details as unknown for the interview to resolve.
+A routine Product Signal records its typed classification, one source report, and
+every message of the batch as `intake_source` evidence; nothing selects among the
+messages. Preserve the originating user's wording for the goal, pain, expected
+behavior, and impact; record unspecified details as unknown for the interview to
+resolve.
 
-Generate narrative summaries with GPT-6.1 Sol only when a consumer needs synthesized
-prose that source excerpts or templates cannot provide. Such summaries are
-derived presentation and do not block an otherwise complete routing decision or
-replace source evidence. Noise pointers and private invitations can use
-source-linked templates; they do not require a prose-generation step per batch.
+Noise pointers and private invitations use fixed templates; routing generates no
+narrative summary.
 
 ### Initial and interview-established classification
 
@@ -137,9 +131,12 @@ participation follows the normal blocked-case and offer-eligibility contracts; i
 does not retroactively erase completed participation.
 
 An Outreach Attempt moves `scheduled` → `dispatching` → `awaiting_response` →
-`claimed`; its alternates are `declined`, `expired`, `unreached`, and `revoked`,
-and delivery retries stay inside one logical attempt. Confirmed delivery enters
-`awaiting_response`; claims must prove the bound Discord identity. A delivered
+`claimed`; its alternates are `declined`, `expired`, `unreached`, and `revoked`.
+A send is never retried, because Discord offers no idempotency key for a message
+send: confirmed delivery enters `awaiting_response`, a failed send moves the
+attempt to `unreached` and releases its offer reservation, and a send with no
+recorded result refuses any resend until it is reconciled against the
+direct-message channel. Claims must prove the bound Discord identity. A delivered
 initial invitation is acknowledged with one short public reply to the reporter's
 latest message in the request, saying a DM was sent and nothing about the offer or
 the case; it is sent once, by the run that delivered the invitation, and its
@@ -150,8 +147,7 @@ Signal and produces no Case File.
 Rewarded invitations must first satisfy the [offer reservation contract](./outreach-offers.md#budget-and-offer-reservations).
 Include its pinned credit amount, currency, billing use, organization, and participation conditions.
 Return links and reminders reuse the same offer and reservation; they do not
-create another reward. Failed or uncertain sends reconcile before releasing
-allowance or trying again.
+create another reward.
 
 Invitations and reminders follow a policy-pinned per-person and per-client contact
 budget. The [failure-recovery contract](./failure-recovery.md#bounded-return-and-terminal-expiry)
