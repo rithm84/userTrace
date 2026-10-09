@@ -47,6 +47,10 @@ dev = [
   # The simulated participant and judge in the live interview quality test.
   "anthropic>=1.12",
 ]
+# The voice agent's image on Pipecat Cloud, whose server imports it beside our code.
+pipecat-cloud = [
+  "pipecatcloud==1.3.0",
+]
 
 [tool.uv.sources]
 utrace-contracts = { path = "../../packages/utrace-contracts/python", editable = true }

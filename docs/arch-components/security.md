@@ -50,7 +50,7 @@ Client data is encrypted in transit and at rest. Supabase RLS, explicit membersh
 
 Long-lived credentials remain in the control plane's [credential custody](./deployment.md#secrets-and-credentials). Supabase service-role and secret keys, GitHub private keys, Discord secrets, model credentials, and Vercel tokens never enter browsers or model context. Short-lived lane credentials are audience-bound and revoked with the session.
 
-The OpenAI, Daily, Deepgram, and ElevenLabs API keys remain in backend
+The OpenAI, Daily, Deepgram, and ElevenLabs API keys remain in the voice agent's Pipecat Cloud secret set and backend
 adapters, and the workspace sandbox receives the OpenAI credential only as a header
 its firewall adds at egress. Participant authentication authorizes the
 [call setup route](./interview-and-voice.md#call-setup); its meeting token admits

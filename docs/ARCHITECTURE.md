@@ -30,7 +30,7 @@ The system has one durable authority and several specialized execution planes.
 
 ![Browser, voice, reasoning, authority, data, preview compute, and delivery relationships.](./diagrams/svg/architecture-system-landscape.svg)
 
-The voice agent handles conversational voice: a Pipecat pipeline in the worker
+The voice agent handles conversational voice: a Pipecat pipeline on Pipecat Cloud
 that joins the call's private Daily room, hears the participant through Deepgram
 Flux, writes its words and calls uTrace's tools with GPT-6.1 Sol on the OpenAI
 API's Ultrafast service tier, and speaks through ElevenLabs. Every other reasoning
@@ -184,7 +184,7 @@ controls without granting lifecycle-editing authority.
 
 The deployment map places each workload at its owning service.
 
-![Deployment across Vercel, Supabase Compute, Supabase, Daily, and the model providers with backend provider dependencies.](./diagrams/svg/architecture-deployment-topology.svg)
+![Deployment across Vercel, Supabase Compute, Pipecat Cloud, Supabase, Daily, and the model providers with backend provider dependencies.](./diagrams/svg/architecture-deployment-topology.svg)
 
 [Data and Schema](./arch-components/data-and-schema.md) owns durable records,
 artifacts, and their cleanup contracts.
@@ -210,7 +210,7 @@ billing authority.
 | --- | --- |
 | Staff and participant authentication | Supabase Auth; explicit uTrace authorization; Discord sign-in for participants |
 | Customer Surface | One configured Discord server per client |
-| Full-duplex voice call | Pipecat (`pipecat-ai` 1.12) voice agent in the worker; one private Daily room per voice connection, created by the backend |
+| Full-duplex voice call | Pipecat (`pipecat-ai` 1.12) voice agent on Pipecat Cloud, one warm instance; one private Daily room per voice connection, created by the backend |
 | Speech recognition and turn detection | Deepgram Flux (`flux-general-en`) |
 | Voice agent text model | GPT-6.1 Sol (`gpt-6.1-sol`), Ultrafast tier, through the OpenAI Responses API over WebSocket |
 | Speech synthesis | ElevenLabs Eleven v4 Turbo (`eleven_v4_turbo`) |
@@ -222,7 +222,7 @@ billing authority.
 | Committed application notifications | Supabase Realtime |
 | Durable dispatch and scheduling | Supabase Queues and Cron; uTrace Jobs and authority in Postgres |
 | Persistent API, Discord, telemetry, session coordination, workers | Supabase Compute (private alpha) in the uTrace Supabase project |
-| Server-side credential custody | Supabase Compute project secrets |
+| Server-side credential custody | Supabase Compute project secrets; the voice agent's Pipecat Cloud secret set |
 | Isolated implementation and preview compute | Vercel Sandbox |
 | Web surfaces and preview front door | Vercel |
 | Branches, diffs, and PRs | GitHub |

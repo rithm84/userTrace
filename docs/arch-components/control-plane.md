@@ -45,7 +45,7 @@ Model calls follow the [model access contract](./deployment.md#model-access).
 The control plane authorizes [call setup](./interview-and-voice.md#call-setup)
 and binds the call's Daily room to the current voice run. No provider runs a second
 lifecycle controller or authorizes application tools: the voice agent's tools run
-in the worker under the control plane's guards, and the Codex harness runs
+in its session under the control plane's guards, and the Codex harness runs
 only inside a workspace sandbox the control plane fences.
 
 [Context Assembly](./context-assembly.md) owns revisioned role-specific bundles,

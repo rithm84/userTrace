@@ -48,7 +48,8 @@ functions run in `iad1`, beside the Vercel Sandbox preview runtimes it proxies
 every preview request to.
 
 Daily carries each voice call in a private room. The voice agent, a Pipecat
-pipeline in the worker, uses Deepgram Flux for speech recognition, GPT-6.1 Sol at
+pipeline on Pipecat Cloud in `us-west` beside the Supabase project, uses Deepgram
+Flux for speech recognition, GPT-6.1 Sol at
 the Ultrafast tier through the OpenAI API for its words and tool calls, and
 ElevenLabs for speech. The OpenAI API supplies GPT-6.1 Sol for Implementation Gate
 proposals; Codex in each
@@ -88,7 +89,7 @@ interpret or write for a reader and run at medium.
 No model is ever substituted for another. A rate-limited request retries after the
 provider's `retry-after` delay within the Job's retry budget.
 
-The voice agent pins its providers in the worker's voice settings: Deepgram
+The voice agent pins its providers in its voice settings: Deepgram
 `flux-general-en`, `gpt-6.1-sol` at the `ultrafast` service tier with reasoning
 effort `low`, and ElevenLabs `eleven_v4_turbo` in the Siren voice. The backend
 creates each Daily room and the voice agent joins it; the
@@ -140,7 +141,7 @@ outbound side effects are neutered.
 
 ## Secrets and credentials
 
-Supabase Compute project secrets are the custody boundary for Discord, GitHub, Stripe, OpenAI, Daily, Deepgram, ElevenLabs, Vercel, and other server-side grants. Secrets never enter prompts, telemetry, logs, Storage artifacts, build outputs, browser bundles, or Case Files. uTrace-issued session and provider-hop credentials are short-lived and audience-bound.
+Supabase Compute project secrets are the custody boundary for Discord, GitHub, Stripe, OpenAI, Daily, Deepgram, ElevenLabs, Vercel, and other server-side grants. The voice agent reads its own copies of the keys it needs from a Pipecat Cloud secret set, `utrace-voice-agent-secrets`, which `deploy/pipecat-cloud/deploy.py secrets` writes from the same local environment. Secrets never enter prompts, telemetry, logs, Storage artifacts, build outputs, browser bundles, or Case Files. uTrace-issued session and provider-hop credentials are short-lived and audience-bound.
 
 Compute injects every project secret into every compute as an environment
 variable, so custody is scoped to the project: the `api` and `worker` computes
@@ -161,8 +162,7 @@ either, because the sandbox firewall adds it at egress. Authentication failure n
 
 The persistent API scales horizontally with request volume, active sessions, and
 telemetry load by running more `api` instances. The worker does not. It hosts the
-Customer Surface consumers beside its Job loop and its voice lane, a separate
-process that runs only voice agent Jobs, so it holds the client's single
+Customer Surface consumers beside its Job loop, so it holds the client's single
 Discord gateway session, and a second instance would deliver every watched-channel
 message twice. The `worker` compute therefore runs exactly one instance. That is a
 correctness constraint on the intake path, not a cost decision, and it caps

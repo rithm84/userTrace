@@ -142,6 +142,8 @@ _TEST_DEFAULTS = {
     "UTRACE_LANE_SIGNING_KEY": "control-plane-integration-test-signing-key",
     "UTRACE_FRONT_DOOR_SERVICE_TOKEN": "control-plane-integration-test-front-door",
     "UTRACE_PREVIEW_ORIGIN_SUFFIX": "preview.utrace.dev",
+    # A local run hosts each voice agent session in the API's own process.
+    "UTRACE_VOICE_AGENT_RUNTIME": "in_process",
 }
 
 

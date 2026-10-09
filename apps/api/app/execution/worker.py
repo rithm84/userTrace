@@ -21,7 +21,6 @@ import asyncio
 import os
 import signal
 import socket
-import sys
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from logging import INFO
@@ -34,7 +33,7 @@ from app.connectors.failures import ConnectorFailure
 from app.db.pool import Database
 from app.envelope import Failure, JsonValue
 from app.errors import GuardRejectedError
-from app.execution.handlers import VOICE_JOB_TYPES, build_exhausted_handlers, build_handlers
+from app.execution.handlers import build_exhausted_handlers, build_handlers
 from app.execution.jobs import (
     ClaimedJob,
     ExhaustionHook,
@@ -108,14 +107,14 @@ class Worker:
             job_types=sorted(self._handlers),
             concurrency=self._config.concurrency,
         )
-        # Jobs run side by side: a voice agent lives as long as its interview,
-        # and the gate, implementation, and ingestion work must keep moving
-        # meanwhile rather than wait behind it.
+        # Jobs run side by side: an Implementation Attempt runs for minutes, and
+        # the gate, preview, and ingestion work must keep moving meanwhile rather
+        # than wait behind it.
         running: set[asyncio.Task[None]] = set()
         crashed: list[BaseException] = []
 
         def settle(task: asyncio.Task[None]) -> None:
-            # `_execute` records handler failures itself, so an exception here is
+            # `execute` records handler failures itself, so an exception here is
             # the worker's own infrastructure failing: stop, as the loop always has.
             running.discard(task)
             error = None if task.cancelled() else task.exception()
@@ -132,7 +131,7 @@ class Worker:
                 if claimed is None:
                     await self._idle(running)
                     continue
-                task = asyncio.create_task(self._execute(claimed))
+                task = asyncio.create_task(self.execute(claimed))
                 running.add(task)
                 task.add_done_callback(settle)
         finally:
@@ -146,7 +145,7 @@ class Worker:
         claimed = await self._claim()
         if claimed is None:
             return False
-        await self._execute(claimed)
+        await self.execute(claimed)
         return True
 
     async def _claim(self) -> ClaimedJob | None:
@@ -167,7 +166,7 @@ class Worker:
             lease_seconds=self._config.lease_seconds,
         )
 
-    async def _execute(self, claimed: ClaimedJob) -> None:
+    async def execute(self, claimed: ClaimedJob) -> None:
         handler = self._handlers.get(claimed.job_type)
         if handler is None:
             await self._fail(
@@ -359,13 +358,7 @@ async def _run() -> int:
         max_size=settings.database_pool_max_size,
     )
     await database.open()
-    # Voice agents run in the voice lane's own process (`app.execution.voice_lane`).
-    handlers = {
-        job_type: handler
-        for job_type, handler in build_handlers().items()
-        if job_type not in VOICE_JOB_TYPES
-    }
-    worker = Worker(database, default_config(), handlers, build_exhausted_handlers())
+    worker = Worker(database, default_config(), build_handlers(), build_exhausted_handlers())
     consumers = WatchedChannelConsumers(
         database, get_intake_settings(), get_consumer_settings()
     )
@@ -399,31 +392,25 @@ def _liveness_port() -> int:
 async def _serve(
     worker: Worker, consumers: WatchedChannelConsumers, *, liveness_port: int
 ) -> int:
-    """Run the Job loop, the voice lane, the consumers, and the liveness listener until one ends.
+    """Run the Job loop, the consumers, and the liveness listener until one ends.
 
     Whichever ends first, the others are asked to stop and awaited, so a signal
     drains the current Job and closes the gateway sessions, and a failed
     component does not leave a half-running process behind.
     """
-    voice_lane = await asyncio.create_subprocess_exec(
-        sys.executable, "-m", "app.execution.voice_lane"
-    )
     job_loop = asyncio.create_task(worker.run(), name="job-loop")
-    voice = asyncio.create_task(_voice_lane_exit(voice_lane), name="voice-lane")
     intake = asyncio.create_task(consumers.run(), name="intake-consumers")
     liveness = asyncio.create_task(serve_liveness(liveness_port), name="liveness")
     await asyncio.wait(
-        {job_loop, voice, intake, liveness}, return_when=asyncio.FIRST_COMPLETED
+        {job_loop, intake, liveness}, return_when=asyncio.FIRST_COMPLETED
     )
     worker.request_stop()
     consumers.request_stop()
     liveness.cancel()
-    if voice_lane.returncode is None:
-        voice_lane.send_signal(signal.SIGTERM)
-    results = await asyncio.gather(job_loop, voice, intake, liveness, return_exceptions=True)
+    results = await asyncio.gather(job_loop, intake, liveness, return_exceptions=True)
     failed = False
     for component, result in zip(
-        ("job_loop", "voice_lane", "intake_consumers", "liveness"), results, strict=True
+        ("job_loop", "intake_consumers", "liveness"), results, strict=True
     ):
         if isinstance(result, asyncio.CancelledError) and component == "liveness":
             continue
@@ -437,13 +424,6 @@ async def _serve(
             )
     _log.info("worker_exited", failed=failed)
     return 1 if failed else 0
-
-
-async def _voice_lane_exit(process: asyncio.subprocess.Process) -> None:
-    """Wait for the voice lane process; it exiting with a failure fails the worker."""
-    code = await process.wait()
-    if code != 0:
-        raise RuntimeError(f"the voice lane process exited with status {code}")
 
 
 def main() -> int:

@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
-from psycopg import AsyncConnection
+from psycopg import AsyncConnection, AsyncCursor
 from psycopg.errors import UniqueViolation
 from psycopg.rows import DictRow
 from psycopg.types.json import Jsonb
@@ -29,9 +29,11 @@ __all__ = [
     "ClaimedJob",
     "ExhaustionHook",
     "claim_job",
+    "claim_job_by_id",
     "complete_job_run",
     "fail_job_run",
     "heartbeat",
+    "next_run_at",
 ]
 
 _log = get_logger(__name__)
@@ -113,32 +115,100 @@ async def claim_job(
         job = await cur.fetchone()
         if job is None:
             return None
+        return await _lease(cur, job, worker_id=worker_id, lease_seconds=lease_seconds)
 
-        job_run_id = uuid7()
+
+async def claim_job_by_id(
+    database: Database, *, job_id: UUID, worker_id: str, lease_seconds: int
+) -> ClaimedJob | None:
+    """Claim one named Job, or return ``None`` while it is not claimable.
+
+    The Job must be ready, due, inside its deadline, and have runs left, and its
+    concurrency key must be free, exactly as `claim_job` requires of any Job.
+    """
+    async with database.transaction() as conn, conn.cursor() as cur:
+        try:
+            await cur.execute(
+                """
+                update public.jobs
+                set state = %s,
+                    run_count = run_count + 1,
+                    revision = revision + 1,
+                    updated_at = now()
+                where id = %s
+                  and state = %s
+                  and not_before <= now()
+                  and deadline_at > now()
+                  and run_count < max_runs
+                  and (
+                    concurrency_key is null
+                    or not exists (
+                      select 1 from public.jobs as busy
+                      where busy.state = %s
+                        and busy.client_id = jobs.client_id
+                        and busy.concurrency_key = jobs.concurrency_key
+                    )
+                  )
+                returning id, client_id, job_type, input, deadline_at, run_count,
+                          timeout_seconds
+                """,
+                (JobState.LEASED.value, job_id, JobState.READY.value, JobState.LEASED.value),
+            )
+        except UniqueViolation:
+            _log.info("job_claim_contended", worker_id=worker_id, job_id=str(job_id))
+            return None
+        job = await cur.fetchone()
+        if job is None:
+            return None
+        return await _lease(cur, job, worker_id=worker_id, lease_seconds=lease_seconds)
+
+
+async def next_run_at(database: Database, *, job_id: UUID) -> datetime | None:
+    """When the named Job can next be claimed, or ``None`` if it never can again.
+
+    A Job that is running, finished, out of runs, or past its deadline has no next
+    run; a ready Job's next run is due at its `not_before`.
+    """
+    async with database.connection() as conn, conn.cursor() as cur:
         await cur.execute(
             """
-            insert into public.job_runs (
-                id, client_id, job_id, state, fencing_token, worker_id, lease_expires_at
-            )
-            values (
-                %s, %s, %s, %s, utrace.next_fencing_token(), %s,
-                now() + make_interval(secs => %s)
-            )
-            returning fencing_token, lease_expires_at
+            select not_before from public.jobs
+            where id = %s and state = %s and run_count < max_runs and deadline_at > now()
             """,
-            (
-                job_run_id,
-                as_uuid(job, "client_id"),
-                as_uuid(job, "id"),
-                JobRunState.LEASED.value,
-                worker_id,
-                lease_seconds,
-            ),
+            (job_id, JobState.READY.value),
         )
-        run = await cur.fetchone()
+        row = await cur.fetchone()
+    return None if row is None else as_datetime(row, "not_before")
+
+
+async def _lease(
+    cur: AsyncCursor[DictRow], job: DictRow, *, worker_id: str, lease_seconds: int
+) -> ClaimedJob | None:
+    """Open the Job Run that leases a Job just moved to leased, with its fencing token."""
+    job_run_id = uuid7()
+    await cur.execute(
+        """
+        insert into public.job_runs (
+            id, client_id, job_id, state, fencing_token, worker_id, lease_expires_at
+        )
+        values (
+            %s, %s, %s, %s, utrace.next_fencing_token(), %s,
+            now() + make_interval(secs => %s)
+        )
+        returning fencing_token, lease_expires_at
+        """,
+        (
+            job_run_id,
+            as_uuid(job, "client_id"),
+            as_uuid(job, "id"),
+            JobRunState.LEASED.value,
+            worker_id,
+            lease_seconds,
+        ),
+    )
+    run = await cur.fetchone()
     if run is None:
         return None
-
     claimed = ClaimedJob(
         job_id=as_uuid(job, "id"),
         job_run_id=job_run_id,

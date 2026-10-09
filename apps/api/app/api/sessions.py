@@ -21,6 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.auth.dependencies import CurrentDatabase, ParticipantOfPath
 from app.auth.principals import ParticipantPrincipal
+from app.connectors.failures import ConnectorFailure
 from app.db.pool import Database
 from app.db.rows import as_optional_str, as_uuid
 from app.envelope import JsonValue
@@ -31,7 +32,7 @@ from app.interview.controls import RETURN_WINDOW_SECONDS, apply_participant_cont
 from app.interview.preflight import ParticipantEnvironment, run_participant_preflight
 from app.interview.projection import load_projection
 from app.interview.settings import get_interview_settings
-from app.interview.voice.connections import open_voice_connection
+from app.interview.voice.connections import close_voice_connection, open_voice_connection
 from app.lifecycle.session_controls import ControlAction
 from app.ports import PortRegistry
 
@@ -225,6 +226,20 @@ async def open_connection(
         participant=participant,
         interview_session_id=session_id,
     )
+    if opened.agent_job_id is not None:
+        try:
+            await voice.start_agent(voice_agent_job_id=opened.agent_job_id)
+        except ConnectorFailure:
+            # A call with no agent coming must not be rejoined: the tab's retry opens
+            # a new call instead.
+            await close_voice_connection(
+                database,
+                client_id=participant.client_id,
+                connection_id=opened.connection_id,
+                reason="voice_agent_start_failed",
+                close_provider_session=True,
+            )
+            raise
     return VoiceConnectionResult(
         room_url=opened.room_url,
         participant_token=opened.participant_token,

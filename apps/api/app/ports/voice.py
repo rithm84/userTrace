@@ -58,3 +58,7 @@ class VoicePort(Protocol):
         """Admit the participant to their call again, removing any browser of theirs
         still in it, and return the new participant token."""
         ...
+
+    async def start_agent(self, *, voice_agent_job_id: UUID) -> None:
+        """Start the voice agent that claims and runs a connection's newly queued Job."""
+        ...

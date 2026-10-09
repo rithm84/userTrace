@@ -177,7 +177,7 @@ Before an Interview Session starts, the claimed invitation runs a participant co
   session's current binding, readiness, and character state. Each connection
   names the session the service worker serves when it opens.
 - The control plane pushes; it does not wait to be asked. Any control-plane
-  process, whether an API request, the worker's voice agent, or an ingestion
+  process, whether an API request, the voice agent, or an ingestion
   Job, changes a session's binding, readiness, character state, or visual
   commands only by committing durable state. The commit notifies the
   `extension_control` Postgres channel with the session, which wakes the API
