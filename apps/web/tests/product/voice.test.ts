@@ -6,6 +6,7 @@ import {
   appendTranscriptDelta,
   readBotOutput,
   readUserTranscription,
+  withInterim,
   type ShownSegments,
   type TranscriptDelta,
   type TranscriptTurn,
@@ -69,6 +70,7 @@ function parametersWith(overrides: Partial<ConnectVoiceParameters>): ConnectVoic
     onAgentAudio: vi.fn(),
     onDisconnected: vi.fn(),
     onTranscriptDelta: vi.fn(),
+    onParticipantInterim: vi.fn(),
     onNotice: vi.fn(),
     joinTimeoutMs: 1000,
     ...overrides,
@@ -130,7 +132,7 @@ describe("session voice connection", () => {
     expect(parameters.onDisconnected).toHaveBeenCalledTimes(1);
   });
 
-  it("feeds final user transcripts and spoken agent output into the transcript", async () => {
+  it("feeds the participant's words as they talk, then final, and spoken agent output into the transcript", async () => {
     const parameters = parametersWith({});
     await connectVoice(parameters);
     const progress = (segment_id: number, accumulated_text: string, remaining_text: string) => ({
@@ -143,6 +145,7 @@ describe("session voice connection", () => {
     callbacks().onBotOutput?.(progress(1, "Hi", " Maya."));
     callbacks().onBotOutput?.(progress(1, "Hi Maya.", ""));
     callbacks().onUserTranscript?.({ text: "Hi th", final: false, timestamp: "t", user_id: "u" });
+    callbacks().onUserTranscript?.({ text: "Hi there", final: false, timestamp: "t", user_id: "u" });
     callbacks().onUserTranscript?.({ text: "Hi there.", final: true, timestamp: "t", user_id: "u" });
     callbacks().onBotOutput?.({ text: "bad" });
     callbacks().onBotOutput?.({ text: "x", spoken_progress: { accumulated_text: "x", remaining_text: "" } });
@@ -152,6 +155,8 @@ describe("session voice connection", () => {
       [{ speaker: "agent", text: " Maya." }],
       [{ speaker: "participant", text: " Hi there." }],
     ]);
+    // Each interim replaces the last; the final words replace them.
+    expect(vi.mocked(parameters.onParticipantInterim).mock.calls).toEqual([["Hi th"], ["Hi there"], [""]]);
     expect(parameters.onNotice).toHaveBeenCalledTimes(1);
     expect(vi.mocked(parameters.onNotice).mock.calls[0]?.[0]).toContain("segment_id");
   });
@@ -226,6 +231,18 @@ describe("session transcript", () => {
       readBotOutput(shown, { text: "Goodbye", segment_id: 1, spoken_progress: { accumulated_text: "Goodbye", remaining_text: "" } }),
     ).toThrow(TranscriptEventError);
     expect(() => readUserTranscription({ text: "no final flag" })).toThrow(TranscriptEventError);
+  });
+
+  it("shows the participant's words so far after what is final, in their own turn", () => {
+    const turns: readonly TranscriptTurn[] = [
+      { key: "agent-0", speaker: "agent", text: "What would you like help with?" },
+    ];
+
+    expect(withInterim(turns, "").map((turn) => turn.text)).toEqual(["What would you like help with?"]);
+    expect(withInterim(turns, "Let me open the").map((turn) => [turn.speaker, turn.text])).toEqual([
+      ["agent", "What would you like help with?"],
+      ["participant", "Let me open the"],
+    ]);
   });
 
   it("joins consecutive fragments from one speaker into a turn", () => {

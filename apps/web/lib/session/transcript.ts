@@ -6,7 +6,8 @@ import { z } from "zod";
  * The voice agent's Pipecat pipeline reports what each side says as RTVI events
  * over the Daily call: a `user-transcription` for the participant and
  * `bot-output` for the agent, whose `spoken_progress` grows as the agent's speech
- * plays. The tab only displays them. The durable transcript is the backend's own
+ * plays, and the participant's interim transcriptions show their words while they
+ * are still talking. The tab only displays them. The durable transcript is the backend's own
  * record, and a displayed fragment is neither a completed turn nor evidence (see
  * `docs/arch-components/interview-and-voice.md#transcript-and-evidence-contract`).
  */
@@ -52,8 +53,18 @@ export class TranscriptEventError extends Error {
   }
 }
 
-/** The participant's words from one `user-transcription` event; interim transcriptions show nothing. */
-export function readUserTranscription(data: unknown): TranscriptDelta | null {
+/**
+ * What one `user-transcription` event says. A final event adds the participant's
+ * words for good. An interim one is their turn so far, as the speech recognizer
+ * hears it while they are still talking: each one replaces the last, and the
+ * final words of the turn replace them.
+ */
+export type UserTranscription =
+  | Readonly<{ final: true; delta: TranscriptDelta }>
+  | Readonly<{ final: false; text: string }>;
+
+/** The participant's words from one `user-transcription` event; a final one with no words shows nothing. */
+export function readUserTranscription(data: unknown): UserTranscription | null {
   const event = userTranscriptionSchema.safeParse(data);
   if (!event.success) {
     throw new TranscriptEventError(
@@ -62,10 +73,18 @@ export function readUserTranscription(data: unknown): TranscriptDelta | null {
     );
   }
   const text = event.data.text.trim();
-  if (!event.data.final || text.length === 0) {
+  if (!event.data.final) {
+    return { final: false, text };
+  }
+  if (text.length === 0) {
     return null;
   }
-  return { speaker: "participant", text: ` ${text}` };
+  return { final: true, delta: { speaker: "participant", text: ` ${text}` } };
+}
+
+/** The turns as shown while the participant is still talking: their words so far follow what is final. */
+export function withInterim(turns: readonly TranscriptTurn[], interim: string): readonly TranscriptTurn[] {
+  return interim.length === 0 ? turns : appendTranscriptDelta(turns, { speaker: "participant", text: ` ${interim}` });
 }
 
 /**

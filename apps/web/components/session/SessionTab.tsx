@@ -1,7 +1,7 @@
 "use client";
 
 import { ExternalLink } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, useTransition, type JSX } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type JSX } from "react";
 
 import type { SessionControlAction, SessionProjection } from "@/lib/api/schemas";
 import {
@@ -13,7 +13,7 @@ import {
 } from "@/lib/session/actions";
 import { ExtensionError, deliverBindingOffer } from "@/lib/session/extension";
 import { subscribeToSession, type RealtimeStatus } from "@/lib/session/realtime";
-import { appendTranscriptDelta, type TranscriptDelta, type TranscriptTurn } from "@/lib/session/transcript";
+import { appendTranscriptDelta, withInterim, type TranscriptDelta, type TranscriptTurn } from "@/lib/session/transcript";
 import { VoiceError, connectVoice, type VoiceSession } from "@/lib/session/voice";
 
 import { EndedCard } from "./EndedCard";
@@ -92,6 +92,8 @@ export function SessionTab(
   const [notice, setNotice] = useState<string | null>(null);
   const [returned, setReturned] = useState(false);
   const [turns, setTurns] = useState<readonly TranscriptTurn[]>([]);
+  const [interim, setInterim] = useState("");
+  const shownTurns = useMemo(() => withInterim(turns, interim), [turns, interim]);
   const [pending, startTransition] = useTransition();
   const characterSize = useCharacterSize();
 
@@ -224,6 +226,7 @@ export function SessionTab(
             reopen = reopenVoice();
           },
           onTranscriptDelta: acceptTranscriptDelta,
+          onParticipantInterim: setInterim,
           onNotice: setNotice,
           joinTimeoutMs: VOICE_JOIN_TIMEOUT_MS,
         });
@@ -467,7 +470,7 @@ export function SessionTab(
       </section>
 
       <TranscriptPanel
-        turns={turns}
+        turns={shownTurns}
         agentName={projection.agent_name}
         agentColour={projection.agent_character}
         live={voiceStatus === "connected"}
