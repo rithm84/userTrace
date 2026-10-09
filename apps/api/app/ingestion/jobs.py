@@ -24,7 +24,7 @@ from utrace_contracts.domain.lifecycle import InterviewSessionState
 
 from app.adapters.observation_readiness import IngestionObservationReadiness
 from app.db.pool import Database
-from app.db.rows import as_int, as_str, as_uuid
+from app.db.rows import as_int, as_optional_uuid, as_str, as_uuid
 from app.envelope import JsonValue
 from app.execution.jobs import ClaimedJob
 from app.ingestion.correlation import correlate_trace
@@ -147,7 +147,10 @@ async def evaluate_readiness(
     bounded acknowledgement lag, and no unresolved critical delivery gap, all for
     the current document: a document the participant navigated away from ended its
     stream, and that is not a readiness failure. Server readiness requires every
-    manifest-required service stream with bounded export lag. Correlation readiness
+    manifest-required service stream of the current document's preview, or of the
+    session's own preview before the participant opens a document, with bounded
+    export lag: once the participant moves to a candidate, the base preview's streams
+    no longer describe what they see. Correlation readiness
     requires a browser ``CLIENT`` span, server ``SERVER`` span, and every required
     downstream hop to join under the current document's activation; a later trace
     that needs fewer hops, such as a page load, does not undo that proof, while an
@@ -155,7 +158,14 @@ async def evaluate_readiness(
     """
     async with database.connection() as conn, conn.cursor() as cur:
         await cur.execute(
-            "select interview_session_id from public.telemetry_activations where id = %s",
+            """
+            select activations.interview_session_id,
+                   sessions.preview_runtime_allocation_id as session_allocation_id
+            from public.telemetry_activations as activations
+            join public.interview_sessions as sessions
+              on sessions.id = activations.interview_session_id
+            where activations.id = %s
+            """,
             (activation_id,),
         )
         activation = await cur.fetchone()
@@ -166,7 +176,7 @@ async def evaluate_readiness(
         # one is the document the participant has open.
         await cur.execute(
             """
-            select id from public.telemetry_activations
+            select id, preview_runtime_allocation_id from public.telemetry_activations
             where interview_session_id = %s and kind = 'browser'
             order by created_at desc
             limit 1
@@ -176,6 +186,11 @@ async def evaluate_readiness(
         current_document = await cur.fetchone()
         document_activation_id = (
             as_uuid(current_document, "id") if current_document is not None else None
+        )
+        preview_allocation_id = (
+            as_uuid(current_document, "preview_runtime_allocation_id")
+            if current_document is not None
+            else as_optional_uuid(activation, "session_allocation_id")
         )
         await cur.execute(
             """
@@ -208,8 +223,9 @@ async def evaluate_readiness(
             join public.telemetry_activations as activations
               on activations.id = streams.activation_id
             where activations.interview_session_id = %s
+              and activations.preview_runtime_allocation_id = %s
             """,
-            (session_id,),
+            (session_id, preview_allocation_id),
         )
         server_streams = await cur.fetchall()
         await cur.execute(
@@ -237,9 +253,10 @@ async def evaluate_readiness(
             """
             select id, probe_id from public.telemetry_activations
             where kind = 'server' and interview_session_id = %s
+              and preview_runtime_allocation_id = %s
             order by created_at limit 1
             """,
-            (session_id,),
+            (session_id, preview_allocation_id),
         )
         server_activation = await cur.fetchone()
 

@@ -177,6 +177,56 @@ async def test_a_valid_batch_is_a_full_success_with_no_partial_success(
     assert server_stream["accepted_through_batch_sequence"] == 1
 
 
+async def test_the_batch_that_fills_a_hole_carries_the_watermark_past_later_batches(
+    telemetry_database: Database,
+    keys: SigningKeys,
+    ingest_server: str,
+    auth_users: dict[str, SignedInUser],
+) -> None:
+    """Concurrent exports can commit out of order: 1, 3, 4, then 2 accepts through 4."""
+    stream = await _activate_server(
+        telemetry_database,
+        keys,
+        name=f"otlp-order-{uuid7().hex[:8]}",
+        authorizing_auth_user_id=auth_users["owner_a"].auth_user_id,
+    )
+
+    async def accepted_through() -> tuple[int, int]:
+        async with telemetry_database.connection() as conn, conn.cursor() as cur:
+            await cur.execute(
+                "select accepted_through_batch_sequence, highest_received_batch_sequence "
+                "from public.server_streams where id = %s",
+                (stream.server_stream_id,),
+            )
+            row = await cur.fetchone()
+        assert row is not None
+        return (
+            int(row["accepted_through_batch_sequence"]),
+            int(row["highest_received_batch_sequence"]),
+        )
+
+    for sequence in (1, 3, 4):
+        status, _ = await _post(
+            ingest_server,
+            stream,
+            [_server_span(secrets.token_hex(16), secrets.token_hex(8), None)],
+            sequence=sequence,
+            batch_id=None,
+        )
+        assert status == 200
+    assert await accepted_through() == (1, 4)
+
+    status, _ = await _post(
+        ingest_server,
+        stream,
+        [_server_span(secrets.token_hex(16), secrets.token_hex(8), None)],
+        sequence=2,
+        batch_id=None,
+    )
+    assert status == 200
+    assert await accepted_through() == (4, 4)
+
+
 async def test_one_invalid_span_rejects_the_whole_batch(
     telemetry_database: Database,
     keys: SigningKeys,
