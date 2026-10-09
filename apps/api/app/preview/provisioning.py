@@ -84,10 +84,12 @@ __all__ = [
 
 _log = get_logger(__name__)
 
-_HEALTH_POLL_SECONDS = 2.0
+# A new version is announced the moment it answers, so the poll is short: a two
+# second poll left the participant waiting up to two seconds after it was up.
+_HEALTH_POLL_SECONDS = 0.25
 # A candidate reinstalls the approved dataset at every start, so the window has
-# to cover a full reseed of the fixture, not just a process restart.
-_HEALTH_ATTEMPTS = 180
+# to cover a full reseed of the fixture, not just a process restart: six minutes.
+_HEALTH_ATTEMPTS = 1440
 
 
 async def wait_for_health(
