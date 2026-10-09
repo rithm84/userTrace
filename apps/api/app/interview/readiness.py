@@ -114,7 +114,18 @@ class ReadinessRecord:
 async def load_readiness(
     database: Database, *, interview_session_id: UUID
 ) -> ReadinessRecord:
-    """Return the current readiness record, creating it on first read."""
+    """Return the current readiness record, creating it on first read.
+
+    A read takes no lock. The extension's projection, a tool call, and every other
+    reader see the last committed record at once instead of queueing behind a
+    writer that holds the row, so a slow writer can never hold back the agent's
+    cursor or character.
+    """
+    async with database.connection() as conn, conn.cursor() as cur:
+        await cur.execute(_READINESS_QUERY, (interview_session_id,))
+        row = await cur.fetchone()
+    if row is not None:
+        return _to_record(interview_session_id, row)
     async with database.transaction() as conn:
         return await _ensure(conn, interview_session_id=interview_session_id)
 
@@ -498,15 +509,16 @@ async def _write(conn: AsyncConnection[DictRow], record: ReadinessRecord) -> Non
         )
 
 
-_SELECT_READINESS = """
+_READINESS_QUERY = """
     select client_id, readiness_revision, extension_readiness, blockers,
            participant_authenticated, voice_transport_ready, sideband_attached,
            backend_context_current, preview_allocation_ready, browser_sdk_ready,
            server_sdk_ready, trace_correlation_ready
     from public.session_readiness
     where interview_session_id = %s
-    for update
 """
+#: The same read for a writer, which holds the row until it commits.
+_SELECT_READINESS = _READINESS_QUERY + "    for update\n"
 
 
 def _to_record(interview_session_id: UUID, row: DictRow) -> ReadinessRecord:

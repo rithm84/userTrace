@@ -24,6 +24,7 @@ __all__ = [
     "cancel",
     "character_state",
     "control_action_result",
+    "controls_state",
     "heartbeat",
     "preferences_state",
     "readiness",
@@ -137,6 +138,22 @@ def character_state(
             "gaze_y": gaze_y,
             "speech_energy": speech_energy,
             "motion_scale": motion_scale,
+        },
+        sequenced=True,
+    )
+
+
+def controls_state(
+    *, session_id: UUID, session_control_revision: int, mute_state: str, pause_state: str
+) -> OutgoingFrame:
+    """The session's own mute and pause state, which the pills show whoever changed it."""
+    return OutgoingFrame(
+        kind="controls_state",
+        payload={
+            "session_id": str(session_id),
+            "session_control_revision": session_control_revision,
+            "mute_state": mute_state,
+            "pause_state": pause_state,
         },
         sequenced=True,
     )

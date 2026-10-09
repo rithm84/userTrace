@@ -189,6 +189,21 @@ export const controlActionResultFrameSchema = z.strictObject({
   }),
 });
 
+/**
+ * The session's own mute and pause state, whichever surface changed it. The pills
+ * show it; a frame for another session replaces what they showed.
+ */
+export const controlsStateFrameSchema = z.strictObject({
+  ...sequencedEnvelope,
+  kind: z.literal("controls_state"),
+  payload: z.strictObject({
+    session_id: uuidSchema,
+    session_control_revision: revisionSchema,
+    mute_state: z.enum(["muted", "unmuted"]),
+    pause_state: z.enum(["running", "paused", "ended"]),
+  }),
+});
+
 export const recoveryStateFrameSchema = z.strictObject({
   ...sequencedEnvelope,
   kind: z.literal("recovery_state"),
@@ -224,6 +239,7 @@ export const inboundFrameSchema = z.discriminatedUnion("kind", [
   visualCommandFrameSchema,
   cancelFrameSchema,
   controlActionResultFrameSchema,
+  controlsStateFrameSchema,
   recoveryStateFrameSchema,
   preferencesStateFrameSchema,
   heartbeatFrameSchema,

@@ -38,7 +38,7 @@ from psycopg.rows import DictRow
 
 from app.auth.principals import ParticipantPrincipal
 from app.db.pool import Database
-from app.db.rows import as_int, as_str, as_uuid
+from app.db.rows import as_bool, as_int, as_str, as_uuid
 from app.errors import AggregateNotFoundError, AuthorizationError, ControlPlaneError
 from app.extension import frames
 from app.extension.bindings import BoundDocument, PageProofVerifier, apply_binding_request
@@ -143,6 +143,23 @@ class SocketDependencies:
     protocol_version: str
 
 
+@dataclass(frozen=True, slots=True)
+class _SessionControls:
+    """One session's mute and pause state as the pills show it."""
+
+    session_id: UUID
+    #: The session projection revision it was read at, which orders it against
+    #: the results of the extension's own control actions.
+    revision: int
+    mute_state: str
+    pause_state: str
+
+    @property
+    def shown(self) -> tuple[UUID, str, str]:
+        """What the pills show, which is all that decides whether to send it again."""
+        return self.session_id, self.mute_state, self.pause_state
+
+
 class ExtensionControlSocket:
     """One accepted control connection for one installation."""
 
@@ -163,6 +180,9 @@ class ExtensionControlSocket:
         self._woken = asyncio.Event()
         # The revision of each state frame this connection last sent.
         self._projected: dict[str, int] = {}
+        # The session controls this connection last sent; the projection revision
+        # moves with every character change, so what the pills show decides.
+        self._controls_sent: tuple[UUID, str, str] | None = None
         # Commands routed on this connection whose outcome the extension has not
         # reported: a control-plane cancellation of one is owed a `cancel` frame.
         self._routed: set[UUID] = set()
@@ -448,16 +468,15 @@ class ExtensionControlSocket:
                 control_hub=self._deps.control_hub,
             )
         except ControlPlaneError as error:
+            controls = await self._session_controls(frame.payload.session_id)
             await self._send(
                 frames.control_action_result(
                     action_id=frame.payload.action_id,
                     session_id=frame.payload.session_id,
                     disposition="rejected",
-                    session_control_revision=await self._projection_revision(
-                        frame.payload.session_id
-                    ),
-                    mute_state="unmuted",
-                    pause_state="running",
+                    session_control_revision=controls.revision,
+                    mute_state=controls.mute_state,
+                    pause_state=controls.pause_state,
                     reason=_reason_code(error),
                 )
             )
@@ -585,6 +604,17 @@ class ExtensionControlSocket:
                 ),
                 revision=character.character_revision,
             )
+            controls = await self._session_controls(session_id)
+            if self._controls_sent != controls.shown:
+                await self._send(
+                    frames.controls_state(
+                        session_id=session_id,
+                        session_control_revision=controls.revision,
+                        mute_state=controls.mute_state,
+                        pause_state=controls.pause_state,
+                    )
+                )
+                self._controls_sent = controls.shown
             await self._route_pending_commands()
             await self._withdraw_canceled_commands()
 
@@ -759,15 +789,29 @@ class ExtensionControlSocket:
             raise ProtocolError("unknown_binding", "no such extension binding")
         return as_uuid(row, "client_id")
 
-    async def _projection_revision(self, session_id: UUID) -> int:
-        """Return the current projection revision for a refused control."""
+    async def _session_controls(self, session_id: UUID) -> _SessionControls:
+        """The session's mute and pause state as the pills show it, and its revision."""
         async with self._deps.database.connection() as conn, conn.cursor() as cur:
             await cur.execute(
-                "select revision from public.session_projections where session_id = %s",
+                """
+                select sessions.state, sessions.muted, sessions.paused,
+                       coalesce(projections.revision, 0) as revision
+                from public.interview_sessions as sessions
+                left join public.session_projections as projections
+                  on projections.session_id = sessions.id
+                where sessions.id = %s
+                """,
                 (session_id,),
             )
             row = await cur.fetchone()
-        return as_int(row, "revision") if row is not None else 0
+        if row is None:
+            raise AggregateNotFoundError(table="interview_sessions", row_id=session_id)
+        return _SessionControls(
+            session_id=session_id,
+            revision=as_int(row, "revision"),
+            mute_state="muted" if as_bool(row, "muted") else "unmuted",
+            pause_state=_pause_state(as_str(row, "state"), as_bool(row, "paused")),
+        )
 
     def _require_installation(self) -> UUID:
         """Return the authenticated installation, refusing an unauthenticated call."""

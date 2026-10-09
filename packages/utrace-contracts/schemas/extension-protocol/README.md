@@ -27,8 +27,10 @@ Rules the schemas encode, from the
   `installation_unknown` or `installation_revoked`. On `4003` the extension
   drops its installation and stops reconnecting; any other close only loses the
   connection.
-- `character_state`, `readiness`, `binding_state`, `control_action_result`, and
-  `preferences_state` each carry their own revision. Older revisions are ignored.
+- `character_state`, `readiness`, `binding_state`, `control_action_result`,
+  `controls_state`, and `preferences_state` each carry their own revision. Older
+  revisions are ignored, and the session controls of a different session replace
+  the ones the pills showed.
 - Terminal command outcomes are exactly `applied`, `rejected`, `failed`,
   `stale_target`, `canceled`, and `timed_out`; every non-applied outcome carries
   a reason code.

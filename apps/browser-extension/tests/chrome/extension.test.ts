@@ -595,6 +595,61 @@ describe("control-plane pushes", () => {
     expect(resumed.payload.resume_from_sequence).toBeGreaterThan(0);
   }, 60_000);
 
+  it("shows the session's own mute state whichever surface changed it", async () => {
+    // A mute from the session tab reaches the pills, with no action of the extension's own.
+    control.send({
+      schema_version: SCHEMA_VERSION,
+      kind: "controls_state",
+      payload: {
+        session_id: SESSION_ID,
+        session_control_revision: 7,
+        mute_state: "muted",
+        pause_state: "paused",
+      },
+    });
+    await waitUntil(
+      "the mute pill shows the session muted",
+      async () => (await shadow.read("pill-mute", "this.dataset.state")) === "muted",
+    );
+    expect(await shadow.read("pill-mute", "this.textContent")).toBe("Unmute");
+
+    // An older revision of the same session's controls loses.
+    const acknowledged = Math.max(
+      0,
+      ...control.received.flatMap((frame) =>
+        frame.kind === "control_ack" ? [frame.payload.acknowledged_sequence] : [],
+      ),
+    );
+    control.send({
+      schema_version: SCHEMA_VERSION,
+      kind: "controls_state",
+      payload: {
+        session_id: SESSION_ID,
+        session_control_revision: 6,
+        mute_state: "unmuted",
+        pause_state: "paused",
+      },
+    });
+    await control.waitFor("control_ack", (frame) => frame.payload.acknowledged_sequence > acknowledged);
+    expect(await shadow.read("pill-mute", "this.dataset.state")).toBe("muted");
+
+    control.send({
+      schema_version: SCHEMA_VERSION,
+      kind: "controls_state",
+      payload: {
+        session_id: SESSION_ID,
+        session_control_revision: 8,
+        mute_state: "unmuted",
+        pause_state: "paused",
+      },
+    });
+    await waitUntil(
+      "the mute pill follows the newest revision",
+      async () => (await shadow.read("pill-mute", "this.dataset.state")) === "unmuted",
+    );
+    expect(await shadow.read("pill-mute", "this.textContent")).toBe("Mute");
+  }, 60_000);
+
   it("detaches the surface when a revocation from another surface is pushed", async () => {
     expect(await shadow.exists("orb")).toBe(true);
 

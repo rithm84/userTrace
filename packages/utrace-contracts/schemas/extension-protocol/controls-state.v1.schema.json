@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utrace.dev/schemas/extension-protocol/controls-state/v1",
+  "title": "controls_state",
+  "description": "Control plane to extension. The session's own mute and pause state, whichever surface changed it; the pills show it, and a frame for another session replaces what they showed.",
+  "type": "object",
+  "properties": {
+    "schema_version": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/schema_version" },
+    "kind": { "type": "string", "const": "controls_state" },
+    "message_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid" },
+    "sent_at": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/timestamp" },
+    "sequence": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/sequence" },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "session_id": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/uuid" },
+        "session_control_revision": { "$ref": "https://utrace.dev/schemas/extension-protocol/common/v1#/$defs/revision" },
+        "mute_state": { "type": "string", "enum": ["muted", "unmuted"] },
+        "pause_state": { "type": "string", "enum": ["running", "paused", "ended"] }
+      },
+      "required": ["session_id", "session_control_revision", "mute_state", "pause_state"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["schema_version", "kind", "message_id", "sent_at", "sequence", "payload"],
+  "additionalProperties": false
+}

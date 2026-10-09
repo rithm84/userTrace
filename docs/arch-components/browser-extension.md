@@ -264,6 +264,10 @@ Before an Interview Session starts, the claimed invitation runs a participant co
   authoritative session transition. End shows local confirmation and then
   requests control-plane closure. Buttons reflect the returned state revision
   rather than assuming success, and duplicate clicks reuse the pending command.
+  The pills show the session's own mute and pause state, which the control plane
+  pushes (`controls_state`) whenever it changes, whichever surface changed it: a
+  change made in the session tab shows in the preview, and a new session's state
+  replaces whatever an earlier one left.
 - Return to session is the only browser-local control. It focuses the existing
   mandatory session tab. If the control-plane connection is unavailable,
   state-changing controls fail explicitly while Return to session continues to

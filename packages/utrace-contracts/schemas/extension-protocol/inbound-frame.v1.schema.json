@@ -10,6 +10,7 @@
     { "$ref": "https://utrace.dev/schemas/extension-protocol/visual-command/v1" },
     { "$ref": "https://utrace.dev/schemas/extension-protocol/cancel/v1" },
     { "$ref": "https://utrace.dev/schemas/extension-protocol/control-action-result/v1" },
+    { "$ref": "https://utrace.dev/schemas/extension-protocol/controls-state/v1" },
     { "$ref": "https://utrace.dev/schemas/extension-protocol/recovery-state/v1" },
     { "$ref": "https://utrace.dev/schemas/extension-protocol/preferences-state/v1" },
     { "$ref": "https://utrace.dev/schemas/extension-protocol/heartbeat/v1" }
