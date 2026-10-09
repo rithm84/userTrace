@@ -81,8 +81,8 @@ The workers request Implementation Gate proposals from GPT-6.1 Sol through the
 OpenAI Responses API with the official OpenAI Python SDK, as one structured-output
 request that stores nothing at OpenAI. Each OpenAI role pins the model ID
 (`gpt-6.1-sol`), the reasoning effort, the service tier, and the credential
-reference. Implementation runs on the Ultrafast tier and every other role on the
-Fast tier, at low effort except intake assistance and Case File synthesis, which
+reference. The gate proposal and implementation run on the Ultrafast tier and
+every other role on the Fast tier, at low effort except intake assistance and Case File synthesis, which
 interpret or write for a reader and run at medium.
 
 No model is ever substituted for another. A rate-limited request retries after the
