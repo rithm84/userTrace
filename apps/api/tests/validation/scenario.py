@@ -42,7 +42,9 @@ from app.ids import uuid7
 from app.preview.artifacts import patch_digest_for
 from app.validation.controller import ValidationBinding
 from app.validation.evidence import EvidenceStance, evidence_body
+from tests.factories import CaseFixture
 from tests.helpers import policy_digest, record_session_readiness
+from tests.interview.fixtures import observe_ready_page
 
 __all__ = [
     "CRITERIA_REVISION",
@@ -57,6 +59,7 @@ __all__ = [
     "add_workflow_observation",
     "binding_of",
     "build_scenario",
+    "case_of",
 ]
 
 CRITERIA_REVISION = 1
@@ -96,6 +99,20 @@ class ValidationScenario:
     base_revision: str
     source_commit: str
     criteria: tuple[ScenarioCriterion, ...]
+
+
+def case_of(scenario: ValidationScenario) -> CaseFixture:
+    """The scenario's case, as the shared fixtures take it."""
+    return CaseFixture(
+        client_id=scenario.client_id,
+        configuration_release_id=scenario.configuration_release_id,
+        utrace_user_id=scenario.utrace_user_id,
+        client_user_id=scenario.client_user_id,
+        customer_account_id=scenario.customer_account_id,
+        intake_item_id=scenario.intake_item_id,
+        product_signal_id=scenario.product_signal_id,
+        cancellation_scope_id=scenario.cancellation_scope_id,
+    )
 
 
 def binding_of(scenario: ValidationScenario) -> ValidationBinding:
@@ -378,14 +395,32 @@ async def build_scenario(
                 now if candidate_ready else None,
             ),
         )
+        # The candidate runs from the client's pinned template, as every runtime does.
+        template_id = uuid7()
+        await cur.execute(
+            """
+            insert into public.preview_runtime_templates (
+                id, client_id, pinned_configuration_release_id, template_id,
+                template_revision, snapshot_id, image_digest, recipe_digest,
+                seed_manifest_digest, seed_manifest, fixture_clock,
+                application_port, authenticated_identity, sdk_versions,
+                warm_pool_target
+            )
+            values (%s, %s, %s, %s, 1, 'snapshot', 'sha256:image', 'sha256:recipe',
+                    %s, '{}'::jsonb, now(), 3000, 'maya@dudulemon.test', '{}'::jsonb, 1)
+            """,
+            (template_id, client_id, release_id, f"template-{template_id.hex[:12]}", dataset_digest),
+        )
         await cur.execute(
             """
             insert into public.preview_runtime_allocations (
                 id, client_id, product_signal_id, allocation_kind, pool_role, state,
                 interview_session_id, preview_version_id, seed_manifest_digest,
-                runtime_ref, origin_host, fencing_token
+                runtime_ref, origin_host, fencing_token, preview_runtime_template_id,
+                pinned_configuration_release_id
             )
-            values (%s, %s, %s, %s, 'candidate', %s, %s, %s, %s, %s, %s, utrace.next_fencing_token())
+            values (%s, %s, %s, %s, 'candidate', %s, %s, %s, %s, %s, %s,
+                    utrace.next_fencing_token(), %s, %s)
             """,
             (
                 allocation_id,
@@ -398,6 +433,8 @@ async def build_scenario(
                 dataset_digest,
                 f"daytona-{allocation_id.hex[:8]}",
                 f"{allocation_id.hex[:12]}.preview.utrace.dev",
+                template_id,
+                release_id,
             ),
         )
         await cur.execute(
@@ -441,7 +478,7 @@ async def build_scenario(
         conversational=True,
         observation=True,
     )
-    return ValidationScenario(
+    scenario = ValidationScenario(
         client_id=client_id,
         configuration_release_id=release_id,
         utrace_user_id=utrace_user_id,
@@ -461,6 +498,14 @@ async def build_scenario(
         source_commit=source_commit,
         criteria=tuple(inserted),
     )
+    # The participant has the candidate's page open, and its path is observed.
+    await observe_ready_page(
+        database,
+        case=case_of(scenario),
+        interview_session_id=session_id,
+        preview_runtime_allocation_id=allocation_id,
+    )
+    return scenario
 
 
 async def _insert_evidence(

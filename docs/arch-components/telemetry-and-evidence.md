@@ -250,6 +250,17 @@ of product operations, and exposes bounded evidence views to the control plane.
 - Source times remain unmodified. Browser records retain wall time and monotonic
   offset; server spans retain OpenTelemetry nanosecond start and end times;
   ingestion adds trusted received and accepted times.
+- When a browser record happened on the server's clock is derived, never taken
+  from the browser's wall clock. Each page (one browser stream and frame) has its
+  own monotonic clock, and the earliest acceptance of anything the page sent,
+  minus the monotonic offset that record carried, places that clock on the
+  database's. A record's server time is that origin plus its own monotonic
+  offset: never earlier than when it happened, later only by the page's fastest
+  delivery, and unmoved by records the browser held back. Every comparison of
+  browser activity with a server time (a query bound, a frozen evidence cutoff,
+  or whether evidence was observed after a Validation Attempt opened) uses it, so
+  a participant's clock that is off can neither hide activity nor admit an
+  earlier action.
 - Readiness probes and heartbeats estimate source clock offset and uncertainty.
   Query projections may expose an adjusted display order, but the adjustment is
   derived and never replaces the source timestamp.
@@ -285,6 +296,12 @@ of product operations, and exposes bounded evidence views to the control plane.
   resource IDs, accepted watermarks, trace-probe identity, checked-at time,
   expiry, and typed failures. Replacing a stream or resource invalidates the
   previous projection.
+- A projection counts only for the page the participant has open: its
+  contributing resources must be that page's browser stream, the server streams
+  of the preview it is on (the session's own preview before a page opens), and a
+  trace correlated under that page. Between a new page opening and its first
+  evaluation the newest projections still describe the page before, so readiness
+  reads as not ready rather than carrying over.
 - Projections are stored per observation activation and kind, and they are
   append-only: publishing readiness adds the next revision for that activation
   and kind rather than editing the last one, and each projection carries a short

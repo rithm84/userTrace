@@ -360,7 +360,7 @@ async def _review_observed_activity(
             "observations": [
                 {
                     "observation_id": observation.observation_id,
-                    "occurred_at": observation.occurred_at,
+                    "observed_at": observation.observed_at,
                     "did": describe_activity(observation),
                 }
                 for observation in activity

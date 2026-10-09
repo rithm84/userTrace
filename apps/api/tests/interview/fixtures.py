@@ -28,6 +28,8 @@ from utrace_contracts.domain.lifecycle import (
 from app.db.pool import Database
 from app.db.rows import as_uuid
 from app.ids import uuid7
+from app.ingestion.preview_environments import resolve_preview_environment_id
+from app.ingestion.readiness import ReadinessFact, publish_readiness
 from app.interview.ports import RegisteredTarget
 from app.preview.ports import ServerSdkActivation, TelemetryReadiness
 from tests.factories import CaseFixture
@@ -43,6 +45,9 @@ __all__ = [
     "incomplete_readiness",
     "link_installation",
     "observe_document",
+    "observe_ready_page",
+    "open_page",
+    "record_ready_page",
     "record_registry_change",
     "session_client_user",
 ]
@@ -348,6 +353,144 @@ async def observe_document(
         document_attachment_id=document_attachment_id,
         targets=targets,
     )
+
+
+async def open_page(
+    database: Database,
+    *,
+    case: CaseFixture,
+    interview_session_id: UUID,
+    preview_runtime_allocation_id: UUID,
+) -> ObservedDocument:
+    """Open a page on one preview, before any readiness evaluation has read it.
+
+    The page joins the preview environment of the allocation's own template, as an
+    activation on that preview does.
+    """
+    async with database.connection() as conn:
+        environment_id = await resolve_preview_environment_id(
+            conn, preview_runtime_allocation_id=preview_runtime_allocation_id
+        )
+    return await _attach_document(
+        database,
+        case=case,
+        interview_session_id=interview_session_id,
+        preview_environment_id=environment_id,
+        preview_runtime_allocation_id=preview_runtime_allocation_id,
+        document_attachment_id=uuid7(),
+        targets=(),
+    )
+
+
+async def observe_ready_page(
+    database: Database,
+    *,
+    case: CaseFixture,
+    interview_session_id: UUID,
+    preview_runtime_allocation_id: UUID,
+) -> ObservedDocument:
+    """Open a page on one preview and leave its observation path ready, as ingestion does."""
+    document = await open_page(
+        database,
+        case=case,
+        interview_session_id=interview_session_id,
+        preview_runtime_allocation_id=preview_runtime_allocation_id,
+    )
+    await record_ready_page(database, case=case, document=document)
+    return document
+
+
+async def record_ready_page(
+    database: Database, *, case: CaseFixture, document: ObservedDocument
+) -> None:
+    """Make one observed page's path ready: its preview's server stream and a trace under it.
+
+    The three readiness projections name what they were evaluated from, as
+    ingestion's evaluation does, so a reader can tell they describe this page.
+    """
+    server_activation_id = uuid7()
+    server_stream_id = uuid7()
+    service_instance_id = uuid7()
+    correlation_id = uuid7()
+    async with database.transaction() as conn, conn.cursor() as cur:
+        await cur.execute(
+            """
+            select interview_session_id, preview_environment_id, preview_runtime_allocation_id
+            from public.telemetry_activations where id = %s
+            """,
+            (document.activation_id,),
+        )
+        page = await cur.fetchone()
+        if page is None:
+            raise LookupError(f"activation {document.activation_id} does not exist")
+        session_id = as_uuid(page, "interview_session_id")
+        await cur.execute(
+            """
+            insert into public.telemetry_activations (
+                id, client_id, kind, state, client_user_id, customer_account_id,
+                interview_session_id, preview_environment_id,
+                preview_runtime_allocation_id, protocol_version,
+                source_schema_version, policy_version, redaction_version, limits,
+                server_stream_id, service_instance_id, service_key,
+                preview_entry_token_digest, semantic_convention_version, probe_id
+            )
+            values (%s, %s, 'server', 'active', %s, %s, %s, %s, %s, '1.0', '1',
+                    'policy-1', 'redaction-1', '{}'::jsonb, %s, %s, 'shopalytics.api',
+                    %s, '1.37.0', %s)
+            """,
+            (
+                server_activation_id,
+                case.client_id,
+                case.client_user_id,
+                case.customer_account_id,
+                session_id,
+                as_uuid(page, "preview_environment_id"),
+                as_uuid(page, "preview_runtime_allocation_id"),
+                server_stream_id,
+                service_instance_id,
+                f"digest-{server_activation_id.hex}",
+                uuid7(),
+            ),
+        )
+        await cur.execute(
+            """
+            insert into public.server_streams (
+                id, client_id, activation_id, service_instance_id, service_key
+            )
+            values (%s, %s, %s, %s, 'shopalytics.api')
+            """,
+            (server_stream_id, case.client_id, server_activation_id, service_instance_id),
+        )
+        await cur.execute(
+            """
+            insert into public.correlation_projections (
+                id, client_id, activation_id, interview_session_id, trace_id,
+                required_components, observed_components, gaps, conflicts, status
+            )
+            values (%s, %s, %s, %s, %s, '[]'::jsonb, '[]'::jsonb, '[]'::jsonb,
+                    '[]'::jsonb, 'complete')
+            """,
+            (correlation_id, case.client_id, document.activation_id, session_id, uuid7().hex),
+        )
+    for kind, resource in (
+        ("browser", document.browser_stream_id),
+        ("server", server_stream_id),
+        ("correlation", correlation_id),
+    ):
+        await publish_readiness(
+            database,
+            client_id=case.client_id,
+            activation_id=document.activation_id,
+            interview_session_id=session_id,
+            fact=ReadinessFact(
+                kind=kind,
+                ready=True,
+                contributing_resource_ids=[str(resource)],
+                accepted_watermarks={},
+                probe_id=None,
+                failures=[],
+            ),
+        )
 
 
 async def observe_next_document(

@@ -9,6 +9,8 @@ supplied directly, because they are arguments rather than state.
 from __future__ import annotations
 
 import dataclasses
+from collections.abc import Mapping
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import pytest
@@ -41,18 +43,23 @@ from app.validation.session import (
     finish_session_validation,
     start_session_validation,
 )
-from tests.evidence.helpers import open_document
+from tests.evidence.helpers import OpenedDocument, open_document
 from tests.factories import create_gate_decision
 from tests.helpers import count_rows, record_session_readiness
 from tests.ingestion.browser_client import observation
 from tests.ingestion.factories import PreviewFixture, create_preview
 from tests.ingestion.keys import SigningKeys
+from tests.interview.fixtures import observe_ready_page
 from tests.supabase_auth import SignedInUser
 
 WORKFLOW_REF = "saved_conversion_views"
 CRITERION = "reopening the saved view restores every filter"
 IDENTITY = "maya@dudulemon.test"
 SEED_DIGEST = "sha256:seed-session-validation"
+
+
+#: How far off the participant's own clock is in these tests.
+_CLOCK_ERROR = timedelta(minutes=10)
 
 
 async def test_a_cited_candidate_milestone_and_a_confirmation_validate_the_case(
@@ -63,11 +70,29 @@ async def test_a_cited_candidate_milestone_and_a_confirmation_validate_the_case(
     ingest_websocket_url: str,
     auth_users: dict[str, SignedInUser],
 ) -> None:
-    """Begin, cite, and finish: the outcome rests on the cited observation."""
+    """Begin, cite, and finish: the outcome rests on the cited observation.
+
+    The participant's own clock is ten minutes off, ahead before validation and
+    behind after it: when each milestone happened is read on the server's clock,
+    so neither the early one nor the evidence is misjudged.
+    """
     database = telemetry_database
     candidate = await _awaiting_validation(database, auth_users, name="session-validates")
     early = await _export_milestone(
-        database, settings, keys, ingest_server, ingest_websocket_url, candidate
+        database,
+        settings,
+        keys,
+        ingest_server,
+        ingest_websocket_url,
+        candidate,
+        browser_clock=datetime.now(tz=UTC) + _CLOCK_ERROR,
+    )
+    # Validation waits for the page the participant has open to be observed.
+    await observe_ready_page(
+        database,
+        case=candidate.case,
+        interview_session_id=candidate.interview_session_id,
+        preview_runtime_allocation_id=candidate.preview_runtime_allocation_id,
     )
 
     started = await start_session_validation(
@@ -106,7 +131,13 @@ async def test_a_cited_candidate_milestone_and_a_confirmation_validate_the_case(
         )
 
     observed = await _export_milestone(
-        database, settings, keys, ingest_server, ingest_websocket_url, candidate
+        database,
+        settings,
+        keys,
+        ingest_server,
+        ingest_websocket_url,
+        candidate,
+        browser_clock=datetime.now(tz=UTC) - _CLOCK_ERROR,
     )
     await cite_session_observation(
         database,
@@ -152,7 +183,13 @@ async def test_an_unproven_confirmation_does_not_validate(
     candidate = await _awaiting_validation(database, auth_users, name="session-unproven")
     await start_session_validation(database, interview_session_id=candidate.interview_session_id)
     await _export_milestone(
-        database, settings, keys, ingest_server, ingest_websocket_url, candidate
+        database,
+        settings,
+        keys,
+        ingest_server,
+        ingest_websocket_url,
+        candidate,
+        browser_clock=datetime.now(tz=UTC),
     )
 
     completion = await finish_session_validation(
@@ -167,6 +204,56 @@ async def test_an_unproven_confirmation_does_not_validate(
     )
     assert completion.outcome is not ValidationOutcome.VALIDATED
     assert completion.case_file_variant is CaseFileVariant.BLOCKED
+
+
+async def test_an_action_held_back_from_before_validation_is_not_evidence(
+    telemetry_database: Database,
+    settings: Settings,
+    keys: SigningKeys,
+    ingest_server: str,
+    ingest_websocket_url: str,
+    auth_users: dict[str, SignedInUser],
+) -> None:
+    """A page that delivers an earlier action late cannot pass it off as evidence.
+
+    The page's first delivery places its clock on the server's. The held-back
+    milestone happened a few milliseconds after that, before the attempt opened,
+    though it arrives afterwards and the browser's own clock dates it later still.
+    """
+    database = telemetry_database
+    candidate = await _awaiting_validation(database, auth_users, name="session-held-back")
+    opened = await _open_candidate_page(
+        database, settings, keys, ingest_server, ingest_websocket_url, candidate
+    )
+    first = _view_saved(opened, sequence=1, browser_clock=datetime.now(tz=UTC))
+    held_back = _view_saved(
+        opened, sequence=2, browser_clock=datetime.now(tz=UTC) + _CLOCK_ERROR
+    )
+    async with opened.exporter as exporter:
+        await exporter.open_stream(resume_from=0)
+        await exporter.send_batch([first], batch_id=None)
+        # Validation waits for the page the participant has open to be observed.
+        await observe_ready_page(
+            database,
+            case=candidate.case,
+            interview_session_id=candidate.interview_session_id,
+            preview_runtime_allocation_id=candidate.preview_runtime_allocation_id,
+        )
+        await start_session_validation(
+            database, interview_session_id=candidate.interview_session_id
+        )
+        await exporter.send_batch([held_back], batch_id=None)
+
+    with pytest.raises(GuardRejectedError, match="since the Validation Attempt opened"):
+        await cite_session_observation(
+            database,
+            TelemetryEvidenceQuery(database),
+            interview_session_id=candidate.interview_session_id,
+            ordinal=1,
+            observation_id=await _committed_id(database, held_back),
+            stance=EvidenceStance.SUPPORTS,
+            summary="a saved view from before validation began",
+        )
 
 
 async def test_departure_interrupts_validation_and_schedules_expiry_once(
@@ -442,12 +529,75 @@ async def _awaiting_validation(
         conversational=True,
         observation=True,
     )
+    # The participant has the candidate's page open, and its path is observed.
+    await observe_ready_page(
+        database,
+        case=case,
+        interview_session_id=preview.interview_session_id,
+        preview_runtime_allocation_id=allocation_id,
+    )
     return dataclasses.replace(
         preview,
         preview_runtime_allocation_id=allocation_id,
         preview_environment_id=environment_id,
         origin_host=origin_host,
     )
+
+
+async def _open_candidate_page(
+    database: Database,
+    settings: Settings,
+    keys: SigningKeys,
+    base_url: str,
+    websocket_url: str,
+    candidate: PreviewFixture,
+) -> OpenedDocument:
+    """Activate one page on the candidate through real ingestion."""
+    async with database.connection() as conn, conn.cursor() as cur:
+        await cur.execute(
+            "select preview_version_id from public.preview_runtime_allocations where id = %s",
+            (candidate.preview_runtime_allocation_id,),
+        )
+        allocation = await cur.fetchone()
+    assert allocation is not None
+    return await open_document(
+        settings,
+        keys,
+        base_url,
+        websocket_url,
+        preview=candidate,
+        preview_version_id=as_uuid(allocation, "preview_version_id"),
+    )
+
+
+def _view_saved(
+    opened: OpenedDocument, *, sequence: int, browser_clock: datetime
+) -> dict[str, object]:
+    """One `view_saved` milestone, stamped with whatever time the browser's own clock gives."""
+    return observation(
+        observation_type="product.milestone",
+        runtime_id=opened.runtime_id,
+        document_attachment_id=opened.document_attachment_id,
+        source_sequence=sequence,
+        export_sequence=sequence,
+        payload={"milestone_id": "view_saved", "attributes": [], "actor": "user"},
+        trace_id=None,
+        span_id=None,
+        target_id=None,
+        occurred_at=browser_clock,
+    )
+
+
+async def _committed_id(database: Database, record: Mapping[str, object]) -> UUID:
+    """The row ingestion committed for one exported record."""
+    async with database.connection() as conn, conn.cursor() as cur:
+        await cur.execute(
+            "select id from public.browser_observations where observation_id = %s",
+            (UUID(str(record["observation_id"])),),
+        )
+        row = await cur.fetchone()
+    assert row is not None, "the ingestion socket committed no row for the milestone"
+    return as_uuid(row, "id")
 
 
 async def _export_milestone(
@@ -457,46 +607,18 @@ async def _export_milestone(
     base_url: str,
     websocket_url: str,
     candidate: PreviewFixture,
+    *,
+    browser_clock: datetime,
 ) -> UUID:
-    """Export one `view_saved` milestone from the candidate and return its row id."""
-    async with database.connection() as conn, conn.cursor() as cur:
-        await cur.execute(
-            "select preview_version_id from public.preview_runtime_allocations where id = %s",
-            (candidate.preview_runtime_allocation_id,),
-        )
-        allocation = await cur.fetchone()
-    assert allocation is not None
-    opened = await open_document(
-        settings,
-        keys,
-        base_url,
-        websocket_url,
-        preview=candidate,
-        preview_version_id=as_uuid(allocation, "preview_version_id"),
+    """Export one `view_saved` milestone from a new candidate page and return its row id."""
+    opened = await _open_candidate_page(
+        database, settings, keys, base_url, websocket_url, candidate
     )
-    record = observation(
-        observation_type="product.milestone",
-        runtime_id=opened.runtime_id,
-        document_attachment_id=opened.document_attachment_id,
-        source_sequence=1,
-        export_sequence=1,
-        payload={"milestone_id": "view_saved", "attributes": [], "actor": "user"},
-        trace_id=None,
-        span_id=None,
-        target_id=None,
-        occurred_at=None,
-    )
+    record = _view_saved(opened, sequence=1, browser_clock=browser_clock)
     async with opened.exporter as exporter:
         await exporter.open_stream(resume_from=0)
         await exporter.send_batch([record], batch_id=None)
-    async with database.connection() as conn, conn.cursor() as cur:
-        await cur.execute(
-            "select id from public.browser_observations where observation_id = %s",
-            (UUID(str(record["observation_id"])),),
-        )
-        row = await cur.fetchone()
-    assert row is not None, "the ingestion socket committed no row for the milestone"
-    return as_uuid(row, "id")
+    return await _committed_id(database, record)
 
 
 async def _state(database: Database, *, table: str, row_id: UUID) -> str:

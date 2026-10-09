@@ -25,6 +25,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.db.pool import Database
 from app.db.rows import as_int, as_str
 from app.envelope import JsonValue
+from app.evidence.observed_time import SESSION_OBSERVATIONS
 from app.evidence.windows import EvidenceWindow, current_watermarks, load_window
 from app.ingestion.errors import QueryAuthorizationError
 from app.logging import get_logger
@@ -252,25 +253,23 @@ async def product_state_projection(
         lower, upper = _bounds(scope, window)
         async with conn.cursor() as cur:
             await cur.execute(
-                """
+                "with "
+                + SESSION_OBSERVATIONS
+                + """
                 select distinct on (observations.observation_type)
                        observations.id, observations.observation_type,
                        observations.route_revision, observations.visibility_state,
                        observations.target_id, observations.target_revision,
-                       observations.occurred_at, observations.payload
-                from public.browser_observations as observations
-                join public.telemetry_activations as activations
-                  on activations.id = observations.activation_id
-                where observations.client_id = %(client)s
-                  and activations.interview_session_id = %(session)s
-                  and observations.observation_type in (
+                       observations.observed_at, observations.payload
+                from session_observations as observations
+                where observations.observation_type in (
                       'route.change', 'baseline.snapshot', 'target.registry_change'
                   )
                   and (%(lower)s::timestamptz is null
-                       or observations.occurred_at >= %(lower)s)
+                       or observations.observed_at >= %(lower)s)
                   and (%(upper)s::timestamptz is null
-                       or observations.occurred_at <= %(upper)s)
-                order by observations.observation_type, observations.occurred_at desc
+                       or observations.observed_at <= %(upper)s)
+                order by observations.observation_type, observations.observed_at desc
                 limit %(limit)s
                 """,
                 {
@@ -301,21 +300,19 @@ async def session_timeline(database: Database, scope: QueryScope) -> TelemetryQu
         lower, upper = _bounds(scope, window)
         async with conn.cursor() as cur:
             await cur.execute(
-                """
+                "with "
+                + SESSION_OBSERVATIONS
+                + """
                 select observations.id, observations.observation_type,
                        observations.source_sequence, observations.export_sequence,
-                       observations.occurred_at, observations.route_revision,
+                       observations.observed_at, observations.route_revision,
                        observations.target_id, observations.trace_id,
                        observations.browser_request_id, observations.payload
-                from public.browser_observations as observations
-                join public.telemetry_activations as activations
-                  on activations.id = observations.activation_id
-                where observations.client_id = %(client)s
-                  and activations.interview_session_id = %(session)s
-                  and (%(lower)s::timestamptz is null
-                       or observations.occurred_at >= %(lower)s)
+                from session_observations as observations
+                where (%(lower)s::timestamptz is null
+                       or observations.observed_at >= %(lower)s)
                   and (%(upper)s::timestamptz is null
-                       or observations.occurred_at <= %(upper)s)
+                       or observations.observed_at <= %(upper)s)
                   and (%(cursor)s::uuid is null or observations.id > %(cursor)s)
                 order by observations.export_sequence, observations.id
                 limit %(limit)s
@@ -369,21 +366,19 @@ async def session_activity(database: Database, scope: QueryScope) -> TelemetryQu
         lower, upper = _bounds(scope, window)
         async with conn.cursor() as cur:
             await cur.execute(
-                """
+                "with "
+                + SESSION_OBSERVATIONS
+                + """
                 select observations.id, observations.observation_type,
-                       observations.occurred_at, observations.target_id,
+                       observations.observed_at, observations.target_id,
                        observations.document_attachment_id, observations.payload
-                from public.browser_observations as observations
-                join public.telemetry_activations as activations
-                  on activations.id = observations.activation_id
-                where observations.client_id = %(client)s
-                  and activations.interview_session_id = %(session)s
-                  and observations.observation_type = any(%(types)s)
+                from session_observations as observations
+                where observations.observation_type = any(%(types)s)
                   and (%(lower)s::timestamptz is null
-                       or observations.occurred_at >= %(lower)s)
+                       or observations.observed_at >= %(lower)s)
                   and (%(upper)s::timestamptz is null
-                       or observations.occurred_at <= %(upper)s)
-                order by observations.occurred_at desc, observations.id desc
+                       or observations.observed_at <= %(upper)s)
+                order by observations.observed_at desc, observations.id desc
                 limit %(limit)s
                 """,
                 {
@@ -511,21 +506,19 @@ async def target_history(
         lower, upper = _bounds(scope, window)
         async with conn.cursor() as cur:
             await cur.execute(
-                """
+                "with "
+                + SESSION_OBSERVATIONS
+                + """
                 select observations.id, observations.observation_type,
                        observations.target_id, observations.target_revision,
-                       observations.occurred_at, observations.route_revision,
+                       observations.observed_at, observations.route_revision,
                        observations.payload
-                from public.browser_observations as observations
-                join public.telemetry_activations as activations
-                  on activations.id = observations.activation_id
-                where observations.client_id = %(client)s
-                  and activations.interview_session_id = %(session)s
-                  and observations.target_id = %(target)s
+                from session_observations as observations
+                where observations.target_id = %(target)s
                   and (%(lower)s::timestamptz is null
-                       or observations.occurred_at >= %(lower)s)
+                       or observations.observed_at >= %(lower)s)
                   and (%(upper)s::timestamptz is null
-                       or observations.occurred_at <= %(upper)s)
+                       or observations.observed_at <= %(upper)s)
                 order by observations.export_sequence
                 limit %(limit)s
                 """,
