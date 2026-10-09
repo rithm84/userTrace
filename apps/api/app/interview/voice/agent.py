@@ -1,6 +1,7 @@
 """The voice agent: one connection's call, from joining it until it ends.
 
-The agent joins the connection's private Daily room from the worker and runs the
+The agent joins the connection's private Daily room from its session on Pipecat
+Cloud (`app.interview.voice.cloud_session`) and runs the
 conversation as a Pipecat pipeline: Deepgram Flux hears the participant, GPT-6.1
 Sol writes the agent's words with gesture marks inline, and ElevenLabs speaks them
 (`app.interview.voice.pipeline` holds the pieces uTrace adds). The model calls the
@@ -12,8 +13,8 @@ once a tool's result is in, is `app.interview.voice.turn_taking`'s.
 
 The run records the conversation as transcript fragments, shows who has the floor
 through the character, and keeps conversational readiness
-(`app.interview.voice.call_record`). It runs as a Job, so a worker restart rejoins
-the call from durable state. A participant who leaves, such as on a reload, has 30
+(`app.interview.voice.call_record`). It runs as a Job, so a session that fails
+rejoins the call from durable state. A participant who leaves, such as on a reload, has 30
 seconds to come back to the same call; after that the call ends and the bounded
 reconnect window opens.
 

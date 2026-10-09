@@ -81,6 +81,7 @@ FROM_ENVIRONMENT_FILE: Final[tuple[str, ...]] = (
     "STRIPE_SANDBOX_SECRET_KEY",
     "OPENAI_API_KEY",
     "DAILY_API_KEY",
+    "PIPECAT_CLOUD_PUBLIC_API_KEY",
     "DEEPGRAM_API_KEY",
     "ELEVENLABS_API_KEY",
     "VERCEL_AI_GATEWAY_API_KEY",
@@ -107,6 +108,7 @@ RENAMED_FROM_ENVIRONMENT_FILE: Final[tuple[tuple[str, str], ...]] = (
 #: Deployment policy.
 POLICY: Final[tuple[tuple[str, str], ...]] = (
     ("UTRACE_DB_POOL_MAX", "6"),
+    ("UTRACE_VOICE_AGENT_RUNTIME", "pipecat_cloud"),
     ("UTRACE_WEB_ORIGIN", "https://utrace.dev"),
     ("UTRACE_PREVIEW_ORIGIN_SUFFIX", "preview.utrace.dev"),
     ("UTRACE_INGEST_WEBSOCKET_ORIGIN", API_SOCKET_URL),

@@ -98,6 +98,9 @@ class OpenedVoiceConnection:
     connection_id: UUID
     voice_run_id: UUID
     provider_session_ref: str
+    agent_job_id: UUID | None
+    """The connection's newly queued voice agent Job, or ``None`` on a rejoin of a
+    call whose agent still holds it."""
 
 
 async def open_voice_connection(
@@ -162,6 +165,15 @@ async def open_voice_connection(
         )
         raise
 
+    agent_job = agent_job_intent(
+        client_id=participant.client_id,
+        interview_session_id=interview_session_id,
+        connection_id=connection_id,
+        voice_run_id=voice_run_id,
+        provider_session_ref=result.provider_session_ref,
+        room_url=result.room_url,
+        room_expires_at=result.room_expires_at,
+    )
     async with database.transaction() as conn:
         current = await _lock_connection(conn, connection_id)
         already_closed = as_str(current, "state") == VoiceConnectionState.CLOSED.value
@@ -212,17 +224,7 @@ async def open_voice_connection(
                     correlation_id=as_uuid(current, "interview_session_id"),
                     occurred_at=datetime.now(tz=UTC),
                 ),
-                jobs=(
-                    agent_job_intent(
-                        client_id=participant.client_id,
-                        interview_session_id=interview_session_id,
-                        connection_id=connection_id,
-                        voice_run_id=voice_run_id,
-                        provider_session_ref=result.provider_session_ref,
-                        room_url=result.room_url,
-                        room_expires_at=result.room_expires_at,
-                    ),
-                ),
+                jobs=(agent_job,),
                 commands=(),
                 audit=AuditIntent(
                     audit_id=uuid7(),
@@ -272,6 +274,7 @@ async def open_voice_connection(
         connection_id=connection_id,
         voice_run_id=voice_run_id,
         provider_session_ref=result.provider_session_ref,
+        agent_job_id=agent_job.job_id,
     )
 
 
@@ -501,6 +504,7 @@ async def _rejoin(
         connection_id=call.connection_id,
         voice_run_id=call.voice_run_id,
         provider_session_ref=call.provider_session_ref,
+        agent_job_id=None,
     )
 
 

@@ -26,16 +26,16 @@ daily: |md
 | {class: [card; external]}
 
 voice_agent: |md
-  ### Worker voice lane · voice agent
+  ### Pipecat Cloud · voice agent
 
-  - interview.voice_agent Job
+  - Claims the interview.voice_agent Job
   - Flux · Sol Ultrafast · ElevenLabs
 | {class: [card; reasoning]}
 
 session_tab -> fastapi: "open connection" {class: edge}
 fastapi -> daily: "create room, or eject stale tab + token" {class: edge}
 fastapi -> session_tab: "room URL + meeting token" {class: edge}
-fastapi -> voice_agent: "queue Job" {class: edge}
+fastapi -> voice_agent: "queue Job + start session" {class: edge}
 session_tab <-> daily: "WebRTC audio + RTVI events" {class: edge}
 voice_agent <-> daily: "joins with owner token" {class: edge}
 

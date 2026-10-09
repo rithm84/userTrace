@@ -16,20 +16,24 @@ from __future__ import annotations
 
 import os
 import re
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from uuid import UUID
 
+import psycopg
 import pytest
 from openai import AsyncOpenAI
 from utrace_contracts.domain.lifecycle import (
     InterviewPhase,
+    JobState,
     InterviewSessionState,
     ProductSignalState,
 )
 
 from app.db.pool import Database
 from app.db.rows import as_int
+from app.ids import uuid7
 from app.interview.character import CharacterState, set_character
 from app.interview.ports import RegisteredTarget
 from app.interview.projection import publish_projection_on_connection
@@ -192,7 +196,7 @@ async def test_the_participant_hears_one_greeting_and_a_reload_resumes_the_call(
     participant = _participant()
     session_id = await _session_after_setup(database, auth_users, participant)
     clips = await _clips(tmp_path)
-    async with browser_call.local_stack(tmp_path, start_worker=True) as stack:
+    async with browser_call.local_stack(tmp_path) as stack:
         report = browser_call.run_browser(
             stack=stack,
             session_id=session_id,
@@ -236,6 +240,35 @@ async def test_the_participant_hears_one_greeting_and_a_reload_resumes_the_call(
     assert record.agents == 1, record
 
 
+async def _hold_agent_slot(database: Database, session_id: UUID) -> UUID:
+    """Lease a stand-in Job on the session's voice agent concurrency key."""
+    holder = uuid7()
+    async with database.transaction() as conn, conn.cursor() as cur:
+        await cur.execute(
+            """
+            insert into public.jobs (
+                id, client_id, job_type, state, input, deadline_at, timeout_seconds,
+                max_runs, resource_budget, retryable_categories,
+                backoff_base_seconds, backoff_max_seconds, concurrency_key
+            )
+            select %s, client_id, 'test.voice_agent_holder', 'leased', '{}'::jsonb,
+                   now() + interval '1 hour', 60, 1, '{}'::jsonb, '{}', 1, 2,
+                   'voice_agent:' || id::text
+            from public.interview_sessions where id = %s
+            """,
+            (holder, session_id),
+        )
+    return holder
+
+
+def _release_agent_slot(holder: UUID) -> None:
+    """Finish the stand-in Job, from a timer thread while the browser drives the call."""
+    with psycopg.connect(get_settings().database_url) as conn:
+        conn.execute(
+            "update public.jobs set state = %s where id = %s", (JobState.SUCCEEDED.value, holder)
+        )
+
+
 async def test_a_late_agent_joins_the_call_without_a_loop(
     database: Database, auth_users: dict[str, SignedInUser], tmp_path: Path
 ) -> None:
@@ -243,11 +276,12 @@ async def test_a_late_agent_joins_the_call_without_a_loop(
     participant = _participant()
     session_id = await _session_after_setup(database, auth_users, participant)
     clips = await _clips(tmp_path)
-    async with browser_call.local_stack(tmp_path, start_worker=False) as stack:
-        # The worker is busy elsewhere for longer than the tab used to wait.
-        import threading
-
-        threading.Timer(40.0, stack.start_worker).start()
+    # Another agent holds the interview's call for longer than the tab used to wait,
+    # as the previous connection's agent does until it leaves, so this call's agent
+    # joins only once that one lets go.
+    holder = await _hold_agent_slot(database, session_id)
+    threading.Timer(40.0, _release_agent_slot, args=(holder,)).start()
+    async with browser_call.local_stack(tmp_path) as stack:
         report = browser_call.run_browser(
             stack=stack,
             session_id=session_id,

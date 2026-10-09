@@ -43,9 +43,11 @@ from app.execution.handlers import EXPIRE_OUTREACH_ATTEMPT, build_handlers
 from app.execution.jobs import (
     ClaimedJob,
     claim_job,
+    claim_job_by_id,
     complete_job_run,
     fail_job_run,
     heartbeat,
+    next_run_at,
 )
 from app.execution.outbox import read_wakeups, scan_ready
 from app.execution.reconcile import reconcile_startup
@@ -343,6 +345,49 @@ async def test_concurrency_key_admits_only_one_leased_job_per_client(
     )
     assert freed is not None
     assert freed.job_id != claimed.job_id
+
+
+async def test_a_named_job_is_claimed_once_its_concurrency_key_is_free(
+    database: Database, auth_users: dict[str, SignedInUser]
+) -> None:
+    """A voice agent session claims its own Job, and waits while another holds the key."""
+    case = await _case(database, auth_users["owner_a"], "exec-claim-by-id")
+    holding, named = (
+        make_job(
+            job_type="control_plane.test_claim_by_id",
+            input={"n": n},
+            concurrency_key="voice_agent:same",
+            cancellation_scope_id=None,
+            max_runs=2,
+            retryable_categories=[TechnicalCategory.PROVIDER_UNAVAILABLE],
+            not_before_seconds=0,
+        )
+        for n in (1, 2)
+    )
+    await _commit_with(database, case, jobs=(holding, named))
+
+    held = await claim_job_by_id(
+        database, job_id=holding.job_id, worker_id="session-a", lease_seconds=60
+    )
+    assert held is not None
+    assert held.job_id == holding.job_id
+    # The named Job is due, but its key is held: not claimable, and due again now.
+    assert (
+        await claim_job_by_id(database, job_id=named.job_id, worker_id="session-b", lease_seconds=60)
+        is None
+    )
+    assert await next_run_at(database, job_id=named.job_id) is not None
+    # A leased Job has no next run for another session to wait for.
+    assert await next_run_at(database, job_id=holding.job_id) is None
+
+    await complete_job_run(
+        database, job_id=held.job_id, job_run_id=held.job_run_id, fencing_token=held.fencing_token
+    )
+    claimed = await claim_job_by_id(
+        database, job_id=named.job_id, worker_id="session-b", lease_seconds=60
+    )
+    assert claimed is not None
+    assert claimed.job_id == named.job_id
 
 
 async def test_outbox_scan_and_pgmq_wakeups_are_idempotent(

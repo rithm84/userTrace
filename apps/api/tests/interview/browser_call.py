@@ -1,8 +1,9 @@
 """A voice call through the real session tab, API, and worker, on the local stack.
 
 The opt-in browser voice tests run every process a participant's call touches:
-the API (uvicorn), the worker's two Job loops as `utrace-worker` runs them (its
-main lane, and its voice lane process `app.execution.voice_lane`), without the
+the API (uvicorn), which runs each voice agent session in its own process
+(`UTRACE_VOICE_AGENT_RUNTIME=in_process`) where the deployed API starts it on
+Pipecat Cloud, the worker's Job loop as `utrace-worker` runs it, without the
 Discord consumers so a local run never opens a gateway session with the
 production bot token, and the web app as a production
 build (`next build`, `next start`), all against the local Supabase stack. A
@@ -11,10 +12,7 @@ development server would mount every effect twice and open each call twice. Chro
 speaks the participant's recorded lines through a synthetic microphone, and
 measures what the session tab actually plays.
 
-`UTRACE_E2E_VOICE_LANE_COMMAND` replaces how the voice lane starts, for running it
-from the production image under a CPU limit (`docker run --cpus ...`).
-
-Run as `python -m tests.interview.browser_call worker` to start the main lane alone.
+Run as `python -m tests.interview.browser_call worker` to start the worker alone.
 """
 
 from __future__ import annotations
@@ -39,7 +37,7 @@ import numpy as np
 from openai import AsyncOpenAI
 
 from app.db.pool import Database
-from app.execution.handlers import VOICE_JOB_TYPES, build_exhausted_handlers, build_handlers
+from app.execution.handlers import build_exhausted_handlers, build_handlers
 from app.execution.worker import Worker, default_config
 from app.ids import uuid7
 from app.logging import configure_logging
@@ -159,32 +157,12 @@ class LocalStack:
     web_origin: str
     processes: dict[str, subprocess.Popen[bytes]]
 
-    def start_worker(self) -> None:
-        """Start the worker's two lanes; a test may start them late to delay the agent."""
-        if "worker" in self.processes:
-            raise RuntimeError("the worker is already running")
-        self.processes["worker"] = _spawn(
-            "worker",
-            [sys.executable, "-m", "tests.interview.browser_call", "worker"],
-            cwd=_API_ROOT,
-            env=dict(os.environ),
-            logs=self.logs,
-        )
-        override = os.environ.get("UTRACE_E2E_VOICE_LANE_COMMAND")
-        self.processes["voice"] = _spawn(
-            "voice",
-            override.split() if override else [sys.executable, "-m", "app.execution.voice_lane"],
-            cwd=_API_ROOT,
-            env=dict(os.environ),
-            logs=self.logs,
-        )
-
     def log(self, name: str) -> str:
         return (self.logs / f"{name}.log").read_text(errors="replace")
 
 
 @asynccontextmanager
-async def local_stack(logs: Path, *, start_worker: bool) -> AsyncIterator[LocalStack]:
+async def local_stack(logs: Path) -> AsyncIterator[LocalStack]:
     """Run the API, the worker's Job loop, and the web app until the block ends."""
     settings = get_settings()
     api_env = dict(os.environ)
@@ -217,8 +195,13 @@ async def local_stack(logs: Path, *, start_worker: bool) -> AsyncIterator[LocalS
             env=web_env,
             logs=logs,
         )
-        if start_worker:
-            stack.start_worker()
+        stack.processes["worker"] = _spawn(
+            "worker",
+            [sys.executable, "-m", "tests.interview.browser_call", "worker"],
+            cwd=_API_ROOT,
+            env=dict(os.environ),
+            logs=logs,
+        )
         await _ready(f"http://127.0.0.1:{_API_PORT}/health", _PROCESS_READY_SECONDS, stack, "api")
         await _ready(stack.web_origin, _WEB_READY_SECONDS, stack, "web")
         yield stack
@@ -322,7 +305,7 @@ async def _ready(url: str, seconds: float, stack: LocalStack, name: str) -> None
 
 
 async def _run_worker() -> None:
-    """The worker's main lane, as `utrace-worker` runs it, without the Discord consumers."""
+    """The worker's Job loop, as `utrace-worker` runs it, without the Discord consumers."""
     configure_logging(INFO)
     settings = get_settings()
     database = Database(
@@ -331,12 +314,7 @@ async def _run_worker() -> None:
         max_size=settings.database_pool_max_size,
     )
     await database.open()
-    handlers = {
-        job_type: handler
-        for job_type, handler in build_handlers().items()
-        if job_type not in VOICE_JOB_TYPES
-    }
-    worker = Worker(database, default_config(), handlers, build_exhausted_handlers())
+    worker = Worker(database, default_config(), build_handlers(), build_exhausted_handlers())
     loop = asyncio.get_running_loop()
     loop.add_signal_handler(signal.SIGTERM, worker.request_stop)
     try:

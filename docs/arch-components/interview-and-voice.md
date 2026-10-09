@@ -17,11 +17,16 @@ Before interviewing begins, invitation claim runs the [participant compatibility
 ## Conversation and backend work
 
 The voice agent holds the conversation. It is a [Pipecat](https://docs.pipecat.ai)
-pipeline (`pipecat-ai` 1.12) that runs as the `interview.voice_agent` Job in the
-worker's voice lane and joins the connection's private Daily room. The voice lane
-is a process of its own with its own Job loop, so a call's agent is claimed within
-a quarter second of being queued however busy the worker's other Jobs are, and
-their work never stalls the call's audio. Deepgram Flux hears the
+pipeline (`pipecat-ai` 1.12) that runs on Pipecat Cloud and joins the connection's
+private Daily room. Pipecat Cloud carries the call's WebRTC media to Daily, which
+Supabase Compute's network does not. Opening a connection queues its
+`interview.voice_agent` Job, and the API starts a Pipecat Cloud session for that
+Job at once; one warm instance stays ready, so no call waits for a cold start. The
+session claims the Job by its id and runs it with the worker's own lease,
+heartbeats, and failure records, and when a run fails it claims the Job again after
+the Job's backoff, until the Job completes or has no run left. If the session
+cannot be started, the connection closes, so a retry opens a new call rather than
+rejoining one no agent is coming to. Deepgram Flux hears the
 participant, GPT-6.1 Sol at the Ultrafast service tier writes the agent's words
 and calls uTrace's tools, and ElevenLabs speaks them. The session tab carries the call's audio over Daily's
 WebRTC transport. The extension does not capture or relay audio. Supabase Realtime

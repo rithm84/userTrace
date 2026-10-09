@@ -132,6 +132,15 @@ class InterviewSettings(_EnvSettings):
     )
 
 
+class VoiceAgentRuntime(StrEnum):
+    """Where the voice agent for a connection runs."""
+
+    PIPECAT_CLOUD = "pipecat_cloud"
+    """On Pipecat Cloud, which carries the call's WebRTC media to Daily."""
+    IN_PROCESS = "in_process"
+    """In the API's own process, for a local run."""
+
+
 class VoiceSettings(_EnvSettings):
     """The voice call's providers and their pinned configuration.
 
@@ -141,6 +150,7 @@ class VoiceSettings(_EnvSettings):
     """
 
     daily_api_key: str = Field(validation_alias="DAILY_API_KEY", min_length=1)
+    agent_runtime: VoiceAgentRuntime = Field(validation_alias="UTRACE_VOICE_AGENT_RUNTIME")
     deepgram_api_key: str = Field(validation_alias="DEEPGRAM_API_KEY", min_length=1)
     openai_api_key: str = Field(validation_alias="OPENAI_API_KEY", min_length=1)
     elevenlabs_api_key: str = Field(validation_alias="ELEVENLABS_API_KEY", min_length=1)
@@ -169,6 +179,13 @@ class VoiceSettings(_EnvSettings):
     request_timeout_seconds: float = Field(
         default=15.0, validation_alias="UTRACE_VOICE_REQUEST_TIMEOUT_SECONDS"
     )
+
+
+class PipecatCloudSettings(_EnvSettings):
+    """The Pipecat Cloud agent the API starts sessions of, and its public API key."""
+
+    public_api_key: str = Field(validation_alias="PIPECAT_CLOUD_PUBLIC_API_KEY", min_length=1)
+    agent_name: str = Field(default="utrace-voice-agent", validation_alias="PIPECAT_CLOUD_AGENT_NAME")
 
 
 class JevSettings(_EnvSettings):
@@ -206,6 +223,15 @@ def get_voice_settings() -> VoiceSettings:
     """Return the voice providers' credentials and pinned configuration, read once."""
     try:
         return VoiceSettings()  # type: ignore[call-arg]
+    except ValidationError as error:
+        raise InterviewConfigurationError(_offending_variables(error)) from None
+
+
+@lru_cache(maxsize=1)
+def get_pipecat_cloud_settings() -> PipecatCloudSettings:
+    """Return the Pipecat Cloud agent and its public API key, read once."""
+    try:
+        return PipecatCloudSettings()  # type: ignore[call-arg]
     except ValidationError as error:
         raise InterviewConfigurationError(_offending_variables(error)) from None
 

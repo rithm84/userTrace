@@ -21,7 +21,8 @@ highlighting are out of scope.
   blocking, delivery, and Outreach Offers against pinned fixtures, using real
   provider sandboxes where practical.
 - Opt-in live voice checks (`UTRACE_REALTIME_E2E=1`) run real calls against the
-  local stack. The browser call test runs the API, both worker lanes, and a
+  local stack. The browser call test runs the API, which hosts each voice agent
+  session in its own process, the worker, and a
   production build of the web app, and drives the real session tab in Chrome
   under its real autoplay policy: a synthetic microphone speaks recorded lines,
   and the test measures what the tab actually plays, including through a reload
@@ -549,6 +550,22 @@ other live realtime tests passed.
 
 In Codex, the same investigation task took 9.2 seconds on the Ultrafast tier and
 19.1 seconds on the Fast tier, at $0.51 against $0.19.
+
+### The voice agent's host
+
+On 2026-10-09 the first production call with the agent in the Supabase Compute
+worker carried no audio either way. Daily's call logs showed the browser's media
+connections up over UDP, sending the participant's microphone at about 45 kbps
+and receiving nothing, while the agent's send and receive connections stayed in
+ICE `checking` for the whole call; signaling, app messages, and the agent's HTTPS
+calls to Daily, Deepgram, and OpenAI worked. With Daily's TURN relays on TCP and
+TLS over port 443 in its ICE configuration, the agent still never connected. The
+same `daily-python` sender reached a listener from a Linux container with all
+outbound UDP dropped, through Daily's TCP relay, and from a Daytona sandbox, so
+Compute's network blocks more than UDP. The agent moved to Pipecat Cloud. Run from
+its production image on a workstation and started through the image's `/bot`
+route as Pipecat Cloud starts it, the agent joined the call 1.5 seconds after the
+start request and its greeting reached the participant 3.5 seconds after it.
 
 ### Voice and model measurement harness
 
