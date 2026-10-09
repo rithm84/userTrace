@@ -292,11 +292,11 @@ def observation_items(
             section=SECTION_SELECTED_OBSERVATIONS,
             source_kind="observation",
             source_id=observation.observation_id,
-            source_revision=observation.occurred_at,
+            source_revision=observation.observed_at,
             weight=1,
             body={
                 "observation_type": observation.observation_type,
-                "occurred_at": observation.occurred_at,
+                "observed_at": observation.observed_at,
                 "target_id": observation.target_id,
                 "control": observation.control,
                 "milestone": observation.milestone,

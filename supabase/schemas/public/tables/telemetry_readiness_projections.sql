@@ -37,6 +37,11 @@ CREATE TRIGGER telemetry_readiness_projections_immutable
   FOR EACH ROW
   EXECUTE FUNCTION utrace.reject_mutation();
 
+CREATE TRIGGER telemetry_readiness_projections_notify_voice_sideband
+  AFTER INSERT ON public.telemetry_readiness_projections
+  FOR EACH ROW
+  EXECUTE FUNCTION utrace.notify_voice_sideband('interview_session_id');
+
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE "public"."telemetry_readiness_projections" TO "service_role";
 
 REVOKE ALL ON TABLE "public"."telemetry_readiness_projections" FROM "postgres";

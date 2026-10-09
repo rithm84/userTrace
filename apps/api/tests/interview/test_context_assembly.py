@@ -81,7 +81,7 @@ def _observation(index: int) -> ObservedActivity:
     return ObservedActivity(
         observation_id=f"obs-{index}",
         observation_type="interaction.activation",
-        occurred_at=datetime.now(tz=UTC).isoformat(),
+        observed_at=datetime.now(tz=UTC).isoformat(),
         target_id=None,
         control=None,
         milestone=None,

@@ -29,7 +29,11 @@ The terminal states are `completed`, which records the outcome, and `abandoned`,
 which any open state can reach.
 
 Beginning an attempt requires the originating user's identity to match, the
-candidate to be ready, and observation readiness to be current. The live
+candidate to be ready, and observation readiness to be current for the page the
+participant has open, which must be on the candidate's own preview: readiness of
+the version they had before, or of a candidate page no evaluation has read yet,
+is not readiness of the candidate, so the walkthrough of what changed waits until
+the candidate's own page and controls are observed. The live
 session's voice agent begins it as soon as those hold, rather than when the
 agent next asks for it, so the evidence window opens before the participant starts
 trying the candidate. Resuming an

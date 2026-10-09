@@ -58,6 +58,7 @@ from tests.interview.fixtures import (
     observe_document,
     observe_next_document,
     record_observation,
+    record_ready_page,
     record_registry_change,
 )
 from tests.supabase_auth import SignedInUser
@@ -784,14 +785,28 @@ async def open_page(
     return document
 
 
-async def observe_browser(database: Database, session_id: UUID, *, ready: bool) -> None:
-    """The browser SDK leaving the old page as the tab reloads, or reporting from the new one."""
+async def leave_page(database: Database, session_id: UUID) -> None:
+    """The browser SDK leaving the old page as the tab reloads."""
     await record_observation_facts(
         database,
         interview_session_id=session_id,
         preview_allocation_ready=True,
         extension_readiness=ExtensionReadiness.READY,
-        browser_sdk_ready=ready,
+        browser_sdk_ready=False,
+        server_sdk_ready=True,
+        trace_correlation_ready=True,
+    )
+
+
+async def report_page(database: Database, call: LiveCall, page: ObservedDocument) -> None:
+    """The new page reporting in: its observation path evaluated ready, as ingestion does."""
+    await record_ready_page(database, case=call.case, document=page)
+    await record_observation_facts(
+        database,
+        interview_session_id=call.session_id,
+        preview_allocation_ready=True,
+        extension_readiness=ExtensionReadiness.READY,
+        browser_sdk_ready=True,
         server_sdk_ready=True,
         trace_correlation_ready=True,
     )

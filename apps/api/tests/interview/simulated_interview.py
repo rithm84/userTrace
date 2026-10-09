@@ -401,7 +401,7 @@ async def run_interview(
 
     # 5. The new version is ready and loads in her preview.
     candidate = await harness.ready_candidate(database, call, attempt_id=await _attempt(database, signal_id))
-    await harness.observe_browser(database, call.session_id, ready=False)
+    await harness.leave_page(database, call.session_id)
     ready_at = time.time()
     await harness.set_progress(database, call.session_id, "ready_for_validation")
     await live.answer_owed(after=ready_at, label="ready announcement")
@@ -412,7 +412,7 @@ async def run_interview(
         controls=(*harness.FILTER_CONTROLS, *harness.NEW_CONTROLS),
         binding_allocation=candidate,
     )
-    await harness.observe_browser(database, call.session_id, ready=True)
+    await harness.report_page(database, call, page)
     await live.answer_owed(after=time.time(), label="debrief")
 
     # 6. She tries it: saves the view, refreshes, reopens it, and says it works.

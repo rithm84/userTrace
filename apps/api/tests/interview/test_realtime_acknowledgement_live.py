@@ -132,19 +132,19 @@ async def test_the_agent_acknowledges_what_was_awaited_once_and_narrates_nothing
 
         # 3. A new version is ready, loads, and is debriefed.
         candidate = await _ready_candidate(database, call)
-        await harness.observe_browser(database, session_id, ready=False)
+        await harness.leave_page(database, session_id)
         ready_at = time.time()
         await harness.set_progress(database, session_id, "ready_for_validation")
         ready_cue_at = await _appended(report, prefix=_READY, after=ready_at)
         loading_reply = await harness.required_reply(database, session_id, after=ready_cue_at)
-        await harness.open_page(
+        page = await harness.open_page(
             database,
             call,
             allocation_id=candidate,
             controls=(*harness.FILTER_CONTROLS, *harness.NEW_CONTROLS),
             binding_allocation=candidate,
         )
-        await harness.observe_browser(database, session_id, ready=True)
+        await harness.report_page(database, call, page)
         loaded_at = time.time()
         debrief_at = await _appended(report, prefix=_DEBRIEF, after=loaded_at)
         debrief_reply = await harness.required_reply(database, session_id, after=debrief_at)

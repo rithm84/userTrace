@@ -43,7 +43,7 @@ _BROWSER_SOURCE: tuple[SourceClass, ...] = ("browser_observation",)
 _ACTIVITY_PROJECTION: tuple[str, ...] = (
     "id",
     "observation_type",
-    "occurred_at",
+    "observed_at",
     "target_id",
     "document_attachment_id",
     "payload",
@@ -59,7 +59,8 @@ class ObservedActivity:
 
     observation_id: str
     observation_type: str
-    occurred_at: str
+    #: When it happened on the server's clock (`app.evidence.observed_time`).
+    observed_at: str
     target_id: str | None
     control: str | None
     """For an activation, the control as the client declared and labelled it."""
@@ -155,7 +156,7 @@ def _activity(row: Mapping[str, object], *, controls: Mapping[str, str]) -> Obse
     return ObservedActivity(
         observation_id=str(row["id"]),
         observation_type=observation_type,
-        occurred_at=str(row["occurred_at"]),
+        observed_at=str(row["observed_at"]),
         target_id=str(target) if target is not None else None,
         control=controls.get(str(target)) if target is not None else None,
         milestone=milestone,

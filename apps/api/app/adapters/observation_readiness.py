@@ -12,8 +12,9 @@ has not activated reports ``activated=false`` with the reason, and the probe
 fails rather than being recorded as a pass nobody observed.
 
 Readiness is read from the newest ``telemetry_readiness_projections`` row per
-kind, and an expired projection is not readiness: a stale projection can never
-authorize observation-dependent probing.
+kind, for the page the participant has open (`open_page_readiness`): an expired
+projection, or one evaluated for a page they have since left, is not readiness,
+so a stale projection can never authorize observation-dependent probing.
 
 Contract: docs/arch-components/telemetry-and-evidence.md#completeness-and-readiness
 """
@@ -25,8 +26,8 @@ from psycopg import AsyncConnection
 from psycopg.rows import DictRow
 
 from app.db.pool import Database
-from app.db.rows import as_bool, as_datetime, as_optional_str, as_str, as_uuid
-from app.ingestion.readiness import READINESS_LIFETIME_SECONDS
+from app.db.rows import as_datetime, as_optional_str, as_str, as_uuid
+from app.ingestion.readiness import READINESS_LIFETIME_SECONDS, open_page_readiness
 from app.ingestion.settings import get_ingestion_settings
 from app.logging import get_logger
 from app.preview.ports import ServerSdkActivation, TelemetryReadiness
@@ -34,9 +35,6 @@ from app.preview.ports import ServerSdkActivation, TelemetryReadiness
 __all__ = ["IngestionObservationReadiness"]
 
 _log = get_logger(__name__)
-
-#: The kinds ``telemetry_readiness_projections`` records, in report order.
-_KINDS = ("browser", "server", "correlation")
 
 #: What the health reports call the SDK build. Absent until one arrives.
 _UNREPORTED_SDK_VERSION = "unreported"
@@ -99,39 +97,16 @@ class IngestionObservationReadiness:
     async def readiness(
         self, *, client_id: UUID, interview_session_id: UUID
     ) -> TelemetryReadiness:
-        """Project the session's browser, server, and correlation readiness."""
+        """Project the session's browser, server, and correlation readiness for its open page."""
         observed_at = datetime.now(tz=UTC)
-        async with self._database.connection() as conn, conn.cursor() as cur:
-            await cur.execute(
-                """
-                select distinct on (kind)
-                       kind, ready, revision, checked_at, expires_at, failures
-                from public.telemetry_readiness_projections
-                where client_id = %s and interview_session_id = %s
-                order by kind, checked_at desc, revision desc
-                """,
-                (client_id, interview_session_id),
+        async with self._database.connection() as conn:
+            page = await open_page_readiness(
+                conn,
+                client_id=client_id,
+                interview_session_id=interview_session_id,
+                observed_at=observed_at,
             )
-            rows = await cur.fetchall()
-        current = {as_str(row, "kind"): row for row in rows}
-        ready: dict[str, bool] = {}
-        reasons: list[str] = []
-        for kind in _KINDS:
-            row = current.get(kind)
-            if row is None:
-                ready[kind] = False
-                reasons.append(f"{kind}: no readiness projection")
-                continue
-            expires_at = as_datetime(row, "expires_at")
-            if expires_at <= observed_at:
-                ready[kind] = False
-                reasons.append(
-                    f"{kind}: the projection expired at {expires_at.isoformat()}"
-                )
-                continue
-            ready[kind] = as_bool(row, "ready")
-            if not ready[kind]:
-                reasons.append(f"{kind}: {_failure_codes(row)}")
+        ready = {kind.kind: kind.ready for kind in page.kinds}
         _log.info(
             "observation_readiness_read",
             client_id=str(client_id),
@@ -146,21 +121,10 @@ class IngestionObservationReadiness:
             server_ready=ready["server"],
             correlation_ready=ready["correlation"],
             observed_at=observed_at,
-            detail="; ".join(reasons),
+            detail="; ".join(
+                f"{kind.kind}: {kind.reason}" for kind in page.kinds if not kind.ready
+            ),
         )
-
-
-def _failure_codes(row: DictRow) -> str:
-    """Render one projection's typed failure codes, or say it reported none."""
-    failures = row["failures"]
-    if not isinstance(failures, list) or len(failures) == 0:
-        return "not ready, with no failure recorded"
-    codes = [
-        str(failure["code"])
-        for failure in failures
-        if isinstance(failure, dict) and "code" in failure
-    ]
-    return ", ".join(codes) if len(codes) > 0 else "not ready, with no failure code"
 
 
 async def _server_activation_row(

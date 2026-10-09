@@ -44,6 +44,7 @@ from app.adapters.telemetry_evidence import TelemetryEvidenceQuery
 from app.db.pool import Database
 from app.db.rows import as_datetime, as_int, as_optional_str, as_str, as_uuid
 from app.errors import AggregateNotFoundError, GuardRejectedError
+from app.evidence.observed_time import SESSION_OBSERVATIONS
 from app.interview.evidence import record_claim
 from app.interview.projection import advance_phase_on_connection
 from app.outputs.closure_jobs import CASE_FILE_DEADLINE_SECONDS
@@ -166,32 +167,32 @@ async def cite_session_observation(
 
     The model proposes; this checks the proposal against durable rows before
     anything is written, and refuses an observation from another session, the
-    base preview, or before the attempt opened.
+    base preview, or before the attempt opened. When it happened is read on the
+    server's clock (`app.evidence.observed_time`), so a participant's machine whose
+    clock is off can neither refuse their evidence nor admit an earlier action.
     """
     attempt, criterion = await _in_progress(
         database, interview_session_id=interview_session_id, ordinal=ordinal
     )
     async with database.connection() as conn, conn.cursor() as cur:
         await cur.execute(
-            """
+            "with "
+            + SESSION_OBSERVATIONS
+            + """
             select observations.payload ->> 'milestone_id' as milestone,
-                   observations.occurred_at
-            from public.browser_observations as observations
-            join public.telemetry_activations as activations
-              on activations.id = observations.activation_id
-            where observations.id = %s
-              and observations.client_id = %s
-              and activations.interview_session_id = %s
-              and activations.preview_runtime_allocation_id = %s
-              and observations.occurred_at >= %s
+                   observations.observed_at
+            from session_observations as observations
+            where observations.id = %(observation)s
+              and observations.preview_runtime_allocation_id = %(allocation)s
+              and observations.observed_at >= %(opened)s
             """,
-            (
-                observation_id,
-                attempt.client_id,
-                attempt.interview_session_id,
-                attempt.preview_runtime_allocation_id,
-                attempt.opened_at,
-            ),
+            {
+                "client": attempt.client_id,
+                "session": attempt.interview_session_id,
+                "observation": observation_id,
+                "allocation": attempt.preview_runtime_allocation_id,
+                "opened": attempt.opened_at,
+            },
         )
         observed = await cur.fetchone()
     if observed is None:
@@ -223,7 +224,7 @@ async def cite_session_observation(
         milestone=as_optional_str(observed, "milestone"),
         preview_version_id=attempt.preview_version_id,
         coverage_limit=None,
-        observed_at=as_datetime(observed, "occurred_at"),
+        observed_at=as_datetime(observed, "observed_at"),
     )
 
 
@@ -387,22 +388,21 @@ async def _candidate_observed(
     """Whether the session observed anything on the candidate since the attempt opened."""
     async with conn.cursor() as cur:
         await cur.execute(
-            """
+            "with "
+            + SESSION_OBSERVATIONS
+            + """
             select exists (
-              select 1
-              from public.browser_observations as observations
-              join public.telemetry_activations as activations
-                on activations.id = observations.activation_id
-              where activations.interview_session_id = %s
-                and activations.preview_runtime_allocation_id = %s
-                and observations.occurred_at >= %s
+              select 1 from session_observations as observations
+              where observations.preview_runtime_allocation_id = %(allocation)s
+                and observations.observed_at >= %(opened)s
             ) as observed
             """,
-            (
-                attempt.interview_session_id,
-                attempt.preview_runtime_allocation_id,
-                attempt.opened_at,
-            ),
+            {
+                "client": attempt.client_id,
+                "session": attempt.interview_session_id,
+                "allocation": attempt.preview_runtime_allocation_id,
+                "opened": attempt.opened_at,
+            },
         )
         row = await cur.fetchone()
     return row is not None and bool(row["observed"])

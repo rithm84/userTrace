@@ -47,6 +47,7 @@ from app.envelope import (
 )
 from app.errors import AggregateNotFoundError, GuardRejectedError
 from app.ids import uuid7
+from app.ingestion.readiness import open_page_readiness
 from app.lifecycle.machine import plan_transition
 from app.lifecycle.product_signal import PRODUCT_SIGNAL_MACHINE, ProductSignalFacts
 from app.lifecycle.validation import VALIDATION_ATTEMPT_MACHINE, ValidationAttemptFacts
@@ -314,7 +315,13 @@ def _facts(
 async def _readiness(
     conn: AsyncConnection[DictRow], attempt: ValidationAttemptRow
 ) -> tuple[bool, bool]:
-    """Return whether the exact candidate and the observation path are ready."""
+    """Return whether the exact candidate and the observation path on it are ready.
+
+    Observation counts only for the page the participant has open, and only when
+    that page is on the candidate's own preview: while the previous version's page
+    is still open, or the candidate's page has not yet been evaluated, readiness
+    the session kept from the page before is not readiness of the candidate.
+    """
     async with conn.cursor() as cur:
         await cur.execute(
             """
@@ -345,7 +352,17 @@ async def _readiness(
         }
         and row["allocation_version"] == attempt.preview_version_id
     )
-    observation_ready = bool(row["observation_ready"])
+    page = await open_page_readiness(
+        conn,
+        client_id=attempt.client_id,
+        interview_session_id=attempt.interview_session_id,
+        observed_at=datetime.now(tz=UTC),
+    )
+    observation_ready = (
+        bool(row["observation_ready"])
+        and page.preview_runtime_allocation_id == attempt.preview_runtime_allocation_id
+        and page.ready
+    )
     return candidate_ready, observation_ready
 
 

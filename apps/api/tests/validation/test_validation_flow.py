@@ -31,6 +31,7 @@ from app.validation.controller import (
 )
 from app.validation.evidence import DurableEvidenceQuery, EvidenceStance
 from tests.helpers import count_rows, read_state
+from tests.interview.fixtures import observe_ready_page, open_page, record_ready_page
 from tests.supabase_auth import SignedInUser
 from tests.validation.scenario import (
     ScenarioCriterion,
@@ -38,6 +39,7 @@ from tests.validation.scenario import (
     add_criterion_observation,
     binding_of,
     build_scenario,
+    case_of,
 )
 
 ASSEMBLY_DEADLINE_SECONDS = 7 * 24 * 60 * 60
@@ -180,6 +182,81 @@ async def test_beginning_validation_moves_the_case_into_validating(
         column="state",
     )
     assert state == ProductSignalState.VALIDATING.value
+
+
+async def test_validation_waits_for_the_candidate_page_to_be_observed(
+    database: Database, auth_users: dict[str, SignedInUser]
+) -> None:
+    """Validation begins only once the participant's open page is the candidate's, observed.
+
+    In a live interview validation began while the previous version's page was still
+    open and observed, so the agent walked through a version whose new controls had
+    not loaded yet.
+    """
+    scenario = await _scenario(database, auth_users, name="open-page", candidate_ready=True)
+    case = case_of(scenario)
+    attempt_id = await open_validation_attempt(database, binding=binding_of(scenario))
+
+    # The previous version's page is still open, and its path is observed.
+    await observe_ready_page(
+        database,
+        case=case,
+        interview_session_id=scenario.interview_session_id,
+        preview_runtime_allocation_id=await _base_allocation(database, scenario),
+    )
+    with pytest.raises(GuardRejectedError, match="complete observation path"):
+        await begin_validation(
+            database, attempt_id=attempt_id, originating_user_id=scenario.client_user_id
+        )
+
+    # The preview reloads onto the candidate, before any evaluation has read the page.
+    page = await open_page(
+        database,
+        case=case,
+        interview_session_id=scenario.interview_session_id,
+        preview_runtime_allocation_id=scenario.preview_runtime_allocation_id,
+    )
+    with pytest.raises(GuardRejectedError, match="complete observation path"):
+        await begin_validation(
+            database, attempt_id=attempt_id, originating_user_id=scenario.client_user_id
+        )
+
+    await record_ready_page(database, case=case, document=page)
+    await begin_validation(
+        database, attempt_id=attempt_id, originating_user_id=scenario.client_user_id
+    )
+    state, _ = await read_state(
+        database, table="product_signals", row_id=scenario.product_signal_id, column="state"
+    )
+    assert state == ProductSignalState.VALIDATING.value
+
+
+async def _base_allocation(database: Database, scenario: ValidationScenario) -> UUID:
+    """The session's base preview, from the candidate's own template."""
+    allocation_id = uuid7()
+    async with database.transaction() as conn, conn.cursor() as cur:
+        await cur.execute(
+            """
+            insert into public.preview_runtime_allocations (
+                id, client_id, product_signal_id, allocation_kind, pool_role, state,
+                interview_session_id, seed_manifest_digest, runtime_ref, origin_host,
+                fencing_token, preview_runtime_template_id, pinned_configuration_release_id
+            )
+            select %s, client_id, product_signal_id, 'base', 'session_base', 'bound',
+                   interview_session_id, seed_manifest_digest, %s, %s,
+                   utrace.next_fencing_token(), preview_runtime_template_id,
+                   pinned_configuration_release_id
+            from public.preview_runtime_allocations
+            where id = %s
+            """,
+            (
+                allocation_id,
+                f"base-{allocation_id.hex[:8]}",
+                f"{allocation_id.hex[:12]}.preview.utrace.dev",
+                scenario.preview_runtime_allocation_id,
+            ),
+        )
+    return allocation_id
 
 
 async def test_interruption_records_one_case_deadline_and_never_extends_it(
