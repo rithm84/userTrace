@@ -29,7 +29,7 @@ from app.lifecycle.machine import plan_transition
 
 __all__ = ["ROUTER_ACTOR", "intake_transition"]
 
-ROUTER_ACTOR = Actor(kind=ActorKind.UTRACE_AGENT_ROLE, ref="intake_router")
+ROUTER_ACTOR = Actor(kind=ActorKind.SERVICE, ref="intake.router")
 
 
 def _facts(*, mutation: Mapping[str, ColumnValue], trigger: str) -> IntakeItemFacts:

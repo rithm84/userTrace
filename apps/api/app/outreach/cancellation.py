@@ -38,7 +38,7 @@ from app.outreach.offers import release_reservation
 __all__ = ["CanceledCase", "cancel_case"]
 
 _log = get_logger(__name__)
-_ACTOR = Actor(kind=ActorKind.UTRACE_AGENT_ROLE, ref="outreach_controller")
+_ACTOR = Actor(kind=ActorKind.SERVICE, ref="outreach.controller")
 
 
 @dataclass(frozen=True, slots=True)

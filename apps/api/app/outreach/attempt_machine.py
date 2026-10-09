@@ -33,7 +33,7 @@ from app.lifecycle.outreach import OUTREACH_ATTEMPT_MACHINE, OutreachAttemptFact
 
 __all__ = ["OUTREACH_ACTOR", "attempt_transition", "load_attempt_state"]
 
-OUTREACH_ACTOR = Actor(kind=ActorKind.UTRACE_AGENT_ROLE, ref="outreach_controller")
+OUTREACH_ACTOR = Actor(kind=ActorKind.SERVICE, ref="outreach.controller")
 
 
 async def load_attempt_state(

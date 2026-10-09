@@ -43,7 +43,7 @@ __all__ = ["GateOutcome", "decide_gate"]
 
 _log = get_logger(__name__)
 
-_GATE_ACTOR = Actor(kind=ActorKind.UTRACE_AGENT_ROLE, ref="implementation_gate")
+_GATE_ACTOR = Actor(kind=ActorKind.SERVICE, ref="gate.controller")
 _EVIDENCE_WINDOW_KIND = "implementation_gate"
 
 

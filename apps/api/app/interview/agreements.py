@@ -59,7 +59,7 @@ __all__ = [
 
 _log = get_logger(__name__)
 
-_AGENT_ACTOR = Actor(kind=ActorKind.UTRACE_AGENT_ROLE, ref="interview_orchestrator")
+_AGENT_ACTOR = Actor(kind=ActorKind.SERVICE, ref="interview.agreements")
 _CLASSIFICATION_SUPERSEDED = "classification_revision_superseded"
 _VALIDATING_STATES = frozenset(
     {ProductSignalState.AWAITING_VALIDATION.value, ProductSignalState.VALIDATING.value}

@@ -78,7 +78,7 @@ _log = get_logger(__name__)
 EXPIRE_VALIDATION_RETURN = "validation.expire_return"
 """Job type that closes a case whose return-and-closure deadline has passed."""
 
-_AGENT_ACTOR = Actor(kind=ActorKind.UTRACE_AGENT_ROLE, ref="validation_controller")
+_AGENT_ACTOR = Actor(kind=ActorKind.SERVICE, ref="validation.controller")
 
 
 @dataclass(frozen=True, slots=True)

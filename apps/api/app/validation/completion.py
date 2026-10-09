@@ -75,7 +75,7 @@ __all__ = [
 
 _log = get_logger(__name__)
 
-_AGENT_ACTOR = Actor(kind=ActorKind.UTRACE_AGENT_ROLE, ref="validation_controller")
+_AGENT_ACTOR = Actor(kind=ActorKind.SERVICE, ref="validation.controller")
 _EVIDENCE_LIMIT = 200
 
 
