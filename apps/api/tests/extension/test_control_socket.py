@@ -410,6 +410,58 @@ async def test_a_gesture_reaches_the_bound_tab_while_a_writer_holds_readiness(
     assert delivered < _PROMPT_SECONDS, f"the gesture took {delivered:.1f}s to arrive"
 
 
+async def test_a_mute_from_the_session_tab_reaches_the_extension(
+    database: Database,
+    running_api: FastAPI,
+    page_proof_signer: Signer,
+    auth_users: dict[str, SignedInUser],
+) -> None:
+    """The pills show the session's own state, whichever surface changed it.
+
+    A mute changes no character state, so the session row itself wakes the socket.
+    """
+    prepared = await prepare_session(database, auth_users, "socket-session-mute")
+    attachment_id = uuid7()
+    install_observation_readiness(
+        running_api, RecordingObservationReadiness(readiness=complete_readiness())
+    )
+    await observe_document(
+        database,
+        case=prepared.case,
+        interview_session_id=prepared.session_id,
+        preview_runtime_allocation_id=prepared.allocation_id,
+        document_attachment_id=attachment_id,
+        targets=(_SAVE_VIEW,),
+    )
+
+    async with connect(
+        device=prepared.device, installation_id=prepared.installation_id
+    ) as client:
+        await bind_document(
+            client,
+            database=database,
+            prepared=prepared,
+            signer=page_proof_signer,
+            document_attachment_id=attachment_id,
+        )
+        await post_participant_control(
+            access_token=auth_users["participant"].access_token,
+            session_id=prepared.session_id,
+            action="mute",
+        )
+        muted_at = time.monotonic()
+        frames = await client.until(
+            lambda frames: any(
+                frame["kind"] == "controls_state" and frame["payload"]["mute_state"] == "muted"
+                for frame in frames
+            )
+        )
+        delivered = time.monotonic() - muted_at
+
+    assert last_of(frames, "controls_state")["payload"]["session_id"] == str(prepared.session_id)
+    assert delivered < _PROMPT_SECONDS, f"the mute took {delivered:.1f}s to reach the pills"
+
+
 async def test_ending_the_session_from_the_session_tab_revokes_the_extension(
     database: Database,
     running_api: FastAPI,

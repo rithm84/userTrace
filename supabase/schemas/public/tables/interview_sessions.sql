@@ -44,9 +44,9 @@ CREATE INDEX interview_sessions_participant_idx ON public.interview_sessions USI
 CREATE INDEX interview_sessions_signal_idx ON public.interview_sessions USING btree (product_signal_id, state);
 
 CREATE TRIGGER interview_sessions_notify_extension_control
-  AFTER UPDATE OF character_revision ON public.interview_sessions
+  AFTER UPDATE OF character_revision, muted, paused, state ON public.interview_sessions
   FOR EACH ROW
-  WHEN ((old.character_revision IS DISTINCT FROM new.character_revision))
+  WHEN (((old.character_revision IS DISTINCT FROM new.character_revision) OR (old.muted IS DISTINCT FROM new.muted) OR (old.paused IS DISTINCT FROM new.paused) OR (old.state IS DISTINCT FROM new.state)))
   EXECUTE FUNCTION utrace.notify_extension_control('id');
 
 CREATE TRIGGER interview_sessions_notify_voice_sideband
