@@ -136,6 +136,9 @@ OWNED_TABLES: tuple[str, ...] = (
     "clients",
 )
 
+#: Longer than the server default of one second, which the crons run with.
+_TRUNCATE_DEADLOCK_TIMEOUT = "10s"
+
 _TEST_DEFAULTS = {
     "UTRACE_LANE_SIGNING_KEY": "control-plane-integration-test-signing-key",
     "UTRACE_FRONT_DOOR_SERVICE_TOKEN": "control-plane-integration-test-front-door",
@@ -203,6 +206,11 @@ async def _truncate(database: Database) -> None:
         f"public.{name}" for name in OWNED_TABLES
     )
     async with database.transaction() as conn, conn.cursor() as cur:
+        # The database's own minute crons read these tables in their own order, so
+        # the truncate's locks can close a cycle with one of them. Postgres aborts
+        # the backend whose deadlock_timeout runs out first; this one waits longer,
+        # so that is the cron's run, which repeats the next minute.
+        await cur.execute(f"set local deadlock_timeout = '{_TRUNCATE_DEADLOCK_TIMEOUT}'")
         await cur.execute(statement)
         await cur.execute("select pgmq.purge_queue('utrace_outbox')")
 
