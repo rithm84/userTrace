@@ -580,7 +580,7 @@ def _start_background(
             changes,
             interview_session_id=subject.interview_session_id,
             agent=agent,
-            agent_quiet=floor.agent_quiet,
+            floor=floor,
         ),
         feed_activity(
             database,

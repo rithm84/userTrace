@@ -19,8 +19,8 @@ import {
  *
  * The uTrace API opens the connection and returns a Daily room and a meeting
  * token for this participant, the same room again when the session's agent is
- * still holding its call; the voice agent, a Pipecat pipeline on the uTrace
- * worker, joins that room. The connection is up once this tab has joined the
+ * still holding its call; the voice agent, a Pipecat pipeline on Pipecat
+ * Cloud, joins that room. The connection is up once this tab has joined the
  * room: the agent arrives on its own schedule, and the session's readiness, not
  * this tab, says when it is in the call. No model, voice or provider credential
  * is selected here. Over the call the tab receives the agent's audio and the
@@ -52,6 +52,8 @@ export type ConnectVoiceParameters = Readonly<{
   onAgentAudio: (track: MediaStreamTrack) => void;
   onDisconnected: () => void;
   onTranscriptDelta: (delta: TranscriptDelta) => void;
+  /** The participant's turn so far, replacing the last; empty once the turn is final. */
+  onParticipantInterim: (text: string) => void;
   onNotice: (message: string) => void;
   joinTimeoutMs: number;
 }>;
@@ -109,7 +111,17 @@ export async function connectVoice(parameters: ConnectVoiceParameters): Promise<
           parameters.onAgentAudio(track);
         }
       },
-      onUserTranscript: (data) => readEvent(() => readUserTranscription(data)),
+      onUserTranscript: (data) =>
+        readEvent(() => {
+          const read = readUserTranscription(data);
+          if (read === null) return null;
+          if (!read.final) {
+            parameters.onParticipantInterim(read.text);
+            return null;
+          }
+          parameters.onParticipantInterim("");
+          return read.delta;
+        }),
       onBotOutput: (data) =>
         readEvent(() => {
           const read = readBotOutput(shown, data);

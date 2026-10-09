@@ -6,9 +6,10 @@ session's state whenever a trigger says that state may have changed.
 - Mute: the participant's Mute and Unmute reach the worker as queued Commands,
   which it applies to the call, so a worker restart still applies
   them and a lost socket cannot swallow them.
-- Open preview: once the preview has stayed ready but unopened for a grace
-  period, the agent is asked to have the participant open it, and told if they
-  open it before it spoke.
+- Open preview: once the preview is ready but unopened, the agent is told, so its
+  next reply asks in its own words or leaves the participant to it when they have
+  said they are opening it; only a quiet stretch with it still unopened has the
+  agent ask outright, and it is told when the preview opens.
 - Ready: once a new version serves in the participant's preview, the agent says
   it is loading; once it has loaded, the agent is told what changed (the controls
   this version shows that no earlier page of the session did) and shows them
@@ -84,21 +85,33 @@ _APPROVED: Final[str] = GateDecisionKind.APPROVED_LIVE.value
 #: The gate outcome the agent is only told about: an approved change being built.
 _BUILDING: Final[str] = "building"
 
-#: How long a ready preview may stay unopened before the agent is asked to prompt
-#: for it. Participants usually open it unprompted.
-_OPEN_PREVIEW_GRACE_SECONDS: Final[float] = 20.0
+#: How long nobody may hold the floor, with the preview ready and unopened, before
+#: the agent is asked outright to point the participant to it.
+_OPEN_PREVIEW_QUIET_SECONDS: Final[float] = 20.0
+#: How often the floor is checked while the preview stays unopened.
+_FLOOR_POLL_SECONDS: Final[float] = 0.25
 
-#: Sent once the participant's preview is ready while they have not opened it, so
-#: the agent asks them to open it rather than leaving them to find the button.
-_OPEN_PREVIEW_CUE: Final[str] = (
+#: Noted once the participant's preview is ready while they have not opened it, so
+#: the agent's next reply can ask in its own words, or leave them to it when they
+#: have just said they are opening it.
+_OPEN_PREVIEW_NOTE: Final[str] = (
     "The person's preview of the product is ready, but they have not opened it yet. "
-    "At the next natural pause, ask them to click Open preview on this page and "
-    "show you the workflow there."
+    "When it fits your next reply, ask them to click Open preview on this page and "
+    "show you the workflow there. If they have said they are opening it, let them, "
+    "and do not ask."
 )
 
-#: Sent when the preview opens after the agent was asked to prompt for it.
+#: Spoken only when the preview stays unopened through a quiet stretch, so the
+#: participant is not left looking for the button.
+_OPEN_PREVIEW_ASK: Final[str] = (
+    "The person's preview is ready and still unopened, and nobody has spoken for a "
+    "while. In one short sentence, point them to Open preview on this page so they "
+    "can show you the workflow there."
+)
+
+#: Noted when the preview opens after the agent was told it was unopened.
 _OPEN_PREVIEW_DONE: Final[str] = (
-    "The person has opened the preview now. Do not ask them to open it again."
+    "The person has opened the preview now. Do not ask them to open it."
 )
 
 #: Speakable context sent once the candidate is ready in the participant's preview.
@@ -541,14 +554,17 @@ async def prompt_open_preview(
     *,
     interview_session_id: UUID,
     agent: AgentChannel,
-    agent_quiet: asyncio.Event,
+    floor: Floor,
 ) -> None:
-    """Ask the agent, once per connection, to have the participant open a ready preview.
+    """Keep the agent aware of a ready preview the participant has not opened.
 
-    Nothing is sent while the preview is open, its browser SDK reporting being what
-    shows the participant has it in front of them, nor before it has stayed unopened
-    for the grace period. If it opens after the ask, the agent is told, so a prompt
-    it has not spoken yet is never voiced stale.
+    The agent is told at once, as a note, so its next reply asks in its own words,
+    or leaves them to it when they have just said they are opening it. Only when
+    the preview stays unopened while nobody holds the floor for a quiet stretch is
+    the ask spoken outright, once, so it never cuts across the conversation or
+    follows straight on from "let me open it". Nothing is sent while the preview
+    is open, its browser SDK reporting being what shows the participant has it in
+    front of them, and the agent is told when it opens.
     """
     woken = changes.watch()
     while True:
@@ -559,26 +575,27 @@ async def prompt_open_preview(
             return
         if ready:
             break
-    try:
-        async with asyncio.timeout(_OPEN_PREVIEW_GRACE_SECONDS):
-            while True:
-                await woken.wait()
-                woken.clear()
-                if (await _preview_state(database, interview_session_id=interview_session_id))[1]:
-                    return
-    except TimeoutError:
-        pass
-    await agent_quiet.wait()
-    if (await _preview_state(database, interview_session_id=interview_session_id))[1]:
-        return
-    await agent.say(_OPEN_PREVIEW_CUE)
-    _log.info("voice_open_preview_prompted", interview_session_id=str(interview_session_id))
+    await agent.note(_OPEN_PREVIEW_NOTE)
+    asked = False
+    quiet_since: float | None = None
     while True:
-        await woken.wait()
-        woken.clear()
-        if (await _preview_state(database, interview_session_id=interview_session_id))[1]:
-            break
-    await agent_quiet.wait()
+        if woken.is_set():
+            woken.clear()
+            if (await _preview_state(database, interview_session_id=interview_session_id))[1]:
+                break
+        now = asyncio.get_running_loop().time()
+        if not floor.free():
+            quiet_since = None
+        elif quiet_since is None:
+            quiet_since = now
+        elif not asked and now - quiet_since >= _OPEN_PREVIEW_QUIET_SECONDS:
+            if (await _preview_state(database, interview_session_id=interview_session_id))[1]:
+                break
+            await agent.say(_OPEN_PREVIEW_ASK)
+            asked = True
+            _log.info("voice_open_preview_prompted", interview_session_id=str(interview_session_id))
+        await asyncio.sleep(_FLOOR_POLL_SECONDS)
+    await floor.agent_quiet.wait()
     await agent.note(_OPEN_PREVIEW_DONE)
     _log.info("voice_open_preview_done", interview_session_id=str(interview_session_id))
 
