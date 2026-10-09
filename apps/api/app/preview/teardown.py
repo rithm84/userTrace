@@ -19,9 +19,7 @@ field values and never the secrets injected into it.
 
 from __future__ import annotations
 
-import asyncio
 from datetime import UTC, datetime
-from typing import Final
 from uuid import UUID
 
 from psycopg.types.json import Jsonb
@@ -32,7 +30,12 @@ from app.db.pool import Database
 from app.db.rows import as_optional_str, as_str
 from app.errors import AggregateNotFoundError
 from app.logging import get_logger
-from app.preview.activation import ServerActivationContext, terminate_server_activation
+from app.preview.activation import (
+    STREAM_END_SECONDS,
+    ServerActivationContext,
+    await_stream_end,
+    terminate_server_activation,
+)
 from app.preview.machines import PreviewRuntimeAllocationFacts
 from app.preview.pool import commit_allocation_transition
 from app.preview.routing import revoke_routes
@@ -42,9 +45,6 @@ __all__ = ["extract_evidence", "release_allocation", "tear_down_allocation"]
 
 _log = get_logger(__name__)
 
-_STREAM_END_SECONDS: Final[float] = 15.0
-"""How long the sandbox is kept for the Server SDK's terminal stream report."""
-_STREAM_END_POLL_SECONDS: Final[float] = 0.5
 
 
 
@@ -170,7 +170,7 @@ async def release_allocation(
     stream_ended = (
         termination.activation_id is not None
         and termination.delivered
-        and await _await_stream_end(database, activation_id=termination.activation_id)
+        and await await_stream_end(database, activation_id=termination.activation_id)
     )
 
     evidence = await extract_evidence(database, allocation_id=allocation_id)
@@ -183,7 +183,7 @@ async def release_allocation(
     elif not stream_ended:
         evidence["server_termination_detail"] = (
             "terminate was delivered but no terminal stream report arrived within "
-            f"{int(_STREAM_END_SECONDS)} seconds"
+            f"{int(STREAM_END_SECONDS)} seconds"
         )
     async with database.transaction() as conn:
         await commit_allocation_transition(
@@ -221,31 +221,6 @@ async def release_allocation(
     )
     return evidence
 
-
-async def _await_stream_end(database: Database, *, activation_id: UUID) -> bool:
-    """Wait, bounded, for the Server SDK's terminal report on the activation's streams.
-
-    The report is sent after the SDK flushes, so it can trail the terminate
-    command's delivery; destroying the sandbox first would lose it.
-    """
-    loop = asyncio.get_running_loop()
-    deadline = loop.time() + _STREAM_END_SECONDS
-    while True:
-        async with database.connection() as conn, conn.cursor() as cur:
-            await cur.execute(
-                """
-                select count(*) filter (where state = 'open') as open_streams,
-                       count(*) as streams
-                from public.server_streams where activation_id = %s
-                """,
-                (activation_id,),
-            )
-            row = await cur.fetchone()
-        if row is not None and int(row["streams"]) > 0 and int(row["open_streams"]) == 0:
-            return True
-        if loop.time() >= deadline:
-            return False
-        await asyncio.sleep(_STREAM_END_POLL_SECONDS)
 
 
 async def tear_down_allocation(

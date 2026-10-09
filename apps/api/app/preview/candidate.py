@@ -31,7 +31,11 @@ import httpx
 from app.db.pool import Database
 from app.errors import GuardRejectedError
 from app.logging import get_logger
-from app.preview.activation import ServerActivationContext, install_server_activation
+from app.preview.activation import (
+    ServerActivationContext,
+    install_server_activation,
+    restart_observed_runtime,
+)
 from app.preview.artifacts import (
     fail_preview_version,
     publish_preview_version,
@@ -425,7 +429,12 @@ async def deploy_candidate(
             await _run_migrations(
                 provider=provider, handle=handle, recipe=recipe, artifact=artifact
             )
-            await provider.restart_runtime(
+            await restart_observed_runtime(
+                database,
+                provider=provider,
+                commands=activation.commands,
+                client_id=template.client_id,
+                preview_runtime_allocation_id=allocation_id,
                 handle=handle,
                 supervisor_command=recipe.supervisor_command,
                 application_directory=recipe.application_directory,

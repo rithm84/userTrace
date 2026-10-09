@@ -33,7 +33,7 @@ from utrace_contracts.domain.lifecycle import (
 from app.adapters.observation_readiness import IngestionObservationReadiness
 from app.connectors.failures import ConnectorFailure
 from app.db.pool import Database
-from app.preview.activation import ServerActivationContext
+from app.preview.activation import ServerActivationContext, restart_observed_runtime
 from app.preview.artifacts import record_artifact
 from app.preview.candidate import build_candidate_runtime, deploy_candidate
 from app.preview.config import (
@@ -443,7 +443,12 @@ async def test_the_preview_path_from_warm_pool_to_validated_observation(
         assert withdrawn_route is not None
         assert withdrawn_route.readiness_state is RouteReadinessState.RECONNECTING
 
-        await provider.restart_runtime(
+        await restart_observed_runtime(
+            database,
+            provider=provider,
+            commands=activation.commands,
+            client_id=case.client_id,
+            preview_runtime_allocation_id=prepared.pins.preview_runtime_allocation_id,
             handle=base_handle,
             supervisor_command=recipe.supervisor_command,
             application_directory=recipe.application_directory,

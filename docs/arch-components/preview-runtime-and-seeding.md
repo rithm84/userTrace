@@ -92,7 +92,10 @@ the runtime's port, commits the route, and records readiness. The supervisor's o
 shutdown signals only the processes it started, so the restart signals anything
 deeper, such as the server a package manager's `run` wrapper spawned, as soon as
 the supervisor exits; the supervisor's direct children keep a grace period to
-flush.
+flush. A restart first ends a live server stream the way release does: uTrace
+terminates it as `activation_superseded` and waits, bounded, for its terminal
+report, because the product's framework may exit on the shutdown signal before
+the Server SDK finishes its own flush.
 
 A runtime's sandbox stops at a fixed execution limit, and a warm runtime spends
 part of that limit waiting. The allocation records when its sandbox stops. Only a
