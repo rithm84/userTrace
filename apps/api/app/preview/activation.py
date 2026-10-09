@@ -18,15 +18,19 @@ before the sandbox is destroyed, so the last export batch is acknowledged
 instead of disappearing with the container. The command has to reach the
 control-plane instance that holds that stream's socket, which is never the
 worker running teardown, so it goes over the control plane's own service route.
+A supervisor restart ends the stream the same way first, because the restarted
+process opens a new activation that supersedes it.
 
 Contract: docs/arch-components/server-sdk.md#configuration-identity-and-credentials
 """
 
 from __future__ import annotations
 
+import asyncio
 from base64 import b64encode, urlsafe_b64encode
 from dataclasses import dataclass
 from json import dumps
+from typing import Final
 from urllib.parse import urlsplit
 from uuid import UUID
 
@@ -46,14 +50,17 @@ from app.preview.runtime import PreviewRuntimeHandle, PreviewRuntimeProvider
 
 __all__ = [
     "ACTIVATION_FILE_NAME",
+    "STREAM_END_SECONDS",
     "ControlPlaneCommands",
     "ServerActivationContext",
     "ServerActivationEndpoints",
     "ServerTermination",
     "active_server_activation_id",
+    "await_stream_end",
     "install_server_activation",
     "manifest_trust_anchor_value",
     "observation_hosts",
+    "restart_observed_runtime",
     "terminate_server_activation",
 ]
 
@@ -71,6 +78,10 @@ _ED25519_SPKI_PREFIX = bytes.fromhex("302a300506032b6570032100")
 
 _COMMAND_SCHEMA_VERSION = "utrace-server-control-command-request-v1"
 _COMMAND_TIMEOUT_SECONDS = 15.0
+
+STREAM_END_SECONDS: Final[float] = 15.0
+"""How long a runtime is kept running for the Server SDK's terminal stream report."""
+_STREAM_END_POLL_SECONDS: Final[float] = 0.5
 
 
 class ServerActivationEndpoints(BaseModel):
@@ -415,4 +426,77 @@ async def terminate_server_activation(
     )
     return ServerTermination(
         delivered=True, activation_id=activation_id, command_id=command_id, detail=""
+    )
+
+
+async def await_stream_end(database: Database, *, activation_id: UUID) -> bool:
+    """Wait, bounded, for the Server SDK's terminal report on the activation's streams.
+
+    The report is sent after the SDK flushes, so it can trail the terminate
+    command's delivery; stopping the runtime first would lose it.
+    """
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + STREAM_END_SECONDS
+    while True:
+        async with database.connection() as conn, conn.cursor() as cur:
+            await cur.execute(
+                """
+                select count(*) filter (where state = 'open') as open_streams,
+                       count(*) as streams
+                from public.server_streams where activation_id = %s
+                """,
+                (activation_id,),
+            )
+            row = await cur.fetchone()
+        if row is not None and int(row["streams"]) > 0 and int(row["open_streams"]) == 0:
+            return True
+        if loop.time() >= deadline:
+            return False
+        await asyncio.sleep(_STREAM_END_POLL_SECONDS)
+
+
+async def restart_observed_runtime(
+    database: Database,
+    *,
+    provider: PreviewRuntimeProvider,
+    commands: ControlPlaneCommands,
+    client_id: UUID,
+    preview_runtime_allocation_id: UUID,
+    handle: PreviewRuntimeHandle,
+    supervisor_command: str,
+    application_directory: str,
+) -> None:
+    """Restart the runtime's supervisor, ending its live server stream first.
+
+    The restarted process opens a new activation that supersedes the current one,
+    so the current stream is ended the way release ends it: terminate, then wait
+    for the terminal report. The SDK's own SIGTERM shutdown cannot carry that
+    report, because the client's framework may exit the process on the same signal
+    before the SDK's flush finishes, as Next.js does. A report that does not
+    arrive is logged and leaves the stream open, a visible evidence gap, and the
+    restart goes ahead: the runtime has to serve again.
+    """
+    termination = await terminate_server_activation(
+        database,
+        commands=commands,
+        client_id=client_id,
+        preview_runtime_allocation_id=preview_runtime_allocation_id,
+        reason="activation_superseded",
+    )
+    if (
+        termination.activation_id is not None
+        and termination.delivered
+        and not await await_stream_end(database, activation_id=termination.activation_id)
+    ):
+        _log.warning(
+            "preview_server_stream_end_unconfirmed",
+            client_id=str(client_id),
+            preview_runtime_allocation_id=str(preview_runtime_allocation_id),
+            activation_id=str(termination.activation_id),
+            waited_seconds=STREAM_END_SECONDS,
+        )
+    await provider.restart_runtime(
+        handle=handle,
+        supervisor_command=supervisor_command,
+        application_directory=application_directory,
     )
