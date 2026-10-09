@@ -5,6 +5,7 @@ one provider port registry. Routers hold no state: they resolve authority throug
 dependencies and commit through the kernel.
 """
 
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from logging import INFO
@@ -38,6 +39,7 @@ from app.ingestion.wiring import close_ingestion
 from app.interview.settings import get_voice_settings
 from app.interview.voice.adapter import build_voice_adapter
 from app.logging import configure_logging, get_logger
+from app.loop_watchdog import LoopWatchdog
 from app.ports import PortRegistry
 from app.settings import Settings, get_settings
 
@@ -76,10 +78,13 @@ def create_app(settings: Settings, ports: PortRegistry) -> FastAPI:
             stale_outbox_seconds=STALE_OUTBOX_SECONDS,
             stale_dispatch_seconds=STALE_DISPATCH_SECONDS,
         )
+        watchdog = LoopWatchdog(asyncio.get_running_loop())
+        watchdog.start()
         _log.info("control_plane_ready")
         try:
             yield
         finally:
+            watchdog.stop()
             await close_ingestion(application)
             await database.close()
 
