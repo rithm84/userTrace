@@ -74,15 +74,16 @@ The task carries the frozen scope, acceptance criteria, required checks, budgets
 the code findings the gate cited, and the cited files in full at the base
 revision; an investigation's task carries the repository's tracked files instead.
 It tells the agent that the participant is waiting, to write no progress
-commentary, to batch its reads, to make the smallest complete change, to wire the
-client's declared uTrace targets and milestones for the workflow it changes, to
-run only the fast static checks itself once the dependency install has finished,
-and to leave tests and the production build to the control plane. Codex streams
-its events on the command's output; the control plane records them as attempt
-logs, and every command and file change the agent makes becomes provenance. The
-agent's own report of success is evidence to check, not a result: the control
-plane reruns the required checks and the scope check before it accepts a
-candidate. See [Codex non-interactive mode](https://developers.openai.com/codex/noninteractive).
+commentary, to batch its reads, to make the smallest complete change, to build
+any new interface from the repository's own design system components, to wire the
+client's declared uTrace targets and milestones for the workflow it changes, and
+to run none of the required checks itself. The control plane runs every required
+check once when the agent reports, and sends any new failure back as a correction
+cycle. Codex streams its events on the command's output; the control plane
+records them as attempt logs, and every command and file change the agent makes
+becomes provenance. The agent's own report of success is evidence to check, not a
+result: the control plane's own run of the required checks and the scope check
+decides whether it accepts a candidate. See [Codex non-interactive mode](https://developers.openai.com/codex/noninteractive).
 
 The OpenAI credential never enters the sandbox. `CODEX_API_KEY` holds a
 placeholder, and the sandbox firewall replaces the `Authorization` header on every
