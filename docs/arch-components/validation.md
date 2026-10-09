@@ -115,8 +115,8 @@ approved for, and the agent says so.
 
 Before the person tries a new version, the agent walks them through what changed:
 once its page has loaded, the agent is told the controls it shows that no earlier
-page of the session showed, then those the previous page showed in another region
-of the screen, each control named once whatever value it shows. It describes the
+page of the session showed, then those whose place in the page's reading order
+changed from the previous page, each control named once whatever value it shows. It describes the
 ones that deliver the agreed change in the order the person will use them, a
 sentence each, and the cursor circles each one as it is named. Cancellation and other terminal outcomes take precedence. Feedback
 never licenses a code revision directly. Preview Versions and validation outcomes
@@ -138,5 +138,5 @@ An explicit cancellation ends the Product Signal and produces no Case File or PR
 
 A validated result sent to output assembly always carries its full binding tuple,
 criterion-level confirmation, proportionate observed proof, contradiction check,
-candidate source commit, base revision, and artifact provenance. GitHub delivery
+candidate source digest, base revision, and artifact provenance. GitHub delivery
 may begin only from that frozen record.

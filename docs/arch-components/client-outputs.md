@@ -11,9 +11,8 @@ The following diagram shows how validated evidence becomes a sealed Case File an
 An eligible closed Product Signal owns one structured Case File; other outcomes may produce none. Its metadata identifies the client, opaque originating-user and customer-account references, Product Signal, schema and context revisions, evidence window, gate decisions, attempts, exact Preview Version, Validation Attempt, delivery identities, and immutable-core digest.
 
 GPT-6.1 Sol drafts typed fields from a frozen, source-linked context bundle. Code
-checks citation presence and reference validity. Jev may assess whether a supplied
-source supports or contradicts one claim; GPT-6.1 Sol resolves deeper interpretation.
-A confidence score alone cannot establish that a claim is supported.
+checks citation presence and reference validity. A confidence score alone cannot
+establish that a claim is supported.
 
 Assembly follows three stages:
 
@@ -64,7 +63,7 @@ Every material claim cites an authorized evidence slice: intake, contextualized 
 
 ## Client dashboard
 
-Supabase Auth authenticates client staff. Explicit membership tables enforce exactly one owner and zero or more admins per client; authentication alone never grants tenant access. Every list, detail, Case File, citation, artifact, and offer operation rechecks membership and object linkage.
+Supabase Auth authenticates client staff. Explicit [membership rows](./identity-and-access.md#client-staff-authentication-with-supabase-auth) authorize the client's owner and admins; authentication alone never grants tenant access. Every list, detail, Case File, citation, artifact, and offer operation rechecks membership and object linkage.
 
 The [PRD](../PRD.md#client-dashboard) owns the dashboard's feature scope. Its
 views expose authorized projections, never model reasoning, unrestricted
@@ -78,9 +77,9 @@ Supabase Realtime may accelerate notifications and projection refreshes, but it 
 The dashboard reads [offer and credit records](./outreach-offers.md#issuance-and-reconciliation)
 for authorized, reserved, and remaining allowance, earned credits, and issuance
 or recovery status. These are separate from the sealed Case File; credit retries
-do not rewrite product findings. Participants see their organization's offer and
-whether its credit is earned or issued, without access to unrelated billing data.
-A case with no Case File can still need an offer disposition.
+do not rewrite product findings. Participants see the offer's terms in their
+private invitation and have no view of billing records. A case with no Case File
+can still need an offer disposition.
 
 ## GitHub delivery
 

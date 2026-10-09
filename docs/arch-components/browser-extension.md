@@ -39,8 +39,9 @@ typing, submission, and product navigation by the agent are deferred.
   live session supplies a valid binding offer and page proof.
 - Setup links the installation to the user's global `utrace_user_id` inside the
   control plane and registers a device public key. The extension retains the
-  corresponding non-exportable private key rather than a reusable bearer
-  credential. It proves possession to obtain short-lived credentials.
+  corresponding non-exportable private key. It proves possession of that key on
+  every control connection and preflight; no bearer or binding credential is
+  issued.
 - The control plane maps the authenticated person to the applicable
   client-scoped `client_user_id`; the extension never receives the global
   identity graph. A new browser or reinstall requires account linking again.
@@ -49,16 +50,20 @@ typing, submission, and product navigation by the agent are deferred.
   holds as linked, because it was revoked elsewhere or never existed there, is
   refused on the control connection; the extension drops its local record and
   device key and offers account linking again.
-- The manifest requests `storage`, `scripting`, `identity`, and `alarms`.
-  `alarms` may wake reconnect work for an active session but cannot become a
-  permanent background poller.
+- The manifest requests `storage`, `scripting`, `identity`, and `alarms`. A
+  one-minute alarm, created at install and update and never cleared, restarts a
+  suspended service worker so it reloads its state from storage. The wake-up
+  opens no connection and polls nothing; the control connection opens only for
+  a preflight or a session that needs it.
 - `https://*/*` and `http://*/*` are declared as optional host permissions and
   requested together during one-time extension setup. uTrace does not use
   `activeTab` or ask for host access per client, tab, or interview.
 - The extension does not request `tabs`, `webNavigation`, `webRequest`,
   `cookies`, `debugger`, `userScripts`, `tabCapture`, or `offscreen`.
-  `externally_connectable` is restricted to the uTrace-owned session-tab
-  origin.
+  `externally_connectable` lists only the session-tab origins: the uTrace-owned
+  production origin and `http://localhost:3100`, where the local web app serves
+  the session tab. Both are in the production build. The service worker checks
+  the sender's origin against the same list again.
 - The minimum supported Chrome version is 137, the first release that ships
   Ed25519 in WebCrypto. The embedded browser SDK verifies control-plane signed
   envelopes as detached Ed25519 over a base64url JSON payload, so an earlier
@@ -84,10 +89,11 @@ typing, submission, and product navigation by the agent are deferred.
 - The control plane accepts the current and previous supported major extension
   protocol for new sessions. Older records remain historically decodable but an
   obsolete installation cannot start a session.
-- An update during an active session renegotiates compatibility. Compatible
-  workers reinject or reconnect current content surfaces and project current
-  state. Mixed or incompatible contexts withdraw readiness until a clean
-  compatible runtime is established; they never continue with partial control.
+- An update clears the extension's session storage, so the new service worker
+  resumes no binding, recovery checkpoint, or command from the old runtime and
+  renegotiates compatibility on its next control connection. Mixed or
+  incompatible contexts withdraw readiness until a clean compatible runtime is
+  established; they never continue with partial control.
 - Disablement or removal withdraws readiness and invalidates the active binding.
   Re-enablement requires fresh authentication and handshake. A reinstall gets a
   new installation identity.
@@ -134,8 +140,6 @@ Before an Interview Session starts, the claimed invitation runs a participant co
 - A session ID, Chrome tab ID, origin, or SDK presence never establishes trust
   alone. The page proof is the authority for the client and environment, so
   client product teams do not configure domain allowlists.
-- Binding credentials are short-lived, rotated, and held only by the service
-  worker. They are never exposed to the page's main world.
 - One session has one authoritative preview-tab binding, and one tab belongs to
   at most one active session. Chrome `tabId` is a local locator rather than a
   durable product identity.
@@ -168,32 +172,36 @@ Before an Interview Session starts, the claimed invitation runs a participant co
   through a named `runtime.Port`; the content script communicates with the
   main-world bridge through a fresh per-document `MessageChannel`.
 - Ports are accepted only when sender tab, frame, document, binding, and nonce
-  match. Every boundary uses strict versioned schemas. No control-plane
-  credential enters the content script or main world.
+  match. Every boundary uses strict versioned schemas. Neither the device key
+  nor a possession proof enters the content script or main world.
 - A service-worker WebSocket heartbeat keeps the connection alive only
   while a session needs it. Reconnection resumes from the last acknowledged
   control sequence rather than assuming missed delivery succeeded: frames above
-  that point are superseded, not replayed, and the socket re-projects the
-  session's current binding, readiness, and character state. Each connection
-  names the session the service worker serves when it opens.
+  that point are superseded, not replayed, and the new connection's first
+  projection pass, described next, sends the current state in full. Each
+  connection names the session the service worker serves when it opens.
 - The control plane pushes; it does not wait to be asked. Any control-plane
   process, whether an API request, the voice agent, or an ingestion
-  Job, changes a session's binding, readiness, character state, or visual
-  commands only by committing durable state. The commit notifies the
+  Job, changes a session's binding, readiness, character state, controls, or
+  visual commands only by committing durable state. The commit notifies the
   `extension_control` Postgres channel with the session, which wakes the API
-  process holding that session's socket. The socket then sends each state frame
-  whose revision advanced since it last sent one, routes the pending commands
-  recorded for the current binding, and withdraws any routed command the control
-  plane canceled. A notification carries no state and grants no authority, and a
+  process holding that session's socket. The socket then runs one projection
+  pass: it sends `preferences_state`, `binding_state`, `readiness`, and
+  `character_state` when their revision advanced since it last sent them, sends
+  `controls_state` when what the pills show changed, routes the pending
+  commands recorded for the current binding, and withdraws any routed command
+  the control plane canceled. A connection that has sent nothing sends
+  everything. A notification carries no state and grants no authority, and a
   missed one is repaired by the next change or reconnect. The socket's database
   session listens on that channel, so it needs a direct or session-mode pooled
   Postgres connection.
 - High-volume product telemetry flows from the shared browser observation
   runtime to telemetry ingestion. It does not traverse the extension WebSocket.
-  That socket carries binding, readiness, character state, controls, commands,
-  results, cancellation, and recovery messages.
-- `chrome.storage.session` holds the minimum short-lived credential and recovery
-  checkpoint required across service-worker suspension. Durable extension
+  That socket carries binding, readiness, character state, controls,
+  preferences (`preferences_update` and `preferences_state`), commands, results,
+  cancellation, and recovery messages.
+- `chrome.storage.session` holds only the recovery checkpoint required across
+  service-worker suspension. Durable extension
   storage holds only installation identity, device-local presentation settings,
   protocol metadata, and a cache of control-plane-owned global preferences. It
   never becomes workflow truth.
@@ -395,7 +403,7 @@ Before an Interview Session starts, the claimed invitation runs a participant co
   session. The revocation is pushed to the extension, which detaches its surface.
   A brief completion animation may finish without authority to execute anything.
 - Cleanup removes the orb, cursor, overlays, content connection, page bridge,
-  binding credential, and temporary recovery state. The SDK remains embedded but
+  and temporary recovery state. The SDK remains embedded but
   returns to an inert unbound state. Reloading the product afterward cannot
   restore a revoked binding.
 - Cleanup retains the installation identity, global user preferences,

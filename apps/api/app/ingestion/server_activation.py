@@ -1,7 +1,7 @@
 """Server SDK observation activations.
 
-One activation binds the server streams of one prepared preview to the exact
-client, client user, customer account, Interview Session, preview environment,
+One activation binds one service process's server stream on a prepared preview to the
+exact client, client user, customer account, Interview Session, preview environment,
 runtime allocation, and optional candidate Preview Version. Each service process
 creates a fresh ``server_stream_id``; a process restart creates a new stream, and
 the SDK reconnects and rotates its credential rather than re-activating, so the
@@ -12,8 +12,8 @@ accepted as a parent only on a request that already entered the authenticated
 active preview, which the preview front door proves by attaching that token in
 the ``x-utrace-preview-entry`` header.
 
-The control WebSocket itself belongs to the server-SDK workstream. This module is
-the durable half it calls: creating an activation, rotating a credential, and
+The control WebSocket (`app.ingestion.control_protocol`) is the live half; this
+module is the durable half it calls: creating an activation, rotating a credential, and
 verifying the signed instrumentation manifest.
 
 Contract: docs/arch-components/server-sdk.md#configuration-identity-and-credentials

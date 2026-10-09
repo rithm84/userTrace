@@ -1,11 +1,10 @@
 """Ingestion Jobs.
 
-Normalization, correlation, and readiness evaluation run as durable Jobs rather
-than inside the ingress request, so the journal separates receipt durability from
-asynchronous derivation. Every handler is incremental and idempotent: rerunning
-it against unchanged inputs produces the same projection and the same readiness
-revision content, and it never resends browser commands, changes interview state,
-or promotes evidence by itself.
+Each edge commits a receipt with its normalized records; correlation and readiness
+evaluation then run as durable Jobs scheduled in that transaction. Every handler is
+incremental and idempotent: rerunning it against unchanged inputs produces the same
+projection and the same readiness revision content, and it never resends browser
+commands, changes interview state, or promotes evidence by itself.
 
 Readiness evaluation also recombines the open session's combined readiness
 record from the projections it just published, because that record is the one

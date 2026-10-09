@@ -30,15 +30,12 @@ layout puts the project directory itself on `sys.path`, where this package's
 it. It ships `py.typed`, so a dependent reads the real annotations rather than
 following untyped imports.
 
-The `envelope` and `ids` areas are the base every other area composes with. They
-are owned by the contracts workstream; every other area is owned by the
-workstream that builds it.
+The `envelope` and `ids` areas are the base every other area composes with.
 
 ## Where bindings live
 
-`envelope` and `ids` ship their bindings here, in both languages. An area owned
-by the workstream that builds it keeps its bindings with its consumer, beside
-the code that holds them:
+`envelope` and `ids` ship their bindings here, in both languages. Every other
+area keeps its bindings where this table shows:
 
 | Area | Bindings |
 | --- | --- |
@@ -53,8 +50,9 @@ area they prove that the JSON Schema and the fixtures agree, in both languages,
 over the same files. For an area whose bindings ship here they also prove that
 the binding accepts and rejects exactly what its schema does. An area whose
 bindings live with its consumer proves that in the consumer's own suite against
-these same fixtures, which is what the browser SDK, the server SDK, the browser
-extension, and the preview front door each do.
+these same fixtures, which is what the browser SDK, the browser extension, and
+the preview front door each do. `server-activation` has no fixtures; the server
+SDK checks its validators against those schemas with instances it builds.
 
 ## Commands
 
@@ -152,8 +150,9 @@ library. Python uses `rfc8785`; TypeScript uses `canonicalize`.
 
 ## Adding an area
 
-Area workstreams add schemas, fixtures, and bindings without editing any file the
-contracts workstream owns. Discovery is by directory layout in both languages.
+An area adds its schemas, fixtures, and bindings without editing the shared
+`envelope`, `ids`, or registry code. Discovery is by directory layout in both
+languages.
 
 1. **Schemas.** Add `schemas/<area>/<name>.v<major>.schema.json` following the
    conventions above. Compose the envelope with

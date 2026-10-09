@@ -3,10 +3,11 @@
 The embedded browser SDK and the shared browser observation runtime defined in
 [browser SDK and shared runtime](../../docs/arch-components/browser-sdk.md).
 
-The package is framework-neutral TypeScript ESM for Chrome 116 or newer. It runs
-only inside a uTrace-prepared preview: the preview profile loads the bootstrap
-before application hydration, and the production profile excludes the runtime and
-keeps only inert annotation helpers.
+The package is framework-neutral TypeScript ESM for Chrome 137 or newer, the
+first release with Ed25519 in WebCrypto. It runs only inside a uTrace-prepared
+preview: the preview profile loads the bootstrap before application hydration,
+and the production profile excludes the runtime and keeps only inert annotation
+helpers.
 
 ## What lives where
 
@@ -29,10 +30,9 @@ keeps only inert annotation helpers.
 
 JSON Schemas for this area live in
 `packages/utrace-contracts/schemas/browser-observation/`, with canonical and
-invalid fixtures beside them. The TypeScript bindings for the area stay inside
-this package for now (`src/observation/types.ts`, `src/export/protocol.ts`,
-`src/bridge/messages.ts`); they have not been promoted into
-`@utrace/contracts`.
+invalid fixtures beside them. The area's TypeScript bindings live in this
+package (`src/observation/types.ts`, `src/export/protocol.ts`,
+`src/bridge/messages.ts`), not in `@utrace/contracts`.
 
 ## Integration
 
@@ -236,7 +236,7 @@ that run, starts the test preview front door on port 8210, a third-party origin
 on 8212, and the test ingestion WebSocket on 8211, then drives the locally
 installed Google Chrome through `playwright-core`. The servers under
 `tests/chrome/support/` implement the documented contracts of the preview front
-door, the control plane, and telemetry ingestion, which other workstreams own.
+door, the control plane, and telemetry ingestion.
 
 The Chrome suites cover activation and readiness, duplicate-runtime refusal,
 the initial baseline, contiguous sequences and acknowledgement, interaction,

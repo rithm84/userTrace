@@ -25,19 +25,19 @@ of product operations, and exposes bounded evidence views to the control plane.
   channel, `WS /v1/extension/control`, carries binding, commands, and results.
   Read access is separate again: the typed queries below are served under the
   authenticated client-scoped telemetry path, never on an ingestion edge.
-- The server edge is the control plane's own OTLP/HTTP receiver at
-  `POST /v1/ingest/otlp/v1/traces`. It reads the server telemetry credential
-  from the request before building anything else, parses the binary Protobuf
-  export directly, enforces the payload limits, validates each span against
-  its activation, and writes accepted batches to the durable uTrace ingress
-  journal. No OpenTelemetry Collector sits in the path; uTrace never uses the
+- The server edge is the control plane's own OTLP/HTTP receiver. It reads the
+  server telemetry credential from the request before building anything else,
+  parses the binary Protobuf export directly, enforces the payload limits,
+  validates each span against its activation, and writes accepted batches to
+  the durable uTrace ingress journal. No OpenTelemetry Collector sits in the path; uTrace never uses the
   client's Collector or forwards to an observability vendor.
 - Receiver validation uses strict failure behavior. A validation or policy
   evaluation error rejects the affected batch and withdraws readiness; it is
   never logged and ignored while the span continues as evidence.
 - The browser gateway and the server receiver converge on one versioned durable
-  ingress journal. The journal separates receipt durability from asynchronous
-  normalization, correlation, indexing, and evidence projection.
+  ingress journal. One transaction commits a batch's receipt, its normalized
+  records, and their indexes; correlation and readiness evaluation run
+  afterwards as durable Jobs.
 - Gateways are horizontally scalable and hold no durable product truth. A
   browser WebSocket is connection-affine while connected, but reconnect may
   reach another instance and resume from the durable stream cursor. Server OTLP
@@ -89,8 +89,13 @@ of product operations, and exposes bounded evidence views to the control plane.
   field-specific string limits are checked before allocation or normalization.
   Oversized code frames or other approved structured content use an artifact
   reference rather than a larger span.
-- The activation handshake supplies byte-rate, record-rate, in-flight batch,
-  and acknowledgement-lag limits beneath fixed platform ceilings. They are
+- Rate limits differ by edge. A browser activation hands out its own limits:
+  2 MiB and 2,000 records per second, four in-flight batches, and a 15-second
+  acknowledgement lag, metered per connection. The server edge meters one
+  budget per API process across every server stream: 16 MiB and 8,192 spans per
+  second, the server batch ceilings times four in-flight batches. A server
+  activation hands out batch, queue, in-flight, acknowledgement-lag, and retry
+  limits beneath those ceilings, but no rate limit. All of these are
   operational limits, not client- or interview-level preferences.
 - A transient quota or capacity limit applies explicit backpressure. The browser
   receives flow control without advancing its acknowledgement; the server
@@ -158,11 +163,12 @@ of product operations, and exposes bounded evidence views to the control plane.
   identity, allowed span names and kinds, parent and link encoding, pinned
   semantic conventions, uTrace attributes, manifest capabilities, and the
   complete server activation envelope.
-- Source-side redaction remains mandatory. Ingestion applies platform exclusions
-  and the pinned client policy again but may only remove or restrict data. A
-  source-policy violation is sanitized in memory, reported, and excluded from
-  evidence; ingestion never treats downstream cleanup as proof that the source
-  SDK is healthy.
+- Source-side redaction remains mandatory. Ingestion re-applies the
+  non-overridable platform exclusions and never cleans up a violation: one
+  excluded value refuses the whole batch as `unsafe_data_detected`. The browser
+  edge then closes the socket with code 1008, and the server edge refuses the
+  OTLP request. Downstream cleanup therefore never stands in for proof that the
+  source SDK is healthy.
 - Current and immediately previous negotiated source majors have explicit
   decoders into one canonical internal schema. A decoder may perform documented
   representation changes, but it preserves the immutable original receipt and
@@ -210,12 +216,10 @@ of product operations, and exposes bounded evidence views to the control plane.
   `invalid`, or `expired`. The projection lists required and observed components,
   gaps, conflicts, first and last relevant watermarks, and its revision.
 - Arrival time may help rank an engineering diagnostic, but it cannot establish
-  causality. Missing parentage remains missing; ingestion never creates a
-  synthetic span or parent to make a trace appear complete.
-- Receive order is not causal order, and a partial trace stays partial: a missing
-  observation never becomes successful validation.
-- A frozen window keeps its source IDs, watermarks, completeness, and cutoff.
-  Later facts do not rewrite a decision published from it.
+  causality. Missing parentage remains missing, and a partial trace stays
+  partial; ingestion never creates a synthetic span or parent to make a trace
+  appear complete, and a missing observation never becomes successful
+  validation.
 
 ## Duplicates, ordering, lateness, and time
 
@@ -250,22 +254,22 @@ of product operations, and exposes bounded evidence views to the control plane.
 - Source times remain unmodified. Browser records retain wall time and monotonic
   offset; server spans retain OpenTelemetry nanosecond start and end times;
   ingestion adds trusted received and accepted times.
-- When a browser record happened on the server's clock is derived, never taken
-  from the browser's wall clock. Each page (one browser stream and frame) has its
-  own monotonic clock, and the earliest acceptance of anything the page sent,
-  minus the monotonic offset that record carried, places that clock on the
-  database's. A record's server time is that origin plus its own monotonic
-  offset: never earlier than when it happened, later only by the page's fastest
-  delivery, and unmoved by records the browser held back. Every comparison of
+- When a browser record happened on the server's clock (`observed_at`) is
+  derived, never taken from the browser's wall clock. Each page (one browser
+  stream and frame) has its own monotonic clock, and the earliest acceptance of
+  anything the page sent, minus the monotonic offset that record carried, places
+  that clock on the database's. A record's server time is that origin plus its
+  own monotonic offset: never earlier than when it happened, later only by the
+  page's fastest delivery, and unmoved by records the browser held back. Every comparison of
   browser activity with a server time (a query bound, a frozen evidence cutoff,
   or whether evidence was observed after a Validation Attempt opened) uses it, so
   a participant's clock that is off can neither hide activity nor admit an
   earlier action.
-- Readiness probes and heartbeats estimate source clock offset and uncertainty.
-  Query projections may expose an adjusted display order, but the adjustment is
-  derived and never replaces the source timestamp.
+- Ingestion bounds the browser's wall clock rather than estimating its offset: a
+  record whose `occurred_at` is more than 900 seconds from its receipt time
+  refuses its batch as `clock_quality_failure`.
 - Ordering authority is, in order: source sequence where defined, explicit span
-  parentage or link, paired request identity, and then clock-adjusted time.
+  parentage or link, paired request identity, and then server-anchored time.
   uTrace does not claim one physical total order across browser frames, services,
   workers, and networks.
 - Impossible durations, child intervals materially outside their parent without
@@ -351,10 +355,9 @@ of product operations, and exposes bounded evidence views to the control plane.
   results cite frozen evidence windows. Implementation work may query the frozen
   source evidence plus explicitly newer authorized context, but the newer context
   is separately identified.
-- Before expiring full normalized telemetry, ingestion materializes every
-  promoted item as the minimum immutable evidence artifact needed to preserve
-  its meaning and provenance. Durable citations never depend solely on a record
-  scheduled for deletion.
+- Durable citations never depend solely on a record scheduled for deletion;
+  [retention](#retention-deletion-and-tenant-isolation) materializes each
+  promoted item first.
 - An evidence artifact does not transform a user statement into telemetry or
   telemetry into user intent. Source class and provenance remain explicit.
 
@@ -411,8 +414,10 @@ of product operations, and exposes bounded evidence views to the control plane.
   expected type, size, and hash before returning a bounded result or temporary
   internal stream. A mismatch is an integrity failure.
 - Relational rows never store bucket names, filesystem paths, permanent URLs, or
-  object credentials. The same large payload is not copied into Postgres and
-  object storage.
+  object credentials. Every accepted batch is kept whole in object storage as
+  its raw artifact, and every canonical record, payload included, is a Postgres
+  row. A baseline payload larger than 64 KiB is also written to object storage
+  as its own artifact.
 - Content-addressed optimization never deduplicates across clients. Identical
   bytes in different client scopes remain independently authorized and deletable
   so hashes cannot become a cross-tenant side channel.
@@ -458,7 +463,7 @@ of product operations, and exposes bounded evidence views to the control plane.
   rejected product value.
 - Raw telemetry remains outside the domain-message system. Only derived readiness,
   gap, correlation, evidence-availability, and failure facts enter the control
-  plane through versioned events.
+  plane through versioned [domain messages](./cross-component-contracts.md#domain-messages).
 - Consumers checkpoint durable journal offsets only after their output stage is
   durable. Restart replays from the checkpoint using the same source IDs and
   idempotent writes; it cannot resend browser commands, change interview state,

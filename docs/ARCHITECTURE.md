@@ -43,11 +43,9 @@ a Vercel Sandbox, and Implementation Gate proposals; intake assistance; and Case
 File drafting. The code investigation and the case's
 implementation workspace are prepared while the interview runs, so the gate and
 the coding agent start from them the moment the participant agrees. Jev is the default intake
-decision model. During interviews it concurrently assesses relevance, claim
-relationships, criterion-level evidence gaps, retrieval/model routing, which
-activity to acknowledge, and which agreed checks a new version already showed. It
-also proposes the interview-established flow
-classification. The [Jev decision contract](./arch-components/cross-component-contracts.md#jev-decision-contract)
+decision model. During interviews Jev judges which activity to acknowledge and
+which agreed checks a new version already showed, and before the gate it proposes
+the interview-established flow classification. The [Jev decision contract](./arch-components/cross-component-contracts.md#jev-decision-contract)
 defines question types and acceptance checks. Jev neither serializes every spoken
 turn nor grants authority.
 
@@ -227,7 +225,7 @@ billing authority.
 | Web surfaces and preview front door | Vercel |
 | Branches, diffs, and PRs | GitHub |
 | Outreach Offers invoice credits | Stripe customer invoice credit balance, in a Stripe sandbox |
-| Operational tracing | OpenTelemetry plus uTrace durable events and evidence; Vercel Observability, Web Analytics, and Speed Insights for the web surfaces |
+| Operational tracing | Structured logs plus uTrace durable events and evidence for the control plane; Vercel Observability with `@vercel/otel`, Web Analytics, and Speed Insights for the web surfaces |
 
 Model and provider configuration is versioned at dispatch. Providers execute their
 assigned roles; they do not decide authorization or whether the user validated a

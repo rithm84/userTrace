@@ -17,7 +17,7 @@ cells: "Browser extension · authenticated binding before presentation" {
   extension_worker: |md
     ### Extension worker
   
-    - Installation proof + credentials
+    - Device-key possession proof
     - Control connection + revision
   | {class: [card; runtime]}
 
@@ -47,11 +47,12 @@ cells: "Browser extension · authenticated binding before presentation" {
     ### Structured targets
   
     - SDK resolves exact target
-    - Fresh geometry + visual capability
+    - Fresh geometry + revision
   | {class: [card; observation]}
 
   session_tab -> extension_worker: "single-use\noffer" {class: edge}
-  sdk_page_proof -> extension_worker: "verified match" {class: edge}
+  sdk_page_proof -> extension_worker: "forwarded proof" {class: edge}
+  extension_worker -> control_plane: "binding_offer" {class: edge}
   extension_worker -> bound_preview_surface: "one binding" {class: edge}
   control_plane -> bound_preview_surface: "pushed state +\nauthorized\nCommand" {class: edge}
   bound_preview_surface -> structured_targets: "validate\ntarget" {class: edge}

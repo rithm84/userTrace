@@ -43,7 +43,7 @@ cells: "Data ownership · one authoritative record per fact" {
   queues_cron: |md
     ### Queues + Cron
   
-    - Delivery / work dispatch
+    - Outbox wake-ups
     - Scheduling and reconciliation
   | {class: [card; runtime]}
 
@@ -51,7 +51,7 @@ cells: "Data ownership · one authoritative record per fact" {
   supabase_realtime: |md
     ### Supabase Realtime
   
-    - Private authorized channels
+    - RLS-filtered session projections
     - Committed updates only
   | {class: [card; people]}
 

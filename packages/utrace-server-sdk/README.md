@@ -19,11 +19,13 @@ NODE_OPTIONS="--import @utrace/server-sdk/preload" node ./server.js
 
 Node awaits the preload module before it loads the application entry point, so
 activation completes first. A CommonJS or custom bootstrap awaits `register()`
-and only then loads the application:
+and only then loads the application. The package exports ESM only, so a
+CommonJS bootstrap loads it with a dynamic `import()`:
 
 ```js
-const { register } = require('@utrace/server-sdk/register');
-register().then(() => require('./server.js'));
+import('@utrace/server-sdk/register')
+  .then(({ register }) => register())
+  .then(() => require('./server.js'));
 ```
 
 `register()` also installs the ESM module hook, so an application whose graph is
@@ -41,7 +43,7 @@ repository or from client configuration.
 
 | Variable | Meaning |
 | --- | --- |
-| `UTRACE_SERVER_BOOTSTRAP_CREDENTIAL` | One-time bootstrap credential. Its absence is the single signal that keeps the process dormant. |
+| `UTRACE_SERVER_BOOTSTRAP_CREDENTIAL` | Bootstrap credential, reused on reconnect; activation is one-time. Its absence is the single signal that keeps the process dormant. |
 | `UTRACE_SERVER_CONTROL_URL` | `wss://` base URL of the control plane; it may carry a path prefix, which every control connection keeps. |
 | `UTRACE_SERVER_INGEST_URL` | `https://` base URL of the telemetry ingestion edge; it may carry a path prefix, which every export keeps. |
 | `UTRACE_SERVER_SERVICE_NAME` | The manifest `service_key` this process claims. |
@@ -64,9 +66,9 @@ JSON Schemas live in
 the instrumentation manifest and its signed envelope, the activation record,
 both directions of the control protocol, the export batch envelope, the health
 report, and the typed failure. The matching runtime validators are hand-written
-Zod schemas under `src/contracts/`; they stay in this package until the
-contracts workstream publishes generated bindings, and `tests/contracts.test.ts`
-validates the same fixtures with Ajv and with Zod so the two cannot drift.
+Zod schemas under `src/contracts/`. The area has no shared fixtures;
+`tests/contracts.test.ts` builds signed manifests and activation records and
+checks that Ajv and Zod accept or reject each one alike.
 
 - **Control:** `WS /v1/server-sdk/control` carries `activate`, `rotate`,
   `health`, `command_ack`, and `stream_report` from the SDK, and `activated`,
@@ -85,50 +87,33 @@ validates the same fixtures with Ajv and with Zod so the two cannot drift.
 
 ## What the SDK exports
 
-One trace is one causal product operation. An inbound request produces one
-authoritative `SERVER` span named from the manifest's registered route
-template, with framework handler, database, cache, queue, and downstream client
-spans beneath it as the work requires.
+The span model, redaction order, and annotation surface are defined in
+[Server SDK](../../docs/arch-components/server-sdk.md#span-model-and-semantic-schema).
+`src/redaction/attributes.ts` states the complete retained field set per class.
 
-Redaction runs before a finished span can reach the export buffer, in the
-contract's order: platform exclusions, activation scope, signed client policy,
-registered annotation definition, per-value evaluation, defensive sensitive-data
-detection, normalization and cardinality bounds, then schema validation. The
-input span is never mutated; a new redacted span is built and only that one is
-buffered. `src/redaction/attributes.ts` states the complete retained field set
-per class.
-
-The `utrace.*` namespace carries only registered product concepts, and the
-annotation API is typed and registration-based: a registered product operation,
-a workflow milestone, an approved entity class, a bounded safe value, an
-expected outcome, or a registered background root. There is no `setAttributes`
-and no free-form event API.
-
-## Known deviations and gaps
+## Implementation notes
 
 - **Unregistered inbound routes fail.** A request path that matches neither a
   registered route nor registered operational noise produces a
   `route_not_registered` failure and withdraws readiness rather than exporting a
-  raw URL. The doc states exclusion is registration-based and that unknown
-  operations fail the contract; this is that rule applied to inbound HTTP.
+  raw URL.
 - **Outbound tracing follows `propagation_targets`.** A destination outside the
   manifest's propagation targets is not traced at all, so it can never receive
   uTrace context. `redaction_rules.allowed_http_destinations` is the second,
-  defensive layer and must therefore be a superset.
-- **Redis and BullMQ adapters are not installed.** The manifest adapter set is
+  defensive layer and must be a superset.
+- **No cache or queue adapter ships.** The manifest adapter set is
   `node_http`, `undici`, `pg`, `express`, `fastify`, and `next_server`. The cache
-  and queue redaction rules are implemented and tested, but no cache or queue
-  auto-instrumentation ships yet.
+  and queue redaction rules are implemented and tested.
 - **Serverful Next.js uses the Node HTTP adapter.** Route templates come from
   the manifest rather than from Next.js internals. `tests/e2e-browser` in the
   uTrace repository exercises it against a real serverful Next.js application.
-  That found one thing worth stating: Next.js instruments itself as soon as a
-  global tracer provider exists, starting spans under its own `next.js` scope
-  with no way to turn it off. Those spans repeat the request the authoritative
-  HTTP `SERVER` span already covers and carry no registered route, so
-  `next_server` suppresses that scope — the spans are dropped as framework
-  churn rather than failed as a manifest gap, and readiness is unaffected.
-  `ADAPTER_SUPPRESSED_SCOPE_NAMES` in `src/constants.ts` is the list.
+  Next.js instruments itself as soon as a global tracer provider exists,
+  starting spans under its own `next.js` scope with no way to turn it off.
+  Those spans repeat the request the authoritative HTTP `SERVER` span already
+  covers and carry no registered route, so `next_server` suppresses that scope:
+  the spans are dropped as framework churn rather than failed as a manifest
+  gap, and readiness is unaffected. `ADAPTER_SUPPRESSED_SCOPE_NAMES` in
+  `src/constants.ts` is the list.
 - **Fastify uses `@fastify/otel`.** `@opentelemetry/instrumentation-fastify` is
   deprecated in favour of it.
 

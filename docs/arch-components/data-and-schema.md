@@ -14,7 +14,7 @@ reconciliation need.
 
 ## Authoritative stores and identifiers
 
-Supabase Postgres is durable workflow truth. Supabase Storage holds encrypted evidence and build artifacts addressed by digest. Realtime is not authority, queue delivery is not proof of execution, and an object upload is not publication. Every durable row has a stable uTrace identifier, `client_id` where tenant-scoped, creation time, schema version, and typed lifecycle fields. Provider IDs live in `provider_refs` with provider, installation, client, resource type, and uTrace owner; provider IDs are never primary product identity.
+Supabase Postgres is durable workflow truth. Supabase Storage holds encrypted evidence and build artifacts addressed by digest. Realtime is not authority, queue delivery is not proof of execution, and an object upload is not publication. Durable rows carry a stable uTrace identifier, `client_id` where tenant-scoped, a creation time, a schema version, and typed lifecycle fields. Provider IDs live in `provider_refs` with provider, installation, client, resource type, and uTrace owner; provider IDs are never primary product identity.
 
 Core tables cover clients, members, users, customer accounts and memberships, provider identities, configuration releases, Intake Items, Product Signals, invitations and return attempts, Interview Sessions, evidence, gate decisions, Implementation Attempts, workspace and runtime leases, Preview Versions, validation criteria and outcomes, Case Files, deliveries, events, commands, results, jobs, provider references, and audit records.
 
@@ -26,7 +26,7 @@ evidence without copying unrelated billing data or deleting credits when cases c
 
 ## Tenant access and row-level security
 
-Client-facing tables exposed through the Data API have RLS enabled. Policies require an active explicit `client_members` row and the matching `client_id`; `TO authenticated` alone is insufficient. Updates use both `USING` and `WITH CHECK`. Views exposed to clients use invoker security. Internal lifecycle writes run through restricted server identities and still validate the target tenant and expected state. Service-role credentials never reach browsers.
+Client-facing tables exposed through the Data API have RLS enabled. Policies require an active explicit `client_members` row and the matching `client_id`; `TO authenticated` alone is insufficient. Updates use both `USING` and `WITH CHECK`. Internal lifecycle writes run through restricted server identities and still validate the target tenant and expected state. Service-role credentials never reach browsers.
 
 ## Events, projections, and transactions
 
@@ -37,11 +37,11 @@ Persist the typed envelopes and authority references defined by
 [Control Plane](./control-plane.md#jobs-commands-and-scheduling) owns Job leases,
 Command transitions, and scheduling; storage does not infer execution success.
 
-Supabase Realtime powers dashboard and session notifications from committed rows. It is not workflow authority, media transport, command acknowledgement, or proof that a user heard speech. Supabase Queues carries durable background work; Cron schedules maintenance, lease scans, cleanup, and rollups. Consumers remain idempotent because delivery can repeat.
+Supabase Realtime publishes committed changes to `session_projections`, which the session tab receives as Postgres changes filtered by that table's RLS policy. It is not workflow authority, media transport, command acknowledgement, or proof that a user heard speech. Supabase Queues (`pgmq`) carries only outbox wake-ups; the outbox and Job rows remain the durable record. Cron runs per-minute scans that reclaim expired Job leases, enqueue due outbox rows, keep the preview warm pool filled, tear down unneeded previews, release prepared workspaces, and recheck stale telemetry readiness. Consumers remain idempotent because delivery can repeat.
 
 ## Evidence and artifacts
 
-Postgres stores artifact metadata, digest, media type, class, encryption reference, producer, source revision, and retention state. Storage buckets are private, tenant-scoped by policy, encrypted, and accessed through short-lived server-authorized paths. Transcripts, telemetry bundles, candidate manifests, check logs, diffs, validation evidence, and generated Case File cores are immutable after acceptance. Realtime payloads contain identifiers and safe summaries, never artifact bodies or secrets.
+Postgres stores each artifact's type, media type, digest, size, retention class, producer, and source revision. The `utrace-telemetry` and `utrace-artifacts` buckets are private and have no Storage access policies, so only the control plane's server credentials reach them. Object paths start with the client ID, and readers resolve objects only through the control plane, which checks the client scope first. Transcripts, telemetry bundles, candidate manifests, check logs, diffs, validation evidence, and generated Case File cores are immutable after acceptance. Realtime payloads contain identifiers and safe summaries, never artifact bodies or secrets.
 
 ## Cross-system consistency
 
@@ -49,9 +49,11 @@ The transactional outbox is the only path from committed workflow state to Disco
 
 ## Model data and cleanup
 
-The OpenAI Responses API (with `store=False`), Deepgram, ElevenLabs, and Daily keep no workflow state for uTrace;
-uTrace persists the scoped context and accepted results it needs, and provider
-retention follows each provider's API data terms. Apply the permitted data classes
+The OpenAI Responses API (with `store=False`), Jev through Vercel AI Gateway,
+Deepgram, ElevenLabs, Daily, and Pipecat Cloud keep no workflow state for uTrace,
+and Codex runs with `--ephemeral` inside a workspace sandbox that is destroyed once
+its required artifacts are durable. uTrace persists the scoped context and accepted
+results it needs, and provider retention follows each provider's API data terms. Apply the permitted data classes
 to model inputs; keep authoritative evidence in uTrace. No training corpus or
 fine-tuning store exists.
 

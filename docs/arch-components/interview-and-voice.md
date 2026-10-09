@@ -85,11 +85,13 @@ the floor, with its audio played and its tools returned.
 The [application cues](#application-cues) are the messages the application sends
 on its own.
 
-GPT-6.1 Sol on the Fast tier does not take part in the conversation. It runs
-pre-gate code investigation and Implementation Attempts in the
-[Codex harness](./implementation.md#agent-harness), and Implementation Gate
-proposals, at low effort; intake assistance and Case File synthesis run it at
-medium. Jev supplies concurrent judgments under the
+GPT-6.1 Sol's other roles do not take part in the conversation. In the
+[Codex harness](./implementation.md#agent-harness), pre-gate code investigation
+runs it on the Fast tier and Implementation Attempts on the Ultrafast tier.
+Through the Responses API, Implementation Gate proposals run it on the Ultrafast
+tier, and intake assistance and Case File synthesis on the Fast tier. Intake
+assistance and Case File synthesis run at medium effort, the others at low. Jev
+supplies concurrent judgments under the
 [Jev decision contract](./cross-component-contracts.md#jev-decision-contract).
 These judgments can initiate scoped read-only work or direct attention; they
 cannot confirm evidence or authorize an effect. Deterministic connection,
@@ -111,7 +113,8 @@ three moments: the recap, when it restates the participant's request in one pass
 once they have finished explaining; the walkthrough of what a new version
 changed; and whenever the participant asks where something is or to be shown it.
 It never circles while the participant is still walking through their steps, and
-never circles a control it already circled in the conversation.
+never circles a control it already circled in the conversation unless the
+participant asks to be shown it.
 
 The playback tap resolves each mark against the screen state the model last saw
 and dispatches one circle at the target's exact registered revision. A mark that
@@ -166,12 +169,14 @@ selection; [flow classification](#flow-classification) owns the classification j
 
 ### Application cues
 
-Each cue waits on committed state rather than polling. Database triggers notify
-the `voice_sideband` Postgres channel with the Interview Session whose mute
-Commands, preview route, readiness, implementation progress, or preview activity
-changed, and a gate outcome that stops the change notifies it in the transaction
-that records it. The voice agent re-reads that session's state when woken, and
-again whenever its listener reconnects. The cues are:
+Each cue waits on committed state rather than polling the database. Database
+triggers notify the `voice_sideband` Postgres channel with the Interview Session
+whose mute Commands, preview route, readiness, implementation progress, or
+preview activity changed. Three committed facts that no trigger covers notify it
+in the transaction that records them: an authorized Implementation Attempt, a
+gate outcome that stops the change, and completed validation. The voice agent
+re-reads that session's state when woken, and again whenever its listener
+reconnects. The cues are:
 
 - **Greeting:** when the participant joins a call in a session still in its
   `greeting` phase, the agent opens the conversation. A connection that replaces
@@ -186,10 +191,12 @@ again whenever its listener reconnects. The cues are:
 - **Participant controls:** Mute, Unmute, Pause, and Resume reach the agent as
   queued `voice.set_input_muted` Commands, which it applies at the microphone gate
   and records as terminal Results.
-- **Open the preview:** once the preview's route is committed and it has stayed
-  unopened for 20 seconds, the agent asks the participant to open it at the next
-  natural pause, and the session tab's status names the same step; if the
-  preview opens before the agent speaks that ask, a note retracts it.
+- **Open the preview:** once the preview's route is active and ready while the
+  participant has not opened it, the agent is told in a note, so its next reply
+  asks them to open it in its own words, or leaves them to it when they have just
+  said they are opening it. Only if nobody holds the floor for 20 seconds with the
+  preview still unopened does the agent ask outright, once. The session tab's status names
+  the same step, and a note tells the agent when the preview opens.
 - **Gate outcome:** the agreement's one spoken line says the agent will get the
   change started and will say when it is ready to try, and never that it is
   building or ready. Once the Implementation
@@ -204,10 +211,11 @@ again whenever its listener reconnects. The cues are:
   the agent says the new version is loading.
 - **Begin validation:** the Validation Attempt begins as soon as the
   [validation controller](./validation.md#attempt-lifecycle) allows it.
-- **Debrief:** once that attempt is in progress, the agent is told what the new
-  version shows that up to four earlier pages of the session did not, the agreed
-  change, and the recorded checks, so it walks through what changed and then
-  exactly the recorded criteria.
+- **Debrief:** once that attempt is in progress, the agent is told which controls
+  the new version shows that up to four earlier pages of the session did not,
+  which controls moved since the page before, the agreed change, and the recorded
+  checks, so it walks through what changed, mentioning a moved control only when
+  it matters to the agreed change, and then exactly the recorded criteria.
 - **Validation outcome:** once the outcome is recorded and nobody has the floor,
   the agent closes the conversation; after its goodbye plays, the session closes.
 
@@ -220,7 +228,7 @@ The diagram separates authenticated call setup from the call itself:
 The session tab opens a connection with `POST /v1/sessions/{session_id}/voice/connections`,
 which has no body. FastAPI validates the originating user and the current
 Interview Session. While the session's active connection still has its agent
-running, the request rejoins that call: Daily ejects any browser of the
+running and its room has at least 15 minutes left, the request rejoins that call: Daily ejects any browser of the
 participant's still in the room, and the response carries a new participant token
 for the same room, connection ID, and `voice_run_id`. A reload or a second tab
 therefore carries on the same call with the same agent. Otherwise FastAPI
@@ -281,22 +289,27 @@ connection revokes the previous one.
 
 An Interview Session moves `invited` → `claimed` → `preparing` → `live` →
 `closed`. Its voice connection has an independent lifecycle, `connecting` →
-`active` → `reconnecting` → `closed`; setup completes before interviewing, and
-return and recovery windows expire.
+`active` → `closed`: a lost call closes its connection, a replacement supersedes
+it, and the projection reports `reconnecting`. Setup completes before
+interviewing, and return and recovery windows expire.
 Interview phase, implementation status, and Rive character state are projections;
 none is a provider-owned lifecycle. Each Product Signal keeps its own ledger and
 candidate and validation identities.
 
 The character states are `idle`, `listening`, `thinking`, `speaking`,
-`acknowledgement`, `concern`, `paused`, `reconnecting`, and `completion`. The
-user-facing implementation-progress states are `reproduction_captured` →
-`making_changes` → `preparing_the_preview` → `ready_for_validation`. Those lists
-are the whole contract: the control plane, the database, and the extension carry
-exactly the same sets. The
+`acknowledgement`, `concern`, `paused`, `reconnecting`, and `completion`. That
+list is the whole contract: the control plane, the database, and the extension
+carry exactly the same set. The
 [PRD's character description](../PRD.md#agent-character) names the expressive ones
 as examples rather than enumerating them. The animation rig carries further states
 for purely visual purposes; those never cross the contract, and no surface may
 invent one.
+
+Implementation progress moves `not_started` → `reproduction_captured` →
+`making_changes` → `preparing_preview` → `ready_for_validation` in the database.
+The session projection shows no progress for `not_started` and names
+`preparing_preview` as `preparing_the_preview`; the extension carries no
+implementation progress.
 
 During the conversation, who has the floor sets the character: `speaking` while
 the agent's audio plays out of the call, `thinking` while one of its tools runs
@@ -319,8 +332,10 @@ the projection either; it reports the revision and control state that action
 produced.
 
 Beside the call, the session tab shows a live transcript built from the voice
-agent's RTVI `user-transcription` and `bot-output` events over the Daily call. It
-is a caption for the participant only: the tab neither stores nor reports it, and
+agent's RTVI `user-transcription` and `bot-output` events over the Daily call. The
+participant's words appear as they talk, from Flux's interim transcriptions of the
+turn so far, and the turn's final words replace them; the agent's appear as they
+are spoken. It is a caption for the participant only: the tab neither stores nor reports it, and
 the durable transcript is the voice agent's own record under the
 [transcript contract](#transcript-and-evidence-contract).
 
@@ -537,10 +552,18 @@ application tells the agent once the Implementation Gate decides. A barge-in nev
 cancels a tool call. There is no pointing tool: pointing is the
 [inline mark](#agent-cursor).
 
-All tool proposals pass schema, tenant, phase, readiness, policy, permission,
-freshness, and budget checks before dispatch. Side effects are serialized within
-the affected authority scope; independent read-only work can fan out. Cancellation
-and late-result reconciliation follow [Cross-Component Contracts](./cross-component-contracts.md).
+The application checks each tool call before it acts. Each tool validates its own
+arguments, because the model's input is untrusted, and runs against the call's own
+client and Interview Session, never one the model names. An evidence claim is
+appended, citing the call's bundle. Recording agreed criteria or a requested
+change locks the Product Signal, so those effects are serialized per case, and
+refuses when the case has moved on from the bundle the call was assembled
+against. A requested change is accepted only while a new version is being
+validated and within the case's pinned implementation limit, and the validation
+tools pass the
+[validation controller's](./validation.md#attempt-lifecycle) own guards. A refusal
+returns to the model as the call's result. Cancellation and late-result
+reconciliation follow [Cross-Component Contracts](./cross-component-contracts.md).
 
 Product text, speech, DOM labels, retrieved docs, and tool output are untrusted
 content. They cannot redefine instructions or grant authority. Return plain,

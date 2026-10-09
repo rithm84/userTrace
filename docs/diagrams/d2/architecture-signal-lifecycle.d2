@@ -79,7 +79,7 @@ cells: "Product Signal · lifecycle from invitation to closure" {
   validating -> closed_validated: "validated" {class: edge}
   validating -> other_terminal_states: "not validated" {class: edge}
   validating -> gate_pending: "change asked" {class: edge}
-  gate_pending -> awaiting_validation: "change refused" {class: edge}
+  gate_pending <-> awaiting_validation: "change asked\nor refused" {class: edge}
 }
 
 key: "" {

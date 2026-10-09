@@ -20,7 +20,7 @@ Only an attempt-scoped fenced Vercel Sandbox workspace lease permits code change
 
 ## Browser and preview security
 
-The embedded browser SDK registers structured targets and applies client redaction. The extension accepts commands only for its authenticated session, bound preview tab, current target revision, and permitted visual class: observation, pointing, or highlighting. Screenshot or vision interpretation cannot replace structured product evidence. Clicking, typing, product navigation, and other browser effects are outside the supported authority.
+The embedded browser SDK registers structured targets and applies client redaction. The extension accepts commands only for its authenticated session, bound preview tab, current target revision, and permitted visual command: `scene`, `scroll_into_view`, or `clear_scene`. Screenshot or vision interpretation cannot replace structured product evidence. Clicking, typing, product navigation, and other browser effects are outside the supported authority.
 
 Each session preview has its own origin `<opaque>.preview.utrace.dev`, which shares the `utrace.dev` site in the demo; the [front-door origin contract](./preview-front-door.md#one-origin-per-session) owns that boundary. The Vercel front door requires an origin-bound claim, resolves the current control-plane route, strips caller-supplied provider headers, and attaches short-lived route context. Because sandbox port URLs are public, runtime middleware verifies the signed route claim and the runtime's entry token on every request. Responses are `no-store`; request and response bodies are never door logs.
 
@@ -50,10 +50,13 @@ Client data is encrypted in transit and at rest. Supabase RLS, explicit membersh
 
 Long-lived credentials remain in the control plane's [credential custody](./deployment.md#secrets-and-credentials). Supabase service-role and secret keys, GitHub private keys, Discord secrets, model credentials, and Vercel tokens never enter browsers or model context. Short-lived lane credentials are audience-bound and revoked with the session.
 
-The OpenAI, Daily, Deepgram, and ElevenLabs API keys remain in the voice agent's Pipecat Cloud secret set and backend
-adapters, and the workspace sandbox receives the OpenAI credential only as a header
-its firewall adds at egress. Participant authentication authorizes the
-[call setup route](./interview-and-voice.md#call-setup); its meeting token admits
+The OpenAI, Daily, Deepgram, ElevenLabs, and Vercel AI Gateway API keys remain in
+backend adapters and the voice agent's Pipecat Cloud secret set. Because the voice
+agent runs control-plane code, that set also holds the database URL, the Supabase
+secret key, the lane signing key, and the front-door service token, so it needs the
+same custody as the Compute project secrets. The workspace sandbox receives the
+OpenAI credential only as a header its firewall adds at egress. Participant
+authentication authorizes the [call setup route](./interview-and-voice.md#call-setup); its meeting token admits
 the browser to that connection's room only, not to provider endpoints or other
 rooms. Provider processing
 follows the [data contract](./data-and-schema.md#model-data-and-cleanup).

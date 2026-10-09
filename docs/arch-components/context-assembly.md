@@ -52,29 +52,27 @@ Each client has an active immutable Product Overview Version synthesized from
 prepared configuration, SDK annotations, designated documents, and source-linked
 read-only code findings. It covers product purpose, terminology, primary users,
 workflows, known capabilities, entities, integrations, constraints, and sources.
-GPT-6.1 Sol proposes the overview; deterministic validation checks the schema
-and source references before activation. Inference remains marked as inference.
+The client configuration script activates the client's curated overview, and
+deterministic validation checks its schema and source references before
+activation. Inference remains marked as inference.
 
-A relevant source or configuration change creates a new version. Routing batches
-pin the overview they used; later batches use the newly active version. If there
+Activating changed content creates a new version; activating the same content
+again keeps the version that already holds it. Routing batches pin the overview
+they used; later batches use the newly active version. If there
 is no valid overview, intake is preserved and routing waits. A code capability
 does not prove that it worked for the originating user.
 
 ## Working context during an interview
 
-uTrace keeps the conversation in active context and persists it normally. It does not
-index live transcript turns or observations for search. Short interviews do not
-justify a retrieval path for facts already available to the agents.
-Longer-session retrieval is not part of the demo.
+There is no search index; each bundle carries what its consumer needs. uTrace
+keeps the conversation in active context and persists it normally.
 
 Always carry the current objective, agreed scope and acceptance criteria, open
 questions, contradictions, relevant current observations, and implementation
-status explicitly. Critical facts must not depend on semantic search finding
-them. The live interview itself is never indexed for search; product
-documentation is derived knowledge, and exact files and canonical evidence stay
-authoritative. The
-orchestration supplies updates across the voice agent, Jev, GPT-6.1 Sol, and the
-coding agent; none automatically knows what another worker discovered. Bundles also carry
+status explicitly. Product documentation is derived knowledge, and exact files
+and canonical evidence stay authoritative. The orchestration supplies updates
+across the voice agent, Jev, GPT-6.1 Sol, and the coding agent; none
+automatically knows what another worker discovered. Bundles also carry
 lifecycle and policy revisions, prior Commands and Results, and delivered-speech
 evidence where available.
 
@@ -90,22 +88,25 @@ See [Interview and Voice](./interview-and-voice.md).
 
 ## Stage boundaries
 
-GPT-6.1 Sol's roles receive application-assembled context through the OpenAI
-Responses API, each request pinning its reasoning effort and service tier. A request
-that needs a typed result uses strict structured outputs. Nothing is stored at
-OpenAI. The voice agent's model receives its instructions, the conversation,
-`<application>` messages, and tool results through the same API over a WebSocket,
-with nothing stored at OpenAI; each tool
-call runs against a bundle assembled for it. Neither carries evidence or shared
-cross-client memory.
+Implementation Gate proposals, intake assistance, and Case File synthesis send
+GPT-6.1 Sol application-assembled context through the OpenAI Responses API, each
+request pinning its reasoning effort and service tier. A request that needs a
+typed result uses strict structured outputs. Nothing is stored at OpenAI. Code
+investigation and Implementation Attempts run GPT-6.1 Sol inside Codex in the
+workspace sandbox, under the [harness contract](./implementation.md#agent-harness).
+The voice agent's model receives its instructions, the conversation,
+`<application>` messages, and tool results through the Responses API over a
+WebSocket, with nothing stored at OpenAI; each tool call runs against a bundle
+assembled for it. None of these carries evidence or shared cross-client memory.
 
 Intake receives its immutable message batch and direct conversation context,
 authenticated identity, Product Overview, and routing policy. Application code
-assembles Jev's input, including scoped candidate signals and selectable source
-references when needed. Routine context assembly does not require a generative
-model call. Conditional assistance follows the
-[intake contract](./signal-and-outreach.md#conditional-assistance); production
-telemetry and unrestricted code do not enter the routing context.
+assembles Jev's input: the surface, the channel, the report as the batch's
+ordered text, and the Product Overview excerpt. Routine context assembly does not
+require a generative model call. Conditional assistance, under the
+[intake contract](./signal-and-outreach.md#conditional-assistance), adds nearby
+conversation, the rest of the overview, or GPT-6.1 Sol's interpretation;
+production telemetry and unrestricted code do not enter the routing context.
 
 Jev receives question-specific subsets of these bundles: the relevant source
 statement with necessary conversational context, named claims or criteria, selected
@@ -116,10 +117,11 @@ code before semantic selection. Preserve negations, corrections, and uncertainty
 do not send the full transcript, DOM, or telemetry history to every judgment.
 
 The interview receives relevant product knowledge, same-user/same-client context,
-and selected correlated evidence. Jev prioritizes semantic attention and can
-anticipate a scoped lookup while conversation continues. The voice agent receives
-concise customer-appropriate facts through its screen state, cues, and tool
-results, not raw repositories or internal diagnostics.
+and selected correlated evidence. During the call, Jev judges which activity is
+worth acknowledging and which agreed checks a new version already showed; before
+the gate, it proposes the interview-established flow classification. The voice
+agent receives concise customer-appropriate facts through its screen state, cues,
+and tool results, not raw repositories or internal diagnostics.
 
 The gate receives the signal, agreed outcome, sufficient evidence, exact code
 findings, and policy. Implementation receives
@@ -159,7 +161,7 @@ times per step, when its classification or proposal went stale.
 
 ## Failure and data boundaries
 
-Redact secrets and excluded material before sending context to any model or index.
+Redact secrets and excluded material before sending context to any model.
 Keep user-scoped transcript/history separate from client-scoped product knowledge.
 Untrusted source text never becomes a tool instruction or permission grant.
 
@@ -167,6 +169,5 @@ Retry provider failures within the configured policy, then report the precise
 missing dependency. A routing lookup that cannot complete produces a blocked
 analysis, never an invented noise verdict. Conversation can continue on facts
 already known when a lookup fails. A gate cannot approve work whose required
-code or product evidence is unavailable, but an unrelated index outage does not
-invalidate an already complete, pinned bundle. No retrieval failure resets a
-budget or changes the kind of work.
+code or product evidence is unavailable. No retrieval failure resets a budget or
+changes the kind of work.

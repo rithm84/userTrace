@@ -11,9 +11,7 @@
  * signed with it cannot verify against a production build.
  *
  * Verification runs through WebCrypto's Ed25519 implementation, which Chrome
- * only ships from 137. A Chrome between the extension's 116 baseline and 136
- * therefore cannot verify any of these keys and fails the activation gate; the
- * demo and pilot browsers must be Chrome 137 or newer.
+ * ships from 137, the oldest Chrome the extension accepts.
  */
 
 export interface PackagedSigningKey {

@@ -18,14 +18,14 @@ cells: "Telemetry to evidence · authenticated, correlated, and source-linked" {
     ### Durable ingress
   
     - Authenticate + validate + dedup
-    - Receipt and accepted watermark
+    - Receipt + normalized records, one commit
   | {class: [card; runtime]}
 
   normalize_and_correlate: |md
-    ### Normalize and correlate
+    ### Correlate and evaluate
   
     - Trace parentage + source order
-    - Completeness and gap detection
+    - Completeness, gaps, readiness
   | {class: [card; runtime]}
 
   evidence_ledger: |md
@@ -50,7 +50,7 @@ cells: "Telemetry to evidence · authenticated, correlated, and source-linked" {
   | {class: [card; outcome]}
 
   browser_server_sdks -> durable_ingress: "batch" {class: edge}
-  durable_ingress -> normalize_and_correlate: "accepted" {class: edge}
+  durable_ingress -> normalize_and_correlate: "scheduled Job" {class: edge}
   normalize_and_correlate -> supabase_records: "persist" {class: edge}
   supabase_records -> evidence_window: "scoped query" {class: edge}
   evidence_window -> evidence_ledger: "promote" {class: edge}

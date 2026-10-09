@@ -18,7 +18,7 @@ cells: "Vercel Sandbox resources · base, workspace, and candidate stay separate
     ### Base allocation
   
     - Full running product
-    - Isolated customer-data copy
+    - Pinned synthetic dataset
   | {class: [card; observation]}
 
   originating_user: |md
@@ -31,6 +31,7 @@ cells: "Vercel Sandbox resources · base, workspace, and candidate stay separate
   implementation_workspace: |md
     ### Implementation workspace
   
+    - Own snapshot; never holds the dataset
     - Exact repository revision
     - Attempt-scoped write lease
   | {class: [card; runtime]}
@@ -38,7 +39,7 @@ cells: "Vercel Sandbox resources · base, workspace, and candidate stay separate
   candidate_allocation: |md
     ### Candidate allocation
   
-    - Approved template + exact seed
+    - Same seed, installed fresh
     - Immutable Preview Version
   | {class: [card; observation]}
 
@@ -51,7 +52,7 @@ cells: "Vercel Sandbox resources · base, workspace, and candidate stay separate
 
   approved_template -> base_allocation: "allocate\n+ seed" {class: edge}
   base_allocation -> originating_user: "interview" {class: edge}
-  approved_template -> implementation_workspace: "prepare code" {class: edge}
+  approved_template -> candidate_allocation: "fresh runtime" {class: edge}
   implementation_workspace -> candidate_allocation: "checked build" {class: edge}
   candidate_allocation -> validation: "ready" {class: edge}
   originating_user -> validation: "same participant" {class: edge}

@@ -56,9 +56,6 @@ production observability system.
   through the uTrace provider. Only instrumentation scopes registered in the
   signed release manifest are eligible for export, and their attributes still
   pass the uTrace schema and redaction pipeline.
-- No uTrace SDK is ever active in customer production. Correlation requires the
-  browser request and the required backend chain, and unrestricted bodies,
-  secrets, and unrelated traces are never exported.
 - Initialization or configuration failure stops the preview from becoming
   ready. A later instrumentation or exporter failure does not throw into the
   client's business request path; it withdraws uTrace readiness, reports the
@@ -88,15 +85,14 @@ production observability system.
   activation. A dropped control connection therefore reconnects with the same
   bootstrap credential and rotates; a restarted process presents a new stream and
   becomes a new activation.
-- One observation activation binds the server streams to the exact `client_id`,
+- One observation activation binds one server stream to the exact `client_id`,
   `client_user_id`, `customer_account_id`, `session_id`, `preview_environment_id`,
   `preview_runtime_allocation_id`, and optional `preview_version_id`. A new
   session, validation encounter, Preview Version, or runtime allocation requires
   a new activation.
 - Each service process creates a fresh `server_stream_id` and
-  `service.instance.id`. A process restart creates a new stream. Several required
-  Node services may participate in the same activation, but each authenticates
-  and reports readiness independently.
+  `service.instance.id`. Each service process's stream is its own observation
+  activation.
 - Standard OpenTelemetry resource attributes describe the process and deployment:
   at minimum `service.name`, `service.namespace`, `service.version`,
   `service.instance.id`, and `deployment.environment.name`. Dynamic user and
@@ -311,11 +307,14 @@ production observability system.
   the affected service from combined readiness. Observation-dependent claims,
   probing, implementation evidence, and validation pause until fresh credentials,
   an acknowledged exporter, and the required probe restore readiness.
-  Authenticated conversation may continue using already established facts, but
-  it cannot imply observation of the unready interval.
-- Every required service reports readiness independently. The control plane marks
-  the server path ready only when the signed release manifest's entire required
-  service graph is ready and browser-to-server correlation succeeds.
+- Each health report is kept as a durable record and prompts a fresh readiness
+  evaluation, but readiness never reads what a report claims. Ingestion
+  evaluates every required service's stream from accepted telemetry, and the
+  control plane marks the server path ready only when the signed release
+  manifest's entire required service graph is ready and browser-to-server
+  correlation succeeds, as
+  [completeness and readiness](./telemetry-and-evidence.md#completeness-and-readiness)
+  defines.
 - Client-installed component compatibility follows the common contract rule:
   the control plane supports the current and immediately previous major during
   an explicit deprecation window. An older SDK, unsupported capability, or

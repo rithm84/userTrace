@@ -8,9 +8,9 @@ The following diagram shows the browser SDK's activation and single observation 
 
 ## Package and bootstrap boundary
 
-- The client installs one public uTrace browser SDK package. The shared browser
-  observation runtime is a separately versioned internal dependency of that
-  package, not a second client-facing installation.
+- The client installs one public uTrace browser SDK package. The shared
+  observation runtime ships inside the same package and loads only in the
+  preview profile.
 - The embedded SDK is the only component allowed to create the shared runtime.
   The browser extension discovers and joins the existing authenticated runtime;
   it never creates a competing runtime, elects a leader, or captures product
@@ -131,9 +131,9 @@ The following diagram shows the browser SDK's activation and single observation 
   stream. This gives a stable delivery order without claiming a false physical
   total order between simultaneous frames or workers.
 - `occurred_at` is RFC 3339 UTC wall time. `monotonic_offset` comes from the
-  document's monotonic performance clock. Runtime health records the measured
-  wall-clock offset needed to interpret cross-system timing without rewriting
-  the original occurrence time.
+  document's monotonic performance clock. `occurred_at` is kept unmodified;
+  every comparison with a server time uses the server-anchored `observed_at`
+  defined in [telemetry and evidence](./telemetry-and-evidence.md#duplicates-ordering-lateness-and-time).
 
 ## Automatic observation boundaries
 
@@ -149,8 +149,8 @@ The following diagram shows the browser SDK's activation and single observation 
 - Other typed records cover frontend errors, bounded performance measurements,
   product milestones, target-registry changes, user-versus-agent actor, and
   observation gaps.
-- Runtime readiness and transport health travel on the control path. They are
-  not disguised as product observations.
+- Runtime readiness and transport health are never exported as product
+  observations; see [Runtime readiness and failure reporting](#runtime-readiness-and-failure-reporting).
 - Routes are normalized to registered route templates. Raw query strings,
   fragments, secrets, and unsafe literal path values are never exported. An
   unrecognized route is reported as unknown with safe structural metadata.
@@ -232,9 +232,9 @@ The following diagram shows the browser SDK's activation and single observation 
 - A target has two identities: a stable signed target definition from the
   annotation manifest and a document-scoped mounted target instance.
 - A mounted instance receives an opaque `target_id` and monotonic
-  `target_revision`. The revision changes when its element binding, supported
-  visual capability, semantic state, or display-relevant state
-  changes. Geometry-only changes update a separate `layout_revision`.
+  `target_revision`. The revision changes when its element binding, semantic
+  state, or display-relevant state changes. Geometry-only changes update a
+  separate `layout_revision`.
 - A component registration handle may preserve the same target instance through
   an ordinary framework rerender. Unmount is terminal; a later mount receives a
   new ID. IDs are never reused in a document.
@@ -265,8 +265,9 @@ The following diagram shows the browser SDK's activation and single observation 
   Automatic target discovery preserves broad visual communication without
   granting product-action authority.
 - Portal, frame, shadow-root, visibility, occlusion, and top-level geometry
-  behavior follows the browser-extension decision record. The shared runtime is
-  the sole source of the target identity and current geometry used there.
+  behavior follows the extension's [rendering and target boundaries](./browser-extension.md#rendering-and-target-boundaries).
+  The shared runtime is the sole source of the target identity and current
+  geometry used there.
 
 ## Observation ownership and duplicate prevention
 
@@ -396,19 +397,23 @@ The following diagram shows the browser SDK's activation and single observation 
   initial baseline, an acknowledging ingestion WebSocket, a successful trace
   propagation probe without duplicate injectors, and a consistent target
   registry.
-- Runtime health reports only operational metadata: browser stream, latest
-  produced and acknowledged sequences, buffer utilization, dropped ranges,
-  required component status, manifest and policy versions, and specific failure
-  codes. It never includes product content as a health diagnostic.
+- Runtime health is local to the page: the SDK exposes it through
+  `session.health()` and never sends it. It holds only operational metadata:
+  browser stream, latest produced and acknowledged sequences, buffer
+  utilization, dropped ranges, required component status, manifest and policy
+  versions, and specific failure codes. It never includes product content as a
+  health diagnostic.
 - Failure codes distinguish at least invalid or expired attestation, credential
   rejection, incompatible protocol or schema, duplicate runtime or hook,
   required frame or adapter missing, baseline rejection, target-registry drift,
   ingestion unavailable, acknowledgement integrity failure, buffer exhaustion,
   and trace-correlation failure.
-- The control plane combines this runtime record with browser extension, server
-  SDK, browser-to-server trace correlation, warm-environment, seeded-data, and
-  preview readiness. Browser runtime readiness alone never authorizes
-  product-specific probing.
+- Ingestion derives browser readiness from the accepted stream, as
+  [completeness and readiness](./telemetry-and-evidence.md#completeness-and-readiness)
+  defines. The control plane combines it with browser extension, server SDK,
+  browser-to-server trace correlation, warm-environment, seeded-data, and
+  preview readiness. Browser readiness alone never authorizes product-specific
+  probing.
 - Pause stops session-correlated observation and export after acknowledged
   transition cleanup. Resume reconnects as described in
   [Export, buffering, and acknowledgement](#export-buffering-and-acknowledgement),
@@ -417,7 +422,7 @@ The following diagram shows the browser SDK's activation and single observation 
 
 ## Authorized detail queries
 
-- When the realtime interview needs more detail than the current evidence view,
+- When the live interview needs more detail than the current evidence view,
   the voice agent's model requests a typed detail query through the control plane;
   Jev may recommend the target and fields as typed semantic attention. The
   control plane authorizes it, sends it through the extension control path to the

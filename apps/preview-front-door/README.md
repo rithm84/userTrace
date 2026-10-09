@@ -10,14 +10,16 @@ holds no product state. The contract it implements is
 
 | Path | What it does |
 | --- | --- |
-| `/__utrace/claim?code=` | Exchanges a one-time front-door handoff for the `__Host-` session cookie, then redirects to `/`. |
+| `/__utrace/claim?code=` | Exchanges a one-time front-door handoff for the `__Host-` session cookie, then redirects to `/__utrace/sign-in`. |
+| `/__utrace/sign-in` | Signs the claimed browser into the client product: posts a one-time product sign-in token server-side to the template's sign-in path, sets the product's session cookie, and redirects to where the product lands the signed-in user. |
 | `/__utrace/activate` | Same-origin relay for the embedded browser SDK's document activation; returns the signed document attestation. |
 | `/__utrace/telemetry-credential` | Same-origin relay that exchanges a verified attestation for the write-only browser telemetry credential. |
+| `/__utrace/propagation-probe` | Echoes the `traceparent` and `tracestate` it received, and how many `traceparent` values arrived, so the browser SDK can prove one injector produced exactly one header before it reports readiness. |
 | everything else | Verified, routed, and streamed from the preview runtime. |
 
 Requests reach the control plane at `POST /v1/preview/handoffs/{code}/exchange`,
-`GET /v1/preview/routes/{host}`, `POST /v1/preview/activations`, and
-`POST /v1/preview/telemetry-credentials`. Every call carries the door's bearer service
+`GET /v1/preview/routes/{host}`, `POST /v1/preview/routes/{host}/product-sign-in`,
+`POST /v1/preview/activations`, and `POST /v1/preview/telemetry-credentials`. Every call carries the door's bearer service
 token; the session credential travels in an `x-utrace-session-credential` header, never in
 a URL or a body. The control plane authorises; the door enforces the answer and adds its
 own fail-closed guards (expiry, a superseded route revision, and an upstream that is not
@@ -43,7 +45,7 @@ the configured bound and the session credential's expiry, and it is stripped fro
 `preview.utrace.dev` must be listed in the Public Suffix List private section before pilot
 activation, so that each session origin is a separate site from `utrace.dev`. That listing
 is a pilot readiness requirement, not a runtime check; the
-[Shopalytics demo](../../docs/SCENARIO.md#preview-origin-shortcut) runs before it takes
+[Shopalytics demo](../../docs/SCENARIO.md#starting-state-and-fixture) runs before it takes
 effect.
 
 ## Route context
@@ -57,7 +59,7 @@ v1.<base64url(claims)>.<base64url(HMAC-SHA256(claims))>
 ```
 
 The signature covers the encoded payload bytes exactly as transmitted. The claim set is
-`utrace-preview-route-v1`, defined in
+`utrace_preview_route_v1`, defined in
 [`schemas/preview/route-context-token.v1.schema.json`](../../packages/utrace-contracts/schemas/preview/route-context-token.v1.schema.json).
 A field change requires a new `schema_version` and a new token version, so an old front
 door cannot be mistaken for a current one. Caller-supplied `x-utrace-*`, `x-forwarded-*`,
@@ -70,10 +72,9 @@ port proxy sets `Host` and `x-forwarded-host` to its own host, so the door sets 
 JSON Schemas live in
 [`packages/utrace-contracts/schemas/preview/`](../../packages/utrace-contracts/schemas/preview)
 with canonical and rule-violating fixtures in `packages/utrace-contracts/fixtures/preview/`.
-The generated `@utrace/contracts` bindings do not cover the `preview` area yet, so this app
+The generated `@utrace/contracts` bindings do not cover the `preview` area, so this app
 carries hand-written zod mirrors in `lib/contracts.ts`. `tests/contracts.test.ts` replays
-every fixture against both representations so they cannot drift; moving the mirrors into
-the shared package is a later change for the contracts workstream.
+every fixture against both representations so they cannot drift.
 
 ## Local development
 
@@ -90,11 +91,12 @@ plain-HTTP host silently drops the cookie.
 
 `apps/api/tests/preview/test_live_preview.py` runs this app for real against a local
 control plane and a live Vercel Sandbox preview: `tests/preview/live_harness.py` builds it,
-starts it on port 3170, and drives Chrome at a session origin with
-`--host-resolver-rules` pointing that name at the door and
-`--unsafely-treat-insecure-origin-as-secure` standing in for the TLS a deployment
-terminates. Both flags exist so the cookie is stored and WebCrypto is available; neither
-changes what this app does.
+starts it on port 3170 behind a run-scoped TLS terminator on port 3171, and drives Chrome
+at a session origin with `--host-resolver-rules` pointing that name at port 3171 and
+`--ignore-certificate-errors-spki-list` accepting the run's one certificate key. A session
+origin is a subdomain, so the `localhost` secure-context exemption does not reach it, and
+the browser stores the `__Host-` cookie only over TLS. Neither flag changes what this app
+does.
 
 ## Verification
 
@@ -106,44 +108,25 @@ npm run build
 ```
 
 The suites run real HTTP servers: one stands in for the control plane and implements the
-four documented routes, one stands in for a Vercel Sandbox preview runtime and verifies the
-door's route-context header with the runtime-side verifier logic. The control plane and
-the runtime are built in other workstreams; nothing here is mocked, and no test reaches a
-live provider.
+five documented routes, one stands in for a Vercel Sandbox preview runtime and verifies the
+door's route-context header with the runtime-side verifier logic. Nothing here is mocked,
+and no test reaches a live provider.
 
 ## Deployment
 
-The Vercel project `utrace-preview-front-door` (team `rithm84s-projects`) already exists
-with root directory `apps/preview-front-door`, Node 24, and the domains
-`preview.utrace.dev` and `*.preview.utrace.dev` attached.
+The Vercel project `utrace-preview-front-door` (team `rithm84s-projects`) has root
+directory `apps/preview-front-door`, Node 24, and the domains `preview.utrace.dev` and
+`*.preview.utrace.dev` attached.
 
 ```sh
 vercel project inspect utrace-preview-front-door --scope rithm84s-projects
 vercel deploy --scope rithm84s-projects        # preview deployment only
 ```
 
-Production promotion, DNS, and domain changes are human-owned and outside this workstream.
+Production promotion, DNS, and domain changes are human-owned.
 
-### Wildcard domain: what Vercel requires
-
-Serving `*.preview.utrace.dev` does **not** require moving `utrace.dev` to Vercel
-nameservers, but it does require giving Vercel control of the ACME DNS challenge, because
-a wildcard certificate can only be issued through DNS-01 validation. Vercel documents two
-supported ways ([Adding and configuring a custom
-domain](https://vercel.com/docs/domains/working-with-domains/add-a-domain)):
-
-1. Use Vercel nameservers, which are enabled automatically when a wildcard domain is
-   saved.
-2. Keep the third-party nameservers and delegate only the challenge name: `NS` records for
-   `_acme-challenge.preview` pointing at `ns1.vercel-dns.com.` and `ns2.vercel-dns.com.`,
-   plus a `CNAME` for `*.preview` pointing at `cname.vercel-dns-0.com.` for the traffic
-   itself. Vercel labels this a workaround and warns that delegating the challenge name
-   can stop other providers from issuing certificates that use it.
-
-Verified on 2026-10-03: `utrace.dev` uses `ns1.vercel-dns.com` and
-`ns2.vercel-dns.com`. A session origin under `*.preview.utrace.dev` resolves to
-Vercel and completes a verified TLS handshake with a wildcard certificate.
-DNS routing and wildcard TLS are in place.
+`utrace.dev` uses Vercel nameservers, so Vercel issues the `*.preview.utrace.dev` wildcard
+through DNS-01.
 
 ## Not handled here
 

@@ -15,7 +15,7 @@
   <a href="docs/PRD.md">Product spec</a>
 </p>
 
-uTrace is a forward-deployed product agent for product teams. When a customer
+uTrace is a forward-deployed agent for product teams. When a customer
 asks for something in the product's community, uTrace interviews them by voice
 while they use the product, builds the agreed change live in an isolated
 preview, and has the same customer validate it before a pull request opens.
@@ -59,7 +59,7 @@ While the agent recaps a request, walks through a new version, or shows the
 customer where something is, its text model puts a mark with the control's ID
 before the words that name it. The mark is never spoken: as the next word plays,
 the browser extension circles that control in the customer's preview. Controls,
-chart points, table rows, and reviews are all declared targets in the page's
+chart points, table rows, and list items are all declared targets in the page's
 registry, so no screenshot is read.
 
 ## Stack
@@ -71,7 +71,7 @@ registry, so no screenshot is read.
 | Web surfaces and preview front door | Next.js on Vercel |
 | Previews and coding workspaces | Vercel Sandbox |
 | Voice | Pipecat on Daily: Deepgram Flux, GPT-6.1 Sol Ultrafast, ElevenLabs |
-| Reasoning and code changes | OpenAI GPT-6.1 Sol in Codex |
+| Reasoning and code changes | OpenAI GPT-6.1 Sol, coding in Codex; Ultrafast for gate decisions and code changes |
 | Intake and attention decisions | TypeSafe AI Jev |
 | Delivery | GitHub draft PRs, Stripe invoice credits, Discord |
 

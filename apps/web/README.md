@@ -20,7 +20,10 @@ installed Rive WASM runtime into `public/agent/`.
 
 The optional `LANDING_ONLY=1` setting redirects non-asset paths other than `/`
 to the landing page, preserving the public site's existing redirect behavior.
-Without it, missing routes return 404. `.env.example` lists every setting.
+Without it, missing routes return 404. `.env.example` lists every deployment
+setting. Two local-only switches are not in it: `UTRACE_PARTICIPANT_FIXTURE`
+(see [Product surfaces](#product-surfaces)) and `UTRACE_PREVIEW_DIST_DIR`, which
+overrides the Next.js build directory.
 
 The waitlist currently displays a confirmation for the current visit; it does
 not store or send email addresses. Demo/contact links open email.
@@ -32,7 +35,7 @@ not store or send email addresses. Demo/contact links open email.
 | `/sign-in` | client staff | email one-time-code sign-in |
 | `/sign-in/participant` | participants | Discord sign-in |
 | `/auth/callback` | both | the single sign-in callback (PKCE code or email link) |
-| `/dashboard` | staff | in-progress cases, Case Files and pull requests, Sensitive Account escalations, Outreach Offers |
+| `/dashboard` | staff | in-progress cases, Case Files and pull requests, Outreach Offers |
 | `/dashboard/cases/[productSignalId]` | staff | one case end to end, with the deny-only **Stop this case** control |
 | `/dashboard/settings` | staff | members, integration status, and the owner-only Outreach Offers allowance |
 | `/case-files/[caseFileId]` | staff | the published Case File, sealed core apart from the updating projection |
@@ -70,14 +73,15 @@ reference uTrace holds no recorded name for is rendered as itself.
 Shopalytics fixture in `lib/api/fixture-data.ts`, which is what the route tests
 and offline previews use. With it, the session tab replays a scripted
 conversation into its transcript (`lib/session/fixture-voice.ts`) instead of
-opening a GPT-Live call. Adding `UTRACE_PARTICIPANT_FIXTURE=1` admits the
+joining the voice agent's Daily call. Adding `UTRACE_PARTICIPANT_FIXTURE=1` admits the
 fixture's participant without Discord sign-in; the `web-product-fixture-*`
 entries in `.claude/launch.json` start either mode.
 
 ## Configuration
 
-Copy `.env.example` to `.env.local` and fill it in. `NEXT_PUBLIC_SUPABASE_URL`
-and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` are browser-safe;
+Copy `.env.example` to `.env.local` and fill it in. `NEXT_PUBLIC_SUPABASE_URL`,
+`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, and `NEXT_PUBLIC_UTRACE_EXTENSION_ID`, the
+extension the session tab delivers its binding offer to, are browser-safe;
 `UTRACE_API_BASE_URL` and `UTRACE_CLIENT_ID` are server-only and must never be
 given a `NEXT_PUBLIC_` name. The Supabase secret key is not used by this
 application at all.
@@ -120,7 +124,7 @@ rather than the fixture:
 cd ../api
 set -a; source ../../.env.local; set +a
 UTRACE_LANE_SIGNING_KEY=… UTRACE_FRONT_DOOR_SERVICE_TOKEN=… \
-UTRACE_PREVIEW_ORIGIN_SUFFIX=preview.utrace.dev \
+UTRACE_PREVIEW_ORIGIN_SUFFIX=preview.utrace.dev UTRACE_VOICE_AGENT_RUNTIME=in_process \
 uv run uvicorn --factory app.main:create_default_app --port 8150
 
 # and one for the check
@@ -160,7 +164,7 @@ npm --prefix ../../packages/utrace-agent-character run typecheck
 - `lib/session/`: preflight, extension messaging, WebRTC voice, Realtime, and
   the session Server Actions.
 - `public/`: fonts, logos, artwork, and animation exports.
-- `scripts/`: character synchronization and cover artwork generation.
+- `scripts/`: character asset synchronization.
 - [`utrace-agent-character`](../../packages/utrace-agent-character/): shared
   character runtime, seven canonical characters, and Rive authoring tools.
 

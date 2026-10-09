@@ -34,10 +34,11 @@ redirect the reward or erase its entitlement.
 
 ## Budget and offer reservations
 
-The owner authorizes a client/currency issuance ceiling. Owners and admins can
-configure fixed offer amounts and eligibility within it. The budget limits the
-face value of credits uTrace may issue; no prefunding, cash custody, or balance
-transfer is involved. Offer policy is pinned with the case's configuration.
+The owner authorizes a client/currency issuance ceiling. The fixed offer amount,
+currency, billing use, and completion terms come from the
+[client configuration release](./client-configuration.md#immutable-configuration-releases),
+not from the dashboard. The budget limits the face value of credits
+uTrace may issue; no prefunding, cash custody, or balance transfer is involved.
 Models cannot negotiate amounts, increase allowance, or change recipients.
 
 Reserve the full promised credit and commit invitation intent atomically. Each

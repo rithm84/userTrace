@@ -20,14 +20,17 @@ Retries use durable budgets, jittered backoff, idempotency keys, and provider ci
 
 The voice agent holds full-duplex voice in a private Daily room the session tab joins over WebRTC. Temporary transport or voice loss starts a bounded reconnect window. Current already-authorized implementation and checks may continue; new validation evidence cannot be accepted without the same user.
 
-Voice transcript fragments are provisional. They do not establish what the user meant or prove that synthesized speech was heard. Reconnection creates a new transport identity and context revision; accepted corrections invalidate derived claims that depended on the earlier wording.
+Voice transcript fragments are provisional. They do not establish what the user meant or prove that synthesized speech was heard. A replacement call creates a new transport identity and context revision; accepted corrections invalidate derived claims that depended on the earlier wording.
 
-Room creation and voice agent failures follow the
+Room creation, rejoin, and voice agent failures follow the
 [call setup contract](./interview-and-voice.md#call-setup). A voice agent that is
-not in the call makes voice unready for dependent probing and validation. A
-replacement connection repeats backend-authorized setup with a new room; it does
-not refresh a browser-held credential. Delete superseded rooms and reject their
-late results. Voice failures never trigger a switch to another provider.
+not in the call makes voice unready for dependent probing and validation. While
+the call's voice agent Job is still live and its room has at least 15 minutes
+left, a reconnecting participant rejoins the same room with a new meeting token
+and keeps the connection and `voice_run_id`. Otherwise the reconnect repeats
+backend-authorized setup with a new room. Neither path refreshes a browser-held
+credential. Delete superseded rooms and reject their late results. Voice failures
+never trigger a switch to another provider.
 
 OpenAI API, voice provider, or Jev unavailability pauses only work that requires that role. There is no silent substitute or lower-fidelity path, and no model is substituted for another. Routine Jev intake with complete pinned context does not depend on GPT-6.1 Sol availability; a Jev outage blocks that route after bounded retries. Conditional assistance follows the [intake contract](./signal-and-outreach.md#conditional-assistance). During interviews Jev supplies concurrent semantic attention and never a serial speech preapproval gate. Product-specific claims and validation pause whenever extension, browser SDK, Server SDK, trace correlation, target freshness, or exact candidate readiness is incomplete.
 
@@ -95,6 +98,6 @@ Automatic remediation is limited to idempotent, evidence-preserving legal transi
 
 ## Restart and reconciliation
 
-Before a service becomes ready after restart, it reconciles inbox/outbox state, Jobs and Queues, leases and heartbeats, session reconnect windows, provider breakers, stale preview routes, and cleanup work. Persistent API, Discord, telemetry, and session-coordinator processes on Supabase Compute recover from Supabase-backed durable state. No in-memory worker is authoritative. Engineering response happens through code or configuration deployment outside product authority.
+Before a service becomes ready after restart, it reconciles inbox/outbox state, Jobs and Queues, leases and heartbeats, session reconnect windows, provider breakers, stale preview routes, and cleanup work. The API and worker on Supabase Compute and the voice agent's sessions on Pipecat Cloud recover from Supabase-backed durable state. No in-memory worker is authoritative. Engineering response happens through code or configuration deployment outside product authority.
 
-OpenTelemetry supports operational diagnosis while durable uTrace records remain workflow truth. Overload shedding, incident freezes, and failure drills are outside the demo.
+Structured logs support operational diagnosis while durable uTrace records remain workflow truth. Overload shedding, incident freezes, and failure drills are outside the demo.
