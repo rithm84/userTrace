@@ -37,6 +37,7 @@ from pipecat.frames.frames import (
     AggregatedTextFrame,
     BotStartedSpeakingFrame,
     BotStoppedSpeakingFrame,
+    EagerTranscriptionFrame,
     Frame,
     InputAudioRawFrame,
     InterimTranscriptionFrame,
@@ -56,6 +57,7 @@ from pipecat.services.elevenlabs.dialogue.tts import (
 )
 from pipecat.turns.types import ProcessFrameResult
 from pipecat.turns.user_start import ExternalUserTurnStartStrategy
+from pipecat.turns.user_stop import EagerUserTurnStopStrategy
 from pipecat.utils.text.base_text_aggregator import Aggregation, AggregationType
 from pipecat.utils.text.pattern_pair_aggregator import (
     MatchAction,
@@ -74,6 +76,7 @@ __all__ = [
     "FluxSTT",
     "MicGate",
     "NearEnd",
+    "OneSpeculation",
     "PlaybackTap",
     "Screen",
     "ScreenState",
@@ -230,6 +233,28 @@ class FluxSTT(DeepgramFluxSTTService):
             await self.push_frame(
                 InterimTranscriptionFrame(transcript, self._user_id, time_now_iso8601())
             )
+
+
+class OneSpeculation(EagerUserTurnStopStrategy):
+    """Answers each predicted end of turn once, even when Flux revises the prediction.
+
+    Flux can report a second eager end of turn inside one turn, such as the same
+    words with a period added. Pipecat 1.12 then speculates again without
+    withdrawing the first speculation, so both responses run and both are spoken
+    once the turn is confirmed. A revision the match policy reads as the same words
+    keeps the speculation already running; any other revision withdraws it first,
+    as a resumed turn does. The speculation in flight and the turn's committed text
+    are only held privately by the base strategy.
+    """
+
+    async def process_frame(self, frame: Frame) -> ProcessFrameResult:
+        if isinstance(frame, EagerTranscriptionFrame) and self._speculation is not None:
+            revised = self._text + frame.text
+            if self.match_policy.matches(self._speculation.text, revised):
+                return ProcessFrameResult.CONTINUE
+            await self._take_speculation()
+            await self.trigger_user_turn_speculation_cancelled()
+        return await super().process_frame(frame)
 
 
 class BargeInStrategy(ExternalUserTurnStartStrategy):

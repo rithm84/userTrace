@@ -71,7 +71,7 @@ Audio and text pass through these stages in order:
    passes the rest to the speech engine a whole word at a time. The first clause
    of each reply is flushed, so speech starts without waiting for more text.
 9. **ElevenLabs** Eleven v4 Turbo (`eleven_v4_turbo`) over the Text to Dialogue
-   WebSocket, in ElevenLabs' shared Siren voice.
+   WebSocket, in ElevenLabs' premade Jessica voice.
 10. **Daily output:** the agent's audio into the room.
 11. **Playback tap:** as each word plays, records the model's own text for it as
     an agent transcript fragment and dispatches the circle for a pending mark, so
@@ -190,10 +190,13 @@ again whenever its listener reconnects. The cues are:
   unopened for 20 seconds, the agent asks the participant to open it at the next
   natural pause, and the session tab's status names the same step; if the
   preview opens before the agent speaks that ask, a note retracts it.
-- **Gate outcome:** the agent says it is building only once the Implementation
-  Gate has authorized an attempt, while that attempt is still building. When the
+- **Gate outcome:** the agreement's one spoken line says the agent will get the
+  change started and will say when it is ready to try, and never that it is
+  building or ready. Once the Implementation
+  Gate has authorized an attempt, while that attempt is still building, the agent
+  is only told so, so one thought is never split across a silence. When the
   gate stops the agreed change, by failing for good or by choosing no
-  implementation, the agent is told the change will not start, so it never
+  implementation, the agent says the change will not start, so it never
   promises a version that is not coming. A refused change request leaves the
   participant validating the version they have, and the agent says why. A new
   connection hears the case's latest gate outcome again.
@@ -527,7 +530,7 @@ application's closing cue follows at once. After `record_evidence_claim`,
 speaks again only if the answer that made the call said nothing, so the
 participant is never left in silence and never hears a second turn after one that
 already answered them. What an agreement or a requested change leads to, the
-application announces once the Implementation Gate decides. A barge-in never
+application tells the agent once the Implementation Gate decides. A barge-in never
 cancels a tool call. There is no pointing tool: pointing is the
 [inline mark](#agent-cursor).
 

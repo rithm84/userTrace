@@ -77,6 +77,8 @@ class Interview:
     praised_at: float | None = None
     validated: bool = False
     agreed: bool = False
+    #: What the agent said unasked once the gate approved, when it owes nothing then.
+    approval_reply: str | None = None
     notes: list[str] = field(default_factory=list)
     #: Every word either side said, as recorded, with when it was played or heard.
     words: list[tuple[float, str, str]] = field(default_factory=list)
@@ -371,7 +373,8 @@ async def run_interview(
         interview.notes.append("the agreement was never recorded")
         return interview
 
-    # 4. The gate approves; the build is announced; later she asks how it is going.
+    # 4. The gate approves, which the agent hears without a word: its one line at the
+    # agreement already said it will get the change started. Later she asks how it is going.
     await live.agent_turn(after=time.time(), deadline_seconds=4.0)
     await asyncio.sleep(3.0)
     async with database.transaction() as conn, conn.cursor() as cur:
@@ -387,7 +390,8 @@ async def run_interview(
         product_signal_id=signal_id,
         configuration_release_id=call.case.configuration_release_id,
     )
-    await live.answer_owed(after=approved_at, label="building announcement")
+    heard = await live.agent_turn(after=approved_at, deadline_seconds=_STALL_SECONDS)
+    interview.approval_reply = heard.text if heard is not None else None
     await harness.set_progress(database, call.session_id, "making_changes")
     await asyncio.sleep(6.0)
     after = await live.respond(
@@ -516,6 +520,7 @@ class Score:
     repeated_sentences: tuple[str, ...]
     one_moments: int
     stalls: tuple[str, ...]
+    approval_reply: str | None
     questions_after_praise: int
     reply_p50: float
     reply_p90: float
@@ -535,6 +540,8 @@ class Score:
             found.append(f"said 'one moment' {self.one_moments} times")
         if self.stalls:
             found.append(f"stalled at: {list(self.stalls)}")
+        if self.approval_reply is not None:
+            found.append(f"spoke again once the gate approved: {self.approval_reply!r}")
         if self.questions_after_praise > 2:
             found.append(f"asked {self.questions_after_praise} questions after hearing it works")
         return found
@@ -568,6 +575,7 @@ def score(interview: Interview) -> Score:
         repeated_sentences=tuple(repeated),
         one_moments=text.count("one moment"),
         stalls=tuple(interview.stalls),
+        approval_reply=interview.approval_reply,
         questions_after_praise=sum(u.text.count("?") for u in after_praise),
         reply_p50=replies[len(replies) // 2],
         reply_p90=replies[min(len(replies) - 1, int(len(replies) * 0.9))],

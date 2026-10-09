@@ -81,6 +81,8 @@ _log = get_logger(__name__)
 _SET_INPUT_MUTED: Final[str] = "voice.set_input_muted"
 _READY: Final[str] = ImplementationProgress.READY_FOR_VALIDATION.value
 _APPROVED: Final[str] = GateDecisionKind.APPROVED_LIVE.value
+#: The gate outcome the agent is only told about: an approved change being built.
+_BUILDING: Final[str] = "building"
 
 #: How long a ready preview may stay unopened before the agent is asked to prompt
 #: for it. Participants usually open it unprompted.
@@ -156,13 +158,14 @@ _NO_IMPLEMENTATION_CUE: Final[str] = (
     "for the product team, and this session will close shortly."
 )
 
-#: Sent once the Implementation Gate approved the agreed change and its attempt is
-#: building, so the agent says it is building only when that is true.
+#: Noted, not spoken, once the Implementation Gate approved the agreed change and its
+#: attempt is building: the person already heard the agent will get it started and say
+#: when it is ready, so a second line seconds later would only split one thought in two.
 _BUILDING_CUE: Final[str] = (
-    "The change you agreed is approved and is being built now. Tell them in one short "
-    "sentence, in the first person, that you are building it now and will tell them "
-    "when it is ready, such as \"I'm building it now; I'll tell you when it's ready.\" "
-    "Then stay silent while it is built."
+    "The change you agreed is approved and is being built now. They already heard you "
+    "will get it started and tell them when it is ready, so say nothing about it now "
+    "and stay silent while it is built; if they talk to you meanwhile, answer briefly "
+    "and tell them it is still being built."
 )
 
 #: How often to look whether the floor is free and whether the goodbye has started.
@@ -330,9 +333,10 @@ async def announce_gate_outcome(
 ) -> None:
     """Tell the agent, once per connection, what the gate decided about the agreed change.
 
-    An approved change is announced once its attempt is authorized and only while it
-    is still being built, so the agent says it is building exactly when it is. The
-    gate stops a change by failing or by choosing no implementation. Each outcome is
+    An approved change is noted to the agent once its attempt is authorized and only
+    while it is still being built, without a line of its own: the person already
+    heard the agent will get it started. The gate stops a change by failing or by
+    choosing no implementation, and that is spoken. Each outcome is
     announced while it is the case's latest, so a new connection hears it too and a
     later change request is never answered with an old one. A declined change keeps
     the version the person has, so they go on checking it.
@@ -346,8 +350,11 @@ async def announce_gate_outcome(
         if decided is None or decided[0] == announced:
             continue
         announced, cue, outcome = decided
-        await agent_quiet.wait()
-        await agent.say(cue)
+        if outcome == _BUILDING:
+            await agent.note(cue)
+        else:
+            await agent_quiet.wait()
+            await agent.say(cue)
         _log.info(
             "voice_gate_outcome_announced",
             product_signal_id=str(product_signal_id),
@@ -466,7 +473,7 @@ async def _gate_outcome(
     if event_type == _ATTEMPT_AUTHORIZED_EVENT:
         if as_str(row, "signal_state") != ProductSignalState.IMPLEMENTING.value:
             return None
-        return as_uuid(row, "id"), _BUILDING_CUE, "building"
+        return as_uuid(row, "id"), _BUILDING_CUE, _BUILDING
     if event_type == GATE_NO_IMPLEMENTATION_EVENT:
         return as_uuid(row, "id"), _NO_IMPLEMENTATION_CUE, "no_implementation"
     if event_type != GATE_FAILED_EVENT:

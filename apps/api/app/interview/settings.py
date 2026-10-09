@@ -165,8 +165,8 @@ class VoiceSettings(_EnvSettings):
         default="eleven_v4_turbo", validation_alias="UTRACE_VOICE_SPEECH_MODEL"
     )
     voice_id: str = Field(
-        # ElevenLabs' shared "Siren - Natural realistic conversational voice".
-        default="eXpIbVcVbLo8ZJQDlDnl",
+        # ElevenLabs' premade "Jessica - Playful, Bright, Warm".
+        default="cgSgspJ2msm6clMCkdW9",
         validation_alias="UTRACE_VOICE_ID",
     )
     end_of_turn_threshold: float = Field(default=0.7, validation_alias="UTRACE_VOICE_EOT_THRESHOLD")
