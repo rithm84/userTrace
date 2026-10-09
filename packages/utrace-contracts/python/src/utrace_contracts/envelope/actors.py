@@ -30,9 +30,9 @@ __all__ = [
 
 ClientMemberRole = Literal["owner", "admin"]
 
-AgentRole = Literal["gpt_live", "terra", "sol", "jev"]
-"""GPT-Live voice, Terra interactive reasoning and retrieval, Sol deep
-investigation and coding, Jev intake decisions and semantic attention."""
+AgentRole = Literal["sol", "jev"]
+"""Sol for reasoning, investigation, and coding; Jev for intake decisions and semantic
+attention."""
 
 
 class CustomerParticipantActor(StrictModel):

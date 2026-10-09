@@ -223,7 +223,6 @@ class VoiceConnectionState(StrEnum):
 
     CONNECTING = "connecting"
     ACTIVE = "active"
-    RECONNECTING = "reconnecting"
     CLOSED = "closed"
 
 

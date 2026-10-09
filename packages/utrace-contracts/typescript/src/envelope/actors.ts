@@ -16,11 +16,8 @@ import { snakeCaseNameSchema } from "./values.js";
 
 export const CLIENT_MEMBER_ROLES = ["owner", "admin"] as const;
 
-/**
- * GPT-Live voice, Terra interactive reasoning and retrieval, Sol deep
- * investigation and coding, Jev intake decisions and semantic attention.
- */
-export const AGENT_ROLES = ["gpt_live", "terra", "sol", "jev"] as const;
+/** Sol for reasoning, investigation, and coding; Jev for intake decisions and semantic attention. */
+export const AGENT_ROLES = ["sol", "jev"] as const;
 
 export const clientMemberRoleSchema = z.enum(CLIENT_MEMBER_ROLES);
 export const agentRoleSchema = z.enum(AGENT_ROLES);

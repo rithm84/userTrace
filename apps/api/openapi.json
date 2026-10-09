@@ -5204,84 +5204,6 @@
         "title": "ProofOfPossession",
         "type": "object"
       },
-      "PropagationProbeRequest": {
-        "additionalProperties": false,
-        "description": "What the front door observed on one propagation-probe request.",
-        "properties": {
-          "public_preview_host": {
-            "maxLength": 253,
-            "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$",
-            "title": "Public Preview Host",
-            "type": "string"
-          },
-          "schema_version": {
-            "const": "utrace_preview_propagation_probe_request_v1",
-            "title": "Schema Version",
-            "type": "string"
-          },
-          "traceparent": {
-            "pattern": "^00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$",
-            "title": "Traceparent",
-            "type": "string"
-          },
-          "traceparent_count": {
-            "maximum": 16.0,
-            "minimum": 0.0,
-            "title": "Traceparent Count",
-            "type": "integer"
-          },
-          "tracestate": {
-            "maxLength": 512,
-            "title": "Tracestate",
-            "type": "string"
-          }
-        },
-        "required": [
-          "schema_version",
-          "public_preview_host",
-          "traceparent",
-          "tracestate",
-          "traceparent_count"
-        ],
-        "title": "PropagationProbeRequest",
-        "type": "object"
-      },
-      "PropagationProbeResponse": {
-        "additionalProperties": false,
-        "description": "The echo the SDK compares against what it injected.\n\n``traceparent_count`` above one means a second injector is running, which\nfails the probe instead of being merged.",
-        "properties": {
-          "schema_version": {
-            "const": "utrace_preview_propagation_probe_v1",
-            "default": "utrace_preview_propagation_probe_v1",
-            "title": "Schema Version",
-            "type": "string"
-          },
-          "single_injector": {
-            "title": "Single Injector",
-            "type": "boolean"
-          },
-          "traceparent": {
-            "title": "Traceparent",
-            "type": "string"
-          },
-          "traceparent_count": {
-            "title": "Traceparent Count",
-            "type": "integer"
-          },
-          "tracestate": {
-            "title": "Tracestate",
-            "type": "string"
-          }
-        },
-        "required": [
-          "traceparent",
-          "tracestate",
-          "traceparent_count",
-          "single_injector"
-        ],
-        "title": "PropagationProbeResponse",
-        "type": "object"
-      },
       "QueryRequest": {
         "additionalProperties": false,
         "description": "The scope a caller submits. The path's client is the authority.",
@@ -6411,33 +6333,21 @@
         "title": "ValidationRecordResponse",
         "type": "object"
       },
-      "VoiceConnectionRequestBody": {
-        "additionalProperties": false,
-        "description": "The browser's SDP offer for one voice connection.",
-        "properties": {
-          "sdp_offer": {
-            "minLength": 1,
-            "title": "Sdp Offer",
-            "type": "string"
-          }
-        },
-        "required": [
-          "sdp_offer"
-        ],
-        "title": "VoiceConnectionRequestBody",
-        "type": "object"
-      },
       "VoiceConnectionResult": {
         "additionalProperties": false,
-        "description": "The backend-authorized answer for one browser voice connection.",
+        "description": "What admits the participant's browser to its own call.",
         "properties": {
           "connection_id": {
             "format": "uuid",
             "title": "Connection Id",
             "type": "string"
           },
-          "sdp_answer": {
-            "title": "Sdp Answer",
+          "participant_token": {
+            "title": "Participant Token",
+            "type": "string"
+          },
+          "room_url": {
+            "title": "Room Url",
             "type": "string"
           },
           "voice_run_id": {
@@ -6447,7 +6357,8 @@
           }
         },
         "required": [
-          "sdp_answer",
+          "room_url",
+          "participant_token",
           "connection_id",
           "voice_run_id"
         ],
@@ -9510,75 +9421,6 @@
         ]
       }
     },
-    "/v1/preview/propagation-probes": {
-      "post": {
-        "description": "Echo the trace context the front door saw on the probe request.\n\nThe front door serves ``/__utrace/propagation-probe`` on the preview origin\nand relays here. The echo proves what context actually crossed the\nauthenticated preview boundary and that exactly one injector produced it.",
-        "operationId": "echo_propagation_probe_v1_preview_propagation_probes_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "x-utrace-session-credential",
-            "required": true,
-            "schema": {
-              "title": "X-Utrace-Session-Credential",
-              "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PropagationProbeRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PropagationProbeResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Echo Propagation Probe",
-        "tags": [
-          "front-door"
-        ]
-      }
-    },
     "/v1/preview/routes/{host}": {
       "get": {
         "description": "Resolve one preview origin to its current committed route revision.",
@@ -10258,7 +10100,7 @@
     },
     "/v1/sessions/{session_id}/voice/connections": {
       "post": {
-        "description": "Authorize one voice connection and return the provider's SDP answer.",
+        "description": "Authorize one voice connection and return what admits the browser to its call.",
         "operationId": "open_connection_v1_sessions__session_id__voice_connections_post",
         "parameters": [
           {
@@ -10288,16 +10130,6 @@
             }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/VoiceConnectionRequestBody"
-              }
-            }
-          },
-          "required": true
-        },
         "responses": {
           "200": {
             "content": {

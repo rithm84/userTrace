@@ -66,7 +66,7 @@ const bundleFixture = async (publicKeyB64Url: string, keyId: string): Promise<st
     outdir: BUILD_DIR,
     bundle: true,
     format: "esm",
-    target: "chrome116",
+    target: "chrome137",
     sourcemap: "inline",
     logLevel: "silent",
     plugins: [

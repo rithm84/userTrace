@@ -37,8 +37,6 @@ OWNED_TABLES: tuple[str, ...] = (
     "session_projections",
     "session_readiness",
     "participant_preflight_records",
-    "voice_delegations",
-    "voice_playback_segments",
     "voice_transcript_fragments",
     "visual_command_dispatches",
     "extension_control_frames",
