@@ -270,25 +270,59 @@ async def record_server_identity_conflict(
 async def advance_batch_sequence(
     conn: AsyncConnection[DictRow], *, server_stream_id: UUID, batch_sequence: int
 ) -> int:
-    """Advance the stream's contiguous batch watermark.
+    """Advance the watermark to the highest contiguous accepted batch sequence.
 
-    The server SDK's batch sequence is gapless and strictly increasing, so the
-    watermark only moves when the next sequence arrives; a later batch is durable
-    but does not make the stream look continuous across the hole.
+    The server SDK's batch sequence is gapless, but its exports run concurrently,
+    so a later batch can commit before an earlier one. The walk runs against the
+    stream's durable accepted receipts rather than against this batch alone: a
+    later batch does not carry the watermark across a hole, and the batch that
+    fills the hole carries it past every batch already received behind it. The
+    stream row is locked before the walk, so the walk's statement sees every
+    batch committed ahead of this one.
     """
     async with conn.cursor() as cur:
         await cur.execute(
+            "select id from public.server_streams where id = %s for update",
+            (server_stream_id,),
+        )
+        if await cur.fetchone() is None:
+            raise IntegrityViolationError(
+                identity_kind="server_stream_id",
+                identity_value=str(server_stream_id),
+                reason="no longer exists",
+            )
+        await cur.execute(
             """
+            with current as (
+                select accepted_through_batch_sequence as base
+                from public.server_streams where id = %(stream)s
+            ),
+            received as (
+                select distinct receipts.batch_sequence
+                from public.ingestion_receipts as receipts, current
+                where receipts.source_stream_id = %(stream)s
+                  and receipts.producer_kind = 'server'
+                  and receipts.outcome = 'accepted'
+                  and receipts.batch_sequence > current.base
+            ),
+            ordered as (
+                select batch_sequence,
+                       row_number() over (order by batch_sequence) as position
+                from received
+            )
             update public.server_streams
-            set accepted_through_batch_sequence = case
-                    when accepted_through_batch_sequence + 1 = %(sequence)s
-                    then %(sequence)s
-                    else accepted_through_batch_sequence
-                  end,
-                highest_received_batch_sequence = greatest(
-                    highest_received_batch_sequence, %(sequence)s
+            set accepted_through_batch_sequence = coalesce(
+                    (
+                      select max(ordered.batch_sequence)
+                      from ordered, current
+                      where ordered.batch_sequence = current.base + ordered.position
+                    ),
+                    public.server_streams.accepted_through_batch_sequence
                 ),
-                revision = revision + 1,
+                highest_received_batch_sequence = greatest(
+                    public.server_streams.highest_received_batch_sequence, %(sequence)s
+                ),
+                revision = public.server_streams.revision + 1,
                 updated_at = now()
             where id = %(stream)s
             returning accepted_through_batch_sequence
