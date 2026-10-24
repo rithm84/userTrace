@@ -1,0 +1,35 @@
+---
+title: Signal and outreach · one immutable intake, one originating user
+---
+flowchart TB
+  subgraph row_1 [" "]
+    direction LR
+    discord[/"`**Discord message**
+    Server/channel identity
+    Source ID + sender + content`"/]:::people
+    intake["`**Intake Item**
+    Replay dedup + typing-aware batch
+    Immutable analysis input`"]:::runtime
+    jev["`**Jev intake decisions**
+    Scoped product context
+    Batched typed judgments`"]:::reasoning
+    discord -->|receive| intake -->|analyze| jev
+  end
+  subgraph row_2 [" "]
+    direction RL
+    route{{"`**Committed route**
+    Policy + source checks`"}}:::gate
+    signal["`**New Product Signal**
+    Every batch message as evidence
+    Feature Request Flow + originating user`"]:::runtime
+    invite@{ shape: doc, label: "**Initial interview invitation**<br/>Private DM · bound identity + deadline<br/>Invoice credit + terms if offered" }
+    route -->|create_product_signal| signal -->|invite| invite
+  end
+  noise([Noise · optional pointer]):::neutral
+  held([Held Intake Item]):::external
+  reply([Channel reply: DM sent]):::people
+  jev -->|propose| route
+  route -->|close_as_noise| noise
+  route blocked_1@-->|routing_blocked| held
+  invite -->|delivered| reply
+  class invite people

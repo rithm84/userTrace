@@ -6,6 +6,13 @@ The following diagram shows the layers that constrain untrusted input, model pro
 
 ![Layered controls separate untrusted inputs, model proposals, authorization, data, and provider effects.](../diagrams/svg/security.svg)
 
+<details><summary>Diagram key</summary>
+
+![Diagram key of the ten node roles: people and customer surfaces, uTrace control plane, reasoning models, SDKs and previews, external or blocked, validated or durable, async path, gates and checks, neutral or closed, and client product.](../diagrams/svg/_key.svg)
+
+</details>
+<p></p>
+
 ## Prompt injection and model containment
 
 Discord content, product text, documentation, repository files, telemetry labels, transcripts, and provider responses are untrusted data. They are source-tagged, minimized, and separated from system policy and tool schemas. The voice agent, GPT-6.1 Sol, the coding agent, and Jev may propose speech, attention, retrieval, scope, code, and actions; none may authorize itself, mutate lifecycle state directly, or turn quoted text into a command.

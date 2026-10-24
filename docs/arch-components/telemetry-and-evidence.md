@@ -6,6 +6,13 @@ The following diagram shows how authenticated telemetry becomes frozen, source-l
 
 ![Browser observations and server spans pass through durable ingestion, correlation, evidence windows, and promotion.](../diagrams/svg/telemetry-and-evidence.svg)
 
+<details><summary>Diagram key</summary>
+
+![Diagram key of the ten node roles: people and customer surfaces, uTrace control plane, reasoning models, SDKs and previews, external or blocked, validated or durable, async path, gates and checks, neutral or closed, and client product.](../diagrams/svg/_key.svg)
+
+</details>
+<p></p>
+
 Telemetry ingestion is the trust boundary between client-installed producers and
 uTrace evidence. It accepts already-redacted source records, verifies them,
 normalizes them without inventing meaning, joins the browser and server halves

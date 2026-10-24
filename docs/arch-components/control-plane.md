@@ -6,6 +6,13 @@ The following diagram shows how the control plane commits state before it dispat
 
 ![The control plane commits events, projections, and outbox work before external execution.](../diagrams/svg/control-plane.svg)
 
+<details><summary>Diagram key</summary>
+
+![Diagram key of the ten node roles: people and customer surfaces, uTrace control plane, reasoning models, SDKs and previews, external or blocked, validated or durable, async path, gates and checks, neutral or closed, and client product.](../diagrams/svg/_key.svg)
+
+</details>
+<p></p>
+
 ## Control-plane responsibility
 
 Within the [demo scope](../PRD.md#product-scope), the control plane owns durable
@@ -57,7 +64,7 @@ policy revisions and rejects results whose dependencies are no longer valid.
 
 The durable product lifecycles remain distinct: `IntakeItem`, `ProductSignal`, `OutreachAttempt`, `InterviewSession`, `PreviewRuntimeAllocation`, `EnvironmentLease`, `ImplementationAttempt`, `PreviewVersion`, `ValidationAttempt`, `CaseFile`, and delivery. `ImplementationGateDecision` and evidence windows are immutable records. `Job`, `JobRun`, and `Command` are execution lifecycles, never product outcomes.
 
-Every lifecycle pins a machine version. A Product Signal pins its client-policy release. Every separately approved revision pins its gate decision, interview-established classification revision, and acceptance criteria. Running work never migrates silently. Deny-only offboarding, credential revocation, deletion, or platform security events may remove authority.
+Every lifecycle pins a machine version. A Product Signal pins its client configuration release. Every separately approved revision pins its gate decision, interview-established classification revision, and acceptance criteria. Running work never migrates silently. Deny-only offboarding, credential revocation, deletion, or platform security events may remove authority.
 
 ### Intake Item
 

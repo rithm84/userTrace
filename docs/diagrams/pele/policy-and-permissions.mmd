@@ -1,0 +1,45 @@
+---
+title: Policy · intersect authority, never infer it from speech
+---
+flowchart LR
+  subgraph grants [Independent grants · any one can deny]
+    direction LR
+    invariants[Platform invariants]:::neutral
+    policy@{ shape: doc, label: "**Autonomy Policy**<br/>Pinned configuration release" }
+    user["`**User authority**
+    Participation preferences
+    Visual preferences
+    Same originating user`"]:::people
+    facts["`**Current runtime facts**
+    Readiness · target revision
+    Lease · phase · budgets`"]:::observation
+    intent["`**Typed intent**
+    Proposed read / visual / edit
+    Not an authorization`"]:::reasoning
+  end
+
+  stop(["`**Stop this case**
+  Owner or admin`"]):::people
+
+  check{{"`**Deny-wins checks**
+  All required grants intersect
+  No runtime approval bypass`"}}:::gate
+
+  command["`**Authorized Command**
+  Exact scope + expiry + fence
+  Outcome must be recorded`"]:::runtime
+  refused[Refused · reason code]:::external
+  record[("`**Decision record**
+  Append-only`")]:::outcome
+
+  invariants -->|invariants| check
+  policy -->|policy| check
+  user -->|permissions| check
+  facts -->|fresh facts| check
+  intent -->|validate| check
+  stop blocked_1@-.->|deny only| check
+  check ok_1@-->|allow| command
+  check blocked_2@-->|any denial| refused
+  command --> record
+  refused --> record
+  class policy gate

@@ -1,0 +1,27 @@
+---
+title: Client configuration · scripted release, pinned by every case
+---
+flowchart TB
+  subgraph client ["Client-owned · maintained branch"]
+    app["`**Client application**
+    SDK in the maintained branch
+    Preview + production profiles`"]:::client
+  end
+  subgraph utrace ["uTrace"]
+    direction LR
+    scripts["`**Configuration scripts**
+    Discord, repository, template, seed
+    Policy, offers, Product Overview`"]:::runtime
+    releases@{ shape: doc, label: "**Configuration release**<br/>Immutable and append-only<br/>sha256 policy digest" }
+    prepare{{"`**demo prepare**
+    Verifies the starting state
+    Runs again after each release`"}}:::gate
+    signal["`**Product Signal**
+    Pins one release
+    Keeps it for its lifecycle`"]:::people
+  end
+  app -->|profiles checked| scripts
+  scripts -->|publish| releases
+  releases -->|verify| prepare
+  releases -->|pinned by| signal
+  class releases outcome

@@ -1,0 +1,32 @@
+---
+title: Context assembly · product knowledge and exact code investigation
+---
+flowchart TB
+  knowledge[/"`**Product knowledge**
+  Approved docs + annotations
+  Configuration + code findings`"/]:::client
+  subgraph sandbox ["Vercel Sandbox"]
+    checkout["`**Sandbox code checkout**
+    Read-only investigation
+    Exact revision / path / lines`"]:::runtime
+  end
+  subgraph supabase ["Supabase"]
+    overview@{ shape: doc, label: "**Product Overview**<br/>Active version, source-linked<br/>Small enough to travel whole" }
+    working[("`**Live working context**
+    Conversation + criteria + gaps
+    Observations + implementation`")]:::outcome
+  end
+  bundle@{ shape: doc, label: "**Context bundle**<br/>Purpose + sources + cutoff<br/>Client + user + revision" }
+  subgraph consumers ["Appropriate consumer"]
+    voice["`**Voice agent**
+    Concise findings for speech`"]:::reasoning
+    jev[Jev]:::reasoning
+    sol[GPT-6.1 Sol]:::reasoning
+  end
+  knowledge -->|synthesize + activate| overview
+  checkout -->|code findings| working
+  overview -->|whole overview| bundle
+  working -->|critical facts| bundle
+  bundle -->|scoped context| consumers
+  class overview outcome
+  class bundle runtime

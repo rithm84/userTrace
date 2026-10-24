@@ -10,7 +10,7 @@ is reproducible and the assertions are about the pipeline rather than about a
 model's output.
 
 The fast tests here swap the four Shopalytics check commands for one trivial
-command, because the check set is pinned client policy and running `next build`
+command, because the check set is pinned Autonomy Policy and running `next build`
 four times to prove a scope violation would only cost time.
 """
 

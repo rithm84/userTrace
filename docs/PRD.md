@@ -10,6 +10,13 @@ It is not a mere tool but the following end-to-end software factory:
 
 ![A Product Signal reaches gated live implementation and exact-candidate validation, or an explanatory Case File without a PR.](./diagrams/svg/prd-product-loop.svg)
 
+<details><summary>Diagram key</summary>
+
+![Diagram key of the ten node roles: people and customer surfaces, uTrace control plane, reasoning models, SDKs and previews, external or blocked, validated or durable, async path, gates and checks, neutral or closed, and client product.](./diagrams/svg/_key.svg)
+
+</details>
+<p></p>
+
 The key insight is that product teams at growing or mid-size organizations already find a steady stream of feedback in their Discord servers, Reddit posts, X threads, customer calls, and support channels. The bottleneck is not "finding feedback," but synthesizing that scattered customer truth into structured product improvement by uprooting pain points and unmet needs, primarily done through probing user interviews. While this works on a small scale, increased growth creates a knee in the graph: human bandwidth cannot linearly scale to fulfill the demands of maintaining such feedback loops.
 
 uTrace erases that bottleneck. It plugs into where customers already talk, identifies Product Signals, invites the right users into agent-led interviews, observes their product workflows, asks context-aware probing questions, connects the answers to code, implements changes, and actually validates the modified workflows with the same users before handing the client product team any final output.
@@ -249,6 +256,13 @@ prevents duplicate collection. All three components are mandatory; missing
 components block observation-dependent interviewing and validation.
 
 ![The extension and preview SDKs send structured observations and correlated spans through ingestion to the control plane.](./diagrams/svg/prd-sdk-architecture.svg)
+
+<details><summary>Diagram key</summary>
+
+![Diagram key of the ten node roles: people and customer surfaces, uTrace control plane, reasoning models, SDKs and previews, external or blocked, validated or durable, async path, gates and checks, neutral or closed, and client product.](./diagrams/svg/_key.svg)
+
+</details>
+<p></p>
 
 ### Automatic browser signals
 

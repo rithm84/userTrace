@@ -36,7 +36,7 @@ __all__ = [
 
 
 class DependencyPolicy(StrEnum):
-    """What the pinned client policy permits an attempt to add to the manifest."""
+    """What the pinned Autonomy Policy permits an attempt to add to the manifest."""
 
     NONE = "none"
     ALLOWLIST = "allowlist"

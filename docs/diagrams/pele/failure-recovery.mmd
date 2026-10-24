@@ -1,0 +1,62 @@
+---
+title: Stopping and recovery · reason determines the outcome
+---
+stateDiagram-v2
+  direction TB
+  state "awaiting_interview" as awaiting_interview
+  awaiting_interview : Participant setup checks
+  state "Stopped before participation" as prestop
+  prestop : User notified, access never widened
+  prestop : No interview, Case File, or reward
+  state "After participation · one case-level return deadline" as participation {
+    direction LR
+    state "Live session" as live
+    state "Bounded reconnect window" as reconnect
+    reconnect : Authorized checks may continue on the existing budget
+    reconnect : Validation waits for the originating user
+    state "Paused" as paused
+    paused : Stop voice, observation, new live steps
+    paused : Dispatched work settles or checkpoints
+    state "Away until return" as away
+    away : Checkpoint and stop live steps
+    away : Dashboard return + bounded private reminders
+    away : No budget reset
+    state "Bounded repair" as repair
+    repair : Checkpoint, then bounded repair
+    repair : Never an invented user rejection
+    live --> reconnect: temporary voice or network loss
+    reconnect --> live: reconnected
+    live --> paused: Pause control
+    paused --> live: Resume · fresh readiness
+    live --> away: departure or Finish later
+    away --> live: return before expiry
+    live --> repair: technical blocker
+    repair --> live: repaired
+  }
+  state "canceled" as canceled
+  canceled : Revoke the attempt and pending effects
+  canceled : Clean unneeded previews
+  canceled : No Case File, PR, or reward
+  state "closed_blocked" as closed_blocked
+  closed_blocked : Blocker Case File, no PR
+  closed_blocked : Consumed budgets never reset
+  closed_blocked : Existing reward earning rules apply
+  [*] --> awaiting_interview
+  awaiting_interview --> live: setup passes
+  awaiting_interview --> canceled: unsupported setup, impossible or expired
+  awaiting_interview --> prestop: client stop
+  awaiting_interview --> prestop: data exceeds contract
+  participation --> canceled: participant cancellation
+  participation --> closed_blocked: deadline expired · unrecoverable blocker
+  participation --> closed_blocked: no longer fits live · budget spent · scope denied
+  participation --> closed_blocked: client stop · authority withdrawn, user notified
+  participation --> closed_blocked: data exceeds contract · user notified
+  canceled --> [*]
+  prestop --> [*]
+  closed_blocked --> [*]
+
+  class awaiting_interview,reconnect people
+  class live runtime
+  class paused,away neutral
+  class repair gate
+  class canceled,prestop,closed_blocked external

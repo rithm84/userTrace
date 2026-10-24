@@ -6,6 +6,13 @@ The following diagram shows how checked workspace output becomes an immutable Pr
 
 ![A fenced workspace produces checked artifacts that run unchanged in a separate candidate runtime.](../diagrams/svg/preview-build.svg)
 
+<details><summary>Diagram key</summary>
+
+![Diagram key of the ten node roles: people and customer surfaces, uTrace control plane, reasoning models, SDKs and previews, external or blocked, validated or durable, async path, gates and checks, neutral or closed, and client product.](../diagrams/svg/_key.svg)
+
+</details>
+<p></p>
+
 The [implementation controller](./implementation.md) owns authorization and
 budgets.
 

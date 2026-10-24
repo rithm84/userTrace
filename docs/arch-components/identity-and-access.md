@@ -6,6 +6,13 @@ The following diagram shows how uTrace authenticates staff and participants befo
 
 ![Supabase Auth identities resolve to staff membership or an invitation-bound participant session.](../diagrams/svg/identity-and-access.svg)
 
+<details><summary>Diagram key</summary>
+
+![Diagram key of the ten node roles: people and customer surfaces, uTrace control plane, reasoning models, SDKs and previews, external or blocked, validated or durable, async path, gates and checks, neutral or closed, and client product.](../diagrams/svg/_key.svg)
+
+</details>
+<p></p>
+
 ## Identity boundary
 
 uTrace serves B2B customer organizations, with one configured Discord server per

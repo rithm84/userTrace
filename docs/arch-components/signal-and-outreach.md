@@ -6,6 +6,13 @@ The following diagram shows how one Discord batch becomes a Product Signal and i
 
 ![Discord intake closes a batch as noise, holds it, or creates one Product Signal and its private invitation.](../diagrams/svg/signal-and-outreach.svg)
 
+<details><summary>Diagram key</summary>
+
+![Diagram key of the ten node roles: people and customer surfaces, uTrace control plane, reasoning models, SDKs and previews, external or blocked, validated or durable, async path, gates and checks, neutral or closed, and client product.](../diagrams/svg/_key.svg)
+
+</details>
+<p></p>
+
 ## Demo scope
 
 The demo uses one configured Discord server for its one B2B client. One sealed

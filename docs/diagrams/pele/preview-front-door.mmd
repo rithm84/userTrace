@@ -1,0 +1,31 @@
+---
+title: Preview front door · stable session origin, exact candidate route
+---
+sequenceDiagram
+  autonumber
+  participant page as Preview tab
+  participant sdk as Embedded SDK
+  participant door as Vercel front door
+  participant cp as Control plane · route record
+  participant port as Sandbox product port
+
+  Note over page,sdk: Own session origin under<br/>preview.utrace.dev.
+  cp->>cp: atomically commit ready revision
+  Note over cp: Candidate readiness: exact build + dataset,<br/>every gating readiness probe passed.
+  loop Each request
+    page->>door: HTTPS · uTrace-issued session access
+    door->>cp: authorize route for host
+    cp-->>door: current allocation / version · revision + expiry
+    alt Valid identity and current route
+      door->>port: scoped upstream · signed route claim + entry token
+      Note over port: Middleware checks claim + token.<br/>Public port URL, never shown.
+      port-->>door: product response
+      door-->>page: response · no-store
+    else Bare URL or stale route
+      door-->>page: neutral interstitial · fail closed
+    end
+  end
+  sdk->>door: same-origin activation
+  door->>cp: relay
+  cp-->>door: signed attestation · session + runtime + revision
+  door-->>sdk: signed document proof

@@ -1,0 +1,53 @@
+---
+title: uTrace · system landscape
+---
+flowchart TB
+  subgraph row_1 [" "]
+    direction LR
+    user(["`**Originating user**
+    Discord invitation
+    Session + preview tabs`"]):::people
+    daily["`**Daily**
+    One private room per call`"]:::external
+    agent["`**Pipecat Cloud · voice agent**
+    Flux · Sol Ultrafast · ElevenLabs`"]:::reasoning
+    user -->|Daily call| daily <-->|agent audio| agent
+  end
+
+  subgraph row_2 [" "]
+    direction LR
+    preview["`**Observed preview**
+    Extension + browser SDK
+    Server SDK correlation`"]:::observation
+    cp["`**uTrace control plane**
+    State · gates · evidence
+    Authorization · budgets`"]:::runtime
+    openai["`**OpenAI API**
+    GPT-6.1 Sol reasoning`"]:::reasoning
+    preview -->|evidence| cp <-->|reasoning| openai
+  end
+
+  subgraph row_3 [" "]
+    direction LR
+    sandbox["`**Vercel Sandbox**
+    Separate base, workspace,
+    and candidate runtimes`"]:::observation
+    supabase[("`**Supabase**
+    Auth + durable state + artifacts
+    Dispatch + committed updates`")]:::outcome
+    delivery["`**Delivery providers**
+    GitHub: validated draft PR
+    Stripe: invoice credits`"]:::outcome
+    jev["`**TypeSafe Jev**
+    Intake decisions
+    Concurrent attention`"]:::reasoning
+    sandbox ~~~ supabase ~~~ delivery ~~~ jev
+  end
+
+  user -->|uses| preview
+  agent <-->|session + tool calls| cp
+  sandbox -->|serves| preview
+  cp -->|authorized work| sandbox
+  cp -->|commit| supabase
+  cp -->|authorized worker| delivery
+  cp -->|via AI Gateway| jev

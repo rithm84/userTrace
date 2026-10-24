@@ -6,6 +6,13 @@ The following diagram shows how validated evidence becomes a sealed Case File an
 
 ![Frozen evidence becomes a validated Case File, exact GitHub delivery, and an authorized dashboard view.](../diagrams/svg/client-outputs.svg)
 
+<details><summary>Diagram key</summary>
+
+![Diagram key of the ten node roles: people and customer surfaces, uTrace control plane, reasoning models, SDKs and previews, external or blocked, validated or durable, async path, gates and checks, neutral or closed, and client product.](../diagrams/svg/_key.svg)
+
+</details>
+<p></p>
+
 ## Case File identity and assembly
 
 An eligible closed Product Signal owns one structured Case File; other outcomes may produce none. Its metadata identifies the client, opaque originating-user and customer-account references, Product Signal, schema and context revisions, evidence window, gate decisions, attempts, exact Preview Version, Validation Attempt, delivery identities, and immutable-core digest.

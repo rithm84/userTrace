@@ -6,6 +6,13 @@ The diagram separates offer authorization, earned credit, and its effect on bill
 
 ![An authorized offer earns one Stripe invoice credit after required participation; unearned offers release their allowance.](../diagrams/svg/outreach-offers.svg)
 
+<details><summary>Diagram key</summary>
+
+![Diagram key of the ten node roles: people and customer surfaces, uTrace control plane, reasoning models, SDKs and previews, external or blocked, validated or durable, async path, gates and checks, neutral or closed, and client product.](../diagrams/svg/_key.svg)
+
+</details>
+<p></p>
+
 ## Product and provider boundary
 
 The [PRD](../PRD.md#outreach-offers) owns participation requirements. One offer

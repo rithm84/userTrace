@@ -1,0 +1,28 @@
+---
+title: Server SDK · correlated preview telemetry under one provider
+---
+sequenceDiagram
+  autonumber
+  participant tab as Preview tab
+  participant cp as Control plane
+  participant prov as uTrace OTel provider
+  participant app as Product server code
+  participant exp as Redacting exporter
+  participant ing as OTLP ingestion
+
+  Note over cp,prov: Preview startup only, before application code.
+  prov->>cp: activate · bootstrap credential
+  cp-->>prov: signed identity + policy
+  Note over prov: Verified config.<br/>Sole provider and sampler.<br/>Client auto-bootstrap disabled.
+  prov->>app: instrument
+  loop Each product request
+    tab->>app: request · W3C trace context
+    Note over app: Parent adopted only on the<br/>authenticated preview path.
+    app->>exp: API · DB · HTTP · safe domain spans
+    Note over exp: Normalize + redact.<br/>Typed safe span schema.
+  end
+  loop Bounded batching + retry
+    exp->>ing: OTLP/HTTP batch
+    ing-->>exp: ack · durable receipt
+  end
+  Note over ing: Authenticate + scope.<br/>Correlation readiness proof.

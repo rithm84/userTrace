@@ -1,0 +1,20 @@
+---
+title: Voice call · backend setup, one private Daily room
+---
+sequenceDiagram
+  autonumber
+  participant tab as Session tab · Pipecat client
+  participant api as FastAPI · Supabase Compute
+  participant daily as Daily
+  participant agent as Pipecat Cloud · voice agent
+
+  tab->>api: open connection
+  Note over api: Authorize the originating user.<br/>Rejoin the running call, or replace an ended one.<br/>Provider keys stay server-side.
+  api->>daily: create room, or eject the stale tab
+  daily-->>api: room URL + meeting tokens
+  api->>agent: queue the voice agent Job + start the session
+  Note over agent: Claims the interview.voice_agent Job.<br/>Flux · Sol Ultrafast · ElevenLabs
+  api-->>tab: room URL + meeting token
+  tab->>daily: join · WebRTC audio + RTVI events
+  agent->>daily: join with the owner token
+  Note over daily: One private room per connection.<br/>It expires and ejects everyone.

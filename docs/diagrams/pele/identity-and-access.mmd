@@ -1,0 +1,42 @@
+---
+title: Identity and access · authenticate, then authorize
+---
+flowchart TB
+  staff([Owner or admin]):::people
+  participant([Originating user]):::people
+  auth["`**Supabase Auth**
+  Verified auth subject
+  No client scope from metadata`"]:::external
+  staff -->|sign in| auth
+  participant -->|Discord sign-in| auth
+
+  subgraph staff_access [Client staff access]
+    direction TB
+    members[("`**Staff membership**
+    client_id + client_member_id
+    One owner; zero or more admins`")]:::outcome
+    dashboard["`**Dashboard authority**
+    Read-only member list
+    Authorized client records
+    Audited case stop`"]:::people
+    members -->|membership| dashboard
+  end
+
+  revoke[/Offboarding or revocation/]:::external
+
+  subgraph participant_access [Customer participant access]
+    direction TB
+    claim{{"`**Invitation claim**
+    Discord user must match
+    Client + signal + expiry`"}}:::gate
+    session["`**Session authority**
+    Same originating user
+    Preview and extension binding`"]:::observation
+    claim -->|claim| session
+  end
+
+  auth -->|verified identity| members
+  auth ~~~ revoke
+  auth -->|verified identity| claim
+  revoke blocked_1@-.->|narrows| staff_access
+  revoke blocked_2@-.->|narrows| participant_access

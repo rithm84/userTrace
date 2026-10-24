@@ -1,0 +1,33 @@
+---
+title: Shopalytics demo · Saved Conversion Views
+---
+sequenceDiagram
+  autonumber
+  actor maya as Maya<br/>Dudulemon growth lead
+  participant utrace as uTrace agent
+  participant gate as Implementation Gate
+  participant coder as Coding agent
+  participant team as Shopalytics team
+  participant stripe as Stripe sandbox
+
+  maya->>utrace: Discord request: rebuilds<br/>the same filters every Monday
+  utrace-->>maya: private invitation
+  maya->>utrace: observed interview in the<br/>seeded synthetic dataset
+  Note over maya,utrace: Confirms Feature Request Flow.<br/>Agreed live scope: save a named filter<br/>stack, reopen the exact saved view.
+  utrace->>gate: agreed live scope
+  gate->>coder: approved_live
+  par Maya and the agent keep talking
+    maya->>utrace: conversation continues
+  and live implementation
+    coder->>coder: implement in an<br/>isolated workspace
+    coder->>coder: checks: persistence +<br/>restoration, baseline<br/>and workflow
+  end
+  coder->>utrace: publish the checked build<br/>as a ready candidate
+  Note over coder: Fresh candidate preview,<br/>same seeded dataset
+  utrace->>maya: handoff of the exact candidate
+  maya->>utrace: save, refresh, then reopen the view
+  Note over maya,utrace: validated: every filter restored.<br/>User confirmation + telemetry.<br/>Exact Preview Version retained.
+  utrace->>team: Case File + draft PR in the one Shopalytics repository
+  Note over team: Human review and merge
+  utrace->>stripe: participation complete: 250.00 USD invoice credit for Dudulemon (test)
+  Note over stripe: 1,000.00 USD bill<br/>→ 750.00 USD due

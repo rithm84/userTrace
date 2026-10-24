@@ -1,0 +1,36 @@
+---
+title: Intake · decide once, then commit the authorized outcome
+---
+flowchart TB
+  discord[/"`**Discord intake**
+  Configured server + channel
+  Authenticated immutable batch
+  Replay deduplication`"/]:::people
+  jev["`**Jev intake decisions**
+  Pinned product context
+  Typed source-linked judgments
+  Warrants a signal? Which flow?`"]:::reasoning
+  assist["`**Optional assistance**
+  Rest of overview + replied-to messages
+  Jev recheck; GPT-6.1 Sol if needed`"]:::reasoning
+  decision{{"`**Control-plane decision**
+  Python policy + source checks
+  Atomic routing outcome`"}}:::gate
+  signal["`**New Product Signal**
+  Feature Request Flow
+  Source-backed record
+  Private user invitation`"]:::outcome
+  noise(["`**Noise**
+  Optional useful pointer
+  No interview or Case File`"]):::neutral
+  held["`**Held Intake Item**
+  routing_blocked
+  Unresolved facts or an unsupported flow`"]:::external
+
+  discord -->|analyze| jev
+  jev -->|ready| decision
+  jev -.->|uncertain| assist
+  assist -.->|result| decision
+  decision -->|new case| signal
+  decision -->|noise| noise
+  decision blocked_1@-->|held| held

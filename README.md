@@ -24,6 +24,13 @@ preview, and has the same customer validate it before a pull request opens.
 
 ![From a Discord message to a validated GitHub draft PR in seven steps.](docs/diagrams/svg/readme-loop.svg)
 
+<details><summary>Diagram key</summary>
+
+![Diagram key of the ten node roles: people and customer surfaces, uTrace control plane, reasoning models, SDKs and previews, external or blocked, validated or durable, async path, gates and checks, neutral or closed, and client product.](docs/diagrams/svg/_key.svg)
+
+</details>
+<p></p>
+
 1. A customer's message in the client's Discord becomes a Product Signal, and
    the customer gets a private invitation.
 2. In a voice interview, the agent works out the job behind the request while
@@ -41,6 +48,13 @@ uTrace never interprets screenshots. The product's own instrumentation tells
 the agents what happened.
 
 ![Browser and server SDKs feed one correlated, typed trace that the agents reason over.](docs/diagrams/svg/readme-no-vision.svg)
+
+<details><summary>Diagram key</summary>
+
+![Diagram key of the ten node roles: people and customer surfaces, uTrace control plane, reasoning models, SDKs and previews, external or blocked, validated or durable, async path, gates and checks, neutral or closed, and client product.](docs/diagrams/svg/_key.svg)
+
+</details>
+<p></p>
 
 - The [browser SDK](packages/utrace-browser-sdk) registers the product's
   annotated controls with their live geometry, so the agent cursor points at

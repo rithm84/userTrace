@@ -6,6 +6,13 @@ The runtime separates conversational timing from authority over backend effects.
 
 ![Voice conversation, backend reasoning, structured observation, and effect authorization run concurrently.](../diagrams/svg/interview-and-voice.svg)
 
+<details><summary>Diagram key</summary>
+
+![Diagram key of the ten node roles: people and customer surfaces, uTrace control plane, reasoning models, SDKs and previews, external or blocked, validated or durable, async path, gates and checks, neutral or closed, and client product.](../diagrams/svg/_key.svg)
+
+</details>
+<p></p>
+
 ## Interview ownership
 
 The originating user remains the sole interview and validation participant.

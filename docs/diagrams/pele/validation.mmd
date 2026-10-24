@@ -1,0 +1,27 @@
+---
+title: Validation · confirmation and non-success both have explicit paths
+---
+stateDiagram-v2
+  [*] --> pending: ready Preview Version · agreed dataset + criteria
+  state "Open Validation Attempt" as open {
+    pending --> in_progress: same user · exact candidate · observation ready
+    in_progress --> interrupted: originating user leaves
+    interrupted --> in_progress: returns before the deadline
+  }
+  open --> abandoned: return deadline passed
+  in_progress --> abandoned: change agreed out loud
+  in_progress --> completed: outcome recorded
+  state verdict <<choice>>
+  completed --> verdict
+  verdict --> delivered: validated · every criterion confirmed + observed
+  verdict --> unvalidated: partial, negative, or unclear
+  abandoned --> unvalidated: deadline closes the case
+  abandoned --> gate_pending: change goes back to the gate
+  state "Case File + draft PR" as delivered
+  delivered: Frozen record of this exact candidate
+  state "Unvalidated Case File" as unvalidated
+  unvalidated: Unmet criteria or blocker
+  unvalidated: No PR · revoke + clean up
+  class delivered outcome
+  class unvalidated external
+  class gate_pending async

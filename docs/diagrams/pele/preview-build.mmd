@@ -1,0 +1,31 @@
+---
+title: Candidate publication · exact artifacts before route activation
+---
+flowchart TB
+  result["`**Workspace result**
+  Agent change + exact revision
+  Scope and patch inspection`"]:::runtime
+  checks{{"`**Required checks**
+  Baseline + candidate
+  Pinned policy; real results`"}}:::gate
+  manifest@{ shape: doc, label: "**Artifact manifest**<br/>Source / build hashes<br/>Dependency + template identity" }
+  candidate["`**Fresh candidate**
+  Vercel Sandbox product runtime
+  Exact immutable Preview Version`"]:::observation
+  readiness{{"`**Readiness proof**
+  Health + seed + auth
+  Server SDK activation + route`"}}:::gate
+  route(["`**Preview route**
+  Atomically activate revision
+  Fresh document binding`"]):::people
+  blocker([Typed blocker · no validation claim]):::external
+
+  result -->|run| checks
+  checks -->|passes| manifest
+  manifest -->|deploy · digests match| candidate
+  candidate -->|verify| readiness
+  readiness -->|publish| route
+  result async_1@-.->|same staged files, built in parallel| candidate
+  checks async_2@-.->|fail · correction cycle| result
+  readiness blocked_1@-->|fail| blocker
+  class manifest outcome

@@ -4,17 +4,24 @@
 
 The following diagram shows how independent grants intersect before a Command is authorized:
 
-![Client policy, user permission, runtime facts, and typed intent intersect in deny-wins checks.](../diagrams/svg/policy-and-permissions.svg)
+![Autonomy Policy, user permission, runtime facts, and typed intent intersect in deny-wins checks.](../diagrams/svg/policy-and-permissions.svg)
+
+<details><summary>Diagram key</summary>
+
+![Diagram key of the ten node roles: people and customer surfaces, uTrace control plane, reasoning models, SDKs and previews, external or blocked, validated or durable, async path, gates and checks, neutral or closed, and client product.](../diagrams/svg/_key.svg)
+
+</details>
+<p></p>
 
 ## Authority boundary
 
 The demo supports live implementation for Feature Request Flow in one authorized repository. Browser authority is limited to observation and safe visual commands.
 
-## Client policy model
+## Autonomy Policy model
 
-Policy is part of the [client configuration](./client-configuration.md) and becomes active only through a verified immutable client configuration release.
+The Autonomy Policy is part of the [client configuration](./client-configuration.md) and becomes active only through a verified immutable client configuration release.
 
-The release's policy configures:
+The release's Autonomy Policy configures:
 
 - allowed implementation modes (`live` or `none`)
 - one authorized repository and its blocked or allowed code surfaces
@@ -23,14 +30,15 @@ The release's policy configures:
   required
 - dependency policy (`none | allowlist | open`) and permitted license classes
 - visual-command classes and registered-target constraints
-- private Discord outreach and reminder budgets
 - evidence and cleanup rules within platform invariants
+
+The release's private-contact budget, not the Autonomy Policy, limits private Discord outreach and reminders.
 
 Every Product Signal pins the active configuration release. Each Implementation Gate decision then freezes a narrower approved scope for one attempt. Later policy or gate revisions never rewrite prior decisions. Client offboarding, credential revocation, legal deletion, and platform security prohibitions may remove authority immediately, but cannot grant authority withheld by the pinned policy.
 
 ## Precedence and runtime authority
 
-The precedence order is platform invariants, pinned client policy, current user permission, readiness and target freshness, then typed model intent. Any denial wins. Voice, dashboard activity, provider acknowledgements, and model output cannot broaden authority.
+The precedence order is platform invariants, pinned Autonomy Policy, current user permission, readiness and target freshness, then typed model intent. Any denial wins. Voice, dashboard activity, provider acknowledgements, and model output cannot broaden authority.
 
 There is no runtime human state editor, manual handoff, or per-action client approval. Owners and admins configure policy before a Product Signal begins. They may use the audited, deny-only **Stop this case** control described below; it cannot grant authority or edit an outcome. Engineering may repair infrastructure outside the product lifecycle, but cannot fabricate evidence or mark work successful.
 

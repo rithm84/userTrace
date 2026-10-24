@@ -1,0 +1,24 @@
+---
+title: The agent cursor · a mark in the reply, circled as the word plays
+---
+sequenceDiagram
+  autonumber
+  participant sol as Sol · voice agent
+  participant tap as Playback tap
+  participant sdk as Browser SDK
+  participant ext as Chrome extension
+  actor customer as Customer
+
+  sdk->>sol: live registry: controls, chart points,<br/>rows, list items as T1, T2, …
+  sol->>tap: …the #lt;c id="T3"/#gt;Export button<br/>at the top right…
+  Note over tap: Splits out each mark.<br/>The mark is never spoken.
+  par as the next word plays
+    tap->>customer: the word "Export" plays
+  and
+    tap->>sdk: resolve T3 at its registered revision
+    sdk->>ext: circle T3 at its live geometry
+    ext->>customer: the cursor glides over and circles the exact control
+  end
+  opt the customer interrupts
+    tap->>tap: drop pending marks
+  end

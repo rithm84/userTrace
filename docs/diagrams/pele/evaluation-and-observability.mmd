@@ -1,0 +1,37 @@
+---
+title: Verification · test the loop without a training pipeline
+---
+flowchart TB
+  subgraph release [Before release · automated tests]
+    direction LR
+    fixture[/"`**Scenario fixture**
+    Seeded dataset + fixture clock
+    Canonical request`"/]:::people
+    tests{{"`**Deterministic tests**
+    Intake through delivery
+    Real provider sandboxes`"}}:::gate
+    decision(["`**Release decision**
+    Pass before deploying
+    Never runtime authority`"]):::outcome
+    fixture -->|exercise| tests -->|results| decision
+  end
+
+  subgraph live [Live demo · deployed target]
+    direction LR
+    operator([Operator]):::people
+    harness["`**Demo harness**
+    tools/demo-harness
+    Milestones from read models`"]:::runtime
+    journey["`**Live journey**
+    Milestones commit in order
+    Case File + issued credit`"]:::outcome
+    records[("`**Operational records**
+    Structured logs + durable IDs
+    Web traces in Vercel`")]:::runtime
+    operator -->|runs| harness
+    harness -->|prepare + watch| journey
+    journey -->|emits| records
+    records -->|diagnose| operator
+  end
+
+  release ~~~ live
