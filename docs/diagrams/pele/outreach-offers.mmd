@@ -1,0 +1,35 @@
+---
+title: Outreach Offers · earned invoice credit, separate billing
+---
+swimlane-beta TB
+  subgraph owner ["Client owner"]
+    budget["`**Authorized credit budget**
+    Owner-approved ceiling
+    Remaining issuance allowance`"]:::outcome
+  end
+  subgraph utrace ["uTrace · Outreach Offers controller"]
+    reserved["`**Reserved offer**
+    One fixed invoice credit
+    Verified billing customer`"]:::runtime
+    decision{{"`**Entitlement decision**
+    Participation + stop reason
+    Client stop = system stop
+    Independent of verdict`"}}:::gate
+    issue["`**Issue invoice credit**
+    One customer adjustment`"]:::runtime
+  end
+  subgraph user ["Originating user"]
+    participation(["`**Required participation**
+    Interview + gated follow-up
+    Recorded completion evidence`"]):::people
+  end
+  subgraph stripe ["Stripe sandbox · client billing"]
+    invoices@{ shape: docs, label: "**Future product invoices**<br/>Stripe applies available credit<br/>Unused credit carries forward" }
+  end
+  budget -->|reserve| reserved
+  reserved -->|invite| participation
+  participation -->|evaluate| decision
+  decision -->|earned| issue
+  decision -->|not earned · release reservation| budget
+  issue -->|apply| invoices
+  class invoices outcome

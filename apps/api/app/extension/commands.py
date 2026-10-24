@@ -8,7 +8,7 @@ anywhere in the protocol.
 
 Authorization is deny-wins and rechecked immediately before dispatch: session
 state, the observation readiness boundary, the participant's own preferences,
-the pinned client policy's permitted command classes, the current binding, and
+the pinned Autonomy Policy's permitted command classes, the current binding, and
 target freshness. A failure returns a specific reason instead of a guessed
 element.
 

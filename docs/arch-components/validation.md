@@ -4,7 +4,14 @@
 
 The following diagram shows the same-user validation outcomes:
 
-![The originating user validates one exact candidate; any other outcome closes the case with an unvalidated Case File.](../diagrams/svg/validation.svg)
+![A Validation Attempt on one exact candidate leads to a draft PR when validated; any other outcome or a passed return deadline closes the case with an unvalidated Case File, and an agreed change goes back to the gate.](../diagrams/svg/validation.svg)
+
+<details><summary>Diagram key</summary>
+
+![Diagram key of the ten node roles: people and customer surfaces, uTrace control plane, reasoning models, SDKs and previews, external or blocked, validated or durable, async path, gates and checks, neutral or closed, and client product.](../diagrams/svg/_key.svg)
+
+</details>
+<p></p>
 
 ## Validation session
 

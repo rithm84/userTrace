@@ -2,11 +2,13 @@
   "name": "utrace-development-tools",
   "private": true,
   "scripts": {
+    "diagrams": "node docs/diagrams/render.mjs",
     "stripe": "stripe",
     "supabase": "supabase"
   },
   "devDependencies": {
     "@stripe/cli": "1.51.0",
+    "pele": "1.10.0",
     "supabase": "2.119.0"
   }
 }

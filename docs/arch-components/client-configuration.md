@@ -6,6 +6,13 @@ The following diagram shows how the demo's scripted configuration becomes the re
 
 ![Configuration scripts publish an immutable release that the demo harness verifies and each Product Signal pins.](../diagrams/svg/client-configuration.svg)
 
+<details><summary>Diagram key</summary>
+
+![Diagram key of the ten node roles: people and customer surfaces, uTrace control plane, reasoning models, SDKs and previews, external or blocked, validated or durable, async path, gates and checks, neutral or closed, and client product.](../diagrams/svg/_key.svg)
+
+</details>
+<p></p>
+
 ## Configuration ownership
 
 uTrace configures the demo's client with scripts rather than a self-service flow.
@@ -38,7 +45,7 @@ A release pins:
 
 - the Customer Surface: the Discord installation and its watched channels
 - the implementation policy, which is the Autonomy Policy the
-  [Implementation Gate](./policy-and-permissions.md#client-policy-model) narrows
+  [Implementation Gate](./policy-and-permissions.md#autonomy-policy-model) narrows
 - the data seeding contract: seed manifest digest, fixture clock, and preview
   template
 - the Outreach Offers policy and the private-contact budget

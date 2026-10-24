@@ -1,0 +1,31 @@
+---
+title: Control plane · durable authority and external execution
+---
+flowchart TB
+  subgraph row_1 [" "]
+    direction LR
+    input[/"`**Authenticated input**
+    Intake, transcript, telemetry
+    Typed source and revision`"/]:::people
+    controllers["`**Lifecycle controllers**
+    Evidence and policy checks
+    Models supply proposals`"]:::runtime
+    commit[("`**Supabase Postgres**
+    One atomic commit:
+    event + projection + outbox`")]:::outcome
+    input -->|validate| controllers -->|commit| commit
+  end
+  subgraph row_2 [" "]
+    direction RL
+    dispatch@{ shape: h-cyl, label: "**Durable dispatch**<br/>Queues delivery, Cron wakeups<br/>Job + Command identities" }
+    executor["`**Scoped executor**
+    Worker, browser, sandbox
+    Idempotency + fencing`"]:::runtime
+    inbox["`**Result inbox**
+    Authenticate + deduplicate
+    Reconcile late or uncertain work`"]:::outcome
+    dispatch -->|authorized Command| executor -->|typed Result| inbox
+  end
+  commit -->|outbox| dispatch
+  inbox -->|freshness check| controllers
+  class dispatch runtime

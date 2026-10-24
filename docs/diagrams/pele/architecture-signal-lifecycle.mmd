@@ -1,0 +1,57 @@
+---
+title: Product Signal · lifecycle from invitation to closure
+---
+stateDiagram-v2
+  [*] --> awaiting_interview: private invitation
+
+  state "Open states" as open {
+    state "awaiting_interview" as awaiting_interview
+    awaiting_interview : Participant setup checks
+    state "interviewing" as interviewing
+    interviewing : Observe problem + criteria
+    interviewing : Confirm flow classification
+    state "gate_pending" as gate_pending
+    gate_pending : Scope · policy · budgets
+    state "implementing" as implementing
+    implementing : Approved live work
+    implementing : Runs during the conversation
+    state "awaiting_validation" as awaiting_validation
+    awaiting_validation : Ready immutable candidate
+    awaiting_validation : Same live session or a return
+    state "validating" as validating
+    validating : Same user + exact candidate
+    validating : Criterion-level evidence
+
+    awaiting_interview --> interviewing: setup ready
+    interviewing --> gate_pending: sufficient
+    gate_pending --> awaiting_validation: change refused
+    awaiting_validation --> gate_pending: change asked
+    validating --> gate_pending: change asked
+    gate_pending --> implementing: authorize + check budget
+    implementing --> awaiting_validation: candidate ready
+    awaiting_validation --> validating: user ready
+  }
+
+  state "closed_validated" as closed_validated
+  closed_validated : Validated Case File
+  closed_validated : One draft PR
+  state "closed_no_implementation" as closed_no_implementation
+  closed_no_implementation : Explanatory Case File, no PR
+  state "closed_blocked" as closed_blocked
+  closed_blocked : Case File, no PR
+  state "canceled" as canceled
+  canceled : No Case File
+
+  gate_pending --> closed_no_implementation: no implementation
+  validating --> closed_validated: validated
+  validating --> closed_blocked: not validated
+  open --> closed_blocked: from any open state
+  open --> canceled: from any open state
+
+  class awaiting_interview people
+  class interviewing,awaiting_validation observation
+  class gate_pending,validating gate
+  class implementing runtime
+  class closed_validated outcome
+  class closed_no_implementation,closed_blocked external
+  class canceled neutral

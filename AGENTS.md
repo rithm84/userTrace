@@ -26,9 +26,10 @@ uTrace/
 │   ├── arch-components/           # One doc per architecture component (diagram + prose)
 │   └── diagrams/
 │       ├── svg/                   # Exported SVGs embedded by the docs
-│       ├── d2/                    # D2 sources; same basename as the paired SVG
-│       │                          #   (_style.d2 is the shared include)
-│       └── render.sh              # Renders every source with --sketch
+│       │                          #   (_key.svg is the full role key)
+│       ├── pele/                  # Mermaid sources Pele renders; same basename as the paired SVG
+│       │                          #   (_theme.css is the shared role and edge theme)
+│       └── render.mjs             # `npm run diagrams` renders every source with Pele
 ├── apps/
 │   ├── web/                       # Landing page and product web surfaces (nested AGENTS.md)
 │   ├── api/                       # FastAPI control plane and workers
@@ -94,24 +95,33 @@ introduce release tiers as substitutes for explicit scope.
 ## Commands
 
 Verify docs after any documentation or diagram change (all embeds resolve,
-SVG/source pairs match, exports are fresh, no Mermaid — D2 is the standard):
+exactly the diagrams that use role colors are followed by the key block,
+SVG/source pairs match, exports are fresh, and no inline Mermaid fences: every
+diagram is a Pele source rendered to an SVG):
 
 ```bash
 python3 - <<'EOF'
 import re, glob, os, subprocess
-bad, total = [], 0
-for f in glob.glob("docs/**/*.md", recursive=True):
-    base = os.path.dirname(f)
-    for m in re.finditer(r"\]\(([^)]+\.svg)\)", open(f).read()):
+key_block = re.compile(r"\s*<details><summary>Diagram key</summary>\s*!\[[^\]]*\]\([^)]*_key\.svg\)\s*</details>\s*<p></p>")
+colored = re.compile(r":::[A-Za-z_]|^\s*class\s+[\w-]+(?:\s*,\s*[\w-]+)*\s+[A-Za-z_]\w*\s*$|\b(?:async|blocked|ok)_\w*@", re.M)
+bad, wrong_key, total = [], [], 0
+for f in glob.glob("docs/**/*.md", recursive=True) + ["README.md"]:
+    base, text = os.path.dirname(f), open(f).read()
+    for m in re.finditer(r"\]\(([^)]+\.svg)\)", text):
         total += 1
         if not os.path.exists(os.path.normpath(os.path.join(base, m.group(1)))):
             bad.append((f, m.group(1)))
-svg = {os.path.basename(p).removesuffix(".svg") for p in glob.glob("docs/diagrams/svg/*.svg")}
-exc = {os.path.basename(p).removesuffix(".d2") for p in glob.glob("docs/diagrams/d2/*.d2") if not os.path.basename(p).startswith("_")}
-merm = subprocess.run(["grep", "-rn", "```mermaid", "docs/"], capture_output=True, text=True).stdout
-print(f"{total} embeds, {len(bad)} missing; pairs match: {svg == exc}; mermaid fences: {len(merm.splitlines())}")
+        source = "docs/diagrams/pele/" + os.path.basename(m.group(1)).removesuffix(".svg") + ".mmd"
+        if os.path.exists(source) and bool(colored.search(open(source).read())) != bool(key_block.match(text, m.end())):
+            wrong_key.append((f, m.group(1)))
+svg = {os.path.basename(p).removesuffix(".svg") for p in glob.glob("docs/diagrams/svg/*.svg") if not os.path.basename(p).startswith("_")}
+src = {os.path.basename(p).removesuffix(".mmd") for p in glob.glob("docs/diagrams/pele/*.mmd") if not os.path.basename(p).startswith("_")}
+merm = subprocess.run(["grep", "-rn", "```mermaid", "docs/", "README.md"], capture_output=True, text=True).stdout
+print(f"{total} embeds, {len(bad)} missing, {len(wrong_key)} wrong key blocks; pairs match: {svg == src}; mermaid fences: {len(merm.splitlines())}")
 for b in bad:
     print("MISSING:", *b)
+for w in wrong_key:
+    print("KEY BLOCK MISSING OR NEEDLESS:", *w)
 EOF
 ```
 
@@ -119,12 +129,12 @@ Then confirm the exports are fresh; the render is deterministic, so a clean
 diff is the pass condition:
 
 ```bash
-docs/diagrams/render.sh && git --no-pager diff --stat -- docs/diagrams/svg
+npm run diagrams && git --no-pager diff --stat -- docs/diagrams/svg
 ```
 
-Rendering requires the D2 CLI, pinned at `v0.9.0` (`brew install d2`).
-`docs/diagrams/render.sh` renders every source with `--sketch`; the conventions
-live in `.agents/skills/general/utrace-d2`.
+Rendering uses the `pele` package pinned in the root `package.json` (run
+`npm ci` once). `docs/diagrams/render.mjs` embeds the shared theme and generates
+the one diagram key; the conventions live in `.agents/skills/general/utrace-pele`.
 
 ## Skill Routing
 
@@ -145,7 +155,7 @@ non-overlapping set, and read every selected `SKILL.md` in full.
   Use official vendor documentation when no installed skill fits. Treat the
   OpenTelemetry skills as vendor-neutral; they do not authorize Dash0 adoption.
 - **General** (`general/`): use `gh-cli` for GitHub operations. For any work
-  on uTrace documentation diagrams, read `utrace-d2` (project diagram
+  on uTrace documentation diagrams, read `utrace-pele` (project diagram
   conventions) — and when a genuinely new major diagram convention is
   established or an existing one changes, update that skill in the same
   change. For research, prefer official sources for technical claims.
@@ -180,13 +190,16 @@ hide nested skills.
   - Good: "An Outreach Attempt moves `scheduled` → `dispatching` → `claimed`."
   - Bad: a gray "rules" card at the bottom of a diagram restating the prose.
 - Whenever you edit documentation, check the diagrams it embeds — and any
-  diagram whose content overlaps the edit — and update the affected `.d2`
+  diagram whose content overlaps the edit — and update the affected `.mmd`
   sources and re-rendered SVGs in the same change. Diagrams must never drift
   out of date from the prose they accompany.
-- Never hand-edit `docs/diagrams/svg/*.svg`. Edit the paired `.d2` source,
-  run `docs/diagrams/render.sh`, and commit both files together.
-- Diagram edge labels are the connection's own label (`a -> b: label`), never
+- Never hand-edit `docs/diagrams/svg/*.svg`. Edit the paired `.mmd` source,
+  run `npm run diagrams`, and commit both files together.
+- Diagram edge labels are the connection's own label (`a -->|label| b`), never
   floating text placed beside a line.
+- Follow every diagram embed that uses role colors with the collapsed key block
+  from `utrace-pele`, so readers open the key in place instead of leaving the
+  page.
 
 ## Commits and PRs
 

@@ -1,0 +1,30 @@
+---
+title: Browser SDK · one observation path, redacted before export
+---
+sequenceDiagram
+  autonumber
+  participant cp as Control plane
+  participant boot as Inert bootstrap
+  participant rt as Document runtime
+  participant child as Frames + workers
+  participant exp as Top-document exporter
+  participant ing as Browser ingestion
+
+  Note over boot: Preview build only.<br/>No capture before activation.
+  boot->>cp: activate via front door
+  cp-->>boot: signed attestation
+  Note over cp,boot: Signed session + document.<br/>Pins policy and manifest versions.
+  boot->>cp: exchange it once
+  cp-->>boot: write-only scoped credential
+  boot->>rt: start validated runtime
+  Note over rt: Baseline + semantic events.<br/>Registered structured targets.
+  rt->>exp: redacted baseline + events
+  rt->>child: scoped capability
+  Note over child: Per-operation trace context.
+  child->>exp: normalized records · authenticated
+  loop One ordered browser stream
+    exp->>ing: redacted batch
+    ing-->>exp: ack · export_sequence
+  end
+  Note over ing: Durable accepted watermark.
+  Note over exp: Bounded buffer + gap reporting.

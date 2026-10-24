@@ -1,0 +1,33 @@
+---
+title: Vercel Sandbox resources · base, workspace, and candidate stay separate
+---
+flowchart TB
+  user(["`**Originating user**
+  Two tabs + extension`"]):::people
+  template@{ shape: doc, label: "**Approved template**<br/>Pinned application + SDKs<br/>Ready environment definition" }
+  seed@{ shape: doc, label: "**Seed manifest**<br/>Pinned synthetic dataset" }
+  subgraph sandbox ["Vercel Sandbox · one microVM per resource"]
+    base["`**Base allocation**
+    Full running product
+    Exclusive to one Interview Session`"]:::observation
+    candidate["`**Candidate allocation**
+    Immutable Preview Version
+    Never a modified base`"]:::observation
+    workspace["`**Implementation workspace**
+    Own snapshot; never holds the dataset
+    Exact repository revision
+    Attempt-scoped write lease`"]:::runtime
+  end
+  validation["`**Validation**
+  Same user + exact candidate
+  Fresh correlated evidence`"]:::outcome
+
+  user -->|interview · demonstrates workflow| base
+  template -->|claim from warm pool| base
+  seed -->|install + verify| base
+  template -->|fresh runtime| candidate
+  seed -->|same seed, installed fresh| candidate
+  workspace -->|checked build| candidate
+  candidate -->|ready| validation
+  user -->|same participant| validation
+  class template,seed runtime

@@ -2608,7 +2608,7 @@
         "type": "object"
       },
       "DependencyPolicy": {
-        "description": "What the pinned client policy permits an attempt to add to the manifest.",
+        "description": "What the pinned Autonomy Policy permits an attempt to add to the manifest.",
         "enum": [
           "none",
           "allowlist",

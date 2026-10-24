@@ -6,6 +6,13 @@ The following diagram shows how Supabase services divide durable truth, artifact
 
 ![Supabase Postgres owns workflow truth while Storage, Realtime, Queues, and Cron serve narrower roles.](../diagrams/svg/data-and-schema.svg)
 
+<details><summary>Diagram key</summary>
+
+![Diagram key of the ten node roles: people and customer surfaces, uTrace control plane, reasoning models, SDKs and previews, external or blocked, validated or durable, async path, gates and checks, neutral or closed, and client product.](../diagrams/svg/_key.svg)
+
+</details>
+<p></p>
+
 ## Schema ownership
 
 The schema stores the demo's B2B Discord product loop with live implementation,

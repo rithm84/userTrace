@@ -6,6 +6,13 @@ The following diagram shows how uTrace creates separate base and candidate runti
 
 ![Vercel Sandbox creates separate base and candidate runtimes from a pinned template and seed manifest.](../diagrams/svg/preview-runtime-and-seeding.svg)
 
+<details><summary>Diagram key</summary>
+
+![Diagram key of the ten node roles: people and customer surfaces, uTrace control plane, reasoning models, SDKs and previews, external or blocked, validated or durable, async path, gates and checks, neutral or closed, and client product.](../diagrams/svg/_key.svg)
+
+</details>
+<p></p>
+
 ## Runtime ownership
 
 Every interview requires a full product runtime: frontend, backend, database,

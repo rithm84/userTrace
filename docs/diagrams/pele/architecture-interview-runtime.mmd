@@ -1,0 +1,29 @@
+---
+title: Live interview · conversation and investigation in parallel
+---
+sequenceDiagram
+  autonumber
+  participant tab as Session tab<br/>voice + controls
+  participant preview as Preview tab<br/>extension + SDKs
+  participant agent as Voice agent<br/>Pipecat Cloud
+  participant ctx as Evidence context
+  participant cp as Backend work<br/>control plane
+  participant code as Live implementation<br/>Vercel Sandbox
+
+  Note over tab,preview: Two tabs, one session
+  tab->>cp: authentication readiness
+  par Conversation
+    tab->>agent: Daily call · full-duplex, interruptible
+    agent->>cp: tool calls
+    ctx->>agent: cues + screen state
+  and Observation
+    preview->>ctx: correlated facts
+    Note over preview: Extension character + overlays.<br/>Browser + server SDKs.
+  and Backend work
+    ctx->>cp: context
+    Note over ctx: Agreed criteria + corrections.<br/>Selected current observations.
+    Note over cp: uTrace tools · Jev · GPT-6.1 Sol.<br/>The control plane gates effects.
+    cp->>code: control-plane gate approval
+    Note over code: Coding agent, bounded<br/>authorized scope.
+    code->>ctx: verified results
+  end

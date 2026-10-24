@@ -11,6 +11,12 @@ boundaries. The [PRD](./PRD.md) owns product scope and vocabulary. These documen
 specify the system to build: where code in this repository still differs, the
 documents are the target.
 
+## Diagram key
+
+Diagrams across these documents color each node by its role; open **Diagram
+key** under any diagram to see the roles. A red, orange, or green arrow carries
+the meaning of the role drawn in that color.
+
 ## Product loop
 
 The [product-loop diagram in the PRD](./PRD.md#product-thesis) shows the
@@ -29,6 +35,13 @@ behavior.
 The system has one durable authority and several specialized execution planes.
 
 ![Browser, voice, reasoning, authority, data, preview compute, and delivery relationships.](./diagrams/svg/architecture-system-landscape.svg)
+
+<details><summary>Diagram key</summary>
+
+![Diagram key of the ten node roles: people and customer surfaces, uTrace control plane, reasoning models, SDKs and previews, external or blocked, validated or durable, async path, gates and checks, neutral or closed, and client product.](./diagrams/svg/_key.svg)
+
+</details>
+<p></p>
 
 The voice agent handles conversational voice: a Pipecat pipeline on Pipecat Cloud
 that joins the call's private Daily room, hears the participant through Deepgram
@@ -94,6 +107,13 @@ Identity relationships keep client staff access separate from customer participa
 
 ![Separate staff and customer authorization connect a global user to client-scoped access.](./diagrams/svg/architecture-identity-model.svg)
 
+<details><summary>Diagram key</summary>
+
+![Diagram key of the ten node roles: people and customer surfaces, uTrace control plane, reasoning models, SDKs and previews, external or blocked, validated or durable, async path, gates and checks, neutral or closed, and client product.](./diagrams/svg/_key.svg)
+
+</details>
+<p></p>
+
 Supabase Auth authenticates; uTrace membership, invitation, and policy records
 authorize access. The [identity contract](./arch-components/identity-and-access.md)
 defines global identity, client-scoped participation, and separate staff access.
@@ -108,6 +128,13 @@ controls; the separate preview tab hosts the product and extension UI. The
 The intake flow commits a routing outcome before outreach begins.
 
 ![Discord intake commits noise, a new Product Signal with its invitation, or a held Intake Item.](./diagrams/svg/architecture-intake-routing.svg)
+
+<details><summary>Diagram key</summary>
+
+![Diagram key of the ten node roles: people and customer surfaces, uTrace control plane, reasoning models, SDKs and previews, external or blocked, validated or durable, async path, gates and checks, neutral or closed, and client product.](./diagrams/svg/_key.svg)
+
+</details>
+<p></p>
 
 Jev supplies routine semantic decisions from pinned intake context; application
 code enforces policy and commits them before outreach. The
@@ -141,6 +168,13 @@ preview-only evidence path without duplicate capture or screenshot inference.
 The Product Signal lifecycle tracks each case, keeping implementation and validation outcomes explicit.
 
 ![Product Signal states from invitation through live implementation and validation to terminal outcomes, with a change asked during validation going back through the gate.](./diagrams/svg/architecture-signal-lifecycle.svg)
+
+<details><summary>Diagram key</summary>
+
+![Diagram key of the ten node roles: people and customer surfaces, uTrace control plane, reasoning models, SDKs and previews, external or blocked, validated or durable, async path, gates and checks, neutral or closed, and client product.](./diagrams/svg/_key.svg)
+
+</details>
+<p></p>
 
 The control plane commits state and dispatch intent atomically before external
 work. Reconnect reads durable state. Model proposals, provider results, and
@@ -183,6 +217,13 @@ controls without granting lifecycle-editing authority.
 The deployment map places each workload at its owning service.
 
 ![Deployment across Vercel, Supabase Compute, Pipecat Cloud, Supabase, Daily, and the model providers with backend provider dependencies.](./diagrams/svg/architecture-deployment-topology.svg)
+
+<details><summary>Diagram key</summary>
+
+![Diagram key of the ten node roles: people and customer surfaces, uTrace control plane, reasoning models, SDKs and previews, external or blocked, validated or durable, async path, gates and checks, neutral or closed, and client product.](./diagrams/svg/_key.svg)
+
+</details>
+<p></p>
 
 [Data and Schema](./arch-components/data-and-schema.md) owns durable records,
 artifacts, and their cleanup contracts.

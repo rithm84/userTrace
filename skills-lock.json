@@ -126,11 +126,11 @@
       "skillPath": "skills/upgrade-stripe/SKILL.md",
       "computedHash": "fca59477f6e276880d64b8fb0963e7cf3067e04e332d96b15811061b4d7847cb"
     },
-    "utrace-d2": {
+    "utrace-pele": {
       "source": "local",
       "sourceType": "local",
-      "skillPath": ".agents/skills/general/utrace-d2/SKILL.md",
-      "computedHash": "50e634b6ff1bbe009dcc310be580dd15b59e2f4f882d763edafdc2bf157ff7fd"
+      "skillPath": ".agents/skills/general/utrace-pele/SKILL.md",
+      "computedHash": "4705dbea81fd6645d698f23cf86f09886f68cd1e0108e3164e19b34d280d07a6"
     },
     "vercel-cli": {
       "source": "vercel/vercel-plugin",

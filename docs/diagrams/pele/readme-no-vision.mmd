@@ -1,0 +1,37 @@
+---
+title: Zero screenshots · the agent reads structure, not pixels
+---
+flowchart TB
+  subgraph preview [Preview of the client's product]
+    direction LR
+    browser["`**Browser SDK**
+    DOM + ARIA semantics, routes
+    Annotated controls with live geometry
+    Clicks, inputs, chart state`"]:::observation
+    server["`**Server SDK**
+    OpenTelemetry spans
+    API, database, product events
+    Preview-only, inert in production`"]:::observation
+    browser -->|traceparent on each API call| server
+  end
+  subgraph utrace [uTrace]
+    direction LR
+    trace["`**One trace per action**
+    Click → API call →
+    server span → SQL query`"]:::runtime
+    evidence[("`**Typed evidence · Supabase**
+    Redacted, authenticated, ordered
+    Per session, no pixels ever stored`")]:::outcome
+    agents["`**Agents reason on facts**
+    Hear what the customer did
+    Validation cites real events`"]:::reasoning
+    trace --> evidence
+    evidence ok_1@-->|typed facts| agents
+  end
+  cursor(["`**Agent cursor · Chrome extension**
+  Element geometry from the SDK
+  Survives any restyle`"]):::observation
+  browser -->|redacted events| trace
+  server -->|spans| trace
+  agents ok_2@-->|names the exact control| cursor
+  browser -.->|live geometry| cursor

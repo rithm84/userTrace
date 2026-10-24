@@ -1,0 +1,52 @@
+---
+title: From customer feedback to validated product work
+---
+swimlane-beta TB
+  subgraph customer [Originating user]
+    feedback[/"`**Feedback**
+    Where users already talk`"/]:::people
+    interview["`**Interview Session**
+    Observe · ask · agree
+    Confirm the classification`"]:::observation
+    validate(["`**Validates the exact candidate**
+    Confirmation + observed behavior`"]):::people
+  end
+  subgraph utrace [uTrace]
+    router{Intake Router}:::gate
+    noise(["`**Noise**
+    Optional useful pointer
+    No interview or Case File`"]):::neutral
+    signal["`**Product Signal**
+    Source-linked feedback
+    Feature Request Flow`"]:::runtime
+    gate{{"`**Implementation Gate**
+    Scope · policy · budgets`"}}:::gate
+    attempt["`**Implementation Attempt**
+    Runs while the conversation continues
+    Isolated files + required checks`"]:::runtime
+    preview["`**Preview Version**
+    Immutable checked candidate
+    Agreed dataset conditions`"]:::observation
+    none["`**No implementation**
+    Participated, not approved
+    Evidence + reason retained`"]:::external
+  end
+  subgraph team [Client product team]
+    casefile@{ shape: doc, label: "**Case File**<br/>Explains outcome and risk" }
+    pr@{ shape: doc, label: "**Draft PR**<br/>Validated work only" }
+  end
+  feedback --> router
+  router -->|creates| signal
+  router -->|noise| noise
+  signal -->|private invitation| interview
+  interview -->|evidence| gate
+  gate ==>|authorize live| attempt
+  gate blocked_1@-->|no implementation| none
+  attempt -->|ready| preview
+  preview -->|live handoff| validate
+  validate async_1@-.->|change asked in validation| gate
+  validate -->|any outcome| casefile
+  validate ok_1@-->|validated| pr
+  none -->|no PR| casefile
+  pr -->|links| casefile
+  class casefile,pr outcome

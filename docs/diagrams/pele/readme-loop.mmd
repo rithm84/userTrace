@@ -1,0 +1,41 @@
+---
+title: One customer message → one validated pull request
+---
+swimlane-beta TB
+  subgraph customer [Customer]
+    discord[/"`**1 · Discord**
+    A customer asks for a feature
+    in the client's server`"/]:::people
+    interview["`**3 · Voice interview**
+    Sol asks · the customer demos
+    The agent circles what it names`"]:::observation
+    validate(["`**6 · Same-user validation**
+    The customer tries the new version
+    The agent circles what changed`"]):::people
+    credit["`**7 · Credited**
+    **Stripe** invoice credit
+    for their organization`"]:::outcome
+  end
+  subgraph utrace [uTrace]
+    intake["`**2 · Intake**
+    **Jev** spots a Product Signal`"]:::reasoning
+    gate{{"`**4 · Implementation Gate**
+    **GPT-6.1 Sol** + policy`"}}:::gate
+    build["`**5 · Live build**
+    **Codex** in **Vercel Sandbox**
+    Required checks pass`"]:::runtime
+  end
+  subgraph team [Product team]
+    delivered@{ shape: doc, label: "**7 · Delivered**<br/>**GitHub** draft PR + Case File" }
+    explained@{ shape: doc, label: "Case File explaining why not<br/>No PR" }
+  end
+  discord --> intake
+  intake -->|private invite + Stripe offer| interview
+  interview -->|agreed change| gate
+  gate ok_1@-->|build it live · ~1 min| build
+  gate blocked_1@-->|explain why not| explained
+  build -->|new preview| validate
+  validate ok_2@-->|validated| delivered
+  validate -->|participation complete| credit
+  class delivered outcome
+  class explained neutral

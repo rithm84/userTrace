@@ -1,0 +1,36 @@
+---
+title: Structured observation · SDKs and extension
+---
+flowchart TB
+  subgraph ui [Extension UI]
+    ext["`**Browser extension**
+    Character · controls · cursor
+    Visual overlays`"]:::observation
+  end
+  subgraph instrumentation [Preview instrumentation]
+    sdk["`**Browser SDK**
+    Semantics · redaction
+    Targets + document proof`"]:::observation
+    server["`**Server SDK**
+    Sole preview OTel provider
+    API, data, downstream spans`"]:::observation
+    shared["`**Shared browser runtime**
+    One coordinator and exporter
+    Baseline + ordered updates`"]:::observation
+  end
+  subgraph utrace [uTrace]
+    ingest["`**Telemetry ingestion**
+    Authenticated receipts
+    Normalize + correlate`"]:::runtime
+    cp["`**Control plane**
+    Readiness + authorized commands
+    Evidence and validation`"]:::runtime
+  end
+  cp -->|authorized visuals| ext
+  ext -->|SDK handshake| sdk
+  ext -->|attach| shared
+  sdk -->|trace context| server
+  sdk -->|observe| shared
+  shared -->|observations| ingest
+  server -->|redacted spans| ingest
+  ingest -->|correlated evidence| cp

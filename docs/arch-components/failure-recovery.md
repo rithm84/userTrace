@@ -6,6 +6,13 @@ The following diagram distinguishes interruption, departure, cancellation, block
 
 ![Each stopping reason preserves or revokes different work, evidence, and delivery authority.](../diagrams/svg/failure-recovery.svg)
 
+<details><summary>Diagram key</summary>
+
+![Diagram key of the ten node roles: people and customer surfaces, uTrace control plane, reasoning models, SDKs and previews, external or blocked, validated or durable, async path, gates and checks, neutral or closed, and client product.](../diagrams/svg/_key.svg)
+
+</details>
+<p></p>
+
 ## Failure boundary
 
 Failures never substitute another participant, combine lifecycle authority, or expand repository scope, and a failure never changes the kind of work.

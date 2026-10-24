@@ -1,0 +1,47 @@
+---
+title: Runtime placement · keep persistent coordination outside sandboxes
+---
+flowchart TB
+  subgraph row_1 [" "]
+    direction LR
+    subgraph vercel ["Vercel"]
+      direction LR
+      web(["`**Vercel web**
+      Landing + dashboard
+      Session UI + auth routes`"]):::people
+      door["`**Preview front door**
+      Separate origin per session
+      Authenticated route revision`"]:::people
+      sandbox["`**Vercel Sandbox**
+      Isolated workspace + coding agent
+      Separate product runtimes`"]:::observation
+      web -->|preview handoff| door -->|product port| sandbox
+    end
+  end
+  subgraph row_2 [" "]
+    direction LR
+    subgraph supa ["Supabase project"]
+      direction TB
+      secrets[("`**Compute project secrets**
+      Injected into every compute`")]:::gate
+      compute["`**Supabase Compute**
+      Persistent API + worker
+      Discord, ingestion, Jobs`"]:::runtime
+      data[("`**Supabase**
+      Auth · Postgres · Storage
+      Realtime · Queues · Cron`")]:::outcome
+      secrets -->|injected secrets| compute -->|durable records| data
+    end
+    subgraph pcc ["Pipecat Cloud"]
+      direction TB
+      vsecrets[("Pipecat Cloud secret set")]:::gate
+      voice["`**Voice agent**
+      One warm instance
+      Runs each call's voice agent Job`"]:::runtime
+      vsecrets -->|secret set| voice
+    end
+  end
+  web -->|API| compute
+  compute -->|authorized lease| sandbox
+  compute -->|start session| voice
+  voice -->|Job + call record| data

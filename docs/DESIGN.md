@@ -462,4 +462,4 @@ without its comic devices; `app/product.css` repeats the section 2 tokens.
   check by hand.
 - Rig work needs the Rive editor open for the MCP; keep one rig per file, and
   rebuild from `packages/utrace-agent-character/rive/`.
-- Documentation diagrams follow `.agents/skills/general/utrace-d2`.
+- Documentation diagrams follow `.agents/skills/general/utrace-pele`.

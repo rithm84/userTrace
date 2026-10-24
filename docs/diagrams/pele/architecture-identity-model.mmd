@@ -1,0 +1,51 @@
+---
+title: Identity · one person, distinct authorization lanes
+---
+erDiagram
+  utrace_user["uTrace User"] {
+    id utrace_user_id PK "global identity"
+    subject auth_subject "Supabase Auth"
+  }
+  client_member["Client staff"] {
+    id client_member_id PK
+    enum role "owner or admin"
+  }
+  client_user["Customer participation"] {
+    id client_user_id PK
+  }
+  client_dashboard["Client dashboard"] {
+    view member_list "read-only"
+    view records "authorized"
+    control case_stop
+  }
+  client["uTrace Client"] {
+    id client_id PK
+    data product_data "isolated per client"
+  }
+  interview_session["Interview Session"] {
+    identity discord_identity "invited"
+    ref client_id FK
+    ref product_signal_id FK
+  }
+  customer_account["Customer account"] {
+    id customer_account_id PK "B2B customer organization"
+  }
+  customer_membership["Customer membership"] {
+    id customer_membership_id PK
+  }
+
+  utrace_user ||--o{ client_member : "staff membership"
+  utrace_user ||--o{ client_user : "client scope"
+  client_member }|--|| client_dashboard : authorizes
+  client_member }|--|| client : "one owner, any admins"
+  client_user }o--|| client : "scoped to"
+  client_user ||--o{ interview_session : "claims invite"
+  client ||--o{ customer_account : scopes
+  customer_account ||--o{ customer_membership : has
+  client_user ||--o{ customer_membership : joins
+
+  class utrace_user,client_user people
+  class client_member runtime
+  class client_dashboard people
+  class client,customer_account,customer_membership neutral
+  class interview_session observation

@@ -1,0 +1,30 @@
+---
+title: Implementation · gated attempts, fenced code work
+---
+sequenceDiagram
+  autonumber
+  participant gate as Implementation Gate
+  participant cp as Implementation controller
+  box Vercel Sandbox · fenced by the lease
+    participant codex as Codex · GPT-6.1 Sol
+    participant repo as Repository checkout
+  end
+  participant pv as Preview Version
+
+  gate->>cp: approved_live<br/>frozen scope + current budgets
+  Note over gate,cp: Dispatch authority covers approved live work only.
+  cp->>cp: atomic commit
+  Note over cp: Attempt + dispatch intent.<br/>One attempt per gate decision, up to the limit.
+  cp->>repo: claim the prepared workspace under the lease
+  loop Each cycle, within scope + execution limits
+    cp->>codex: codex exec · frozen scope + cited files
+    codex->>repo: inspect · scoped search<br/>exact reads of current files
+    codex->>repo: implement · bounded edit
+    codex-->>cp: checkpoint result + artifacts<br/>collected under the lease
+    cp->>repo: test · required checks on baseline<br/>+ candidate, then the scope check
+    opt New failure or mechanical violation
+      cp-->>codex: correction cycle
+    end
+  end
+  cp->>pv: publish if ready
+  Note over pv: Immutable checked build.<br/>Separate candidate runtime.

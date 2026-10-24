@@ -1,0 +1,29 @@
+---
+title: Client outputs · validated code, engineer-credible evidence
+---
+flowchart TB
+  subgraph row_1 [" "]
+    direction LR
+    evidence[("`**Frozen evidence**
+    Signal + gate + candidate
+    Checks + validation references`")]:::outcome
+    draft["`**GPT-6.1 Sol draft**
+    Structured Case File
+    Source-linked claims and risk`"]:::reasoning
+    verify{{"`**Deterministic validation**
+    Schema + citations + authority
+    Exact delivery artifact identity`"}}:::gate
+    evidence -->|synthesize| draft -->|check| verify
+  end
+  subgraph row_2 [" "]
+    direction RL
+    pr@{ shape: doc, label: "**GitHub delivery**<br/>One draft PR<br/>Validated commit + tested base" }
+    casefile@{ shape: doc, label: "**Case File · seal and publish**<br/>Verified findings + outcome<br/>Exact delivery identity, if any<br/>Frozen core + digest" }
+    dash(["`**Client dashboard**
+    Case Files + PR links
+    Offer budgets + invoice credits`"]):::people
+    pr -->|verified PR identity| casefile -->|authorized view| dash
+  end
+  verify -->|validated work only| pr
+  verify -->|verified findings| casefile
+  class pr,casefile outcome

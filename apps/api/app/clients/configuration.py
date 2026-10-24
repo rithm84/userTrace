@@ -13,7 +13,7 @@ trigger.
 `release_digest` derives it from the canonical policy bytes, and the database
 refuses any other shape.
 
-Contract: docs/arch-components/policy-and-permissions.md#client-policy-model
+Contract: docs/arch-components/policy-and-permissions.md#autonomy-policy-model
 """
 
 from __future__ import annotations

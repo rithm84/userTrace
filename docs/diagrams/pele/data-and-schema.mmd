@@ -1,0 +1,24 @@
+---
+title: Data ownership · one authoritative record per fact
+---
+flowchart TB
+  cp["`**Control plane**
+  Validated state transitions
+  Atomic event + outbox`"]:::runtime
+  subgraph supabase ["Supabase project"]
+    pg[("`**Supabase Postgres**
+    Identity · lifecycle · evidence
+    Reports · jobs
+    Offer ledger + credit issuance`")]:::outcome
+    storage[("`**Supabase Storage**
+    Immutable scoped artifacts
+    Hash / type / size verification`")]:::outcome
+    queues@{ shape: h-cyl, label: "**Queues + Cron**<br/>Outbox wake-ups<br/>Scheduling and reconciliation" }
+    realtime@{ shape: h-cyl, label: "**Supabase Realtime**<br/>RLS-filtered session projections<br/>Committed updates only" }
+  end
+  cp -->|commit| pg
+  pg -->|references| storage
+  pg -->|dispatch| queues
+  pg -->|notify| realtime
+  class queues runtime
+  class realtime people

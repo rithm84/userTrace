@@ -1,0 +1,52 @@
+---
+title: Telemetry to evidence · authenticated, correlated, and source-linked
+---
+flowchart TB
+  subgraph preview ["Prepared preview · exact activation scope"]
+    browser[Browser SDK]:::observation
+    server[Server SDK]:::observation
+  end
+  subgraph ingestion [Telemetry ingestion]
+    direction LR
+    ingress["`**Durable ingress**
+    Authenticate + validate + dedup
+    Receipt + normalized records, one commit`"]:::runtime
+    correlate["`**Correlate and evaluate**
+    Trace parentage + source order
+    Completeness, gaps, readiness`"]:::runtime
+    ingress async_1@-.->|scheduled Job| correlate
+  end
+  subgraph supabase [Supabase]
+    storage[("`**Storage**
+    Raw batches + artifacts, hashed`")]:::outcome
+    pg[("`**Postgres**
+    Records, indexes, receipts`")]:::outcome
+  end
+  subgraph row_windows [" "]
+    direction LR
+    rolling["`**Rolling evidence window**
+    Live interview context`"]:::outcome
+    frozen["`**Frozen evidence window**
+    Gate, validation, Case File`"]:::outcome
+    rolling -->|decision freezes| frozen
+  end
+  subgraph row_promotion [" "]
+    direction LR
+    models[Voice agent tools · Jev]:::reasoning
+    subgraph control [Control plane]
+      direction LR
+      check{{Validate evidence}}:::gate
+      ledger["`**Evidence ledger**
+      Confirmed or contradicted claims`"]:::outcome
+      check -->|promote| ledger
+    end
+    models -->|propose| check
+  end
+
+  browser -->|redacted observations · WebSocket| ingress
+  server -->|redacted spans · OTLP/HTTP| ingress
+  ingress -->|raw batch| storage
+  ingress -->|commit| pg
+  correlate -->|persist| pg
+  pg -->|scoped query| rolling
+  rolling -->|live context| models

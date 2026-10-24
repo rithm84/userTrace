@@ -1,0 +1,62 @@
+---
+title: Deployment · web, persistent services, and isolated compute
+---
+flowchart TB
+  subgraph row_1 [" "]
+    direction LR
+    daily["`**Daily**
+    One private WebRTC room per call
+    Browser and voice agent join`"]:::external
+    browser(["`**Customer browser**
+    utrace.dev session UI
+    Separate preview origin`"]):::people
+    web["`**Vercel**
+    Web application
+    Preview front door`"]:::people
+    daily <-->|call audio| browser -->|HTTPS| web
+  end
+
+  subgraph row_2 [" "]
+    direction RL
+    compute["`**Supabase Compute**
+    API · Discord · telemetry
+    Worker and durable Jobs`"]:::runtime
+    pipecat["`**Pipecat Cloud**
+    Voice agent · one warm instance
+    Runs the voice agent Job`"]:::runtime
+    sandbox["`**Vercel Sandbox**
+    Port-scoped product previews
+    Workspaces + Codex coding agent`"]:::observation
+    compute -->|start session| pipecat
+    sandbox ~~~ compute
+  end
+
+  subgraph row_3 [" "]
+    direction LR
+    speech["`**Speech models**
+    Deepgram Flux speech recognition
+    ElevenLabs Eleven v4 Turbo`"]:::reasoning
+    gateway["`**Vercel AI Gateway**
+    TypeSafe AI Jev decisions`"]:::reasoning
+    data[("`**Supabase**
+    Postgres + Auth + Storage
+    Queues / Cron / Realtime`")]:::outcome
+    openai["`**OpenAI API**
+    GPT-6.1 Sol Ultrafast voice agent
+    GPT-6.1 Sol reasoning roles
+    Codex coding agent`"]:::reasoning
+    speech ~~~ gateway ~~~ data ~~~ openai
+  end
+
+  web -->|API| compute
+  web -->|scoped proxy| sandbox
+  compute -->|create room| daily
+  daily <-->|agent audio| pipecat
+  compute -->|durable state| data
+  compute -->|Jev| gateway
+  compute -->|reasoning| openai
+  pipecat -->|Job + call record| data
+  pipecat -->|speech| speech
+  pipecat -->|Jev| gateway
+  pipecat -->|agent words| openai
+  sandbox -->|coding agent| openai

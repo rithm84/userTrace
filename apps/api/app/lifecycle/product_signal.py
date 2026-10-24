@@ -1,7 +1,7 @@
 """Product Signal machine.
 
 States and transitions are owned by the lifecycle diagram
-(``docs/diagrams/d2/architecture-signal-lifecycle.d2``). Case File
+(``docs/diagrams/pele/architecture-signal-lifecycle.mmd``). Case File
 publication is required for the three ``closed_*`` states; ``canceled``
 produces no Case File. The demo grants one Implementation Attempt and no
 revisions, so unsuccessful validation closes the case as blocked.

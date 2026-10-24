@@ -1,0 +1,41 @@
+---
+title: Voice runtime · fluid conversation, controlled effects
+---
+flowchart TB
+  subgraph browser ["Participant browser · two tabs"]
+    tab(["`**Session tab**
+    Authenticated originating user
+    Daily call audio + controls
+    Live transcript captions`"]):::people
+    preview["`**Preview tab**
+    Extension + browser SDK`"]:::observation
+  end
+  subgraph pipecat ["Pipecat Cloud"]
+    voice["`**Voice agent · Pipecat**
+    Flux · Sol Ultrafast · ElevenLabs
+    Conversation + interruption
+    Gesture marks in its words`"]:::reasoning
+  end
+  subgraph runtime ["Preview runtime"]
+    server[Server SDK]:::observation
+  end
+  subgraph backend ["uTrace backend"]
+    tools["`**Tools and cues**
+    uTrace tools · application cues
+    Jev attention · coding agent`"]:::runtime
+    context[("`**Application context**
+    Transcript fragments + criteria
+    Corrections + verified findings`")]:::outcome
+    control["`**Control plane**
+    Evidence · gate · command
+    Scope · budget`"]:::runtime
+  end
+  tab <-->|audio + captions| voice
+  voice <-->|tool calls + cues| tools
+  context <-->|played words + screen state| voice
+  preview -->|trace context| server
+  preview -->|observations| context
+  server -->|correlated spans| context
+  context -->|selected facts| tools
+  tools -->|proposals| control
+  control -->|verified results| context

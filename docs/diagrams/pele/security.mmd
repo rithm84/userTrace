@@ -1,0 +1,40 @@
+---
+title: Security boundaries · authority stays outside model and product code
+---
+flowchart TB
+  subgraph row_1 [" "]
+    direction LR
+    subgraph untrusted ["No authority · untrusted input"]
+      direction TB
+      content[/"`**Untrusted content**
+      Speech · docs · DOM · code
+      Data, never instructions`"/]:::neutral
+      models["`**Model proposals**
+      Voice agent · GPT-6.1 Sol · Jev
+      Typed, source-linked intent`"]:::reasoning
+      content -->|interpret| models
+    end
+    subgraph authority ["Control plane · sole authority"]
+      direction TB
+      checks{{"`**Deterministic checks**
+      Identity · policy · readiness
+      Freshness · budgets · scope`"}}:::gate
+      records[("`**Tenant records**
+      Supabase RLS + membership
+      Scoped artifact resolution`")]:::outcome
+      checks ~~~ records
+    end
+    subgraph isolated ["Isolated compute · evidence, not authority"]
+      direction TB
+      exec["`**Execution boundary**
+      Fenced sandbox lease
+      No production credentials`"]:::runtime
+      product["`**Product boundary**
+      Own origin per session · signed route
+      No provider keys in browser`"]:::observation
+      exec -->|checked artifact| product
+    end
+  end
+  models -->|propose| checks
+  checks -->|authorize| exec
+  product -->|scoped evidence| records

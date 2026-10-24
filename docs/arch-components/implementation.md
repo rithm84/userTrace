@@ -4,7 +4,7 @@
 
 The following diagram shows how a gated attempt becomes an immutable Preview Version:
 
-![A fenced Vercel Sandbox attempt inspects exact files, edits within scope, runs checks, and publishes a Preview Version.](../diagrams/svg/implementation.svg)
+![After the Implementation Gate approves live work, Codex in a fenced Vercel Sandbox inspects exact files and edits within scope, the controller runs the required checks, and a ready candidate becomes a Preview Version.](../diagrams/svg/implementation.svg)
 
 ## Supported implementation mode
 
@@ -177,7 +177,7 @@ cited are hints until the workspace reads the exact source.
 
 ## Required checks and scope control
 
-Required commands come from the Product Signal's pinned client policy and gate decision. The control plane runs them in the workspace on the clean base to establish a comparable baseline and again against the candidate. The baseline runs on the base revision exported from git beside the checkout, with the installed dependencies linked in: in a prepared workspace before the attempt begins, and otherwise while the agent authors the first cycle, in which case the first comparison waits for it. The checks of one run start together, except that a check waits for the earlier checks its policy entry names in `after`, such as a build that writes files the type check reads. Pre-existing failures are reported as integration health; the candidate must not introduce new failures. While a cycle's checks run, the [candidate preview build](./preview-build.md) starts from the same staged files, so an accepted candidate only has to start.
+Required commands come from the Product Signal's pinned Autonomy Policy and gate decision. The control plane runs them in the workspace on the clean base to establish a comparable baseline and again against the candidate. The baseline runs on the base revision exported from git beside the checkout, with the installed dependencies linked in: in a prepared workspace before the attempt begins, and otherwise while the agent authors the first cycle, in which case the first comparison waits for it. The checks of one run start together, except that a check waits for the earlier checks its policy entry names in `after`, such as a build that writes files the type check reads. Pre-existing failures are reported as integration health; the candidate must not introduce new failures. While a cycle's checks run, the [candidate preview build](./preview-build.md) starts from the same staged files, so an accepted candidate only has to start.
 
 After every correction cycle, the controller verifies files, repositories, dependencies, and other approved bounds. The diff's size in lines is not bounded: a complete change is never sent back to shrink. Mechanical violations return for correction while budget remains. A persistent violation, or a semantic discovery that the solution needs a different outcome or scope, stops mutation and closes the case with a blocker Case File. Scope never grows inside the workspace.
 

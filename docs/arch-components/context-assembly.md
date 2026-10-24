@@ -6,6 +6,13 @@ Context assembly combines prepared knowledge with current, source-linked facts.
 
 ![The Product Overview and exact code findings join current evidence in scoped context bundles.](../diagrams/svg/context-assembly.svg)
 
+<details><summary>Diagram key</summary>
+
+![Diagram key of the ten node roles: people and customer surfaces, uTrace control plane, reasoning models, SDKs and previews, external or blocked, validated or durable, async path, gates and checks, neutral or closed, and client product.](../diagrams/svg/_key.svg)
+
+</details>
+<p></p>
+
 ## Source ownership
 
 The source and consumer map is drawn above. Supabase holds authoritative workflow

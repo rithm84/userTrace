@@ -1,0 +1,27 @@
+---
+title: Shared contracts · facts, authority, and outcomes
+---
+sequenceDiagram
+  autonumber
+  participant producer as Producer · adapter or SDK
+  participant cp as Control plane
+  participant target as Command target
+  participant model as Model role
+
+  producer->>cp: Event · source + occurrence + receipt
+  Note over cp: A recorded fact. Deduplicate by message_id,<br/>then sequence it in its lifecycle stream.
+  par Command path
+    Note over cp,target: A legal transition authorizes one operation.<br/>command_id is the idempotency boundary.
+    cp->>target: Command · scope + deadline + revision
+    target-->>cp: Result · execution outcome: accepted, progress, terminal
+  and Job path
+    cp->>model: Job · analyze, as durable work + attempts
+    Note over model: Lease and retry checkpoint
+    model-->>cp: Model proposal · bundle + model + sources
+  end
+  Note over cp: Freshness check: reconcile each Result and validate<br/>each proposal's dependencies against current context and authority.
+  alt revisions still current
+    cp->>cp: commit the next legal transition
+  else stale or late
+    cp->>cp: reject · late results cannot revive work
+  end
