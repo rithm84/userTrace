@@ -268,10 +268,10 @@ export function DiscordButton(props: Readonly<{ secondary?: boolean; children: R
   );
 }
 
-/** A rich embed; `signal` takes the Product Signal's coral bar, `credit` Discord's green. */
-export function Embed(props: Readonly<{ title: string; text: string; meta?: string; signal?: boolean; credit?: boolean; testId?: string; children?: ReactNode }>): JSX.Element {
+/** A rich embed; `credit` takes Discord's green bar. */
+export function Embed(props: Readonly<{ title: string; text: string; meta?: string; credit?: boolean; testId?: string; children?: ReactNode }>): JSX.Element {
   return (
-    <div className={"dc-embed" + (props.signal ? " is-signal" : "") + (props.credit ? " is-credit" : "")} data-testid={props.testId}>
+    <div className={"dc-embed" + (props.credit ? " is-credit" : "")} data-testid={props.testId}>
       <div className="dc-embed-title">{props.title}</div>
       <p className="dc-embed-text">{props.text}</p>
       {props.meta !== undefined ? <div className="dc-embed-meta">{props.meta}</div> : null}

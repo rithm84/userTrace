@@ -117,10 +117,7 @@
 [data-landing] .dc-btn.is-secondary { background: var(--dc-secondary); }
 [data-landing] .dc-btn b { font-weight: 700; margin-left: 2px; }
 [data-landing] .dc-embed { margin-top: 8px; max-width: 432px; padding: 10px 16px 14px 12px; border-left: 4px solid var(--dc-blurple); border-radius: 4px; background: var(--dc-embed); }
-[data-landing] .dc-embed.is-signal { border-left-color: var(--coral-strong); animation: dc-embed-in 0.18s steps(2, end) both; transform-origin: 0 50%; }
-[data-landing] .dc-embed.is-signal .dc-embed-title { color: var(--coral); }
 [data-landing] .dc-embed.is-credit { border-left-color: var(--dc-green); }
-@keyframes dc-embed-in { 0% { transform: scale(0.94); opacity: 0.4; } 100% { transform: none; opacity: 1; } }
 [data-landing] .dc-embed + .dc-actions, [data-landing] .dc-embed .dc-actions { margin-top: 12px; }
 [data-landing] .dc-embed-title { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; color: var(--dc-title); }
 /* Discord keeps an embed description's line breaks */

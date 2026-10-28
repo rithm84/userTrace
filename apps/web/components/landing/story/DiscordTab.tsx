@@ -21,11 +21,11 @@ export const CREDIT = Object.freeze({ title: "Interview complete", text: `${SHOP
 
 const JONAS: Author = { name: "jonas", avatar: { colour: "#5865f2" } };
 /** When things happen in each Discord beat, in ms into the beat. */
-const AT = Object.freeze({ requestPost: 1100, replyPost: 700, corroborate: [1400, 1800, 2200], signal: 2700, invitePost: 600, pointer: 2000, press: 3800, thanksPost: 600 });
+const AT = Object.freeze({ requestPost: 1100, replyPost: 700, corroborate: [1500, 2200, 2900], invitePost: 600, pointer: 2000, press: 3800, thanksPost: 600 });
 
 /**
  * The Discord tab: Maya's request in the Shopalytics server's #feedback, uTrace's public reply
- * with the Product Signal, the private invitation she joins from, and, once the work is
+ * that others can second, the private invitation she joins from, and, once the work is
  * validated, uTrace's thanks with the credit her company earned. Join interview is a real
  * button: it takes the reader on into the interview.
  */
@@ -100,7 +100,7 @@ export function DiscordTab(props: Readonly<{ beat: Beat; progress: number; width
   );
 }
 
-/** uTrace's public reply: the corroboration control counting the people seeing it too, then the Product Signal. */
+/** uTrace's public reply, with the corroboration control counting the people seeing it too; the Product Signal stays private. */
 function Reply(props: Readonly<{ t: number }>): JSX.Element {
   const count = AT.corroborate.filter((at) => props.t >= at).length;
   return (
@@ -113,7 +113,6 @@ function Reply(props: Readonly<{ t: number }>): JSX.Element {
           {count > 0 ? <b data-testid="story-corroborate-count">· {count}</b> : null}
         </DiscordButton>
       </div>
-      {props.t >= AT.signal ? <Embed signal testId="story-signal-embed" title="Product Signal" text="Saved conversion views · Feature request" meta="A real gap in the product, worth a conversation." /> : null}
     </Message>
   );
 }
