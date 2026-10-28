@@ -2,8 +2,8 @@
  * The landing's Shopalytics fixture: the SCENARIO.md happy path (one request, one
  * Product Signal, approved_live, one PR) extended with the V3 evidence the
  * landing advertises (corroboration and frequency) and one demonstration
- * repair. Every product mock on the page reads from here so the story, the
- * comic strip and the Case File never disagree.
+ * repair. Every product mock on the page reads from here so the demo and the
+ * Case File never disagree.
  */
 
 export type SurfaceKind = "discord" | "reddit" | "appstore" | "x";
@@ -17,6 +17,8 @@ export type Corroboration = Readonly<{
 export type FilterChip = Readonly<{
   /** Which acceptance criterion the filter belongs to. */
   criterion: "date" | "traffic" | "demographic" | "sentiment" | "topic" | "product" | "metric";
+  /** The Shopalytics control that sets it. */
+  dimension: string;
   label: string;
 }>;
 
@@ -24,8 +26,12 @@ export type ValidationOutcome = "validated" | "partially validated" | "not valid
 
 export const SHOPALYTICS = Object.freeze({
   client: "Shopalytics",
+  /** Shopalytics' mark: its Discord server, its tab and top bar, and its invoices. */
+  clientLogoSrc: "/landing/shopalytics-logo.webp",
   account: "Dudulemon",
-  user: { handle: "maya", role: "growth lead", avatarSrc: "/hero-avatars/pfp-03.png" },
+  /** Dudulemon's mark: Maya's Discord avatar and the workspace in Shopalytics. */
+  accountLogoSrc: "/landing/dudulemon-logo.webp",
+  user: { handle: "maya", role: "growth lead" },
   request: {
     channel: "#feedback",
     time: "Today at 9:02 AM",
@@ -38,13 +44,13 @@ export const SHOPALYTICS = Object.freeze({
   ] as readonly Corroboration[],
   frequency: { people: 4, accounts: 3, reports: 4, firstSeen: "Oct 3", lastSeen: "today" },
   filters: [
-    { criterion: "date", label: "Last 30 days" },
-    { criterion: "traffic", label: "TikTok" },
-    { criterion: "demographic", label: "Women 25–34" },
-    { criterion: "sentiment", label: "Negative reviews" },
-    { criterion: "topic", label: "Sizing" },
-    { criterion: "product", label: "Dresses" },
-    { criterion: "metric", label: "Conversion rate" },
+    { criterion: "date", dimension: "Date", label: "Last 30 days" },
+    { criterion: "traffic", dimension: "Channel", label: "TikTok" },
+    { criterion: "demographic", dimension: "Segment", label: "Women 25–34" },
+    { criterion: "sentiment", dimension: "Sentiment", label: "Negative reviews" },
+    { criterion: "topic", dimension: "Review topic", label: "Sizing" },
+    { criterion: "product", dimension: "Product", label: "Dresses" },
+    { criterion: "metric", dimension: "Metric", label: "Conversion rate" },
   ] as readonly FilterChip[],
   savedViewName: "TikTok sizing drop-off",
   gate: {

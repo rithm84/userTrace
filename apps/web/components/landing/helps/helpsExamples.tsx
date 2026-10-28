@@ -1,6 +1,6 @@
 /**
  * Three customer situations at Shopalytics, each shown as the concrete product moment it
- * happens in. None of them is the saved-view case the strip and the story already tell, so
+ * happens in. None of them is the saved-view case the demo already tells, so
  * the board adds range instead of repeating the plot.
  */
 import type { CharacterState } from "@utrace/agent-character";

@@ -15,10 +15,9 @@ import { RiveFilesProvider } from "./characters/RiveFiles";
 import { WaitlistProvider } from "./Waitlist";
 
 /**
- * The marketing page. The hero, the cover, the comic strip and Shopalytics story share
- * one pinned stage, followed by
- * where it helps, the Case File for your team, why your users say yes, how it fits, the
- * closing panel; then the black footer.
+ * The marketing page. The hero and the Shopalytics demo under it, followed by where it
+ * helps, the Case File for your team, why your users say yes, how it fits, the closing
+ * panel; then the black footer.
  */
 export function Landing(): JSX.Element {
   useLightGround();

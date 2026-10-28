@@ -34,8 +34,7 @@ Object.defineProperty(window, "matchMedia", {
 
 globalThis.IntersectionObserver = MockIntersectionObserver;
 
-// jsdom has no CSS Font Loading API; the landing waits on it before measuring type, and the
-// strip loads its crops' faces early, each matching one face
+// jsdom has no CSS Font Loading API; the landing waits on it before measuring type
 Object.defineProperty(document, "fonts", {
   configurable: true,
   value: { ready: Promise.resolve(), load: () => Promise.resolve([{}]) },

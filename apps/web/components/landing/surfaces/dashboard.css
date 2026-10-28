@@ -1,0 +1,81 @@
+/* Shopalytics: a fictional analytics product for online stores, drawn as real software after
+   the fixture app, which takes its look from Shopify's admin: a black top bar, a grey sidebar,
+   white cards with a soft bottom edge on #f1f1f1, #303030 text and a #12acf0 chart. No coral:
+   the agent's marks are the only coral over it. */
+[data-landing] .sh { --sh-text: #303030; --sh-muted: #616161; --sh-faint: #8a8a8a; --sh-line: #e3e3e3; --sh-bg: #f1f1f1; --sh-side: #ebebeb; --sh-card-shadow: 0 1px 0 #1a1a1a12, inset 0 -1px 0 #0000001a, inset 0 0 0 1px #0000000d; position: absolute; inset: 0; display: grid; grid-template-columns: 136px minmax(0, 1fr); grid-template-rows: 44px minmax(0, 1fr); background: #0a0a0a; color: var(--sh-text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 12px; line-height: 1.3; overflow: hidden; -webkit-font-smoothing: antialiased; }
+[data-landing] .sh * { box-sizing: border-box; }
+[data-landing] .sh svg { flex: none; }
+
+/* the top bar */
+[data-landing] .sh-top { grid-column: 1 / -1; display: grid; grid-template-columns: 136px minmax(0, 1fr) 160px; align-items: center; padding: 0 12px; color: #e3e3e3; }
+[data-landing] .sh-brand { display: flex; align-items: center; gap: 7px; font-size: 13.5px; font-weight: 650; letter-spacing: -0.01em; color: #fff; }
+[data-landing] .sh-brand img { width: 24px; height: 24px; border-radius: 6px; }
+[data-landing] .sh-search { justify-self: center; display: flex; align-items: center; gap: 7px; width: min(100%, 320px); height: 28px; padding: 0 8px 0 10px; border: 1px solid #ffffff1a; border-radius: 8px; background: #282828; color: #b5b5b5; font-size: 12px; }
+[data-landing] .sh-search kbd { margin-left: auto; padding: 1px 5px; border-radius: 4px; background: #3a3a3a; color: #b5b5b5; font: inherit; font-size: 10.5px; }
+[data-landing] .sh-top-end { justify-self: end; display: flex; align-items: center; gap: 12px; }
+[data-landing] .sh-workspace { display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 8px 0 4px; border-radius: 8px; background: #1f1f1f; color: #fff; font-size: 12px; font-weight: 600; }
+[data-landing] .sh-workspace img { width: 22px; height: 22px; border-radius: 6px; }
+
+/* the sidebar */
+[data-landing] .sh-side { display: flex; flex-direction: column; gap: 2px; padding: 10px 8px; background: var(--sh-side); border-top-left-radius: 12px; }
+[data-landing] .sh-nav { display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 8px; border-radius: 8px; font-size: 12.5px; font-weight: 550; color: var(--sh-text); }
+[data-landing] .sh-nav svg { color: #4a4a4a; }
+[data-landing] .sh-nav.is-active { background: #fff; font-weight: 650; box-shadow: 0 1px 0 #1a1a1a12; }
+[data-landing] .sh-nav-end { margin-top: auto; }
+
+/* the page; the sidebar and the page together sit under the top bar with Shopify's rounded outer corners */
+[data-landing] .sh-main { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 14px 16px 0; background: var(--sh-bg); border-top-right-radius: 12px; overflow: hidden; }
+[data-landing] .sh-head { display: flex; align-items: center; justify-content: space-between; min-height: 28px; }
+[data-landing] .sh-head h3 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -0.015em; line-height: 1.2; }
+[data-landing] .sh-card { position: relative; border-radius: 12px; background: #fff; box-shadow: var(--sh-card-shadow); }
+[data-landing] .sh-button { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px; border-radius: 8px; background: #fff; box-shadow: var(--sh-card-shadow); font-size: 12px; font-weight: 600; white-space: nowrap; }
+[data-landing] .sh-button.is-primary { background: #303030; color: #fff; box-shadow: inset 0 -1px 0 #000, inset 0 1px 0 #ffffff33; }
+[data-landing] .sh-button.is-disabled { background: #b5b5b5; box-shadow: none; }
+
+/* the filter card: date presets, then one control per dimension */
+[data-landing] .sh-filters { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; }
+[data-landing] .sh-filter-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+[data-landing] .sh-segmented { display: inline-flex; border-radius: 8px; background: #fff; box-shadow: var(--sh-card-shadow); overflow: hidden; }
+[data-landing] .sh-segmented span { height: 26px; padding: 0 10px; display: inline-flex; align-items: center; font-size: 12px; font-weight: 550; white-space: nowrap; border-left: 1px solid var(--sh-line); }
+[data-landing] .sh-segmented span:first-child { border-left: 0; }
+[data-landing] .sh-segmented span.is-on { background: #e3e3e3; font-weight: 650; box-shadow: inset 0 1px 2px #0000001f; }
+[data-landing] .sh-filter-count { display: inline-flex; align-items: center; gap: 8px; color: var(--sh-muted); font-size: 11.5px; }
+[data-landing] .sh-reset { display: inline-flex; align-items: center; gap: 3px; height: 24px; padding: 0 7px; border-radius: 7px; color: var(--sh-text); font-weight: 600; }
+[data-landing] .sh-controls { display: flex; flex-wrap: wrap; gap: 6px; min-height: 58px; align-content: flex-start; }
+[data-landing] .sh-control { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 7px 0 9px; border-radius: 8px; background: #fff; box-shadow: var(--sh-card-shadow); font-size: 12px; font-weight: 600; white-space: nowrap; }
+[data-landing] .sh-control small { font-size: 12px; font-weight: 450; color: var(--sh-muted); }
+[data-landing] .sh-control svg { color: var(--sh-faint); }
+[data-landing] .sh-control.is-set { background: #f1f1f1; box-shadow: inset 0 1px 2px #00000026, inset 0 0 0 1px #0000001a; }
+[data-landing] .sh-control.is-in { animation: sh-pop 0.16s steps(2, end) both; }
+@keyframes sh-pop { from { transform: scale(0.9); } to { transform: none; } }
+/* the candidate's saved views, beside the page title */
+[data-landing] .sh-views { display: flex; align-items: center; gap: 6px; }
+[data-landing] .sh-placeholder { color: var(--sh-faint); }
+[data-landing] .sh-input { display: inline-flex; align-items: center; width: 156px; height: 26px; padding: 0 8px; border: 1px solid #8a8a8a; border-radius: 8px; background: #fdfdfd; font-size: 12px; font-weight: 450; white-space: nowrap; overflow: hidden; }
+[data-landing] .sh-caret { display: inline-block; width: 1px; height: 14px; margin-left: 1px; background: var(--sh-text); }
+[data-landing] .sh-view.is-active { background: #e3e3e3; box-shadow: inset 0 1px 2px #0000001f; }
+[data-landing] .sh-view svg { color: var(--sh-muted); }
+
+/* KPIs, the daily line and the products */
+[data-landing] .sh-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+[data-landing] .sh-kpi { padding: 10px 12px; }
+[data-landing] .sh-kpi small { display: block; font-size: 12px; font-weight: 650; }
+[data-landing] .sh-kpi strong { display: block; margin-top: 3px; font-size: 18px; font-weight: 650; letter-spacing: -0.02em; line-height: 1.2; font-variant-numeric: tabular-nums; }
+[data-landing] .sh-kpi span { display: block; margin-top: 3px; font-size: 11px; color: var(--sh-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+[data-landing] .sh-kpi span.is-up { color: #29845a; }
+[data-landing] .sh-kpi span.is-down { color: #c70a24; }
+[data-landing] .sh-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 210px; gap: 10px; }
+[data-landing] .sh-grid .sh-card { padding: 10px 12px; min-width: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+[data-landing] .sh-card-title { display: flex; justify-content: space-between; font-size: 12px; font-weight: 650; }
+[data-landing] .sh-card-title span:last-child { font-weight: 450; color: var(--sh-muted); }
+[data-landing] .sh-chart { display: block; width: 100%; height: 120px; margin-top: 10px; }
+[data-landing] .sh-axis { display: flex; justify-content: space-between; margin-top: 4px; font-size: 10.5px; color: var(--sh-faint); }
+[data-landing] .sh-row { display: flex; justify-content: space-between; gap: 8px; padding: 7px 0; border-top: 1px solid var(--sh-line); font-size: 12px; }
+[data-landing] .sh-card-title + .sh-row { margin-top: 6px; }
+[data-landing] .sh-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-landing] .sh-row b { font-weight: 600; font-variant-numeric: tabular-nums; }
+[data-landing] .sh-flash { position: absolute; inset: 0; background: var(--sh-bg); pointer-events: none; }
+/* Shopify's toast: dark, at the bottom centre of the whole window, with its dismiss mark */
+[data-landing] .sh-toast { position: absolute; z-index: 2; left: 50%; bottom: 18px; translate: -50% 0; display: inline-flex; align-items: center; gap: 12px; padding: 9px 10px 9px 14px; border-radius: 12px; background: #1a1a1a; color: #fff; font-size: 12.5px; font-weight: 550; white-space: nowrap; box-shadow: 0 6px 16px #00000033; animation: sh-toast-in 0.2s var(--ease-out) both; }
+[data-landing] .sh-toast svg { color: #b5b5b5; }
+@keyframes sh-toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }

@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useRef, useState, type JSX, type ReactNode } from "react";
 import { ArrowUpRight, Check } from "lucide-react";
-import { JOURNEY } from "./journey/contract";
+import { NAV_H } from "./journey/contract";
 import "./waitlist.css";
 
 export const CONTACT_HREF = "mailto:rithm84@utrace.dev";
@@ -49,21 +49,10 @@ export function focusLandingWaitlist(): void {
     throw new Error("Cannot open the waitlist: the hero or closing form or confirmation is missing.");
   }
   const bounds = closing.getBoundingClientRect();
-  if (closing.closest('[data-phase="settled"]') !== null && bounds.top >= JOURNEY.navH && bounds.bottom <= window.innerHeight && bounds.left >= 0 && bounds.right <= window.innerWidth) {
+  if (closing.closest('[data-phase="settled"]') !== null && bounds.top >= NAV_H && bounds.bottom <= window.innerHeight && bounds.left >= 0 && bounds.right <= window.innerWidth) {
     closing.focus({ preventScroll: true });
     return;
   }
-  // The hero can still be lifted when scrolling ends. Focus after its layer becomes interactive.
-  const layer = hero.closest(".v3-hero-layer");
-  if (layer !== null && layer.hasAttribute("inert")) {
-    const observer = new MutationObserver(() => {
-      if (layer.hasAttribute("inert")) return;
-      observer.disconnect();
-      hero.focus({ preventScroll: true });
-    });
-    observer.observe(layer, { attributes: true, attributeFilter: ["inert"] });
-  } else {
-    hero.focus({ preventScroll: true });
-  }
+  hero.focus({ preventScroll: true });
   window.scrollTo({ top: 0, behavior: "instant" });
 }

@@ -5,11 +5,10 @@ import { useEffect, useRef, useState, type JSX, type KeyboardEvent } from "react
 
 import { useReducedMotion } from "@/components/agent/useReducedMotion";
 
-import { Badge } from "../strip/art";
-import { Cameo, ENTRANCE_MS } from "../strip/pieces";
+import { Badge } from "../art";
+import { Cameo, ENTRANCE_MS } from "../pieces";
 import { HELPS_PAGE, OPEN_QUAD, quadBox, quadClip, quadPoints, thumbQuad } from "./helpsGeometry";
 import { HelpsExample, SITUATIONS, type SituationId } from "./helpsExamples";
-import "../strip/strip.css";
 import "./helps.css";
 
 const THUMB_SLOTS = [0, 1] as const;

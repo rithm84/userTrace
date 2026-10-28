@@ -18,8 +18,8 @@ Three rules hold everything together:
    Captions, stickers, balloons, stamps and lettering live on the page around a
    window or a crop. Inside a window is the product, drawn as a real DOM component
    at its own type and palette. Nothing inside a frame is a picture. The only
-   drawn art on the page is the hero's city, Maya and her desk in the strip, and
-   the magnifying glass in the closing.
+   drawn art on the page is the hero's city and the magnifying glass in the
+   closing.
 2. **One device, once.** A page gets one balloon, one burst, one stamp, one shout.
    Repetition turns the register into a costume.
 3. **Nothing is faked.** A crop of Discord reproduces Discord; a dashboard is a
@@ -76,12 +76,12 @@ Seven agents, one body shape and colour each, the same face: two black oval eyes
 
 | Colour | Hex | Job on the page |
 |---|---|---|
-| coral | `#fcada3` | investigates at the city's feedback tower; bursts from the strip's request panel; hangs onto the magnifier's handle in the closing |
-| black | `#111111` | builds at the city's site and hands the build to mint; peeks over the Case File folder; pulls on the magnifier's rim |
-| mint | `#97d6a4` | ships, riding the build to the city's shop on the delivery trike; winces at the reset; peeks over the folder; pulls on the rim |
-| sky | `#85cef9` | interviews at the city's café; speaks in the invitation; investigates on the case board; pulls on the rim |
-| lilac | `#cdb6f9` | validates at the city's shop; iterates; listens to the echoes and to the capability request; pulls on the rim |
-| peach | `#f5b488` | nods the reader toward the Join button; peeks over the folder; pulls on the rim |
+| coral | `#fcada3` | investigates at the city's feedback tower; is Wren, the one product agent in every tab of the demo, and leads its Request chapter on the rail; hangs onto the magnifier's handle in the closing |
+| black | `#111111` | builds at the city's site and hands the build to mint; leads the demo's Build chapter on the rail; peeks over the Case File folder; pulls on the magnifier's rim |
+| mint | `#97d6a4` | ships, riding the build to the city's shop on the delivery trike; leads the demo's Ship chapter on the rail; peeks over the folder; pulls on the rim |
+| sky | `#85cef9` | interviews at the city's café; leads the demo's Interview chapter on the rail; investigates on the case board; pulls on the rim |
+| lilac | `#cdb6f9` | validates at the city's shop; leads the demo's Iterate chapter on the rail; listens to the capability request; pulls on the rim |
+| peach | `#f5b488` | leads the demo's Validate chapter on the rail; peeks over the folder; pulls on the rim |
 | aqua | `#72d8d7` | climbs out of the city's manhole with the pain point; concern on the case board's workaround case; pulls on the rim |
 
 Every character is a Rive rig from `packages/utrace-agent-character/assets/`
@@ -97,14 +97,16 @@ in `packages/utrace-agent-character/rive/`.
 Rules for placing a character:
 
 - One specialist per job. A chapter, a panel or a case gets one character, and
-  the rail, the sticker and the window always show the same character in the
-  same state at the same moment.
+  the rail and the sticker show the same character in the same state at the
+  same moment. Inside the demo's product screens the agent is always one
+  agent, as the product presents it: Wren, drawn coral, in the state of the
+  chapter's specialist on the rail.
 - A character sits in a container: a round sticker, a rounded sticker, a
   jagged burst, a folder edge, a chapter stop. Containers fade in; they never
   scale, because a rig inside a scaling box measures its canvas small and stays
   blurry. Rig canvases are re-sized only when stale (`characters/rigCanvas.ts`).
-- Rigs stay live while their page is on stage, including a finished story waiting
-  for the reader, and park only after their entrance has played (`ENTRANCE_MS`).
+- Rigs stay live while the demo plays on screen, and park only after their
+  entrance has played (`ENTRANCE_MS`).
 - Containers never cover a colourful or load-bearing part of a crop: a logo, a
   card's title, a button.
 - Eyes follow the reader where a pointer makes sense (`usePointerGaze`), and
@@ -115,22 +117,21 @@ Rules for placing a character:
 
 ## 4. Comic devices
 
-- **Panels.** A page is a fixed design box (the strip 1200 x 800, the case board
+- **Panels.** A page is a fixed design box (the demo 1200 x 800, the case board
   1180 x 520) fitted to its stage with CSS `zoom`, never a transform, so text
-  and canvases rasterise at the displayed size. Panels are quadrilaterals with
-  gutters that lean 36px over the page height and stay 12px wide; the clip and
-  the 3px stroke read from one geometry file so they never disagree
-  (`strip/stripGeometry.ts`, `helps/helpsGeometry.ts`). Borders draw on.
+  and canvases rasterise at the displayed size. The case board's panels are
+  quadrilaterals with gutters that lean 36px over the page height and stay 12px
+  wide; the clip and the 3px stroke read from one geometry file so they never
+  disagree (`helps/helpsGeometry.ts`). Borders draw on.
 - **Captions.** A white box with a 2px ink border and bold 13 to 15px text,
   pinned to a panel corner, popping on two frames. A caption is a plain sentence
   that adds something the panel does not already say; never "x, y" fragments,
   never a repeat of on-screen text.
 - **Stickers.** A character in a round badge (2.5px ink, 3px hard shadow)
   overhanging a panel corner or a gutter.
-- **Balloon, burst, stamp, shout.** Each once: "Again?!" in the reset panel; the
-  coral burst on the request panel; the rotated "Validated" on the Case File;
-  "Case closed!!!" in Bangers with an ink stroke and jittering marks as the last
-  beat's stamp.
+- **Stamp and shout.** Each once: the rotated "Validated" on the Case File;
+  "Case closed!!!" in Bangers with an ink stroke and jittering marks as the
+  demo's last beat.
 - **The magnifier.** One on the page, in the closing: a drawn glass (black ink,
   curved hatching, a dot band inside the rim, an alpha WebP under
   `public/landing/closing/`) in a tug of war. Coral hangs onto the handle on
@@ -152,103 +153,45 @@ Rules for placing a character:
   Coral's eyes stay on the glass;
   the six watch the rim they pull on, then the pointer. The rigs' own
   monocle-sized magnifiers never share a frame with it.
-- **Typed cast line.** As the reader scrolls into the strip, the middle panel types
-  the introduction: who Shopalytics, Dudulemon and Maya are. The text and border
-  disappear before the first story panel begins. Nothing else types.
-
 ## 5. Motion
 
 - **On twos.** Comic motion is stepped: `steps(2, end)` pops, borders that draw
   on, chips that land on two frames, a cursor that moves in a handful of steps.
   Product UI inside a frame moves like the product (short eased transitions).
-- **The journey follows the scroll.** Scrolling plays the strip and the story; neither
-  has a clock or controls. Both run on one pace (`journey/scrollTimeline.ts`): 150px of
-  scroll per second of authored time, and after every panel or beat a 320px rest that
-  holds its finished frame, so a flick's momentum settles on a finished panel instead of
-  carrying the reader into the next (the strip takes about 12,700px, the story about
-  15,600px; a 1,200px trackpad flick moves about one panel). The strip's first rest
-  holds the typed introduction, not the blank page after it. A page catches up with the
-  scroll in either direction (`journey/useScrollTimeline.ts`): a small gap closes at twice
-  its authored pace, a larger one faster, easing in like a spring, so a slow scroll scrubs,
-  a brisk one plays the beats quickly, and a still reader stops it. It never skips a panel
-  or beat on screen: each one it passes takes at least 450ms, so they arrive one at a time
-  rather than two at once. Off screen there is nothing to show, so it lands at once, and a page
-  coming on screen starts where the scroll is instead of playing up to it. The scroll
-  position chooses the panel or beat, so scrolling back returns to earlier ones, a section
-  link simply lands, and a reload inside the strip or the story keeps the reader's place
-  without replaying what came before (elsewhere it snaps to the nearest section's start). What the reader has seen never
-  plays backwards: each panel or beat holds the furthest point of it drawn on screen this
-  visit, so scrolling back shows it finished instead of rewinding it, one entered from
-  behind shows its finished frame, and scrolling down again brings it back finished rather
-  than replaying it. One jumped over or played while off screen was never drawn, so it
-  still plays when the reader scrolls down to it.
-- **Beside the page.** A column stands in the stage's right margin, or over the page's
-  bottom-right corner when the stage is too narrow to leave one
-  (`journey/JourneyAside.tsx`). Beside the strip it carries the strip's progress: eight
-  leaning panel cells in three tiers, filling coral, with a count ("Introduction" while
-  the cast line types, then "3 of 8"). The progress follows the scroll, rests included,
-  so every stretch of scroll moves something even while a finished panel holds, but
-  never past the panels the strip has drawn: while the strip catches up with a fast
-  scroll, the count and the cells wait for each panel to arrive, and the last cell
-  fills as the strip finishes. Beside both the strip and the story it carries Skip ahead, the way past the
-  journey to Where uTrace helps for a reader who would rather not scroll through it.
-  Neither page shows a scroll nudge.
-- **The press.** In the last panel the scroll moves the cursor onto Join interview,
-  the button takes its hover colour, and a little further on the scroll presses it:
-  the button becomes Discord's grey "Joined" receipt and "Let's follow the case."
-  pops. Scrolling back un-presses it. Until the press the button is a real shortcut:
-  pressing it carries the reader on through the zoom into the story, and the reader's
-  own wheel, touch, key or click takes over from that scroll at once. Peach nods
-  toward it while the cursor waits there.
-- **The story's rail.** The story's progress lives entirely in its left chapter rail
-  (`story/ChapterRail.tsx`). Its five stops stay centered on the rail, with labels 10px
+- **The demo plays on a clock.** How it works is a product demo, not a scroll
+  sequence: it plays like a product video (`story/Demo.tsx`), so a reader can
+  watch it or scroll straight past. It runs while at least half of it is on
+  screen, stops when it leaves or when the reader presses pause above the rail,
+  and loops after the finished Case File has held. Its sixteen beats run about
+  74 seconds, played at 0.9 of their authored pace (`PLAYBACK_RATE`); each holds
+  as long as it takes to read, so a beat with more to read, like the Product
+  Signal or the Case File, holds longer and a simple one moves on sooner. Every frame is a pure function of the clock, so it
+  pauses, resumes, and jumps anywhere without replaying what came before.
+- **The demo's rail.** The demo's progress lives entirely in its left chapter rail
+  (`story/ChapterRail.tsx`). Its six stops stay centered on the rail, with labels 10px
   beyond each marker's edge: black circles with white checks for completed chapters,
   outlined circles for upcoming chapters, and the larger character badge for the active
-  chapter. The active character carries a coral ring that follows the scroll through
-  that chapter, rests included, as far as the story has drawn, and a local beat count
-  ("2 of 4"). Only the chapter's
-  end fills it completely; the final chapter shows "Complete" after its last beat
-  finishes. The connecting line records reached chapters. Each stop is a button that
-  takes the reader to its chapter's first beat. Reduced-motion stills show completed
-  chapter rings and have no buttons. "How it works" opens at the strip's start.
-- **The lift.** The hero is a sheet of paper over the strip: 900px of scroll
-  lifts it straight up with the scroll, its bottom ink edge showing once it
-  moves, and the strip sits in place beneath it. The strip's scroll begins where
-  the lift ends; nothing stops the page. The strip's cast runs whenever the stage is
-  on screen with the hero at least 92% up and the zoom under 12%.
-- **The zoom** from the strip's last panel into the story opens the panel's own
-  quadrilateral, slanted gutter and all, on the exact path the zooming page
-  takes (the story is clipped to that shape and the ink frame is drawn on it,
-  so the frame lies on the panel's own border rather than beside it). Its first
-  tenth is the page alone, scaling; then the page dissolves (10 to 40%) while
-  the frame (12 to 30%) and the story (15 to 45%) fade in behind it, and it
-  keeps its rigs live until
-  the layer is gone, so the story frame growing out of the panel carries the
-  reader, not a page blown up three times, and a reader who stops just past
-  the strip's end on the way back sees no ghost of the story in the last panel. The
-  zooming layer is promoted with `will-change: transform`.
-- **Stacked on phones and under reduced motion.** Below 761px wide the page is too
-  small to scroll through, so phones get what reduced motion gets: the finished strip
-  in normal flow, then the story as five stills, each fitted to the width. The hero
-  scrolls away like any section and its city runs while it is on screen. Reduced
-  motion also shows the case board and the folder without pops and holds the city
-  still.
+  chapter. The active character carries a coral ring that fills through that chapter
+  with the clock, and a local beat count ("2 of 4"); the final chapter shows "Complete"
+  after its last beat finishes. The connecting line records reached chapters. Each stop
+  is a button that takes the demo to its chapter's first beat; keyboard focus rings its
+  marker and underlines its label, and a click lets go of focus as the demo plays on. Join interview in the
+  invitation is a real button too: it takes the demo on into the interview.
+- **Phones and reduced motion.** The demo's page is fitted to the width at every
+  size, so a phone shows the same demo, smaller. Under reduced motion it does not
+  play: it opens on the Request chapter's finished still, and each stop shows that
+  chapter's finished still. The hero's city runs while it is on screen; reduced
+  motion holds it still and shows the case board and the folder without pops.
 - **The hero loads as a whole.** Its copy and its city are revealed together
-  once every rig in the city has drawn; nothing beneath the hero mounts before
+  once every rig in the city has drawn; the demo beneath it mounts only after
   that. The city's rigs load eagerly and are preloaded from the HTML;
   characters further down fetch their rigs only when they come within a screen
   of the viewport. A dropped rig download is retried with a doubling backoff, so a
   flaky connection does not take the page down; a missing or corrupt rig still fails.
   A new rig draws its first frame before the browser paints, so a character never
   shows an empty canvas first.
-- **Nothing in the strip arrives after its panel.** As the strip mounts, it starts
-  every image its panels show (Maya's drawings, the avatars, the platform marks),
-  with the exact URLs their images will choose (`strip/preloadImages.ts`), and loads
-  the faces its crops set text in (Discord's Noto Sans, Reddit's), which a browser
-  would otherwise fetch only when a panel first shows text. The avatars go out as
-  their original files, one download for every size. Every `<i>` on the page is set
-  upright: they are marks and dots, and an italic `<i>` would fetch an italic face
-  nothing uses.
+- **Upright marks.** Every `<i>` on the page is set upright: they are marks and
+  dots, and an italic `<i>` would fetch an italic face nothing uses.
 
 ## 5a. The hero's city
 
@@ -328,8 +271,8 @@ token is the thing to follow; add no prop that competes with it.
   written only when it changes. CSS runs only the smooth loops, which the
   compositor moves: the chat scrolling, the feedback bubbles, marching chevrons,
   swaying trees and drifting clouds. Travel eases; pops go on twos. The whole
-  city pauses when the hero lifts or leaves view; reduced motion holds the
-  validated moment.
+  city pauses when the hero leaves view; reduced motion holds the validated
+  moment.
 - **Cost.** A CSS animation in SVG gives the animated element its own
   compositor layer, so keep CSS for smooth motion and switch stepped loops from
   the clock (switching the 50 stepped parts this way cut the hero's layers from
@@ -344,11 +287,10 @@ token is the thing to follow; add no prop that competes with it.
 |---|---|---|
 | Navbar | `landing/Navbar.tsx` | black bar, white mark and wordmark (baked path, `brand/wordmarkPath.ts`); five section links (How it works, Where it helps, For your team, For your users, How it fits), folded into a menu at 1,300px and below so they never crowd the actions; Book a demo and Waitlist |
 | Hero | `hero/` | settled: "Ship {features / fixes / workflows} your customers actually want." on one rotating word in Bangers; waitlist email bar, flat on desktop with its Join button hanging under it as a small coral triangle ("Join!", shaded with the headline burst's dot screen) pointing down into the city's V at the 30 degree street angle (`landing/waitlist.css`; on a phone the button sits in the bar). The type scales with the width (the headline at 5.6vw up to 100px, the rotating word at 60px from 1440px wide and stepped down below it, the bar 460px wide); past its caps the copy scales as a block, so it keeps its proportion to the city |
-| City | `city/` | the isometric city under the copy (section 5a); scrolling lifts the hero off the strip |
-| Strip | `strip/` | eight panels in three tiers: Maya's Monday, the seven filters, the reset, the Discord request, the three echoes, the reply with the Product Signal embed, the private invitation, the Join interview button in the invitation's close-up, which states the Outreach Offer on its own line ("Dudulemon gets $250 off its next bill.") where Maya's hand never covers it (once the scroll presses the button, Discord's grey "Joined" receipt with a check, no longer a control) |
-| Story | `story/` | one browser window with a session tab and a preview tab, plus the workspace and the Case File as windows; five chapters (Interview, Build, Validate, Iterate, Ship) over thirteen beats; a chapter rail on the left |
-| Where uTrace helps | `helps/` | the case board: one open case, two thumbnails, three situations shown as the concrete product moment (a failing export dialog, a weekend conversion drop with the ask it produced, a spreadsheet comparison built by hand), none of them the strip's plot |
-| Case File | `casefile/` | for your team: a coral folder with seven index dividers and three characters looking over its edge; the summary sheet is the same component the story's last beat renders |
+| City | `city/` | the isometric city under the copy (section 5a) |
+| How it works | `story/` | the product demo right under the hero, on a clock (section 5): one browser window that opens on Discord and gains the session and preview tabs when Maya joins, plus the workspace and the Case File as windows; six chapters (Request, Interview, Build, Validate, Iterate, Ship) over sixteen beats; a chapter rail on the left, pause above it, one caption over the frame's corner. Request: Maya's ask in #feedback, uTrace's public reply with the Product Signal, and the private invitation, which states the Outreach Offer ("Dudulemon gets $250 off its next bill.") above a real Join interview button that becomes Discord's grey "Joined" receipt. Ship opens back in Discord, where uTrace thanks Maya and says the credit Dudulemon earned, a hint that For your users explains |
+| Where uTrace helps | `helps/` | the case board: one open case, two thumbnails, three situations shown as the concrete product moment (a failing export dialog, a weekend conversion drop with the ask it produced, a spreadsheet comparison built by hand), none of them the demo's plot |
+| Case File | `casefile/` | for your team: a coral folder with seven index dividers and three characters looking over its edge; the summary sheet is the same component the demo's last beat renders |
 | For your users | `users/` | the Case File's counterpart, crop left and copy right, kept to one picture: Dudulemon's Shopalytics invoice on Stripe's hosted invoice page, 1,000 less Maya's 250 interview credit leaving 750 due, with one caption; beside it the headline, one sentence naming Outreach Offers, and four ticked lines (they sign off the change they asked for; an honest no earns the same credit; rewards scale with the customer's plan and size; you set the budget). No stamp: the page's one stamp is the Case File's |
 | How it fits | `fits/` | the setup checklist in the page's order: four numbered bays of ticked rows. Where your customers talk (the physics pile of tiles), your product (the uTrace SDK, preview-only; code access; the safe preview copy), rewards (Stripe or your own credits, the budget, and a link back to For your users), your rules (what agents may change, accounts only humans interview, required checks) |
 | Closing | `closing/` | the tug of war: coral on the handle, the six on the right of the rim, the glass arriving pulled right so only the end of the headline shows; the reader pulls it to the spot and the waitlist email bar appears inside the rim |
@@ -373,22 +315,30 @@ confirmation.
 
 ## 7. Product UI inside the frames
 
-Every crop is the real thing at its own scale, built from `strip/surfaces/`:
+Every crop is the real thing at its own scale, built from `surfaces/`:
 
-- **Discord** (`discord.tsx`): rail, channel list, chat column, message groups,
-  APP tag, embeds with a coral bar for the Product Signal, component buttons,
-  composer; Noto Sans stands in for gg sans.
-- **Clippings** (`clippings.tsx`): the Reddit post in Reddit Sans, the App Store
-  review in the system face with the real App Store mark, the X post in the
-  Chirp stack with the real X mark.
-- **Shopalytics** (`ShopalyticsDashboard.tsx`): a 640 x 420 analytics app for the
-  Dudulemon workspace with applied filters, three KPIs, a Catmull-Rom daily line
-  with an area fill, and top products.
+- **Discord** (`discord.tsx`): the desktop client at its own proportions and
+  palette, filling the tab at Discord's scale: the 72px server rail with the
+  selected pill, the 240px channel list (Events, Browse Channels, categories) or
+  DM list, the account panel, the chat header with search, day dividers (red with
+  NEW where the unread messages start), message groups, the APP tag, embeds (a
+  coral bar for the Product Signal, green for the credit), component buttons, the
+  start of a DM's history, and the composer with who is typing under it. Maya's
+  avatar is Dudulemon's logo; other members wear Discord's default avatars. Noto
+  Sans stands in for gg sans.
+- **Shopalytics** (`ShopalyticsDashboard.tsx`): the conversion dashboard after the
+  fixture app, which takes its look from Shopify's admin: a black top bar with
+  Shopalytics' logo, search and the Dudulemon workspace (its logo and name), a grey sidebar, the date
+  presets and one control per filter dimension, four KPIs, a Catmull-Rom daily
+  line in the fixture app's blue, and products beside it. The candidate adds a
+  view name field, Save view and the saved views beside the page title. Numbers
+  and the drop-off's shape follow the recorded demo runs, not exactly.
 - **Stripe** (`users/ForYourUsers.tsx`): the hosted invoice page (merchant name, an
   amount-due card with To and From, the invoice's lines, Pay, "Powered by stripe")
   in Stripe Checkout's own system type, 90% and 60% ink, 10% rules and grey
   discount chip, which carries the interview credit. No coral inside it.
-- **The browser frame** (`story/BrowserFrame.tsx`): tabs with favicons, an
+- **The browser frame** (`story/BrowserFrame.tsx`): tabs with favicons (Discord
+  alone until Maya joins, then the session and preview tabs beside it), an
   address bar for tabs, a plain title bar for uTrace windows.
 - **The session tab** (`story/SessionTab.tsx`): the product's session tab
   (section 7a) at the window's size. The story's implementation is live, so it is
@@ -398,21 +348,33 @@ Every crop is the real thing at its own scale, built from `strip/surfaces/`:
   four controls. The transcript fills the right with the whole call, following
   the newest turn, including what Maya says while she works in the preview (the
   reset, the partial restore): every turn names its speaker, and the line being
-  said types in word by word with the scroll. Each speaking character is its own
-  named agent, with a dot in its cast colour: Ivo (sky), Pia (peach) and Wren
-  (lilac). Maya's turns sit on white.
-- **The preview tab** keeps its bottom-right corner for the extension orb, so the
-  dashboard's "View saved" toast sits at the bottom centre. The agent's notes hang
-  under what they mark, right-aligned to it in the dashboard's right half, so they
-  stay inside the dashboard. In the partial validation Maya reopens the saved view
-  from the sidebar, and the lost filter's dashed slot stands where its chip was.
+  said types in word by word with the clock. The agent is Wren throughout, drawn
+  coral, with a coral dot on its turns; Maya's turns sit on white. In Discord the
+  uTrace app posts, and Wren introduces itself by name.
+- **The preview tab** keeps its bottom-right corner for the extension orb, set in
+  far enough that its four controls fan out inside the tab. The dashboard's
+  "View saved" toast is Shopify's, dark at the bottom centre of the window. The
+  agent shows what it
+  asks about the way the extension draws its scenes (`story/agentScene.ts`, with
+  the extension's own geometry and timings): its coral cursor glides to a
+  registered target on a bowed curve, rides the coral loop it draws around it,
+  overshooting its start, or the line it traces under it, and its label sits under
+  the target in a white box with an ink edge and a hard shadow. A mark holds and
+  then fades; the cursor fades once nothing moves it. Targets are the dashboard's
+  registered elements, measured where they stand (`story/useTargets.ts`). Maya's
+  own black pointer glides between the controls she uses and, once she has
+  clicked, rests on the chart, clear of what the agent marks. In the partial
+  validation she reopens the saved view and the agent circles the review topic
+  control, back on All.
 
-Shopalytics, Dudulemon, Maya and every number are fictional and read from one
-fixture (`story/shopalyticsFixture.ts`) so the strip, the story and the Case
-File never disagree. Illustrative crops say so in a small "Illustrative example"
-label; the Case File and For your users each carry one example note. The Outreach
-Offer's amounts (the 250 credit, the 1,000 invoice) live in the same fixture, so the
-strip's invitation and For your users agree.
+Shopalytics' logo (a shopping bag with a rising line) marks its Discord server,
+its preview tab, its top bar and its invoice; Dudulemon's marks Maya and the
+workspace. Shopalytics, Dudulemon, Maya and every number are fictional and read from one
+fixture (`story/shopalyticsFixture.ts`) so the demo and the Case File never
+disagree. Illustrative crops say so in a small "Illustrative example" label; the
+Case File and For your users each carry one example note. The Outreach Offer's
+amounts (the 250 credit, the 1,000 invoice) live in the same fixture, so the demo's
+invitation and thanks and For your users agree.
 
 ## 7a. The product app
 
@@ -451,9 +413,9 @@ without its comic devices; `app/product.css` repeats the section 2 tokens.
 
 - Tests: `cd apps/web && npx tsc --noEmit -p tsconfig.json && npx eslint . && npx vitest run`.
   The city plan test keeps the hero's city out of the copy and its depth order acyclic.
-  Strip tests cover panel geometry, cue order, the finished page, the scroll's press
-  and its button, and the scroll timeline's catch-up; story tests cover the beat
-  table, the opening beat and the stills; the case board and the folder have
+  Story tests cover the beat table, the Discord opening and Join interview, the
+  live transcript, the thanks and the finished Case File, the reduced-motion
+  stills, and the agent's scene; the case board and the folder have
   interaction tests; the smoke test
   pins the section order, the navbar, email fields and contact links.
 - Visual proof is headless: capture frames with playwright-core (the dev server

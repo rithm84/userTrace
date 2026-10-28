@@ -1,6 +1,15 @@
-/* The story page: one browser window on white with a 3px ink edge and a hard shadow, the
-   narration box over its corner, and five chapter stops under it. Product UI inside the
+/* The demo page: one browser window on white with a 3px ink edge and a hard shadow, the
+   narration box over its corner, and six chapter stops beside it. Product UI inside the
    window is real software; the comic register stays on the frame and the cast. */
+[data-landing] .st-demo { position: relative; z-index: 1; display: flex; justify-content: center; padding: 64px 0 48px; background: #fff; scroll-margin-top: 72px; }
+@media (max-width: 760px) { [data-landing] .st-demo { padding: 32px 0; } }
+[data-landing] .st-demo-fit { position: relative; }
+[data-landing] .st-demo-zoom { position: absolute; left: 0; top: 0; width: 1200px; height: 800px; }
+[data-landing] .st-note { position: absolute; left: 172px; top: 12px; margin: 0; font: 600 12.5px/1.2 var(--body); color: var(--ink-3); }
+/* pause and play, above the rail */
+[data-landing] .st-play { position: absolute; left: 18px; top: 4px; width: 40px; height: 40px; display: grid; place-items: center; padding: 0; border: 2px solid #000; border-radius: 50%; background: #fff; color: #000; box-shadow: 2px 2px 0 #000; cursor: pointer; }
+[data-landing] .st-play:hover { background: var(--coral-tint); }
+[data-landing] .st-play:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 [data-landing] .st-page { position: relative; background: #fff; font-family: var(--body); color: var(--ink); overflow: visible; }
 [data-landing] .st-frame-slot { position: absolute; }
 [data-landing] .st-frame { position: absolute; inset: 0; display: flex; flex-direction: column; background: #fff; border: 3px solid #000; box-shadow: 8px 8px 0 #000; box-sizing: border-box; overflow: hidden; }
@@ -8,7 +17,7 @@
 [data-landing] .st-tab { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px 0 12px; border-radius: 10px 10px 0 0; background: #dcdcdc; color: #333; font-size: 13px; font-weight: 600; white-space: nowrap; }
 [data-landing] .st-tab.is-active { background: #fff; color: #000; box-shadow: 0 1px 0 #fff; }
 [data-landing] .st-tab svg:last-child { color: #777; }
-[data-landing] .st-tab-mark { width: 16px; height: 16px; border-radius: 4px; background: #111; color: #fff; display: grid; place-items: center; }
+[data-landing] .st-tab-mark { width: 16px; height: 16px; border-radius: 4px; }
 [data-landing] .st-tab-add { display: grid; place-items: center; width: 30px; height: 30px; margin-bottom: 3px; border-radius: 8px; color: #555; }
 [data-landing] .st-address { flex: none; height: 40px; display: flex; align-items: center; gap: 12px; padding: 0 14px; background: #fff; border-bottom: 1px solid #e2e2e2; color: #666; }
 [data-landing] .st-url { flex: 1; display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 12px; border-radius: 14px; background: #f1f1f1; color: #333; font-size: 13px; font-weight: 500; }
@@ -41,17 +50,25 @@
 @media (prefers-reduced-motion: reduce) { [data-landing] .st-caret { animation: none; } }
 @keyframes st-blink { 50% { opacity: 0; } }
 
+/* Discord tab: the client fills the tab at Discord's own scale */
+[data-landing] .st-discord { position: absolute; inset: 0; overflow: hidden; }
+[data-landing] .st-join { cursor: pointer; transition: background-color 0.12s var(--ease-out), transform 0.08s var(--ease-out); }
+[data-landing] .st-join:hover, [data-landing] .st-join.is-hover { background: var(--dc-blurple-hover); }
+[data-landing] .st-join:active { transform: translateY(1px); }
+[data-landing] .st-join:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+/* the receipt: Discord's grey for a used button, not a control any more */
+[data-landing] .st-join.is-joined, [data-landing] .st-join.is-joined:hover { background: var(--dc-secondary); color: #fff; cursor: default; pointer-events: none; transform: none; animation: lp-pop 0.2s steps(2, end) both; }
+
 /* preview tab */
 [data-landing] .st-preview { position: absolute; inset: 0; overflow: hidden; }
 [data-landing] .st-dashboard { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
-[data-landing] .st-agent-ring { position: absolute; z-index: 3; border: 2.5px solid var(--coral-strong); border-radius: 14px; pointer-events: none; animation: st-fade 0.2s steps(2, end) both; }
-[data-landing] .st-agent-label { position: absolute; z-index: 4; padding: 3px 9px; border: 1.5px solid #000; border-radius: 6px; background: var(--coral-strong); color: #000; font-size: 11px; font-weight: 700; white-space: nowrap; animation: st-fade 0.2s steps(2, end) both; }
-[data-landing] .st-agent-label.is-good { background: var(--mint); }
-[data-landing] .st-agent-point { position: absolute; z-index: 3; display: flex; align-items: flex-start; gap: 6px; color: var(--coral-strong); animation: st-fade 0.2s steps(2, end) both; }
-[data-landing] .st-agent-point svg path { fill: var(--coral-strong); stroke: #000; }
-[data-landing] .st-agent-point b { margin-top: 14px; padding: 2px 8px; border-radius: 6px; background: var(--coral-strong); color: #000; font-size: 11px; font-weight: 700; white-space: nowrap; }
-/* far enough from the corner that all four pills fit inside the tab */
-[data-landing] .st-extension { position: absolute; right: 92px; bottom: 48px; width: 74px; height: 74px; z-index: 5; }
+/* the extension's scene, in the dashboard's design pixels: coral strokes, the ink-edged label, the coral cursor */
+[data-landing] .st-scene { position: absolute; left: 0; top: 0; z-index: 3; overflow: visible; pointer-events: none; }
+[data-landing] .st-scene path { fill: none; stroke: var(--coral-strong); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+[data-landing] .st-scene-label { position: absolute; z-index: 4; translate: -50% 0; padding: 4px 8px; background: #fff; border: 2px solid #000; box-shadow: 3px 3px 0 #000; color: #000; font: 700 11px/1.25 var(--body); white-space: nowrap; pointer-events: none; }
+[data-landing] .st-agent-cursor { position: absolute; z-index: 6; pointer-events: none; }
+/* the bottom-right corner, set in far enough that all four pills fan out inside the tab with room to spare */
+[data-landing] .st-extension { position: absolute; right: 100px; bottom: 50px; width: 74px; height: 74px; z-index: 5; }
 [data-landing] .st-ext-agent { position: absolute; inset: 0; border-radius: 50%; background: #fff; border: 2px solid #000; box-shadow: 0 4px 0 #000; display: grid; place-items: center; }
 [data-landing] .st-ext-pill { position: absolute; display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px; border: 1.5px solid #000; border-radius: 13px; background: #fff; font-size: 11px; font-weight: 700; white-space: nowrap; opacity: 0; transition: opacity 0.18s var(--ease-out), transform 0.22s var(--ease-smooth); }
 [data-landing] .st-ext-pill.is-up { left: 50%; bottom: 100%; transform: translate(-50%, 10px); margin-bottom: 8px; }
@@ -136,17 +153,16 @@
 [data-landing] .st-stop-ring-track { stroke: var(--rule); }
 [data-landing] .st-stop-ring-fill { stroke: var(--coral); }
 [data-landing] .st-stop-copy { display: grid; gap: 4px; min-width: 0; }
-/* a stop is a button over its marker and label on the scrolled story */
+/* a stop is a button over its marker and label */
 [data-landing] .st-stop-jump { position: absolute; z-index: 2; left: 0; top: -43px; width: 100%; height: 86px; padding: 0; border: 0; border-radius: 12px; background: transparent; cursor: pointer; }
-[data-landing] .st-stop-jump:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
-[data-landing] .st-stop:has(.st-stop-jump:hover) .st-stop-label { text-decoration: underline; text-underline-offset: 3px; }
+/* keyboard focus rings the marker and underlines the label, not the invisible row-wide button */
+[data-landing] .st-stop-jump:focus-visible { outline: none; }
+[data-landing] .st-stop:has(.st-stop-jump:focus-visible) .st-stop-mark { outline: 3px solid var(--ink); outline-offset: 3px; }
+[data-landing] .st-stop:has(.st-stop-jump:hover) .st-stop-label, [data-landing] .st-stop:has(.st-stop-jump:focus-visible) .st-stop-label { text-decoration: underline; text-underline-offset: 3px; }
 [data-landing] .st-stop-label { font-size: 14px; line-height: 1.25; font-weight: 600; color: var(--ink-2); white-space: nowrap; }
 [data-landing] .st-stop.is-active .st-stop-label { color: var(--ink); font-weight: 700; }
 [data-landing] .st-stop-detail { display: grid; gap: 3px; font-size: 13px; line-height: 1.25; font-weight: 600; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 
-/* reduced motion: stills in flow */
-[data-landing] .st-stills { display: flex; flex-direction: column; gap: 24px; align-items: center; padding: 24px 0; }
-[data-landing] .st-still { position: relative; width: 1200px; max-width: 100%; }
 
 @keyframes st-fade { 0% { opacity: 0; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 @keyframes st-stamp { 0% { transform: scale(1.3); } 50% { transform: scale(0.97); } 100% { transform: none; } }
