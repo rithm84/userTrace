@@ -3,9 +3,8 @@ import { Check, Tag } from "lucide-react";
 import type { JSX } from "react";
 
 import { SHOPALYTICS } from "../story/shopalyticsFixture";
-import { Caption } from "../strip/pieces";
-import { ShopalyticsMark } from "../strip/surfaces/discord";
-import "../strip/strip.css";
+import { Caption } from "../pieces";
+import { ShopalyticsLogo } from "../surfaces/discord";
 import "./users.css";
 
 const { offer } = SHOPALYTICS;
@@ -29,7 +28,7 @@ function StripeInvoice(): JSX.Element {
   return (
     <div className="sp-page" data-testid="users-invoice">
       <div className="sp-merchant">
-        <ShopalyticsMark size={20} />
+        <ShopalyticsLogo size={28} />
         Shopalytics
       </div>
       <div className="sp-card">

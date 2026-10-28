@@ -4,37 +4,54 @@ import { ChevronLeft, ChevronRight, Lock, Minus, MoreVertical, Plus, RotateCw, S
 import Image from "next/image";
 import type { JSX, ReactNode } from "react";
 
-import { ShopalyticsMark } from "../strip/surfaces/discord";
+import { DISCORD_MARK_IMAGE, ShopalyticsLogo } from "../surfaces/discord";
 import type { Surface } from "./beats";
 
-const URL: Readonly<Record<"session" | "preview", string>> = { session: "utrace.dev/session/shopalytics", preview: "shopalytics-9f1c2e.preview.utrace.dev/conversion" };
 const WORKSPACE_TITLE = "uTrace · Implementation workspace";
 
+function address(surface: "discord" | "session" | "preview", discordView: "channel" | "dm", previewVersion: string): string {
+  switch (surface) {
+    case "discord":
+      return discordView === "channel" ? "discord.com/channels/shopalytics/feedback" : "discord.com/channels/@me/utrace";
+    case "session":
+      return "utrace.dev/session/shopalytics";
+    case "preview":
+      return `shopalytics-${previewVersion}.preview.utrace.dev/conversion`;
+  }
+}
+
 /**
- * One browser window for the whole story. The session and preview tabs share its tab strip,
- * so "the preview tab" is literal; the workspace and the Case File open as uTrace windows
- * in the same frame with a plain title bar. The Case File's bar carries nothing but the window
- * controls, because the document names itself in its own heading.
+ * One browser window for the whole demo. Maya starts in Discord; joining the interview opens
+ * the session and preview tabs beside it, so "the preview tab" is literal. The workspace and the
+ * Case File open as uTrace windows in the same frame with a plain title bar; the Case File's bar
+ * carries nothing but the window controls, because the document names itself in its own heading.
  */
-export function BrowserFrame(props: Readonly<{ surface: Surface; previewVersion: string; children: ReactNode }>): JSX.Element {
-  const tabbed = props.surface === "session" || props.surface === "preview";
+export function BrowserFrame(props: Readonly<{ surface: Surface; joined: boolean; discordView: "channel" | "dm"; previewVersion: string; children: ReactNode }>): JSX.Element {
+  const { surface } = props;
   return (
-    <div className="st-frame" data-testid="story-frame" data-surface={props.surface}>
-      {tabbed ? (
+    <div className="st-frame" data-testid="story-frame" data-surface={surface}>
+      {surface === "discord" || surface === "session" || surface === "preview" ? (
         <>
           <div className="st-tabs">
-            <span className={"st-tab" + (props.surface === "session" ? " is-active" : "")}>
-              <Image src="/brand/utrace-logo.svg" alt="" width={16} height={16} unoptimized />
-              uTrace · Session
+            <span className={"st-tab" + (surface === "discord" ? " is-active" : "")} data-testid="story-tab-discord">
+              <Image {...DISCORD_MARK_IMAGE} alt="" width={16} height={16} />
+              Discord
               <X size={13} />
             </span>
-            <span className={"st-tab" + (props.surface === "preview" ? " is-active" : "")}>
-              <i className="st-tab-mark">
-                <ShopalyticsMark size={10} />
-              </i>
-              Shopalytics · Preview
-              <X size={13} />
-            </span>
+            {props.joined ? (
+              <>
+                <span className={"st-tab" + (surface === "session" ? " is-active" : "")} data-testid="story-tab-session">
+                  <Image src="/brand/utrace-logo.svg" alt="" width={16} height={16} unoptimized />
+                  uTrace · Session
+                  <X size={13} />
+                </span>
+                <span className={"st-tab" + (surface === "preview" ? " is-active" : "")} data-testid="story-tab-preview">
+                  <ShopalyticsLogo size={16} className="st-tab-mark" />
+                  Shopalytics · Preview
+                  <X size={13} />
+                </span>
+              </>
+            ) : null}
             <span className="st-tab-add">
               <Plus size={15} />
             </span>
@@ -45,14 +62,14 @@ export function BrowserFrame(props: Readonly<{ surface: Surface; previewVersion:
             <RotateCw size={15} />
             <span className="st-url">
               <Lock size={12} />
-              {props.surface === "preview" ? URL.preview.replace("9f1c2e", props.previewVersion) : URL.session}
+              {address(surface, props.discordView, props.previewVersion)}
             </span>
             <MoreVertical size={16} />
           </div>
         </>
       ) : (
         <div className="st-title">
-          {props.surface === "workspace" ? WORKSPACE_TITLE : null}
+          {surface === "workspace" ? WORKSPACE_TITLE : null}
           <span className="st-window-controls">
             <Minus size={15} />
             <Square size={12} />

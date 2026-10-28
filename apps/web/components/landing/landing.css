@@ -312,6 +312,17 @@ button.lp-nav-link { padding: 6px 0; border: 0; background: none; color: rgba(25
   transform: rotate(-8deg);
 }
 
+/* ---------------------------------------------------------------- comic devices on the frame */
+/* a caption: a plain sentence in a white box with an ink edge, popping on two frames */
+[data-landing] .lp-caption { position: absolute; z-index: 3; padding: 6px 9px 7px; background: #fff; border: 2px solid #000; font: 700 13px/1.25 var(--body); letter-spacing: -0.005em; color: #000; opacity: 0; box-sizing: border-box; }
+[data-landing] .lp-caption.is-on { opacity: 1; animation: lp-pop 0.2s steps(2, end) both; }
+/* a sticker for a cameo; containers only fade: a rig inside a scaling box sizes its canvas while small and stays blurry */
+[data-landing] .lp-badge { position: absolute; z-index: 5; box-sizing: border-box; display: grid; place-items: center; border-radius: 50%; background: #fff; border: 2.5px solid #000; box-shadow: 3px 3px 0 #000; opacity: 0; }
+[data-landing] .lp-badge.is-on { opacity: 1; animation: lp-fade 0.2s steps(2, end) both; }
+[data-landing] .lp-badge.is-square { border-radius: 20px; }
+@keyframes lp-pop { 0% { transform: scale(0.965); } 34% { transform: scale(1.02); } 67%, 100% { transform: none; } }
+@keyframes lp-fade { 0% { opacity: 0; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
 /* ---------------------------------------------------------------- reduced motion */
 @media (prefers-reduced-motion: reduce) {
   [data-landing] *,

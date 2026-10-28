@@ -1,5 +1,5 @@
 /**
- * The case board: a 1180 x 520 page cut by the strip's slanted gutters. The open case fills
+ * The case board: a 1180 x 520 page cut by slanted gutters. The open case fills
  * the left, two thumbnails stack on the right. Every quad is in page coordinates, and the
  * clip and the ink stroke both read from here so they never disagree.
  */

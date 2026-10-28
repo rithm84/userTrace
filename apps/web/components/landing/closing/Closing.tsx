@@ -7,7 +7,7 @@ import { useReducedMotion } from "@/components/agent/useReducedMotion";
 
 import { Waitlist } from "../Waitlist";
 import { AGENT_HEX, type AgentColour } from "../characters/AgentSprite";
-import { Cameo, ENTRANCE_MS } from "../strip/pieces";
+import { Cameo, ENTRANCE_MS } from "../pieces";
 import "./closing.css";
 
 type Point = Readonly<{ x: number; y: number }>;

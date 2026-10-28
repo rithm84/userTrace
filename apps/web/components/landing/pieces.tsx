@@ -3,48 +3,19 @@
 import { useRive, useViewModelInstanceEnum, useViewModelInstanceNumber } from "@rive-app/react-webgl2";
 import { Alignment, Fit, Layout } from "@rive-app/webgl2";
 import { configureAgentCharacterRuntime, createAgentCharacterResources, type CharacterState } from "@utrace/agent-character";
-import Image, { type ImageProps } from "next/image";
 import { useEffect, useLayoutEffect, useRef, type CSSProperties, type JSX, type ReactNode } from "react";
 
-import type { AgentColour } from "../characters/AgentSprite";
-import { fitRigCanvas } from "../characters/rigCanvas";
-import { useLandingRiveFile } from "../characters/RiveFiles";
-import { useNearViewport } from "../characters/useNearViewport";
+import type { AgentColour } from "./characters/AgentSprite";
+import { fitRigCanvas } from "./characters/rigCanvas";
+import { useLandingRiveFile } from "./characters/RiveFiles";
+import { useNearViewport } from "./characters/useNearViewport";
 
 /** A narration box: white, 2px ink, bold sentence case; pops on when its cue passes. */
 export function Caption(props: Readonly<{ on: boolean; children: ReactNode; style?: CSSProperties; testId?: string }>): JSX.Element {
   return (
-    <div className={"strip-caption" + (props.on ? " is-on" : "")} data-testid={props.testId} style={props.style}>
+    <div className={"lp-caption" + (props.on ? " is-on" : "")} data-testid={props.testId} style={props.style}>
       {props.children}
     </div>
-  );
-}
-
-export type MayaPiece = "desk" | "bust-back" | "hand-mouse";
-
-/** Each drawing of Maya: its source size, and the CSS width the strip draws it at. */
-export const MAYA_ART: Readonly<Record<MayaPiece, Readonly<{ natural: readonly [number, number]; width: number }>>> = {
-  desk: { natural: [1400, 929], width: 416 },
-  "bust-back": { natural: [636, 924], width: 140 },
-  "hand-mouse": { natural: [900, 718], width: 330 },
-};
-
-/** A drawing's image props, served as alpha WebP through the image optimizer; the strip preloads the same. */
-export function mayaArtImage(piece: MayaPiece): ImageProps {
-  const { natural, width } = MAYA_ART[piece];
-  return { src: `/landing/strip/maya-${piece}.webp`, alt: "", width: natural[0], height: natural[1], sizes: `${Math.ceil(width * 1.3)}px`, quality: 90 };
-}
-
-/** Drawn Maya art at its fixed CSS size (`MAYA_ART`). */
-export function MayaArt(props: Readonly<{ piece: MayaPiece; style?: CSSProperties }>): JSX.Element {
-  const { natural, width } = MAYA_ART[props.piece];
-  return (
-    <Image
-      {...mayaArtImage(props.piece)}
-      alt=""
-      draggable={false}
-      style={{ position: "absolute", width, height: (width * natural[1]) / natural[0], pointerEvents: "none", ...props.style }}
-    />
   );
 }
 

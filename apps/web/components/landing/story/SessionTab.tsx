@@ -4,24 +4,15 @@ import type { CharacterState } from "@utrace/agent-character";
 import { Clock, ExternalLink, Mic, Pause, PhoneOff } from "lucide-react";
 import { useLayoutEffect, useRef, type JSX } from "react";
 
-import { AGENT_HEX, type AgentColour } from "../characters/AgentSprite";
-import { Cameo, ENTRANCE_MS } from "../strip/pieces";
-import { BEATS, agentOnScreen, mayaTurn as isMayaTurn, type Beat } from "./beats";
+import { AGENT_HEX } from "../characters/AgentSprite";
+import { Cameo, ENTRANCE_MS } from "../pieces";
+import { BEATS, PRODUCT_AGENT, agentOnScreen, mayaTurn as isMayaTurn, type Beat } from "./beats";
 import { SHOPALYTICS } from "./shopalyticsFixture";
 
 /** The product's status line for each state the story's session beats show. */
 const STATUS: Readonly<Partial<Record<CharacterState, string>>> = { speaking: "Speaking", listening: "Listening", thinking: "Thinking...", acknowledgement: "Got it", concern: "Looking into something", completion: "All done" };
 
-/** The names the call's agents go by; each speaking character is its own agent. */
-const AGENT_NAMES: Readonly<Partial<Record<AgentColour, string>>> = { sky: "Ivo", peach: "Pia", lilac: "Wren" };
-
-function agentName(colour: AgentColour): string {
-  const name = AGENT_NAMES[colour];
-  if (name === undefined) throw new Error(`The ${colour} agent speaks on the session tab but has no name.`);
-  return name;
-}
-
-type Turn = Readonly<{ key: string; speaker: "agent" | "maya"; colour: AgentColour; text: string }>;
+type Turn = Readonly<{ key: string; speaker: "agent" | "maya"; text: string }>;
 
 /** The first `fraction` of a line, by words, as the live transcript shows it while it is being said. */
 function said(line: string, fraction: number): string {
@@ -37,8 +28,8 @@ function said(line: string, fraction: number): string {
  */
 function transcript(beat: Beat, progress: number): readonly Turn[] {
   const turns = (line: Beat, spoken: number): Turn[] => [
-    ...(line.agentLine === undefined ? [] : [{ key: `${line.id}-agent`, speaker: "agent", colour: line.agent.colour, text: said(line.agentLine, line.mayaLine === undefined ? spoken / 0.6 : spoken / 0.45) } as const]),
-    ...(line.mayaLine === undefined || !isMayaTurn(line, spoken) ? [] : [{ key: `${line.id}-maya`, speaker: "maya", colour: line.agent.colour, text: said(line.mayaLine, (spoken - 0.55) / 0.4) } as const]),
+    ...(line.agentLine === undefined ? [] : [{ key: `${line.id}-agent`, speaker: "agent", text: said(line.agentLine, line.mayaLine === undefined ? spoken / 0.6 : spoken / 0.45) } as const]),
+    ...(line.mayaLine === undefined || !isMayaTurn(line, spoken) ? [] : [{ key: `${line.id}-maya`, speaker: "maya", text: said(line.mayaLine, (spoken - 0.55) / 0.4) } as const]),
   ];
   return BEATS.slice(0, BEATS.indexOf(beat) + 1).flatMap((line) => turns(line, line === beat ? progress : 1));
 }
@@ -56,7 +47,7 @@ export function SessionTab(props: Readonly<{ beat: Beat; progress: number; activ
   const list = useRef<HTMLOListElement>(null);
   const newest = turns.at(-1)?.text ?? "";
   useLayoutEffect(() => {
-    // the product follows the newest words; the story's reader never scrolls the column back
+    // the product follows the newest words; the demo's reader never scrolls the column back
     const element = list.current;
     if (element !== null) element.scrollTop = element.scrollHeight;
   }, [turns.length, newest]);
@@ -73,7 +64,7 @@ export function SessionTab(props: Readonly<{ beat: Beat; progress: number; activ
           </span>
         </div>
         <div className="st-session-center">
-          <Cameo colour={beat.agent.colour} state={state} park={props.active ? null : ENTRANCE_MS} size={200} gazeX={0} gazeY={0.1} testId="story-session-agent" style={{ position: "relative" }} />
+          <Cameo colour={PRODUCT_AGENT.colour} state={state} park={props.active ? null : ENTRANCE_MS} size={200} gazeX={0} gazeY={0.1} testId="story-session-agent" style={{ position: "relative" }} />
           <p className="st-status">{STATUS[state] ?? "Listening"}</p>
           <span className="st-session-preview">
             Open preview
@@ -108,8 +99,8 @@ export function SessionTab(props: Readonly<{ beat: Beat; progress: number; activ
           {turns.map((turn, index) => (
             <li key={turn.key} className="st-turn" data-speaker={turn.speaker} data-testid={`story-turn-${turn.key}`}>
               <span className="st-turn-who">
-                <i aria-hidden="true" style={turn.speaker === "agent" ? { background: AGENT_HEX[turn.colour] } : undefined} />
-                {turn.speaker === "agent" ? agentName(turn.colour) : "Maya"}
+                <i aria-hidden="true" style={turn.speaker === "agent" ? { background: AGENT_HEX[PRODUCT_AGENT.colour] } : undefined} />
+                {turn.speaker === "agent" ? PRODUCT_AGENT.name : "Maya"}
               </span>
               <p>
                 {turn.text}

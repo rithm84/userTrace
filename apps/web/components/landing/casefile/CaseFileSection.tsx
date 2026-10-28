@@ -6,7 +6,6 @@ import type { JSX } from "react";
 import { useReducedMotion } from "@/components/agent/useReducedMotion";
 
 import { CaseFileFolder } from "./CaseFileFolder";
-import "../strip/strip.css";
 import "./casefile.css";
 
 export function CaseFileSection(): JSX.Element {

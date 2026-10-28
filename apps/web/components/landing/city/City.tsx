@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useEffect, useRef, useState, type JSX, type ReactNode, type RefObject } from 'react';
 
-import { Cameo, ENTRANCE_MS } from '../strip/pieces';
+import { Cameo, ENTRANCE_MS } from '../pieces';
 import { Building, CityDefs, Solid } from './buildings';
 import { paintLevels } from './depth';
 import { cityFit, DESIGN, NAV_CLEAR, type CityFit } from './fit';

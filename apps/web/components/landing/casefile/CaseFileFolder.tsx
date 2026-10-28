@@ -3,7 +3,7 @@
 
 import { useRef, useState, type JSX, type KeyboardEvent } from "react";
 
-import { Cameo, ENTRANCE_MS } from "../strip/pieces";
+import { Cameo, ENTRANCE_MS } from "../pieces";
 import { usePointerGaze } from "../characters/usePointerGaze";
 import { SHOPALYTICS } from "../story/shopalyticsFixture";
 import { CASE_FILE_TITLE } from "./CaseFileSummary";

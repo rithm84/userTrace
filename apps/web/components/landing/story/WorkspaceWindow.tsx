@@ -23,13 +23,14 @@ const REPAIR: readonly Diff[] = [
  */
 export function WorkspaceWindow(props: Readonly<{ beat: Beat; progress: number }>): JSX.Element {
   const { beat, progress } = props;
-  const gateOnly = beat.id === "gate";
-  const stamped = !gateOnly || progress >= 0.3;
-  const diffs = beat.id === "repair" ? REPAIR : BUILD;
-  const shown = gateOnly ? 0 : beat.id === "repair" ? (progress >= 0.15 ? 1 : 0) : Math.min(diffs.length, Math.floor(progress * 5));
-  const checks = gateOnly ? 0 : beat.id === "repair" ? Math.min(4, Math.floor((progress - 0.35) * 10)) : Math.min(4, Math.floor((progress - 0.55) * 12));
-  const ready = !gateOnly && progress >= 0.9;
-  const version = beat.id === "repair" ? SHOPALYTICS.implementation.repairPreviewVersion : SHOPALYTICS.implementation.previewVersion;
+  const repair = beat.id === "repair";
+  // the gate approves first, then the exact files change and the required checks run
+  const stamped = repair || progress >= 0.08;
+  const diffs = repair ? REPAIR : BUILD;
+  const shown = repair ? (progress >= 0.15 ? 1 : 0) : Math.max(0, Math.min(diffs.length, Math.floor((progress - 0.12) * 7)));
+  const checks = repair ? Math.min(4, Math.floor((progress - 0.35) * 10)) : Math.min(4, Math.floor((progress - 0.5) * 11));
+  const ready = progress >= 0.9;
+  const version = repair ? SHOPALYTICS.implementation.repairPreviewVersion : SHOPALYTICS.implementation.previewVersion;
   return (
     <div className="st-workspace" data-testid="story-workspace" data-files={shown} data-checks={Math.max(0, checks)}>
       <aside className="st-gate">
@@ -54,7 +55,7 @@ export function WorkspaceWindow(props: Readonly<{ beat: Beat; progress: number }
       </aside>
       <section className="st-diff">
         <header>
-          {gateOnly ? "Waiting for the workspace lease" : `${diffs.length} changed ${diffs.length === 1 ? "file" : "files"} · ${SHOPALYTICS.implementation.branch}`}
+          {shown === 0 ? "Reading the exact files" : `${diffs.length} changed ${diffs.length === 1 ? "file" : "files"} · ${SHOPALYTICS.implementation.branch}`}
         </header>
         {diffs.slice(0, shown).map((diff) => (
           <div key={diff.file} className="st-file">
@@ -71,7 +72,7 @@ export function WorkspaceWindow(props: Readonly<{ beat: Beat; progress: number }
             ))}
           </div>
         ))}
-        {gateOnly && progress >= 0.6 ? <p className="st-diff-note">Exact files inspected next. No customer data in here, ever.</p> : null}
+        <p className="st-diff-note">No customer data in here, ever.</p>
       </section>
       <aside className="st-checks">
         <h4>Checks</h4>
