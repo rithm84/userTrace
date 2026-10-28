@@ -44,7 +44,7 @@ export function Story(props: StoryProps): JSX.Element {
   const playback = elapsed >= STORY_DURATION ? "finished" : "playing";
   return (
     <div className="st-page" data-testid="story-page" data-beat={beat.id} data-chapter={beat.chapter} data-playback={playback} data-elapsed={Math.round(elapsed)} style={{ width: PAGE.width, height: PAGE.height }}>
-      <p className="st-note">Illustrative example. Shopalytics, Dudulemon and Maya are fictional.</p>
+      <p className="st-note">Maya runs growth at Dudulemon, an activewear brand that uses Shopalytics for its storefront.</p>
       <Frame beat={beat} index={index} progress={progress} active={props.active} onJoin={props.onJoin} />
       <Caption on key={beat.id} style={{ right: -6, top: 22, width: 340 }} testId="story-caption">
         {beat.caption}

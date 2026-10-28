@@ -47,8 +47,8 @@ export type Beat = Readonly<{
  * clock plays at `PLAYBACK_RATE` and loops.
  */
 export const BEATS: readonly Beat[] = [
-  { id: "request", chapter: "request", surface: "discord", duration: 4000, caption: "Maya asks for it where Shopalytics customers already talk.", agent: { colour: "coral", state: "investigating" } },
-  { id: "signal", chapter: "request", surface: "discord", duration: 4500, caption: "uTrace answers in public and records one Product Signal.", agent: { colour: "coral", state: "thinking" } },
+  { id: "request", chapter: "request", surface: "discord", duration: 4000, caption: "It starts with Maya's request in Shopalytics' Discord.", agent: { colour: "coral", state: "investigating" } },
+  { id: "signal", chapter: "request", surface: "discord", duration: 4500, caption: "uTrace replies in public, then follows up with Maya in a DM.", agent: { colour: "coral", state: "thinking" } },
   { id: "invite", chapter: "request", surface: "discord", duration: 5000, caption: "Only Maya gets the invitation, and her team gets a credit for her time.", agent: { colour: "coral", state: "speaking" } },
   { id: "greet", chapter: "interview", surface: "session", duration: 4000, caption: "The interview happens by voice, inside a safe copy of the product.", agentLine: "Hi Maya, it's Wren. Walk me through your Monday.", mayaLine: "Every week I rebuild the same filters. Let me show you.", agent: { colour: "sky", state: "speaking" } },
   { id: "filters", chapter: "interview", surface: "preview", duration: 5500, caption: "The agent watches the product while Maya works, and circles what it asks about.", agent: { colour: "sky", state: "listening" } },
