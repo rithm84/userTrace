@@ -75,10 +75,12 @@ clarification or deeper analysis.
 affirmative proof for every acceptance criterion on the exact candidate and
 dataset. One coherent workflow may support several criteria, and a criterion does
 not require separate browser and server events when one admissible source is
-sufficient. Observable behavior must have structured observed evidence; subjective
-criteria, such as whether a workflow feels easier, use the user's explicit judgment
-about an observed workflow. An unobserved objective behavior cannot be relabeled
-as subjective to pass validation. Silence, elapsed time, or the absence of errors is not affirmative proof.
+sufficient. Observable behavior, what the product does when the user acts, must
+have structured observed evidence. Subjective criteria use the user's explicit
+judgment about an observed workflow: whether a workflow feels easier, and how
+something looks or where it sits on the page, which the observation path does not
+report. A criterion's observability is fixed when it is agreed, so a behavior that
+went unobserved cannot be relabeled as subjective to pass validation. Silence, elapsed time, or the absence of errors is not affirmative proof.
 
 An enthusiastic statement over an observed error cannot validate. The controller records criterion-level proof, what the user said, what the product did, corrections that superseded earlier claims, and any unresolved contradiction.
 

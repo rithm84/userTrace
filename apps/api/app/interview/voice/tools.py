@@ -71,7 +71,16 @@ _CRITERIA_SCHEMA: Final[dict[str, object]] = {
                     "filter.\""
                 ),
             },
-            "observability": {"type": "string", "enum": ["observed", "subjective"]},
+            "observability": {
+                "type": "string",
+                "enum": ["observed", "subjective"],
+                "description": (
+                    "observed when the product's own activity can show it happening, such "
+                    "as a view being saved, reopened, or its filters restored; subjective "
+                    "when only the person can judge it, such as where a control sits on the "
+                    "page or how something looks."
+                ),
+            },
         },
         "required": ["statement", "observability"],
         "additionalProperties": False,
