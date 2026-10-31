@@ -111,6 +111,8 @@ __all__ = ["AttemptRunResult", "AttemptRunner", "WorkspaceDependencies"]
 _logger = structlog.get_logger(__name__)
 
 GIT_TIMEOUT_SECONDS = 300
+FORMAT_TIMEOUT_SECONDS = 300
+FORMAT_OUTPUT_TAIL_CHARACTERS = 2000
 
 _STOP_STATES = frozenset(
     {
@@ -360,6 +362,7 @@ class AttemptRunner:
                     authored.scope_change_reason or authored.summary,
                 )
 
+            await self._format_changes(executor, install=install)
             diff = await self._stage_and_diff(executor)
             scope_check = check_diff_against_scope(
                 diff=diff,
@@ -658,6 +661,40 @@ class AttemptRunner:
             preview_version_id=str(previous),
             files=len(artifact.files),
         )
+
+    async def _format_changes(self, executor: ToolExecutor, *, install: asyncio.Task[None]) -> None:
+        """Run the repository's formatter over the files this cycle added or changed.
+
+        The agent cannot run the repository's tools, so its layout seldom matches the
+        formatter's, and a check that enforces formatting would reject a working change
+        over whitespace. Only changed files are formatted, so the diff stays the
+        agent's own. A formatter that fails, such as on code that does not parse, leaves
+        those files as they were and the required checks report why.
+        """
+        command = self._build_recipe.format_command
+        if command is None:
+            return
+        # The formatter is one of the repository's installed dependencies.
+        await install
+        result = await executor.execute(
+            RunProcess(
+                tool=ToolName.RUN_PROCESS,
+                command=(
+                    "git add --all && git --no-pager diff --cached --name-only -z --diff-filter=d"
+                    f" | xargs -0 --no-run-if-empty {command}"
+                ),
+                working_directory=".",
+                timeout_seconds=FORMAT_TIMEOUT_SECONDS,
+            )
+        )
+        if result.exit_code != 0:
+            _logger.warning(
+                "implementation_format_failed",
+                attempt_id=str(self._specification.implementation_attempt_id),
+                command=command,
+                exit_code=result.exit_code,
+                output_tail=result.output[-FORMAT_OUTPUT_TAIL_CHARACTERS:],
+            )
 
     async def _stage_and_diff(self, executor: ToolExecutor) -> str:
         """Stage everything the cycle wrote and return the complete staged diff."""

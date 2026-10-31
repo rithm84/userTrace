@@ -21,7 +21,7 @@ sequenceDiagram
     codex->>repo: inspect · scoped search<br/>exact reads of current files
     codex->>repo: implement · bounded edit
     codex-->>cp: checkpoint result + artifacts<br/>collected under the lease
-    cp->>repo: test · required checks on baseline<br/>+ candidate, then the scope check
+    cp->>repo: format the changed files · required checks<br/>on baseline + candidate, then the scope check
     opt New failure or mechanical violation
       cp-->>codex: correction cycle
     end

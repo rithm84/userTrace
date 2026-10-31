@@ -17,6 +17,7 @@ four times to prove a scope violation would only cost time.
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from hashlib import sha256
 
 import pytest
 from psycopg.errors import UniqueViolation
@@ -73,6 +74,8 @@ TRIVIAL_CHECK = (
     ),
 )
 """One real command that proves the toolchain without paying for a full build."""
+LINT_CHECK = tuple(check for check in scope_checks() if check.name == "lint")
+"""The Shopalytics lint check alone, which enforces Prettier."""
 
 
 async def _case(
@@ -423,6 +426,67 @@ async def test_a_blocked_path_violation_is_caught_after_the_edit_cycle(
     # A refused candidate still leaves its evidence durable.
     assert result.manifest is not None
     assert result.workspace_destroyed is True
+
+
+async def test_the_repository_formatter_tidies_a_change_before_its_checks(
+    database: Database,
+    sandboxes: VercelSandboxes,
+    artifact_store: ArtifactStore,
+    auth_users: dict[str, SignedInUser],
+    workspace_snapshot_id: str,
+    github_token: Secret,
+    openai_key: Secret,
+) -> None:
+    """A working change laid out unlike Prettier passes the lint check that enforces it."""
+    path = "src/lib/dashboard/saved-view-name.ts"
+    unformatted = (
+        "export const SAVED_VIEW_NAME_LIMIT=60\n"
+        "export function savedViewName(name:string):string{"
+        "return name.trim().slice(0,SAVED_VIEW_NAME_LIMIT)}\n"
+    )
+    # What Prettier 3.7.3 writes under the repository's .prettierrc.
+    formatted = (
+        "export const SAVED_VIEW_NAME_LIMIT = 60;\n"
+        "export function savedViewName(name: string): string {\n"
+        "  return name.trim().slice(0, SAVED_VIEW_NAME_LIMIT);\n"
+        "}\n"
+    )
+    case = await _case(database, auth_users["owner_a"], "attempt-format", workspace_snapshot_id)
+    attempt = await authorize_attempt(
+        database,
+        case=case,
+        scope=saved_views_scope(checks=LINT_CHECK, correction_cycles=1),
+        workspace_snapshot_id=workspace_snapshot_id,
+    )
+    runtime = RecordingPreviewRuntime(database)
+    author = ScriptedChangeAuthor(files={path: unformatted}, modified_paths=())
+    result = await _runner(
+        database=database,
+        sandboxes=sandboxes,
+        artifact_store=artifact_store,
+        runtime=runtime,
+        author=author,
+        attempt=attempt,
+        github_token=github_token,
+        openai_key=openai_key,
+    ).run()
+
+    assert result.outcome is ImplementationAttemptState.CANDIDATE_READY, result.reason
+    assert author.cycles == 1
+    assert runtime.prebuilt[0].file_digests == {
+        path: f"sha256:{sha256(formatted.encode('utf-8')).hexdigest()}"
+    }
+    async with database.connection() as conn, conn.cursor() as cur:
+        await cur.execute(
+            "select phase, check_name, exit_code from public.implementation_check_runs "
+            "where implementation_attempt_id = %s order by phase",
+            (attempt.implementation_attempt_id,),
+        )
+        runs = await cur.fetchall()
+    assert [(as_str(row, "phase"), as_str(row, "check_name"), row["exit_code"]) for row in runs] == [
+        ("baseline", "lint", 0),
+        ("candidate", "lint", 0),
+    ]
 
 
 async def test_a_scope_change_discovery_stops_mutation_and_returns_to_the_gate(

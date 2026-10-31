@@ -60,6 +60,7 @@ def _policy(
             node_version="24",
             package_manager="npm",
             install_command="npm ci",
+            format_command=None,
             build_command="npm run build",
             start_command="npm run start:preview",
             application_port=3300,
