@@ -39,7 +39,12 @@ const AGENT: Readonly<Record<PreviewBeat, readonly SceneStep[]>> = {
   filters: [{ kind: "label", target: "filter-bar", text: "These seven, every Monday?", at: 2950 }, { kind: "circle", target: "filter-bar", at: 0 }],
   reset: [{ kind: "label", target: "filter-bar", text: "All gone after a reload", at: 800 }, { kind: "trace", target: "filter-bar", at: 0 }],
   save: [{ kind: "circle", target: "saved-view", at: 2700 }],
-  missing: [{ kind: "circle", target: "views", at: 1000 }, { kind: "label", target: "views", text: "Export went missing", at: 0 }],
+  missing: [
+    { kind: "circle", target: "filter-bar", at: 900 },
+    { kind: "label", target: "filter-bar", text: "All seven came back", at: 0 },
+    { kind: "circle", target: "views", at: 2500 },
+    { kind: "label", target: "views", text: "but Export went missing", at: 0 },
+  ],
   validated: [{ kind: "circle", target: "export", at: 850 }, { kind: "label", target: "export", text: "Export is back", at: 0 }],
 };
 
