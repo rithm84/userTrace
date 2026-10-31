@@ -29,20 +29,18 @@ const DATE_FILTER = dateFilter();
 /** Every control but the date presets, in the order the bar lays them out. */
 const CONTROLS = SHOPALYTICS.filters.filter((filter) => filter.criterion !== "date");
 
-/** What the dashboard shows: the whole store, the agreed view, or the view without its review topic. */
-type Reading = "store" | "filtered" | "partial";
+/** What the dashboard shows: the whole store, or the agreed view. */
+type Reading = "store" | "filtered";
 
 const KPIS: Readonly<Record<Reading, readonly (readonly [string, string, string])[]>> = {
   store: [["Sessions", "48,210", "+4.2% vs last period"], ["Orders", "1,114", "+3.1% vs last period"], ["Conversion rate", "2.31%", "+0.27 pp vs last period"], ["Revenue", "$96,880", "+5.4% vs last period"]],
   filtered: [["Sessions", "11,190", "TikTok · women 25–34"], ["Orders", "157", "Negative sizing reviews"], ["Conversion rate", "1.40%", "0.91 pp below store"], ["Revenue", "$15,420", "Dresses"]],
-  partial: [["Sessions", "17,460", "TikTok · women 25–34"], ["Orders", "302", "Any review topic"], ["Conversion rate", "1.73%", "0.58 pp below store"], ["Revenue", "$29,310", "Dresses"]],
 };
 
 /** Daily conversion rate, in percent, over the last 30 days: the agreed view shows the drop-off after negative sizing reviews landed. */
 const SERIES: Readonly<Record<Reading, readonly number[]>> = {
   store: [2.02, 2.11, 2.08, 2.19, 2.14, 2.27, 2.21, 2.3, 2.24, 2.36, 2.41, 2.33, 2.29, 2.38, 2.46, 2.4, 2.35, 2.44, 2.52, 2.47, 2.39, 2.5, 2.58, 2.51, 2.43, 2.55, 2.61, 2.54, 2.49, 2.31],
   filtered: [3.22, 2.76, 3.29, 1.31, 1.41, 1.07, 1.13, 1.15, 1.12, 1.38, 1.2, 1.32, 1.32, 1.07, 1.18, 1.24, 1.09, 1.31, 1.16, 1.22, 1.05, 1.27, 1.19, 1.11, 1.34, 1.08, 1.21, 1.16, 1.29, 1.4],
-  partial: [2.71, 2.52, 2.83, 1.92, 1.98, 1.71, 1.76, 1.8, 1.69, 1.88, 1.74, 1.83, 1.79, 1.62, 1.71, 1.77, 1.64, 1.82, 1.7, 1.75, 1.6, 1.79, 1.72, 1.66, 1.84, 1.63, 1.74, 1.69, 1.8, 1.73],
 };
 const AXIS = ["Sep 4", "Sep 11", "Sep 18", "Sep 25", "Oct 2"];
 const CHART = Object.freeze({ width: 300, height: 110, max: 3.5 });
@@ -50,13 +48,10 @@ const CHART = Object.freeze({ width: 300, height: 110, max: 3.5 });
 const PRODUCTS: Readonly<Record<Reading, readonly (readonly [string, number])[]>> = {
   store: [["Aero High-Rise Legging", 3.1], ["Featherlight Sports Bra", 2.6], ["Flowstate Midi Dress", 2.2]],
   filtered: [["Flowstate Midi Dress", 1.1], ["Aero High-Rise Legging", 1.6], ["Featherlight Sports Bra", 1.8]],
-  partial: [["Flowstate Midi Dress", 1.5], ["Aero High-Rise Legging", 1.9], ["Featherlight Sports Bra", 2.0]],
 };
 
 function reading(applied: readonly Criterion[]): Reading {
-  if (applied.length === SHOPALYTICS.filters.length) return "filtered";
-  if (applied.length === SHOPALYTICS.filters.length - 1 && !applied.includes("topic")) return "partial";
-  return "store";
+  return applied.length === SHOPALYTICS.filters.length ? "filtered" : "store";
 }
 
 /** The daily line as a Catmull-Rom spline, so the chart never shows a jagged polyline. */
@@ -80,14 +75,15 @@ export type DashboardProps = Readonly<{
   changed: Criterion | null;
   /** A reload: the page paints white for a moment. */
   flash: boolean;
-  /** The candidate's saved views row exists. */
-  candidate: boolean;
+  /**
+   * Which build of the page: the base, the first candidate, whose saved views took Export's
+   * place, or the repaired candidate, with Export back beside them.
+   */
+  version: "base" | "candidate" | "repaired";
   /** What is typed into the view name field. */
   viewName: string;
   savedViews: readonly string[];
   activeView: string | null;
-  /** A transient confirmation at the bottom centre. */
-  toast: string | null;
 }>;
 
 /**
@@ -135,8 +131,8 @@ export const ShopalyticsDashboard = memo(function ShopalyticsDashboard(props: Da
       <main className="sh-main">
         <div className="sh-head">
           <h3>Conversion</h3>
-          {props.candidate ? (
-            <div className="sh-views" data-testid="story-dashboard-views">
+          {props.version !== "base" ? (
+            <div className="sh-views" data-testid="story-dashboard-views" data-target="views">
               <span className="sh-input" data-target="view-name">
                 {props.viewName.length === 0 ? <span className="sh-placeholder">View name</span> : props.viewName}
                 {props.viewName.length > 0 && props.viewName.length < SHOPALYTICS.savedViewName.length ? <i className="sh-caret" /> : null}
@@ -150,12 +146,10 @@ export const ShopalyticsDashboard = memo(function ShopalyticsDashboard(props: Da
                   {view}
                 </span>
               ))}
+              {props.version === "repaired" ? <ExportButton /> : null}
             </div>
           ) : (
-            <span className="sh-button">
-              <Download size={13} />
-              Export
-            </span>
+            <ExportButton />
           )}
         </div>
         <section className="sh-card sh-filters" data-target="filter-bar">
@@ -231,12 +225,15 @@ export const ShopalyticsDashboard = memo(function ShopalyticsDashboard(props: Da
         </div>
         {props.flash ? <div className="sh-flash" data-testid="story-dashboard-flash" /> : null}
       </main>
-      {props.toast !== null ? (
-        <div className="sh-toast" role="status" data-testid="story-dashboard-toast">
-          {props.toast}
-          <X size={14} strokeWidth={2.4} />
-        </div>
-      ) : null}
     </div>
   );
 });
+
+function ExportButton(): JSX.Element {
+  return (
+    <span className="sh-button" data-target="export" data-testid="story-dashboard-export">
+      <Download size={13} />
+      Export
+    </span>
+  );
+}

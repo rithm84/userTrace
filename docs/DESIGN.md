@@ -163,7 +163,7 @@ Rules for placing a character:
   watch it or scroll straight past. It runs while at least half of it is on
   screen, stops when it leaves or when the reader presses pause above the rail,
   and loops after the finished Case File has held. Its sixteen beats run about
-  74 seconds, played at 0.9 of their authored pace (`PLAYBACK_RATE`); each holds
+  76 seconds, played at 0.9 of their authored pace (`PLAYBACK_RATE`); each holds
   as long as it takes to read, so a beat with more to read, like the Product
   Signal or the Case File, holds longer and a simple one moves on sooner. Every frame is a pure function of the clock, so it
   pauses, resumes, and jumps anywhere without replaying what came before.
@@ -330,8 +330,9 @@ Every crop is the real thing at its own scale, built from `surfaces/`:
   fixture app, which takes its look from Shopify's admin: a black top bar with
   Shopalytics' logo, search and the Dudulemon workspace (its logo and name), a grey sidebar, the date
   presets and one control per filter dimension, four KPIs, a Catmull-Rom daily
-  line in the fixture app's blue, and products beside it. The candidate adds a
-  view name field, Save view and the saved views beside the page title. Numbers
+  line in the fixture app's blue, and products beside it. The first candidate puts
+  a view name field, Save view and the saved views beside the page title, where
+  Export was; the repaired candidate keeps Export beside them. Numbers
   and the drop-off's shape follow the recorded demo runs, not exactly.
 - **Stripe** (`users/ForYourUsers.tsx`): the hosted invoice page (merchant name, an
   amount-due card with To and From, the invoice's lines, Pay, "Powered by stripe")
@@ -347,14 +348,12 @@ Every crop is the real thing at its own scale, built from `surfaces/`:
   pill, the character at 200px, its status in display type, Open preview and the
   four controls. The transcript fills the right with the whole call, following
   the newest turn, including what Maya says while she works in the preview (the
-  reset, the partial restore): every turn names its speaker, and the line being
+  reset, the missing Export, the confirmation): every turn names its speaker, and the line being
   said types in word by word with the clock. The agent is Wren throughout, drawn
   coral, with a coral dot on its turns; Maya's turns sit on white. In Discord the
   uTrace app posts, and Wren introduces itself by name.
 - **The preview tab** keeps its bottom-right corner for the extension orb, set in
-  far enough that its four controls fan out inside the tab. The dashboard's
-  "View saved" toast is Shopify's, dark at the bottom centre of the window. The
-  agent shows what it
+  far enough that its four controls fan out inside the tab. The agent shows what it
   asks about the way the extension draws its scenes (`story/agentScene.ts`, with
   the extension's own geometry and timings): its coral cursor glides to a
   registered target on a bowed curve, rides the coral loop it draws around it,
@@ -363,9 +362,9 @@ Every crop is the real thing at its own scale, built from `surfaces/`:
   then fades; the cursor fades once nothing moves it. Targets are the dashboard's
   registered elements, measured where they stand (`story/useTargets.ts`). Maya's
   own black pointer glides between the controls she uses and, once she has
-  clicked, rests on the chart, clear of what the agent marks. In the partial
-  validation she reopens the saved view and the agent circles the review topic
-  control, back on All.
+  clicked, rests on the chart, clear of what the agent marks. On the first
+  candidate she reopens the saved view and the agent circles the saved views,
+  where Export used to be; on the repaired candidate it circles Export.
 
 Shopalytics' logo (a shopping bag with a rising line) marks its Discord server,
 its preview tab, its top bar and its invoice; Dudulemon's marks Maya and the
