@@ -80,9 +80,12 @@ It tells the agent that the participant is waiting, to write no progress
 commentary, to batch its reads, to make the smallest complete change, to build
 any new interface from the repository's own design system components, to wire the
 client's declared uTrace targets and milestones for the workflow it changes, and
-to run none of the required checks itself. The control plane runs every required
-check once when the agent reports, and sends any new failure back as a correction
-cycle. Codex writes its event stream to a file outside the checkout, and the
+to run none of the required checks itself. When the agent reports, the control
+plane runs the formatter the client's build recipe declares over the files the
+cycle added or changed, so a check that enforces formatting judges the change
+rather than its layout; a formatter that fails, as on code that does not parse,
+leaves those files as they were. It then runs every required check once and sends
+any new failure back as a correction cycle. Codex writes its event stream to a file outside the checkout, and the
 control plane reads it after the run: every command and file change the agent
 made becomes provenance in the attempt's journal. The agent's own report of
 success is evidence to check, not a result: the control plane's own run of the required checks and the scope check

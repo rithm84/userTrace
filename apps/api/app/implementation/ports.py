@@ -59,6 +59,9 @@ class BuildRecipe(HandoffModel):
     node_version: str
     package_manager: str
     install_command: str
+    format_command: str | None
+    """The repository's formatter, run over each cycle's added and changed files (appended
+    as arguments) before the required checks; None when the repository has none."""
     build_command: str
     start_command: str
     application_port: Annotated[int, Field(ge=1, le=65535)]

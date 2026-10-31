@@ -35,6 +35,8 @@ SHOPALYTICS_BUILD_RECIPE: Final[BuildRecipe] = BuildRecipe(
     # without rewriting the lockfile, which also keeps the dependency identity
     # the candidate is measured against unchanged.
     install_command="npm install --no-audit --no-fund --no-save",
+    # The lint check enforces Prettier, which the coding agent cannot run itself.
+    format_command="npx prettier --write --ignore-unknown",
     build_command="npm run build",
     start_command="npm run start:preview",
     application_port=3300,
