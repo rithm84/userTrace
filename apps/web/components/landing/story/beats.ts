@@ -4,7 +4,7 @@ import type { AgentColour } from "../characters/AgentSprite";
 
 export type ChapterId = "request" | "interview" | "build" | "validate" | "iterate" | "ship";
 export type Surface = "discord" | "session" | "preview" | "workspace" | "casefile";
-export type BeatId = "request" | "signal" | "invite" | "greet" | "filters" | "reset" | "agree" | "build" | "ready" | "save" | "partial" | "followup" | "repair" | "validated" | "thanks" | "casefile";
+export type BeatId = "request" | "signal" | "invite" | "greet" | "filters" | "reset" | "agree" | "build" | "ready" | "save" | "missing" | "followup" | "repair" | "validated" | "thanks" | "casefile";
 
 export type Chapter = Readonly<{ id: ChapterId; label: string; colour: AgentColour }>;
 
@@ -43,7 +43,7 @@ export type Beat = Readonly<{
 
 /**
  * One beat after another, each as long as it takes to read: a beat with more to read holds
- * longer, a simple one moves on sooner. About 67 seconds of authored time in all, which the demo's
+ * longer, a simple one moves on sooner. About 68 seconds of authored time in all, which the demo's
  * clock plays at `PLAYBACK_RATE` and loops.
  */
 export const BEATS: readonly Beat[] = [
@@ -57,17 +57,17 @@ export const BEATS: readonly Beat[] = [
   { id: "build", chapter: "build", surface: "workspace", duration: 4500, caption: "The change is built during the call, in a workspace that never touches production.", agent: { colour: "black", state: "building" } },
   { id: "ready", chapter: "validate", surface: "session", duration: 2700, caption: "Maya is still on the call when the preview is ready.", agentLine: "The preview is ready. Can you save your Monday view, leave, and reopen it?", agent: { colour: "peach", state: "speaking" } },
   { id: "save", chapter: "validate", surface: "preview", duration: 4500, caption: "Maya tries the exact preview and saves her Monday view.", agent: { colour: "peach", state: "listening" } },
-  { id: "partial", chapter: "validate", surface: "preview", duration: 4300, caption: "A partial result means another conversation, not another guess.", mayaLine: "It reopened, but the sizing filter didn't come back.", agent: { colour: "peach", state: "concern" } },
-  { id: "followup", chapter: "iterate", surface: "session", duration: 4500, caption: "The agent asks one more question before repairing anything.", agentLine: "When you say sizing, is that the product's size or the topic of the review?", mayaLine: "The review topic. People saying the fit was wrong.", agent: { colour: "lilac", state: "speaking" } },
-  { id: "repair", chapter: "iterate", surface: "workspace", duration: 2600, caption: "The repair goes through the same checks as the first build.", agent: { colour: "black", state: "building" } },
-  { id: "validated", chapter: "iterate", surface: "preview", duration: 3500, caption: "Only now does uTrace open a pull request.", agent: { colour: "lilac", state: "completion" } },
+  { id: "missing", chapter: "validate", surface: "preview", duration: 4800, caption: "Her view comes back, but something she uses every week is gone.", mayaLine: "My filters all came back, but Export is gone. My team needs that every Monday.", agent: { colour: "peach", state: "concern" } },
+  { id: "followup", chapter: "iterate", surface: "session", duration: 5000, caption: "They agree on the change before anything is rebuilt.", agentLine: "Sorry about that! I'll put the Export control to the right of your saved views, does that work?", mayaLine: "Yes, that sounds good.", agent: { colour: "lilac", state: "speaking" } },
+  { id: "repair", chapter: "iterate", surface: "workspace", duration: 2600, caption: "The change goes back through the gate and the same checks.", agent: { colour: "black", state: "building" } },
+  { id: "validated", chapter: "iterate", surface: "preview", duration: 3800, caption: "Only now does uTrace open a pull request.", mayaLine: "Export's back, and my view still reopens.", agent: { colour: "lilac", state: "completion" } },
   { id: "thanks", chapter: "ship", surface: "discord", duration: 3800, caption: "Maya's time earns Dudulemon money off its next bill.", agent: { colour: "mint", state: "completion" } },
   { id: "casefile", chapter: "ship", surface: "casefile", duration: 5500, caption: "Everything the team needs to review it arrives together.", agent: { colour: "mint", state: "ship" } },
 ];
 
 export const BEAT_STARTS: readonly number[] = BEATS.map((_, index) => BEATS.slice(0, index).reduce((sum, beat) => sum + beat.duration, 0));
 export const STORY_DURATION = BEATS.reduce((sum, beat) => sum + beat.duration, 0);
-/** The demo plays its authored time a little slower than real time: about 74 seconds in all. */
+/** The demo plays its authored time a little slower than real time: about 76 seconds in all. */
 export const PLAYBACK_RATE = 0.9;
 /** How long the finished Case File holds before the demo starts over. */
 export const LOOP_HOLD_MS = 4000;

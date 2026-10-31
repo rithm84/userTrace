@@ -63,14 +63,14 @@ export const SHOPALYTICS = Object.freeze({
     repository: "shopalytics/web",
     branch: "utrace/saved-conversion-views",
     pullRequest: 482,
-    filesTouched: 3,
+    filesTouched: 4,
     checks: ["Lint", "Typecheck", "Tests", "Build"],
     previewVersion: "9f1c2e",
     repairPreviewVersion: "b40d71",
   },
   validation: {
-    /** The first Validation Attempt: one acceptance point unmet, by demonstration. */
-    partial: { outcome: "partially validated" as ValidationOutcome, missingCriterion: "topic" as FilterChip["criterion"] },
+    /** On the first preview the saved views took Export's place, so Maya asked for it back: a change agreed on the call. */
+    change: "Export back beside the saved views",
     final: { outcome: "validated" as ValidationOutcome },
   },
   trace: {

@@ -16,7 +16,6 @@ type Criterion = FilterChip["criterion"];
 /** The dashboard is drawn at its own scale and enlarged to fill the tab. */
 const SCALE = 1.25;
 const ALL: readonly Criterion[] = SHOPALYTICS.filters.map((filter) => filter.criterion);
-const LOST: Criterion = SHOPALYTICS.validation.partial.missingCriterion;
 const NAME = SHOPALYTICS.savedViewName;
 /** Maya sets one filter after another; each takes its value as her click lands. */
 const FILTER_STEP_MS = 380;
@@ -24,14 +23,14 @@ const CLICK_MS = 400;
 const TYPE_MS = 52;
 
 /** The beats that happen in the preview tab. */
-type PreviewBeat = Extract<BeatId, "filters" | "reset" | "save" | "partial" | "validated">;
+type PreviewBeat = Extract<BeatId, "filters" | "reset" | "save" | "missing" | "validated">;
 
 /** Where Maya's pointer goes in each beat; once she has clicked, it rests on the chart, clear of what the agent marks. */
 const MAYA: Readonly<Record<PreviewBeat, readonly Waypoint[]>> = {
   filters: [...ALL.map((criterion, index) => ({ at: 150 + index * FILTER_STEP_MS, target: `filter-${criterion}` })), { at: 150 + ALL.length * FILTER_STEP_MS + 200, target: "chart" }],
   reset: [],
   save: [{ at: 150, target: "view-name" }, { at: 1800, target: "save-view" }, { at: 2400, target: "chart" }],
-  partial: [{ at: 250, target: "saved-view" }, { at: 950, target: "chart" }],
+  missing: [{ at: 250, target: "saved-view" }, { at: 950, target: "chart" }],
   validated: [{ at: 200, target: "saved-view" }, { at: 850, target: "chart" }],
 };
 
@@ -40,8 +39,8 @@ const AGENT: Readonly<Record<PreviewBeat, readonly SceneStep[]>> = {
   filters: [{ kind: "label", target: "filter-bar", text: "These seven, every Monday?", at: 2950 }, { kind: "circle", target: "filter-bar", at: 0 }],
   reset: [{ kind: "label", target: "filter-bar", text: "All gone after a reload", at: 800 }, { kind: "trace", target: "filter-bar", at: 0 }],
   save: [{ kind: "circle", target: "saved-view", at: 2700 }],
-  partial: [{ kind: "circle", target: `filter-${LOST}`, at: 1000 }, { kind: "label", target: `filter-${LOST}`, text: "Sizing didn't come back", at: 0 }],
-  validated: [{ kind: "label", target: "filter-bar", text: "All seven came back", at: 850 }, { kind: "circle", target: "filter-bar", at: 0 }],
+  missing: [{ kind: "circle", target: "views", at: 1000 }, { kind: "label", target: "views", text: "Export went missing", at: 0 }],
+  validated: [{ kind: "circle", target: "export", at: 850 }, { kind: "label", target: "export", text: "Export is back", at: 0 }],
 };
 
 function isPreviewBeat(id: BeatId): id is PreviewBeat {
@@ -54,9 +53,9 @@ function previewBeat(beat: Beat): PreviewBeat {
   return beat.id;
 }
 
-/** The product's state `t` ms into a preview beat. */
-function productAt(id: PreviewBeat, t: number, candidate: boolean): DashboardProps {
-  const base: DashboardProps = { applied: ALL, changed: null, flash: false, candidate, viewName: "", savedViews: candidate ? [NAME] : [], activeView: null, toast: null };
+/** The product's state `t` ms into a preview beat, on the given build of the page. */
+function productAt(id: PreviewBeat, t: number, version: DashboardProps["version"]): DashboardProps {
+  const base: DashboardProps = { applied: ALL, changed: null, flash: false, version, viewName: "", savedViews: version === "base" ? [] : [NAME], activeView: null };
   switch (id) {
     case "filters": {
       const landed = ALL.filter((_, index) => t >= 150 + index * FILTER_STEP_MS + CLICK_MS);
@@ -69,11 +68,11 @@ function productAt(id: PreviewBeat, t: number, candidate: boolean): DashboardPro
     case "save": {
       const saved = t >= 2150;
       const typed = Math.max(0, Math.min(NAME.length, Math.floor((t - 550) / TYPE_MS)));
-      return { ...base, viewName: saved ? "" : NAME.slice(0, typed), savedViews: saved ? [NAME] : [], toast: t >= 2200 && t < 3400 ? "View saved" : null };
+      return { ...base, viewName: saved ? "" : NAME.slice(0, typed), savedViews: saved ? [NAME] : [] };
     }
-    case "partial": {
+    case "missing": {
       const reopened = t >= 700;
-      return { ...base, applied: reopened ? ALL.filter((criterion) => criterion !== LOST) : [], flash: t < 220, activeView: reopened ? NAME : null };
+      return { ...base, applied: reopened ? ALL : [], flash: t < 220, activeView: reopened ? NAME : null };
     }
     case "validated": {
       const reopened = t >= 650;
@@ -93,7 +92,7 @@ export function PreviewTab(props: Readonly<{ beat: Beat; progress: number; activ
   const box = { width: props.width / SCALE, height: props.height / SCALE };
   const root = useRef<HTMLDivElement>(null);
   const t = props.progress * beat.duration;
-  const product = productAt(id, t, beat.chapter !== "interview");
+  const product = productAt(id, t, beat.chapter === "interview" ? "base" : beat.chapter === "validate" ? "candidate" : "repaired");
   const targets = useTargets(root, box.width, `${id}|${product.applied.join()}|${product.savedViews.length}`);
   const scene = sceneAt(AGENT[id], targets, t);
   const maya = pointerAt(MAYA[id], targets, { x: box.width * 0.62, y: box.height * 0.86 }, t);

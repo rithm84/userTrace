@@ -40,7 +40,7 @@ function Evidence(): JSX.Element {
       </Quote>
       <ul className="cf-rows">
         <Row icon={MessagesSquare} title="Interview">
-          “The same conversion filters. Every single week.” Then, on the first candidate: “The date range and channel came back. Sizing didn&apos;t.”
+          “The same conversion filters. Every single week.” Then, on the first candidate: “My filters all came back, but Export is gone.”
         </Row>
         <Row icon={AlertTriangle} title="Impact">
           Every Monday&apos;s conversion analysis starts from zero.
@@ -145,7 +145,7 @@ function Change(): JSX.Element {
           <code>{implementation.repository}</code> on <code>{implementation.branch}</code>, {implementation.filesTouched} files. Checks: {implementation.checks.join(", ")}, all passed.
         </Row>
         <Row icon={CircleCheck} title="Preview Versions">
-          <code>{implementation.previewVersion}</code> {validation.partial.outcome}: the review topic was not restored, so the evidence went back through the Implementation Gate. <code>{implementation.repairPreviewVersion}</code> {validation.final.outcome} by the same user.
+          <code>{implementation.previewVersion}</code> restored the view but dropped Export, so {USER} asked for {validation.change} and the change went back through the Implementation Gate. <code>{implementation.repairPreviewVersion}</code> {validation.final.outcome} by the same user.
         </Row>
       </ul>
     </>

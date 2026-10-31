@@ -54,12 +54,12 @@ const SUMMARY_ROWS: readonly JSX.Element[] = [
     aside={
       <ul className="cf-ticks" aria-label="Validation steps">
         <li>Interview</li>
-        <li>First preview, {validation.partial.outcome}</li>
-        <li>Repair, {validation.final.outcome}</li>
+        <li>First preview, change asked</li>
+        <li>Second preview, {validation.final.outcome}</li>
       </ul>
     }
   >
-    {USER} reopened “{SHOPALYTICS.savedViewName}” on Preview Version <code>{implementation.repairPreviewVersion}</code>. All seven filters came back.
+    {USER} reopened “{SHOPALYTICS.savedViewName}” on Preview Version <code>{implementation.repairPreviewVersion}</code>. All seven filters came back, with Export beside it.
   </Row>,
   <Row key="next" icon={Flag} title="Next action">
     Review PR #{implementation.pullRequest} in <code>{implementation.repository}</code>. Your team merges.

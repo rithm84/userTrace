@@ -14,7 +14,7 @@ const BUILD: readonly Diff[] = [
   { file: "src/components/ViewsMenu.vue", hunk: "@@ -88,7 +88,11 @@", lines: [["+", "<input v-model=\"name\" placeholder=\"View name\" />"], ["+", "<button @click=\"save(name)\">Save view</button>"], ["+", "<li v-for=\"v in views\" :key=\"v.id\">"], ["+", "  <button @click=\"restore(v)\">{{ v.name }}</button>"]] },
 ];
 const REPAIR: readonly Diff[] = [
-  { file: "src/state/savedViewsStore.ts", hunk: "@@ -31,4 +31,6 @@", lines: [["-", "filters: pick(view.filters, WITHOUT_TOPIC),"], ["+", "filters: pick(view.filters, CRITERIA), // now includes the review topic"], ["+", "topic: view.filters.topic ?? null,"]] },
+  { file: "src/components/ConversionHeader.vue", hunk: "@@ -12,5 +12,5 @@", lines: [[" ", "<ViewsMenu v-if=\"canSaveViews\" />"], ["-", "<ExportButton v-else />"], ["+", "<ExportButton :view=\"currentView\" />"]] },
 ];
 
 /**
@@ -46,7 +46,8 @@ export function WorkspaceWindow(props: Readonly<{ beat: Beat; progress: number }
         </ul>
         <small>Scope</small>
         <ul>
-          {SHOPALYTICS.gate.scope.map((item) => (
+          {/* the change Maya asked for went back through the gate, so the repair's scope holds it too */}
+          {(repair ? [...SHOPALYTICS.gate.scope, SHOPALYTICS.validation.change] : SHOPALYTICS.gate.scope).map((item) => (
             <li key={item}>{item}</li>
           ))}
         </ul>
