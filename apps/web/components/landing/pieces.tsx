@@ -1,7 +1,7 @@
 "use client";
 
 import { useRive, useViewModelInstanceEnum, useViewModelInstanceNumber } from "@rive-app/react-webgl2";
-import { Alignment, Fit, Layout } from "@rive-app/webgl2";
+import { Alignment, Fit, Layout, type Rive } from "@rive-app/webgl2";
 import { configureAgentCharacterRuntime, createAgentCharacterResources, type CharacterState } from "@utrace/agent-character";
 import { useEffect, useLayoutEffect, useRef, type CSSProperties, type JSX, type ReactNode } from "react";
 
@@ -26,8 +26,10 @@ const RIG_DPR = 2;
 
 /**
  * One of the seven product characters in its fourteen-state rig, for the cameos that grip
- * and hang from the page. `park` pauses the rig and stops rendering, keeping the frame, that
- * many milliseconds after its state was applied; null keeps it live. The `.riv` is fetched
+ * and hang from the page. `park` pauses the rig and stops rendering, keeping the frame: at
+ * once for a rig that was live in its current state, as a paused video stops, and otherwise
+ * that many milliseconds after its state was applied, so its entrance plays first; null keeps
+ * it live. The `.riv` is fetched
  * only once the cameo is within a screen of the viewport, so the hero loads first.
  */
 export function Cameo(props: Readonly<{ colour: AgentColour; state: CharacterState; park: number | null; size: number; gazeX: number; gazeY: number; style?: CSSProperties; testId: string; onReady?: () => void; zoom?: number; eager?: boolean }>): JSX.Element {
@@ -72,10 +74,19 @@ export function Cameo(props: Readonly<{ colour: AgentColour; state: CharacterSta
   useEffect(() => {
     if (rive !== null) fitRigCanvas(rive, host.current, RIG_DPR);
   }, [rive, props.zoom]);
+  // the rig and state last shown live: parking that rig freezes the frame on screen
+  const live = useRef<{ rive: Rive | null; state: CharacterState | null }>({ rive: null, state: null });
   // before paint: sizing a new canvas draws the rig's first frame, so a character never paints one empty frame first
   useLayoutEffect(() => {
     if (rive === null) return;
+    const wasLive = live.current.rive === rive && live.current.state === props.state;
+    live.current = props.park === null ? { rive, state: props.state } : { rive: null, state: null };
     fitRigCanvas(rive, host.current, RIG_DPR);
+    if (props.park !== null && wasLive) {
+      rive.pause("AgentCharacterMachine");
+      rive.stopRendering();
+      return;
+    }
     rive.startRendering();
     rive.play("AgentCharacterMachine");
     if (props.park === null) return;
