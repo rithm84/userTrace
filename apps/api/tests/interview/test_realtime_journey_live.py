@@ -1,7 +1,8 @@
 """Live: one interview from greeting to a ready new version, over a real voice call.
 
 The participant opens the call, walks through their weekly filters in the preview,
-asks to save them, and agrees to the change the agent proposes. The gate then
+asks to save them, says what the weekly view is for, and agrees to the change the
+agent proposes. The gate then
 approves it, the new version becomes ready, and the call ends. The test checks the
 conversation's shape (a recap that circles what it names, one line at the
 agreement saying the agent will get the change started without promising a build,
@@ -33,8 +34,13 @@ from tests.interview import realtime_harness as harness
 from tests.interview.test_realtime_walkthrough_live import _ASK, _OPENING, _PAUSE_SECONDS, _STEPS
 from tests.supabase_auth import SignedInUser
 
-_AGREE = "Yes, that's exactly it. Keep all of those filters, and keep last 30 days rolling."
-_DECLINE_MORE = "No, that's everything. That sounds right to me."
+#: What the weekly view is for, which the agent asks after its recap.
+_PURPOSE = (
+    "Mostly whether the sizing complaints are hurting TikTok conversion for that group, "
+    "week to week. And yes, keep all of those filters, with last 30 days rolling."
+)
+#: Fits "does that work?", "anything else?", and "shall we go ahead?" alike.
+_AGREE = "That works for me, nothing to add. Go ahead."
 #: How many times the participant answers the agent before the agreement must be recorded.
 _AGREEMENT_TURNS: Final[int] = 4
 _CUE_DEADLINE_SECONDS: Final[float] = 30.0
@@ -105,11 +111,11 @@ async def test_one_interview_from_greeting_to_a_ready_version(
     api_key = require_env("OPENAI_API_KEY")
     report = harness.Report()
     async with AsyncOpenAI(api_key=api_key) as client:
-        opening, ask, agree, decline_more, *steps = await asyncio.gather(
+        opening, ask, purpose, agree, *steps = await asyncio.gather(
             harness.speech(client, _OPENING),
             harness.speech(client, _ASK),
+            harness.speech(client, _PURPOSE),
             harness.speech(client, _AGREE),
-            harness.speech(client, _DECLINE_MORE),
             *(harness.speech(client, step[0]) for step in _STEPS),
         )
 
@@ -146,15 +152,16 @@ async def test_one_interview_from_greeting_to_a_ready_version(
                 await asyncio.sleep(_PAUSE_SECONDS)
             _, ask_end = await harness.say(call.microphone, ask)
 
-            # The agent recaps and proposes the change; the participant agrees until
-            # the application has recorded the agreement.
+            # The agent recaps, asks what the view is for, and proposes the change; the
+            # participant says what it is for, then agrees until the application has
+            # recorded the agreement.
             after = ask_end
             agreement_answer = ""
             for turn in range(_AGREEMENT_TURNS):
                 await harness.whole_turn(database, call.session_id, after=after)
                 if await _agreed(database, signal_id):
                     break
-                _, after = await harness.say(call.microphone, agree if turn == 0 else decline_more)
+                _, after = await harness.say(call.microphone, purpose if turn == 0 else agree)
                 for _ in range(100):
                     if await _agreed(database, signal_id):
                         break

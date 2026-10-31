@@ -3,7 +3,8 @@
 `AgentTurn` keeps `Floor.agent_quiet` clear while the agent holds the floor, so the
 application never talks over it or adds to its conversation while it answers or
 works. `Answering`, just after the model, follows its answers and tool calls and
-decides whether the agent speaks again once a tool's result is in; `AgentFloor`,
+decides whether the agent speaks again once a tool's result is in, or speaks the
+result's announcement for it; `AgentFloor`,
 after the transport, follows the speech as it plays. `PipelineChannel` is the
 application's `AgentChannel` into the running pipeline.
 """
@@ -24,6 +25,7 @@ from pipecat.frames.frames import (
     LLMFullResponseStartFrame,
     LLMMessagesAppendFrame,
     LLMTextFrame,
+    TTSSpeakFrame,
 )
 from pipecat.pipeline.worker import PipelineWorker
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
@@ -31,7 +33,7 @@ from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 from app.interview.character import CharacterState
 from app.interview.voice.channel import Floor
 from app.interview.voice.pipeline import MicGate, strip_marks
-from app.interview.voice.tools import answer_follows, refused
+from app.interview.voice.tools import announcement, answer_follows, refused
 
 __all__ = ["AgentFloor", "AgentTurn", "Answering", "PipelineChannel"]
 
@@ -93,6 +95,11 @@ class AgentTurn:
 
     def tools_started(self, count: int) -> None:
         self._tools += count
+        self._refresh()
+
+    def announcing(self) -> None:
+        """The application is about to speak for the agent: the floor is held until it plays."""
+        self._awaiting_audio = True
         self._refresh()
 
     def tool_finished(self, *, answering: bool) -> None:
@@ -157,7 +164,8 @@ class Answering(FrameProcessor):
     their results arrive in the order the model produced them. So when a result
     arrives it knows whether the answer that made the call said anything, and it
     decides there whether the agent speaks again (`answer_follows`): the assistant
-    aggregator downstream runs the model again exactly when the result says so.
+    aggregator downstream runs the model again exactly when the result says so. Right
+    after a result it speaks the result's `announcement`, if it has one.
     """
 
     def __init__(self, *, turn: AgentTurn) -> None:
@@ -169,11 +177,13 @@ class Answering(FrameProcessor):
 
     async def process_frame(self, frame: Frame, direction: FrameDirection) -> None:
         await super().process_frame(frame, direction)
-        if direction == FrameDirection.DOWNSTREAM:
-            await self._follow(frame)
+        spoken_after = self._follow(frame) if direction == FrameDirection.DOWNSTREAM else None
         await self.push_frame(frame, direction)
+        if spoken_after is not None:
+            await self.push_frame(TTSSpeakFrame(spoken_after), FrameDirection.DOWNSTREAM)
 
-    async def _follow(self, frame: Frame) -> None:
+    def _follow(self, frame: Frame) -> str | None:
+        """Follow one frame for the agent's turn; return what the application says after it."""
         if isinstance(frame, LLMFullResponseStartFrame):
             self._has_words = False
             self._turn.started()
@@ -188,19 +198,25 @@ class Answering(FrameProcessor):
         elif isinstance(frame, FunctionCallInProgressFrame):
             self._answer_spoke[frame.tool_call_id] = self._has_words
         elif isinstance(frame, FunctionCallResultFrame):
+            was_refused = refused(frame.result)
+            answer_spoke = self._answer_spoke.pop(frame.tool_call_id)
             answering = answer_follows(
-                frame.function_name,
-                refused=refused(frame.result),
-                answer_spoke=self._answer_spoke.pop(frame.tool_call_id),
+                frame.function_name, refused=was_refused, answer_spoke=answer_spoke
             )
             frame.properties = FunctionCallResultProperties(run_llm=answering)
+            said = announcement(frame.function_name, refused=was_refused, answer_spoke=answer_spoke)
+            # Held before the tool lets go of the floor, so nothing slips in before it plays.
+            if said is not None:
+                self._turn.announcing()
             self._turn.tool_finished(answering=answering)
+            return said
         elif isinstance(frame, FunctionCallCancelFrame):
             # A cancelled call has no result to answer; it may end before it started.
             self._answer_spoke.pop(frame.tool_call_id, None)
             self._turn.tool_finished(answering=False)
         elif isinstance(frame, InterruptionFrame):
             self._turn.interrupted()
+        return None
 
 
 class AgentFloor(FrameProcessor):
