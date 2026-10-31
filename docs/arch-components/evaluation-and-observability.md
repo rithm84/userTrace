@@ -518,6 +518,156 @@ of:
   microphone activity, Flux events, turn decisions, words as they played,
   gestures, and the final context.
 
+## Live check measurements
+
+On 2026-10-31 the committed live voice checks ran 23 times against a
+workstation's local stack with the production providers: GPT-6.1 Sol on the
+Ultrafast tier, Flux at `eot_threshold` 0.7 and `eager_eot_threshold` 0.4, Eleven
+v4 Turbo, and a Daily call per run. The agent's timings come from its pipeline's
+log. Its circles and played words come from a poller that copied
+`visual_command_dispatches` and `voice_transcript_fragments` before each test
+emptied them. The interview quality test did not run: its participant and judge
+are Claude models, and the workstation had no `ANTHROPIC_API_KEY`. Provider
+models change under the same names, so these numbers are a dated snapshot.
+
+| Check | Runs | Passed |
+| --- | --- | --- |
+| Realtime voice | 5 | 5 |
+| Acknowledgement | 3 | 3 |
+| Walkthrough | 3 | 3 |
+| Vague ask | 3 | 3 |
+| Browser call, both scenarios | 3 | 3 |
+| Journey | 6 | 2, see [the agreement the journey does not record](#the-agreement-the-journey-does-not-record) |
+
+### Reply timing
+
+From Flux's committed end of turn, on the agent's clock, to the first text sent
+to the speech engine and to the transport's first audio:
+
+| Check | Replies | End of turn to first text, p50 / p90 | End of turn to first audio, p50 / p90 |
+| --- | --- | --- | --- |
+| Realtime voice | 25 | 0.65 s / 0.86 s | 0.79 s / 1.02 s |
+| Acknowledgement | 15 | 0.38 s / 0.74 s | 0.52 s / 0.90 s |
+| Walkthrough | 18 | 0.16 s / 0.51 s | 0.32 s / 0.66 s |
+| Vague ask | 9 | 0.39 s / 1.02 s | 0.53 s / 1.17 s |
+| Journey | 60 | 0.42 s / 0.68 s | 0.59 s / 0.84 s |
+| All | 127 | 0.42 s / 0.77 s | 0.59 s / 0.92 s |
+
+First text to first audio took a median 0.16 seconds (p90 0.19 seconds), and no
+reply took longer than 1.40 seconds from the end of turn. Walkthrough replies are
+the fastest because each is "Mm-hmm." Flux raised 173 eager ends of turn, and 40
+were withdrawn because the participant kept talking. The 2026-10-07 interviews
+measured a p50 of 0.52 seconds and a p90 of 0.96 seconds from end of turn to
+first audio (see
+[GPT-6.1 Sol Ultrafast as the voice text model](#gpt-61-sol-ultrafast-as-the-voice-text-model)).
+
+From the end of the participant's scripted line to the agent's first played
+word, 23 replies took a median 1.10 seconds and a p90 of 2.03 seconds: 1.30
+seconds for "what did I apply" (5 replies), 0.73 seconds for a request to circle
+the channel filter, 0.81 seconds for "how is the change going", 1.68 seconds for
+the opening line, and 2.03 seconds for the recap after the ask. The greeting
+began a median 1.28 seconds after the call connected.
+
+### Gestures and cues
+
+All 72 circles in 16 runs fired on the first word of the phrase that names their
+control: "Last" for the date range, "TikTok" for the channel, "the" in "the
+channel filter", and "Save" for the save button. Each dispatch committed a median
+10 ms after that word started playing on the agent (p90 13 ms, largest 14 ms).
+These checks do not include the extension's delivery after the dispatch.
+
+- Asked to circle the channel filter, the agent circled it in 5 of 5 runs, a
+  median 1.04 seconds after the ask ended. Asked which control is the segment, it
+  circled the segment filter in 5 of 5.
+- Asked what was applied, it named every applied filter in 5 of 5.
+- During the walkthrough it said only "Mm-hmm." to each step in all 6
+  walkthrough and acknowledgement runs, and circled nothing in the 3 walkthrough
+  runs.
+
+Each [application cue](./interview-and-voice.md#application-cues) reached the
+agent within a fraction of a second of the record that triggers it:
+
+| Cue | Runs | Appended after its trigger | Agent's first words after the trigger |
+| --- | --- | --- | --- |
+| The new version is ready | 8 | 0.00–0.01 s | Not measured |
+| It is being built, after the gate's approval | 2 | 0.03–0.04 s | None: it stayed silent while building in 2 of 2 |
+| The debrief, after the new version loaded | 3 | 0.02 s | 0.80–0.94 s |
+| Acknowledge the loaded dashboard | 3 | 0.28–0.62 s | 1.05–1.54 s ("There it is.") |
+| The applied filters, after they committed | 5 | 0.30–0.56 s | Not measured |
+
+The agent acknowledged nothing during the walkthrough or while the new version was
+announced, in 3 of 3 acknowledgement runs. In the two passing journeys, no Job
+failed, no cursor target went stale, and no connection sat idle inside a
+transaction.
+
+### Browser call
+
+In each of three runs, the session tab heard the greeting 2.92 to 3.55 seconds
+after it opened (median 3.54 seconds). After a reload, it reconnected to the same
+call and agent in 0.98 to 1.02 seconds. It heard the agent's reply a median 1.63
+seconds after the participant's line ended (6 replies, largest 1.96 seconds). With
+the agent started late, the tab heard the greeting 1.05 to 1.46 seconds after its
+call connected, over one connection and one agent run.
+
+### The agreement the journey does not record
+
+In 4 of 6 journey runs, the agent said its agreement line ("That's agreed; I'll
+get that started and tell you when it's ready to try") and ended its answer
+without calling `record_acceptance_criteria`, so nothing was recorded and the test
+failed. The logged Responses API events show each failing answer completing with a
+reasoning item and a message and no function call. The passing answers completed
+with a message and a function call. The pipeline delivered every event Sol sent.
+
+Two things put the runs on that path:
+
+- After the participant's ask, the agent recapped and then asked what the view is
+  for, instead of proposing the change. It did this in all 6 journey, 3
+  walkthrough, and 3 vague-ask runs. The instructions' discovery step allows the
+  question, because the participant has not said what the weekly analysis is
+  for.
+- The journey's scripted participant expects a proposal at that point. Its
+  agreement answers the question instead, and its later "No, that's everything.
+  That sounds right to me." answers "Does that work for you?" and then "Would you
+  like us to go ahead?" The agent asked for confirmation, then declared agreement
+  on the contradictory answer, which was the fourth and last answer the test
+  allows.
+
+Replayed outside the pipeline, with the production instructions, tools, model,
+tier, and effort and the failed runs' words, Sol called
+`record_acceptance_criteria` with its agreement line in 5 of 5 replies, and in 5
+of 5 after a clear agreement to its proposal. After the recap's answer it asked
+about the job in 5 of 5. The replay leaves out the live context's application
+notes and earlier reasoning, and it did not reproduce the missing call.
+
+### Preview cold start
+
+Eight cold starts of the Shopalytics base preview (template revision 13, 2 vCPU,
+Vercel Sandbox), from creating the sandbox to the app answering its health check
+with the dataset verified, took a median 4.8 seconds (3.86 to 8.03 seconds).
+Creating the sandbox alone took 1.1 to 3.1 seconds and caused most of the spread.
+The readiness probes and the session's claim, which warm and cold starts both
+run, are not included. A [warm runtime](./preview-runtime-and-seeding.md#allocation-lifecycle)
+saves only these seconds, which overlap participant setup and the greeting.
+
+### Live check measurement harness
+
+These harnesses were not committed; they ran from a workstation. They consisted
+of:
+
+- A runner that ran the committed live checks one at a time with `-s`, one log
+  per run.
+- A read-only poller that copied circle dispatches, played words, and voice
+  connections from the local database every 0.5 seconds.
+- A log parser that times each committed end of turn to the next text sent to the
+  speech engine and the next "Bot started speaking", and counts eager ends of turn
+  and their withdrawals.
+- A pytest plugin that logged every Responses API WebSocket event, function-call
+  run, and tool run in the journey, apart from text and argument deltas.
+- A replay of the journey's agreement through the Responses API with the
+  production instructions and tools.
+- A script that runs the warm runtime's sandbox provisioning steps without
+  database writes and deletes each sandbox.
+
 ## Operational observability
 
 The control plane and the voice agent emit no OpenTelemetry spans or metrics. The control plane uses OpenTelemetry only to receive the Server SDK's product spans over OTLP; those spans are evidence under the [telemetry contract](./telemetry-and-evidence.md), not operational tracing. Durable events and evidence remain the authoritative audit path.
