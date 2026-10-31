@@ -63,6 +63,10 @@ highlighting are out of scope.
   `demo reset-target --i-understand-this-deletes-demo-state` first. A
   Product Signal, Job, or offer left over from a rehearsal is indistinguishable
   from live work, and the worker acts on it.
+- A reset also clears what the last run left outside the database: delete the
+  uTrace bot's messages in the watched channels and in its DM with the
+  participant, and bring the Stripe sandbox customer's credit back to zero, which
+  `demo prepare` checks.
 - The watched-channel consumer lives inside the deployed worker, so confirm the
   worker is up before the request is posted. If a message was posted while the
   consumer was down, re-ingest that exact message through the
