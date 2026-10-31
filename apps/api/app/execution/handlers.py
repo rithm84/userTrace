@@ -20,6 +20,7 @@ from app.db.rows import as_int, as_str, as_uuid
 from app.envelope import Actor, AuditIntent, EventAppend, Failure, StreamRef
 from app.errors import AggregateNotFoundError
 from app.execution.jobs import ClaimedJob
+from app.execution.sandbox_deadlines import EXTEND_SANDBOX_DEADLINES, extend_sandbox_deadlines
 from app.gate.job_types import DECIDE_GATE
 from app.gate.jobs import run_early_investigation, run_gate, settle_failed_gate
 from app.ids import uuid7
@@ -139,6 +140,7 @@ def build_handlers() -> Mapping[str, Callable[[Database, ClaimedJob], Awaitable[
         INVESTIGATE_CODE: run_early_investigation,
         PREPARE_WORKSPACE: prepare_workspace,
         RELEASE_PREPARED_WORKSPACE: release_prepared_workspace,
+        EXTEND_SANDBOX_DEADLINES: extend_sandbox_deadlines,
         RUN_IMPLEMENTATION_ATTEMPT: run_implementation_attempt,
         **offer_handlers(),
         **intake_handlers(),

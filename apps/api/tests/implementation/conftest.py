@@ -15,12 +15,18 @@ from __future__ import annotations
 
 import os
 import subprocess
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Mapping, Sequence
 
 import pytest
 import pytest_asyncio
 
-from app.connectors.vercel_sandboxes import VercelSandboxes, sandbox_grant_from_environment
+from app.connectors.vercel_sandboxes import (
+    EgressPolicy,
+    SandboxGrant,
+    SandboxHandle,
+    VercelSandboxes,
+    sandbox_grant_from_environment,
+)
 from app.db.pool import Database
 from app.implementation.artifact_store import ArtifactStore
 from app.settings import Settings
@@ -60,13 +66,103 @@ def github_token() -> Secret:
     return Secret(value=token)
 
 
+class _CleaningSandboxes(VercelSandboxes):
+    """The connector, deleting at teardown every sandbox a test created and left running.
+
+    A test that forgets to delete its workspace, or dies before its own `finally`, would
+    otherwise leave a sandbox idling until its deadline.
+    """
+
+    def __init__(self, *, grant: SandboxGrant) -> None:
+        super().__init__(grant=grant)
+        self._created: list[str] = []
+
+    async def create_from_image(
+        self,
+        *,
+        name: str,
+        image: str,
+        ports: Sequence[int],
+        env: Mapping[str, str],
+        egress: EgressPolicy,
+        execution_time_limit_seconds: int,
+        vcpus: int,
+    ) -> SandboxHandle:
+        handle = await super().create_from_image(
+            name=name,
+            image=image,
+            ports=ports,
+            env=env,
+            egress=egress,
+            execution_time_limit_seconds=execution_time_limit_seconds,
+            vcpus=vcpus,
+        )
+        self._created.append(name)
+        return handle
+
+    async def create_from_default_image(
+        self,
+        *,
+        name: str,
+        env: Mapping[str, str],
+        egress: EgressPolicy,
+        execution_time_limit_seconds: int,
+        vcpus: int,
+    ) -> SandboxHandle:
+        handle = await super().create_from_default_image(
+            name=name,
+            env=env,
+            egress=egress,
+            execution_time_limit_seconds=execution_time_limit_seconds,
+            vcpus=vcpus,
+        )
+        self._created.append(name)
+        return handle
+
+    async def create_from_snapshot(
+        self,
+        *,
+        name: str,
+        snapshot_id: str,
+        ports: Sequence[int],
+        env: Mapping[str, str],
+        egress: EgressPolicy,
+        execution_time_limit_seconds: int,
+        vcpus: int,
+    ) -> SandboxHandle:
+        handle = await super().create_from_snapshot(
+            name=name,
+            snapshot_id=snapshot_id,
+            ports=ports,
+            env=env,
+            egress=egress,
+            execution_time_limit_seconds=execution_time_limit_seconds,
+            vcpus=vcpus,
+        )
+        self._created.append(name)
+        return handle
+
+    async def delete_leftovers(self) -> None:
+        """Delete each sandbox this connector created that still exists."""
+        for name in self._created:
+            handle = await self.find(name=name)
+            if handle is not None:
+                await self.delete(handle)
+
+
 @pytest_asyncio.fixture
 async def sandboxes() -> AsyncIterator[VercelSandboxes]:
-    """A Vercel Sandbox client under the configured grant."""
+    """A Vercel Sandbox client under the configured grant.
+
+    Every sandbox a test created through it is deleted at teardown if it still exists.
+    """
     for name in ("UTRACE_VERCEL_SANDBOX_TOKEN", "UTRACE_VERCEL_TEAM_ID", "UTRACE_VERCEL_PROJECT_ID"):
         require(name)
-    async with VercelSandboxes(grant=sandbox_grant_from_environment()) as connector:
-        yield connector
+    async with _CleaningSandboxes(grant=sandbox_grant_from_environment()) as connector:
+        try:
+            yield connector
+        finally:
+            await connector.delete_leftovers()
 
 
 @pytest.fixture(scope="session")

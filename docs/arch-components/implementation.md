@@ -134,7 +134,10 @@ It waits for a preparation still running, which is further along than a fresh
 start; with no workspace to claim, it prepares its own and authors the first
 cycle while the dependencies install. A prepared workspace that no attempt
 claims is released, and its sandbox destroyed, once its case ends or its
-one-hour window passes.
+one-hour window passes. Until then its sandbox runs on a short
+[sandbox deadline](./preview-runtime-and-seeding.md#sandbox-deadlines) that is
+extended toward the end of that window, so a workspace uTrace loses track of stops
+within minutes.
 
 One nonterminal Implementation Attempt exists per Product Signal. Technical retries
 and check-fix cycles stay inside that attempt while its scope and budget remain

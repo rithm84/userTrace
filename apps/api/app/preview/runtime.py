@@ -22,6 +22,7 @@ from __future__ import annotations
 import shlex
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import datetime
 from types import TracebackType
 from typing import Final, Self
 
@@ -40,6 +41,7 @@ from app.connectors.vercel_sandboxes import (
     SandboxHandle,
     VercelSandboxes,
 )
+from app.execution.sandbox_deadlines import keep_alive
 from app.logging import get_logger
 
 __all__ = [
@@ -345,9 +347,9 @@ class PreviewRuntimeProvider:
         )
         _log.info("preview_runtime_restarted", runtime_ref=handle.runtime_ref)
 
-    async def extend_runtime(self, *, handle: PreviewRuntimeHandle, seconds: int) -> None:
-        """Lengthen the runtime's remaining execution time by `seconds`."""
-        await self._sandboxes.extend_execution_time(handle.sandbox, seconds=seconds)
+    async def keep_alive(self, *, handle: PreviewRuntimeHandle, planned_end: datetime) -> None:
+        """Extend the runtime's short sandbox deadline toward `planned_end` when it is due."""
+        await keep_alive(self._sandboxes, handle.sandbox, planned_end=planned_end)
 
     async def delete_runtime(self, *, handle: PreviewRuntimeHandle) -> None:
         """Destroy the runtime outright. Never reset it back into the warm pool."""

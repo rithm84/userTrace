@@ -25,8 +25,8 @@ from uuid import UUID
 import httpx
 
 from app.db.pool import Database
-from app.db.rows import as_datetime
 from app.errors import GuardRejectedError
+from app.execution.sandbox_deadlines import initial_deadline_seconds
 from app.logging import get_logger
 from app.preview.activation import (
     ServerActivationContext,
@@ -171,7 +171,7 @@ async def provision_warm_runtime(
             route_context_signing_secret=route_secret,
         ),
         egress=runtime_network_policy(observation_hosts=activation.endpoints.hosts()),
-        execution_time_limit_seconds=settings.execution_time_limit_seconds,
+        execution_time_limit_seconds=initial_deadline_seconds(settings.execution_time_limit_seconds),
         vcpus=recipe.vcpus,
         supervisor_command=recipe.supervisor_command,
         application_directory=recipe.application_directory,
@@ -333,24 +333,15 @@ async def _renew_for_session(
     provider: PreviewRuntimeProvider,
     handle: PreviewRuntimeHandle,
     allocation_id: UUID,
-    runtime_expires_at: datetime,
     execution_time_limit_seconds: int,
 ) -> None:
-    """Give the session the runtime's full execution limit, counted from now.
+    """Give the session the runtime's full planned lifetime, counted from now.
 
-    A warm runtime's sandbox has been counting down since it was created, so a
-    session would otherwise inherit only what was left of it.
+    A warm runtime's planned end has been counting down since it was created, so a
+    session would otherwise inherit only what was left of it. The sandbox keeps its
+    short deadline, which the deadline Job extends toward the new planned end.
     """
-    extension = int(
-        (
-            datetime.now(tz=UTC)
-            + timedelta(seconds=execution_time_limit_seconds)
-            - runtime_expires_at
-        ).total_seconds()
-    )
-    if extension < 1:
-        return
-    await provider.extend_runtime(handle=handle, seconds=extension)
+    planned_end = datetime.now(tz=UTC) + timedelta(seconds=execution_time_limit_seconds)
     async with database.transaction() as conn, conn.cursor() as cur:
         await cur.execute(
             """
@@ -358,12 +349,13 @@ async def _renew_for_session(
             set runtime_expires_at = %s, updated_at = now()
             where id = %s
             """,
-            (runtime_expires_at + timedelta(seconds=extension), allocation_id),
+            (planned_end, allocation_id),
         )
+    await provider.keep_alive(handle=handle, planned_end=planned_end)
     _log.info(
         "preview_runtime_renewed_for_session",
         preview_runtime_allocation_id=str(allocation_id),
-        extended_seconds=extension,
+        planned_end=planned_end.isoformat(),
     )
 
 
@@ -478,7 +470,6 @@ async def prepare_session_preview(
         provider=provider,
         handle=handle,
         allocation_id=pins.preview_runtime_allocation_id,
-        runtime_expires_at=as_datetime(secrets_row, "runtime_expires_at"),
         execution_time_limit_seconds=settings.execution_time_limit_seconds,
     )
     await install_server_activation(

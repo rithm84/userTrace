@@ -42,6 +42,7 @@ from app.db.pool import Database
 from app.db.rows import as_str, as_uuid
 from app.errors import AggregateNotFoundError
 from app.execution.jobs import ClaimedJob
+from app.execution.sandbox_deadlines import initial_deadline_seconds
 from app.gate.policy import ImplementationPolicy, load_implementation_policy
 from app.gate.scope import RequiredCheck
 from app.ids import uuid7
@@ -207,7 +208,7 @@ async def prepare_case_workspace(
             snapshot_id=pins.workspace_snapshot_id,
             egress=preparation_egress(repository_token=repository_token),
             env={"CODEX_API_KEY": PLACEHOLDER_API_KEY, "CI": "1"},
-            execution_time_limit_seconds=_WINDOW_SECONDS,
+            execution_time_limit_seconds=initial_deadline_seconds(_WINDOW_SECONDS),
             vcpus=pins.vcpus,
         )
     except Exception as error:
