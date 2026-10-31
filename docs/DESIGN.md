@@ -363,8 +363,9 @@ Every crop is the real thing at its own scale, built from `surfaces/`:
   registered elements, measured where they stand (`story/useTargets.ts`). Maya's
   own black pointer glides between the controls she uses and, once she has
   clicked, rests on the chart, clear of what the agent marks. On the first
-  candidate she reopens the saved view and the agent circles the saved views,
-  where Export used to be; on the repaired candidate it circles Export.
+  candidate she reopens the saved view and the agent circles the restored
+  filters, then the saved views, where Export used to be; on the repaired
+  candidate it circles Export.
 
 Shopalytics' logo (a shopping bag with a rising line) marks its Discord server,
 its preview tab, its top bar and its invoice; Dudulemon's marks Maya and the
