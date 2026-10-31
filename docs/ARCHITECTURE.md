@@ -96,7 +96,7 @@ provides versioned schemas, bindings, and runtime validation across both languag
 | Product observation | [Browser SDK and shared runtime](./arch-components/browser-sdk.md), [Server SDK](./arch-components/server-sdk.md), [telemetry and evidence](./arch-components/telemetry-and-evidence.md) |
 | Control and reasoning | [Control plane](./arch-components/control-plane.md), [context assembly](./arch-components/context-assembly.md) |
 | Implementation and preview | [Preview runtimes and seeding](./arch-components/preview-runtime-and-seeding.md), [implementation controller](./arch-components/implementation.md), [preview build](./arch-components/preview-build.md), [preview front door](./arch-components/preview-front-door.md) |
-| Output and records | [Client outputs and GitHub](./arch-components/client-outputs.md), [Outreach Offers and invoice credits](./arch-components/outreach-offers.md), [durable data and schema](./arch-components/data-and-schema.md), [evaluation and observability](./arch-components/evaluation-and-observability.md) |
+| Output and records | [Client outputs and GitHub](./arch-components/client-outputs.md), [Outreach Offers and invoice credits](./arch-components/outreach-offers.md), [durable data and schema](./arch-components/data-and-schema.md), [evaluation and observability](./arch-components/evaluation-and-observability.md), [benchmarks](./arch-components/benchmarks.md) |
 | Platform boundaries | [Deployment](./arch-components/deployment.md), [security](./arch-components/security.md), [failure recovery](./arch-components/failure-recovery.md) |
 
 ## Component relationships
