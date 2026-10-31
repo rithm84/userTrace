@@ -10,6 +10,8 @@ SELECT cron.schedule_in_database('utrace-preview-pool-scan', '* * * * *', 'selec
 
 SELECT cron.schedule_in_database('utrace-preview-teardown-scan', '* * * * *', 'select utrace.scan_preview_teardowns();', 'postgres', NULL, true);
 
+SELECT cron.schedule_in_database('utrace-sandbox-deadline-scan', '* * * * *', 'select utrace.scan_sandbox_deadlines();', 'postgres', NULL, true);
+
 SELECT cron.schedule_in_database('utrace-telemetry-readiness-scan', '* * * * *', 'select utrace.rescan_stale_telemetry_readiness(200);', 'postgres', NULL, true);
 
 SELECT pgmq.create('utrace_outbox');

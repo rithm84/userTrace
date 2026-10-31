@@ -104,11 +104,25 @@ terminates it as `activation_superseded` and waits, bounded, for its terminal
 report, because the product's framework may exit on the shutdown signal before
 the Server SDK finishes its own flush.
 
-A runtime's sandbox stops at a fixed execution limit, and a warm runtime spends
-part of that limit waiting. The allocation records when its sandbox stops. Only a
-warm runtime with more than the claim margin left is claimed or counts toward the
-pool target, and the claim extends the sandbox so the session starts with the full
-limit.
+A runtime has a planned lifetime, the execution limit, and a warm runtime spends
+part of it waiting. The allocation records when that lifetime ends
+(`runtime_expires_at`). Only a warm runtime with more than the claim margin left is
+claimed or counts toward the pool target, and the claim restarts the lifetime so the
+session starts with the full limit.
+
+### Sandbox deadlines
+
+The sandbox itself never holds the whole lifetime. A preview runtime, like a
+prepared [implementation workspace](./implementation.md#prepared-workspace), is
+created with a deadline of at most 20 minutes. Every minute,
+`utrace.scan_sandbox_deadlines` queues one `sandboxes.extend_deadlines` Job for
+each client that still tracks a live sandbox, and the Job extends each tracked
+sandbox whose deadline is under 10 minutes away, to 20 minutes from now but never
+past its recorded end. A tracked sandbox therefore survives about ten missed scans.
+A sandbox no row tracks any more, because its test or script died, a reset
+truncated its row, or a worker crashed between creating it and recording it, is
+never extended and stops within 20 minutes instead of idling to the end of its
+lifetime.
 
 The [scenario](../SCENARIO.md#starting-state-and-fixture) starts with a claimable
 healthy base runtime. If none is ready when the user arrives, a runtime is created

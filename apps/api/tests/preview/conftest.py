@@ -25,7 +25,7 @@ import os
 import socket
 import threading
 import time
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Iterator, Mapping
 from contextlib import closing
 from pathlib import Path
 from uuid import UUID
@@ -36,7 +36,12 @@ import pytest_asyncio
 import uvicorn
 from psycopg.types.json import Jsonb
 
-from app.connectors.vercel_sandboxes import sandbox_grant_from_environment
+from app.connectors.failures import ConnectorFailure, TechnicalCategory
+from app.connectors.vercel_sandboxes import (
+    EgressPolicy,
+    SandboxGrant,
+    sandbox_grant_from_environment,
+)
 from app.db.pool import Database
 from app.ids import uuid7
 from app.ingestion.settings import get_ingestion_settings
@@ -50,7 +55,7 @@ from app.preview.config import (
 )
 from app.preview.recipe import TemplateRecipe
 from app.preview.records import RuntimeTemplate, SeedIdentity
-from app.preview.runtime import PreviewRuntimeProvider
+from app.preview.runtime import PreviewRuntimeHandle, PreviewRuntimeProvider
 from app.preview.template import load_current_template
 from app.settings import Settings
 from tests.conftest import require_env
@@ -190,13 +195,67 @@ def template_image() -> str:
     return require_env("UTRACE_PREVIEW_TEMPLATE_IMAGE")
 
 
+class _CleaningProvider(PreviewRuntimeProvider):
+    """The provider, deleting at teardown every runtime a test created and left running.
+
+    A test that forgets to delete its runtime, or dies before its own `finally`, would
+    otherwise leave a seeded sandbox idling until its deadline.
+    """
+
+    def __init__(self, *, grant: SandboxGrant) -> None:
+        super().__init__(grant=grant)
+        self._created: list[tuple[str, int]] = []
+
+    async def create_idle_runtime(
+        self,
+        *,
+        runtime_ref: str,
+        snapshot_id: str,
+        application_port: int,
+        env_vars: Mapping[str, str],
+        egress: EgressPolicy,
+        execution_time_limit_seconds: int,
+        vcpus: int,
+    ) -> PreviewRuntimeHandle:
+        handle = await super().create_idle_runtime(
+            runtime_ref=runtime_ref,
+            snapshot_id=snapshot_id,
+            application_port=application_port,
+            env_vars=env_vars,
+            egress=egress,
+            execution_time_limit_seconds=execution_time_limit_seconds,
+            vcpus=vcpus,
+        )
+        self._created.append((runtime_ref, application_port))
+        return handle
+
+    async def delete_leftovers(self) -> None:
+        """Delete each runtime this provider created that still exists."""
+        for runtime_ref, application_port in self._created:
+            try:
+                handle = await self.attach(
+                    runtime_ref=runtime_ref, application_port=application_port
+                )
+            except ConnectorFailure as failure:
+                if failure.detail.category is TechnicalCategory.NOT_FOUND:
+                    continue
+                raise
+            await self.delete_runtime(handle=handle)
+
+
 @pytest_asyncio.fixture
 async def provider() -> AsyncIterator[PreviewRuntimeProvider]:
-    """A real Vercel Sandbox client, skipping with the exact variable that is missing."""
+    """A real Vercel Sandbox client, skipping with the exact variable that is missing.
+
+    Every runtime a test created through it is deleted at teardown if it still exists.
+    """
     for name in ("UTRACE_VERCEL_SANDBOX_TOKEN", "UTRACE_VERCEL_TEAM_ID", "UTRACE_VERCEL_PROJECT_ID"):
         require_env(name)
-    async with PreviewRuntimeProvider(grant=sandbox_grant_from_environment()) as client:
-        yield client
+    async with _CleaningProvider(grant=sandbox_grant_from_environment()) as client:
+        try:
+            yield client
+        finally:
+            await client.delete_leftovers()
 
 
 @pytest_asyncio.fixture

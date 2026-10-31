@@ -17,6 +17,10 @@ Each sandbox is a Firecracker microVM. The rules this connector holds:
   server-side route target and never reaches a browser.
 - **Credentials at egress.** A header a network rule injects is added by the sandbox
   firewall outside the microVM, so the credential never exists inside it.
+- **Short deadlines.** A sandbox that outlives one call is created with a short
+  deadline that a scheduled Job keeps extending while uTrace tracks it
+  (`app.execution.sandbox_deadlines`), so one uTrace lost track of stops within
+  minutes instead of at its whole planned lifetime.
 
 See the [preview runtime contract](../../../../docs/arch-components/preview-runtime-and-seeding.md#template-and-readiness)
 and the [implementation contract](../../../../docs/arch-components/implementation.md#enforcement-model).
@@ -29,6 +33,7 @@ import subprocess
 import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from types import TracebackType
 from typing import Final, Self
 
@@ -49,6 +54,7 @@ from vercel.sandbox import (
     SandboxPathNotFoundError,
     SandboxResources,
     SandboxServiceOptions,
+    SandboxStatus,
     SandboxTimeoutError,
     SnapshotExpiration,
     SnapshotSource,
@@ -425,6 +431,33 @@ class VercelSandboxes:
                 parameters={"name": handle.name, "seconds": seconds},
             ) from error
         _logger.info("vercel.sandbox.extended", name=handle.name, seconds=seconds)
+
+    def running_deadline(self, handle: SandboxHandle) -> datetime | None:
+        """When the sandbox's current session stops, or `None` when it is not running.
+
+        The deadline is the session's start plus its execution time limit as the handle
+        last read them, so read it from a handle `find` just returned.
+        """
+        session = handle.sandbox.current_session
+        if session is None or session.status != SandboxStatus.RUNNING:
+            return None
+        if session.started_at is None or session.execution_time_limit is None:
+            raise ConnectorFailure(
+                FailureDetail(
+                    provider=_PROVIDER,
+                    operation="running_deadline",
+                    category=TechnicalCategory.INTEGRITY,
+                    retry_advice=RetryAdvice.NEVER,
+                    effect_state=EffectState.ABSENT,
+                    message=(
+                        "a running sandbox session reported no start time or execution "
+                        f"time limit (started_at={session.started_at}, "
+                        f"execution_time_limit={session.execution_time_limit})"
+                    ),
+                    request_parameters=redacted_parameters({"name": handle.name}),
+                )
+            )
+        return datetime.fromtimestamp(session.started_at / 1000, tz=UTC) + session.execution_time_limit
 
     async def write_file(self, handle: SandboxHandle, *, path: str, content: bytes) -> None:
         """Replace one file inside the sandbox.

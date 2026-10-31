@@ -342,10 +342,10 @@ async def deploy_candidate(
     handle = built.handle
     handoff_secret = built.handoff_secret
     route_secret = built.route_secret
-    await provider.extend_runtime(handle=handle, seconds=settings.execution_time_limit_seconds)
     runtime_expires_at = datetime.now(tz=UTC) + timedelta(
         seconds=settings.execution_time_limit_seconds
     )
+    await provider.keep_alive(handle=handle, planned_end=runtime_expires_at)
     allocation_id = await insert_allocation(
         database,
         template=template,

@@ -216,6 +216,7 @@
     "utrace/functions/scan_prepared_workspace_releases.sql",
     "utrace/functions/scan_preview_teardowns.sql",
     "utrace/functions/scan_preview_warm_pools.sql",
+    "utrace/functions/scan_sandbox_deadlines.sql",
     "utrace/functions/uuid7.sql",
     "_cluster/publications.sql",
     "public/default_privileges.sql",
@@ -438,6 +439,7 @@
     "utrace/functions/scan_prepared_workspace_releases.sql",
     "utrace/functions/scan_preview_teardowns.sql",
     "utrace/functions/scan_preview_warm_pools.sql",
+    "utrace/functions/scan_sandbox_deadlines.sql",
     "utrace/functions/uuid7.sql",
     "utrace/schema.sql",
     "utrace/sequences/fencing_token_seq.sql"
