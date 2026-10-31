@@ -88,6 +88,10 @@ export interface UTraceGateProps {
 export const UTraceGate = (props: UTraceGateProps): ReactElement => {
   const [status, setStatus] = useState<GateStatus>(() => {
     if (props.profile !== "preview") return { phase: "ready", session: inertSession() };
+    // A server render has no document to observe. Starting there would fail the
+    // server's module-wide gate, and every later server render would then send the
+    // failure surface, so the server only ever renders the pending one.
+    if (typeof window === "undefined") return { phase: "activating" };
     // Starting here rather than in an effect keeps the gate ahead of every
     // application client component's first render.
     void startUTracePreview(props.config);
