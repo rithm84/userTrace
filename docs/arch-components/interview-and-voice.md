@@ -38,7 +38,7 @@ participant, GPT-6.1 Sol at the Ultrafast service tier writes the agent's words
 and calls uTrace's tools, and ElevenLabs speaks them. The session tab carries the call's audio over Daily's
 WebRTC transport. The extension does not capture or relay audio. Supabase Realtime
 carries application updates, not media. The
-[voice and reasoning model measurements](./evaluation-and-observability.md#voice-and-reasoning-model-measurements)
+[voice and reasoning model benchmarks](./benchmarks.md#voice-and-reasoning-models)
 are the evidence for this pipeline and for GPT-6.1 Sol in the voice and reasoning
 roles.
 
@@ -129,8 +129,8 @@ names no current control is logged and dropped. A gesture brings the preview tab
 and its window to the front, because a gesture the participant cannot see helps
 no one and a hidden window pauses the cursor's animation. The measurements behind
 this design are in the
-[voice and reasoning model measurements](./evaluation-and-observability.md#voice-and-reasoning-model-measurements)
-and the [agent cursor measurements](./evaluation-and-observability.md#agent-cursor-measurements).
+[voice and reasoning model benchmarks](./benchmarks.md#voice-and-reasoning-models)
+and the [agent cursor benchmarks](./benchmarks.md#agent-cursor).
 
 The screen state offers up to 48 targets from the bound document's registry.
 Targets are described by role, the client's declared definition, the label they

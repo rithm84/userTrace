@@ -20,7 +20,7 @@ in the context. These are the pieces uTrace adds:
   drops their audio while the Pause control has muted it.
 
 The measurements behind these choices are in the
-[voice and reasoning model measurements](../../../../../docs/arch-components/evaluation-and-observability.md#voice-and-reasoning-model-measurements).
+[voice and reasoning model benchmarks](../../../../../docs/arch-components/benchmarks.md#voice-and-reasoning-models).
 """
 
 import array
