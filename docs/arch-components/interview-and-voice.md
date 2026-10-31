@@ -204,9 +204,9 @@ reconnects. The cues are:
   said they are opening it. Only if nobody holds the floor for 20 seconds with the
   preview still unopened does the agent ask outright, once. The session tab's status names
   the same step, and a note tells the agent when the preview opens.
-- **Gate outcome:** the agreement's one spoken line says the agent will get the
-  change started and will say when it is ready to try, and never that it is
-  building or ready. Once the Implementation
+- **Gate outcome:** the one line the application speaks once the agreement is
+  recorded says the agent will get the change started and will say when it is
+  ready to try, and never that it is building or ready. Once the Implementation
   Gate has authorized an attempt, while that attempt is still building, the agent
   is only told so, so one thought is never split across a silence. When the
   gate stops the agreed change, by failing for good or by choosing no
@@ -550,9 +550,14 @@ call:
 After `review_observed_activity`, `begin_validation`, `implementation_status`, or a
 refused call, the model carries on: it speaks from the result or takes its next
 step. After `record_validation_outcome` succeeds it does not, because the
-application's closing cue follows at once. After `record_evidence_claim`,
-`record_acceptance_criteria`, or `record_requested_change` succeeds, the model
-speaks again only if the answer that made the call said nothing, so the
+application's closing cue follows at once. The model calls
+`record_acceptance_criteria` and `record_requested_change` without a word, and
+once one succeeds the application itself says, in the agent's voice, that the
+agent will get the change started and say when it is ready to try, opening with
+"that's agreed" when the answer that recorded it said nothing. So the participant
+never hears that promise for a change that was not recorded: the model's own
+words could make it without the call. After `record_evidence_claim` succeeds,
+the model speaks again only if the answer that made the call said nothing, so the
 participant is never left in silence and never hears a second turn after one that
 already answered them. What an agreement or a requested change leads to, the
 application tells the agent once the Implementation Gate decides. A barge-in never

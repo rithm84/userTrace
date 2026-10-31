@@ -82,6 +82,7 @@ __all__ = [
     "TOOL_DEFINITIONS",
     "ToolContext",
     "ToolDefinition",
+    "announcement",
     "answer_follows",
     "execute_tool",
     "progress_in_words",
@@ -95,6 +96,14 @@ _CONTINUING_TOOLS: Final[frozenset[str]] = frozenset(
 #: Tools whose recorded outcome the application follows at once with a cue of its own:
 #: a recorded validation outcome is followed by the closing.
 _CUED_TOOLS: Final[frozenset[str]] = frozenset({"record_validation_outcome"})
+#: What the application says once a tool has recorded an agreement, instead of the
+#: agent: the model's own words could promise the change without recording it.
+_COMMITMENT: Final[str] = "I'll get that started and tell you when it's ready to try."
+#: How the application opens that line when the answer that recorded it said nothing.
+_ANNOUNCEMENT_OPENINGS: Final[Mapping[str, str]] = {
+    "record_acceptance_criteria": "Great, that's agreed; ",
+    "record_requested_change": "Great, ",
+}
 #: The keys of a result that says the call did not do what was asked.
 _REFUSALS: Final[tuple[str, ...]] = ("error", "refused", "unavailable")
 
@@ -650,18 +659,33 @@ def answer_follows(name: str, *, refused: bool, answer_spoke: bool) -> bool:
 
     It does after a refusal, to fix the call or tell the person what they need to
     do, and after a tool it answers from. A recorded validation outcome is followed
-    at once by the application's closing cue. Anything else it records, a claim,
-    an agreement, or a requested change, it speaks after only if the answer that
-    recorded it said nothing: the person is never left in silence, and never hears
-    a second turn after one that already answered them. What an agreement or a
-    requested change leads to, the application announces once the Implementation
-    Gate decides.
+    at once by the application's closing cue, and a recorded agreement or requested
+    change by its `announcement`. A recorded claim it speaks after only if the
+    answer that recorded it said nothing: the person is never left in silence, and
+    never hears a second turn after one that already answered them. What an
+    agreement or a requested change leads to, the application announces once the
+    Implementation Gate decides.
     """
     if refused or name in _CONTINUING_TOOLS:
         return True
-    if name in _CUED_TOOLS:
+    if name in _CUED_TOOLS or name in _ANNOUNCEMENT_OPENINGS:
         return False
     return not answer_spoke
+
+
+def announcement(name: str, *, refused: bool, answer_spoke: bool) -> str | None:
+    """What the application says once a tool's result is in, if anything.
+
+    Once an agreement or a requested change is recorded, the application says the
+    agent will get it started and tell them when it is ready to try, so the person
+    hears that promise only once it is recorded. When the answer that recorded it
+    said nothing, the line opens by saying it is agreed; when it said something,
+    such as "Agreed.", the promise follows it.
+    """
+    opening = _ANNOUNCEMENT_OPENINGS.get(name)
+    if refused or opening is None:
+        return None
+    return _COMMITMENT if answer_spoke else opening + _COMMITMENT
 
 
 def progress_in_words(progress: str) -> str:

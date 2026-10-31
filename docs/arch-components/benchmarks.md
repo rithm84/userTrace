@@ -387,7 +387,8 @@ participant and judge are Claude models, and the workstation had no
 | Walkthrough | 3 | 3 |
 | Vague ask | 3 | 3 |
 | Browser call, both scenarios | 3 | 3 |
-| Journey | 6 | 2, see [the agreement the journey does not record](#the-agreement-the-journey-does-not-record) |
+| Journey, before [the agreement fix](#recording-the-agreement) | 6 | 2 |
+| Journey, after it | 5 | 5 |
 
 ### Reply timing
 
@@ -459,35 +460,38 @@ seconds after the participant's line ended (6 replies, largest 1.96 seconds). Wi
 the agent started late, the tab heard the greeting 1.05 to 1.46 seconds after its
 call connected, over one connection and one agent run.
 
-### The agreement the journey does not record
+### Recording the agreement
 
-In 4 of 6 journey runs, the agent said its agreement line ("That's agreed; I'll
-get that started and tell you when it's ready to try") and ended its answer
-without calling `record_acceptance_criteria`, so nothing was recorded and the test
-failed. The logged Responses API events show each failing answer completing with a
-reasoning item and a message and no function call. The passing answers completed
-with a message and a function call. The pipeline delivered every event Sol sent.
+Before the fix, in 4 of 6 journey runs the agent said its agreement line ("That's
+agreed; I'll get that started and tell you when it's ready to try") and ended its
+answer without calling `record_acceptance_criteria`, so nothing was recorded. The
+logged Responses API events show each failing answer completing with a reasoning
+item and a message and no function call; the pipeline delivered every event Sol
+sent. Every one of those runs reached the agreement on a contradictory answer:
 
-Two things put the runs on that path:
+- After the participant's ask, the agent recapped and asked what the view is for
+  instead of proposing the change, in all 6 journey, 3 walkthrough, and 3
+  vague-ask runs. The instructions' discovery step allows the question, because
+  the participant has not said what the weekly analysis is for.
+- The journey's scripted participant expected a proposal there, so its later "No,
+  that's everything. That sounds right to me." answered "Would you like us to go
+  ahead?", and the agent declared agreement on it.
 
-- After the participant's ask, the agent recapped and then asked what the view is
-  for, instead of proposing the change. It did this in all 6 journey, 3
-  walkthrough, and 3 vague-ask runs. The instructions' discovery step allows the
-  question, because the participant has not said what the weekly analysis is
-  for.
-- The journey's scripted participant expects a proposal at that point. Its
-  agreement answers the question instead, and its later "No, that's everything.
-  That sounds right to me." answers "Does that work for you?" and then "Would you
-  like us to go ahead?" The agent asked for confirmation, then declared agreement
-  on the contradictory answer, which was the fourth and last answer the test
-  allows.
+Replayed outside the pipeline with the production instructions, tools, model,
+tier, and effort, Sol called the tool with its agreement line in 10 of 10 replies.
+The replay leaves out the live context's application notes and earlier reasoning,
+and it did not reproduce the missing call.
 
-Replayed outside the pipeline, with the production instructions, tools, model,
-tier, and effort and the failed runs' words, Sol called
-`record_acceptance_criteria` with its agreement line in 5 of 5 replies, and in 5
-of 5 after a clear agreement to its proposal. After the recap's answer it asked
-about the job in 5 of 5. The replay leaves out the live context's application
-notes and earlier reasoning, and it did not reproduce the missing call.
+The application now makes the promise itself once the agreement is recorded (see
+[tools and customer language](./interview-and-voice.md#tools-and-customer-language)),
+and the journey's participant says what the view is for before agreeing. With
+both, the journey passed 5 of 5 runs. In 3 the model said "Agreed." before its
+call, and the application followed with "I'll get that started and tell you when
+it's ready to try." In 2 it called without a word, and the application said the
+whole line 55 to 69 ms after the call arrived. From Flux's end of turn, the first
+audio of the agreement took a median 1.14 seconds (0.61 to 1.37 seconds). The
+realtime voice (2 runs), acknowledgement (2), walkthrough (1), and vague-ask (1)
+checks also passed on the same code.
 
 ### Preview cold start
 
