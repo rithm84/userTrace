@@ -46,7 +46,8 @@ class AgentTurn:
     audio plays, and while any of its tools runs. Each is tracked on its own, so one
     answer's end never releases the floor while another's audio still plays or a
     tool still runs. A barge-in ends the answer but not its tools: they record what
-    was said, and their results still arrive.
+    was said, and their results still arrive. Audio that stops without a barge-in
+    since it started played out, which sets `Floor.agent_spoke`.
     """
 
     def __init__(self, floor: Floor) -> None:
@@ -55,6 +56,7 @@ class AgentTurn:
         self._streaming = 0
         self._awaiting_audio = False
         self._speaking = False
+        self._cut_off = False
         self._tools = 0
 
     @property
@@ -83,11 +85,16 @@ class AgentTurn:
         self._refresh()
 
     def speaking(self, active: bool) -> None:
+        if active:
+            self._cut_off = False
+        elif self._speaking and not self._cut_off:
+            self._floor.agent_spoke.set()
         self._speaking = active
         self._awaiting_audio = False
         self._refresh()
 
     def interrupted(self) -> None:
+        self._cut_off = True
         self._requested = False
         self._streaming = 0
         self._awaiting_audio = False

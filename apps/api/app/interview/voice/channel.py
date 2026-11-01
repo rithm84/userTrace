@@ -43,7 +43,7 @@ class AgentChannel(Protocol):
 
 @dataclass(frozen=True, slots=True)
 class Floor:
-    """Who has the floor: each event is set while that party does not hold it.
+    """Who has the floor: each `_quiet` event is set while that party does not hold it.
 
     The agent holds it from a request to speak, or the start of its answer, until
     that answer's audio stops playing, and while one of its tools runs; the
@@ -52,6 +52,9 @@ class Floor:
 
     agent_quiet: asyncio.Event
     participant_quiet: asyncio.Event
+    #: Set each time the agent's audio plays out without the participant cutting it
+    #: off; a caller waiting for the agent to have said something clears it first.
+    agent_spoke: asyncio.Event
 
     def free(self) -> bool:
         """Whether nobody has the floor right now."""

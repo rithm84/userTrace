@@ -181,10 +181,10 @@ _BUILDING_CUE: Final[str] = (
     "and tell them it is still being built."
 )
 
-#: How often to look whether the floor is free and whether the goodbye has started.
+#: How often to look whether the floor is free for the goodbye.
 _GOODBYE_POLL_SECONDS: Final[float] = 0.1
-#: How long the agent has to start its goodbye before the session closes without it.
-_GOODBYE_START_SECONDS: Final[float] = 20.0
+#: How long the agent has to play its goodbye before the session closes without it.
+_GOODBYE_SECONDS: Final[float] = 30.0
 _CUES_ACTOR: Final[Actor] = Actor(kind=ActorKind.SERVICE, ref="interview.voice.cues")
 
 #: Sent once the person's validation of the new version is recorded as validated,
@@ -405,6 +405,7 @@ async def announce_validation_outcome(
         announced, outcome = completed
         while not floor.free():
             await asyncio.sleep(_GOODBYE_POLL_SECONDS)
+        floor.agent_spoke.clear()
         await agent.say(_VALIDATED_CUE if outcome == "validated" else _NOT_VALIDATED_CUE)
         _log.info(
             "voice_validation_outcome_announced",
@@ -412,17 +413,19 @@ async def announce_validation_outcome(
             validation_attempt_id=str(announced),
             outcome=outcome,
         )
-        # The goodbye is the agent's next turn: wait for it to start, then to play out.
+        # The goodbye has played once an answer of the agent's plays out uncut. The
+        # floor coming free is not enough: when the person talks over the goodbye
+        # before it plays, the floor frees at once, and the agent's reply to them is
+        # the goodbye, which closing then would cut off.
         try:
-            async with asyncio.timeout(_GOODBYE_START_SECONDS):
-                while floor.agent_quiet.is_set():
-                    await asyncio.sleep(_GOODBYE_POLL_SECONDS)
+            async with asyncio.timeout(_GOODBYE_SECONDS):
+                await floor.agent_spoke.wait()
         except TimeoutError:
             _log.warning(
                 "voice_validation_goodbye_not_spoken",
                 product_signal_id=str(product_signal_id),
                 validation_attempt_id=str(announced),
-                waited_seconds=_GOODBYE_START_SECONDS,
+                waited_seconds=_GOODBYE_SECONDS,
             )
         await floor.agent_quiet.wait()
         async with database.transaction() as conn:

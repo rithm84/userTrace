@@ -85,7 +85,9 @@ async def test_an_unopened_preview_is_noted_and_asked_for_only_after_a_quiet_str
     listener = asyncio.create_task(changes.run())
     await changes.listening()
     agent = RecordingAgent()
-    floor = Floor(agent_quiet=asyncio.Event(), participant_quiet=asyncio.Event())
+    floor = Floor(
+        agent_quiet=asyncio.Event(), participant_quiet=asyncio.Event(), agent_spoke=asyncio.Event()
+    )
     floor.agent_quiet.set()
     # The participant is talking: "Let me open the preview real quick."
     cue = asyncio.create_task(
