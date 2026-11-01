@@ -1,9 +1,9 @@
 {
   "schema_version": "utrace-preview-template-recipe-v1",
   "template_id": "shopalytics-dudulemon-preview",
-  "template_revision": 15,
+  "template_revision": 16,
   "image_repository": "shopalytics-preview",
-  "fixture_revision": "01497bf33562c19a911971b8421cc6d7d815108a",
+  "fixture_revision": "696397f3bda12d9457fb25d771d7cca4e4e6edc4",
   "dockerfile_path": "deploy/vercel/Dockerfile",
   "supervisor_path": "deploy/vercel/supervisor.sh",
   "supervisor_command": "/usr/local/bin/shopalytics-supervisor",

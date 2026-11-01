@@ -5,7 +5,7 @@ Session's client and flow type, with the client's Product Overview, and the voic
 agent passes them to the model unchanged. Browser input never reaches them.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from app.clients.overview import load_active_overview, render_overview
@@ -84,12 +84,11 @@ circle while they are still walking you through their steps, never circle a cont
 you already circled earlier in the conversation unless they ask to be shown it,
 and never tell them you cannot point or highlight.
 
-The preview runs on a fixed demo date, {fixture_date}. Dates in it count from that
-day, not from today, so a range such as the last 30 days ends on {fixture_date}.
-A relative range stays relative: say "the last 30 days" and, only if a date
-helps, what it shows here, such as "which here ends {fixture_day}", never a
-fixed end date as though the range were frozen. Say a date the short way, such as
-"{fixture_day}", without the weekday or year.
+The preview's data runs up to today, {preview_date}, so a range such as the last
+30 days ends today. A relative range stays relative: say "the last 30 days" and,
+only if a date helps, what it shows here, such as "which ends today, {preview_day}",
+never a fixed end date as though the range were frozen. Say a date the short way,
+such as "{preview_day}", without the weekday or year.
 
 Never expose internal implementation detail. Do not mention spans, endpoints,
 status codes, repositories, schemas, event names, tool names, or internal
@@ -233,12 +232,13 @@ async def session_instructions(database: Database, *, interview_session_id: UUID
             "has no implementation.implementation_limit"
         )
     overview = (await load_active_overview(database, client_id=as_uuid(row, "client_id"))).overview
+    preview_day = _presented_clock(datetime.fromisoformat(fixture_clock), datetime.now(UTC))
     return _INSTRUCTIONS.format(
         product_knowledge=render_overview(
             overview, sections=[section.key for section in overview.sections()]
         ),
-        fixture_date=_spoken_date(datetime.fromisoformat(fixture_clock)),
-        fixture_day=_spoken_day(datetime.fromisoformat(fixture_clock)),
+        preview_date=_spoken_date(preview_day),
+        preview_day=_spoken_day(preview_day),
         implementation_limit=int(implementation_limit),
         agent_name=interview.agent_display_name,
         client_name=as_str(row, "name"),
@@ -246,6 +246,16 @@ async def session_instructions(database: Database, *, interview_session_id: UUID
         purpose=_PURPOSE_BY_FLOW.get(flow_type or "", _DEFAULT_PURPOSE),
         discovery=_DISCOVERY_BY_FLOW.get(flow_type or "", _DEFAULT_DISCOVERY),
     )
+
+
+def _presented_clock(fixture_clock: datetime, now: datetime) -> datetime:
+    """The fixture clock moved by the whole days elapsed to now.
+
+    A preview runtime moves its dataset's dates by the same days when it starts, so
+    its newest day is this one (see the seed manifest contract in
+    docs/arch-components/preview-runtime-and-seeding.md).
+    """
+    return fixture_clock + timedelta(days=(now - fixture_clock) // timedelta(days=1))
 
 
 def _spoken_date(moment: datetime) -> str:
