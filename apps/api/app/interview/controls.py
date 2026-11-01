@@ -90,6 +90,9 @@ _CLOSE_REASON = "session_closed"
 _SERVER_PAUSE_REASON = "session_paused"
 _SERVER_RESUME_REASON = "session_resumed"
 
+#: The character each control shows. Mute and Unmute switch the participant's
+#: microphone, not who is talking, so they leave the character the voice agent
+#: shows: unmuting while the agent speaks keeps it speaking.
 _CHARACTER_BY_ACTION: dict[ControlAction, CharacterState] = {
     ControlAction.PAUSE: CharacterState.PAUSED,
     ControlAction.RESUME: CharacterState.LISTENING,
@@ -208,12 +211,10 @@ async def apply_participant_control(
                 interview_session_id=interview_session_id,
             )
 
-    async with database.transaction() as conn:
-        await set_character(
-            conn,
-            interview_session_id=interview_session_id,
-            state=_CHARACTER_BY_ACTION.get(action, CharacterState.LISTENING),
-        )
+    character = _CHARACTER_BY_ACTION.get(action)
+    if character is not None:
+        async with database.transaction() as conn:
+            await set_character(conn, interview_session_id=interview_session_id, state=character)
     projection = await publish_projection(
         database, interview_session_id=interview_session_id
     )
