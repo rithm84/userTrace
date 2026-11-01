@@ -88,7 +88,9 @@ Audio and text pass through these stages in order:
 The application speaks to the model in `<application>` messages, either to have
 it respond now (`say`) or as context for its next turn (`note`). Neither interrupts
 the agent: a cue that must not talk over it waits until the agent no longer holds
-the floor, with its audio played and its tools returned.
+the floor, with its audio played and its tools returned. A cue the agent speaks
+also waits until the participant no longer holds it: started over their sentence,
+it could not be interrupted, because their barge-in began before its audio did.
 The [application cues](#application-cues) are the messages the application sends
 on its own.
 

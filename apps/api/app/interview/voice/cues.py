@@ -88,8 +88,8 @@ _BUILDING: Final[str] = "building"
 #: How long nobody may hold the floor, with the preview ready and unopened, before
 #: the agent is asked outright to point the participant to it.
 _OPEN_PREVIEW_QUIET_SECONDS: Final[float] = 20.0
-#: How often the floor is checked while the preview stays unopened.
-_FLOOR_POLL_SECONDS: Final[float] = 0.25
+#: How often a cue looks whether the floor is free.
+_FLOOR_POLL_SECONDS: Final[float] = 0.1
 
 #: Noted once the participant's preview is ready while they have not opened it, so
 #: the agent's next reply can ask in its own words, or leave them to it when they
@@ -181,8 +181,6 @@ _BUILDING_CUE: Final[str] = (
     "and tell them it is still being built."
 )
 
-#: How often to look whether the floor is free for the goodbye.
-_GOODBYE_POLL_SECONDS: Final[float] = 0.1
 #: How long the agent has to play its goodbye before the session closes without it.
 _GOODBYE_SECONDS: Final[float] = 30.0
 _CUES_ACTOR: Final[Actor] = Actor(kind=ActorKind.SERVICE, ref="interview.voice.cues")
@@ -268,7 +266,7 @@ async def announce_ready_preview(
     subject: VoiceSubject,
     judge: VoiceJudge,
     agent: AgentChannel,
-    agent_quiet: asyncio.Event,
+    floor: Floor,
 ) -> None:
     """Announce each new version: that it is loading, then what changed once it loads."""
     woken = changes.watch()
@@ -292,11 +290,11 @@ async def announce_ready_preview(
             )
             if refusal is not None:
                 declined, reason = refusal
-                await agent_quiet.wait()
+                await _floor_free(floor)
                 await agent.say(_DECLINED_CUE.format(reason=reason))
             continue
         announced = version
-        await agent_quiet.wait()
+        await _floor_free(floor)
         await agent.say(_READY_CUE)
         _log.info(
             "voice_ready_preview_announced",
@@ -310,8 +308,8 @@ async def announce_ready_preview(
             woken.clear()
         new_controls = await _controls_once_observed(database, woken, judge=judge, subject=subject)
         checks = await agreed_checks(database, product_signal_id=subject.product_signal_id)
-        await agent_quiet.wait()
         outcome = await _agreed_outcome(database, subject=subject)
+        await _floor_free(floor)
         await agent.say(
             _DEBRIEF_CUE.format(
                 changes=(
@@ -342,7 +340,7 @@ async def announce_gate_outcome(
     *,
     product_signal_id: UUID,
     agent: AgentChannel,
-    agent_quiet: asyncio.Event,
+    floor: Floor,
 ) -> None:
     """Tell the agent, once per connection, what the gate decided about the agreed change.
 
@@ -366,7 +364,7 @@ async def announce_gate_outcome(
         if outcome == _BUILDING:
             await agent.note(cue)
         else:
-            await agent_quiet.wait()
+            await _floor_free(floor)
             await agent.say(cue)
         _log.info(
             "voice_gate_outcome_announced",
@@ -403,8 +401,7 @@ async def announce_validation_outcome(
         if completed is None or completed[0] == announced:
             continue
         announced, outcome = completed
-        while not floor.free():
-            await asyncio.sleep(_GOODBYE_POLL_SECONDS)
+        await _floor_free(floor)
         floor.agent_spoke.clear()
         await agent.say(_VALIDATED_CUE if outcome == "validated" else _NOT_VALIDATED_CUE)
         _log.info(
@@ -444,6 +441,17 @@ async def announce_validation_outcome(
             product_signal_id=str(product_signal_id),
             sessions=closed,
         )
+
+
+async def _floor_free(floor: Floor) -> None:
+    """Wait until neither the agent nor the participant holds the floor.
+
+    A cue must not start while the participant is mid-sentence: the agent would talk
+    over them, and their barge-in, which began before the cue's audio did, cannot
+    interrupt it, so the agent would finish before answering them.
+    """
+    while not floor.free():
+        await asyncio.sleep(_FLOOR_POLL_SECONDS)
 
 
 async def _completed_validation(

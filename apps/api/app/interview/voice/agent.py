@@ -557,14 +557,14 @@ def _start_background(
             subject=voice_subject,
             judge=judge,
             agent=agent,
-            agent_quiet=floor.agent_quiet,
+            floor=floor,
         ),
         announce_gate_outcome(
             database,
             changes,
             product_signal_id=subject.product_signal_id,
             agent=agent,
-            agent_quiet=floor.agent_quiet,
+            floor=floor,
         ),
         announce_validation_outcome(
             database,
