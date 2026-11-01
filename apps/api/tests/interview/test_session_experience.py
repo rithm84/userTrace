@@ -17,7 +17,7 @@ from app.db.pool import Database
 from app.errors import GuardRejectedError
 from app.ids import uuid7
 from app.ingestion.control_hub import ServerControlHub
-from app.interview.character import CharacterState
+from app.interview.character import CharacterState, set_character
 from app.interview.controls import SET_INPUT_MUTED, apply_participant_control, session_paused
 from app.interview.preflight import (
     MINIMUM_CHROME_VERSION,
@@ -305,6 +305,30 @@ async def test_pause_withdraws_observation_and_resume_rechecks_it(
     assert "readiness" in observation.seen_queries
     restored = await load_readiness(database, interview_session_id=session_id)
     assert restored.observation is True
+
+
+async def test_muting_leaves_the_character_the_voice_agent_shows(
+    database: Database, auth_users: dict[str, SignedInUser]
+) -> None:
+    case = await _case(database, auth_users, "controls-mute-character")
+    session_id = await create_live_session(
+        database, case=case, phase=InterviewPhase.DISCOVERY
+    )
+    async with database.transaction() as conn:
+        await set_character(conn, interview_session_id=session_id, state=CharacterState.SPEAKING)
+
+    # They unmute while the agent is still talking: it keeps talking.
+    for action in (ControlAction.MUTE, ControlAction.UNMUTE):
+        result = await apply_participant_control(
+            database,
+            participant=_participant(case),
+            interview_session_id=session_id,
+            action=action,
+            return_window_seconds=3600,
+            observation=None,
+            control_hub=ServerControlHub(),
+        )
+        assert result.projection.projection["character"]["state"] == CharacterState.SPEAKING.value
 
 
 async def test_finish_later_starts_the_case_return_deadline_once(
