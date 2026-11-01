@@ -403,6 +403,31 @@ describe("session tab", () => {
     expect(extension.deliverBindingOffer).toHaveBeenCalledTimes(2);
   });
 
+  it("asks for the extension's offer only once the preview serves the session", async () => {
+    let publish: (next: SessionProjection) => void = () => undefined;
+    realtime.subscribeToSession.mockImplementation(
+      (parameters: { onStatus: (status: string) => void; onProjection: (next: SessionProjection) => void }) => {
+        parameters.onStatus("live");
+        publish = parameters.onProjection;
+        return () => undefined;
+      },
+    );
+    const preparing = projectionWith({ preview_available: false });
+    renderSession(preparing);
+
+    // The preview takes longer to prepare than the offer request would wait.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(actions.fetchBindingOffer).not.toHaveBeenCalled();
+
+    act(() => {
+      publish({ ...preparing, revision: preparing.revision + 1, preview_available: true });
+    });
+    await waitFor(() => {
+      expect(extension.deliverBindingOffer).toHaveBeenCalledTimes(1);
+    });
+    expect(actions.fetchBindingOffer).toHaveBeenCalledTimes(1);
+  });
+
   it("explains an unavailable observation path without ending the conversation", () => {
     renderSession(
       projectionWith({
