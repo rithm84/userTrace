@@ -352,9 +352,10 @@ def _supported_protocol_versions() -> tuple[str, ...]:
 async def _allocation_once_ready(database: Database, *, interview_session_id: UUID) -> UUID:
     """Wait a bounded time for the session origin's allocation to be ready.
 
-    The session tab asks for the offer as soon as the session leaves setup, which
-    can be a moment before the claimed preview is bound to the session; it asks
-    only once, so the request waits for that moment rather than refusing it.
+    The session tab asks for the offer once its projection reports the preview
+    available, which can be a moment before the claimed preview is bound to the
+    session; it asks only once per version, so the request waits for that moment
+    rather than refusing it.
     """
     deadline = asyncio.get_running_loop().time() + _OFFER_READY_WAIT_SECONDS
     while True:

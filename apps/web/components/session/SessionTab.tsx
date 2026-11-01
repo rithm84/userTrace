@@ -258,8 +258,12 @@ export function SessionTab(
     voice?.setMicrophoneEnabled(microphoneEnabled && conversational);
   }, [voice, microphoneEnabled, conversational]);
 
+  // The extension binds to the preview's runtime, so its offer is asked for once
+  // that runtime serves the session: a preview that takes long to prepare would
+  // otherwise leave the extension with no offer, and nothing would observe it.
+  const previewAvailable = projection.preview_available;
   useEffect(() => {
-    if (inSetup || ended || offerDeliveredFor.current === previewStage) {
+    if (inSetup || ended || !previewAvailable || offerDeliveredFor.current === previewStage) {
       return;
     }
     offerDeliveredFor.current = previewStage;
@@ -279,7 +283,7 @@ export function SessionTab(
         );
       }
     })();
-  }, [inSetup, ended, previewStage, sessionId, extensionId]);
+  }, [inSetup, ended, previewAvailable, previewStage, sessionId, extensionId]);
 
   const refresh = useCallback((): void => {
     startTransition(async () => {
