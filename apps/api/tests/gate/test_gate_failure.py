@@ -34,6 +34,7 @@ from app.interview.agreements import (
     record_acceptance_criteria_agreement,
     record_flow_classification,
 )
+from app.interview.voice.channel import Floor
 from app.interview.voice.cues import announce_gate_outcome
 from app.interview.voice.session_changes import SessionChanges
 from app.outputs.job_types import ASSEMBLE_CASE_FILE
@@ -100,27 +101,55 @@ async def _gate_pending_case(database: Database, auth_users: dict[str, SignedInU
     return case, session_id
 
 
+def _free_floor() -> Floor:
+    """A call in which nobody holds the floor."""
+    floor = Floor(
+        agent_quiet=asyncio.Event(), participant_quiet=asyncio.Event(), agent_spoke=asyncio.Event()
+    )
+    floor.agent_quiet.set()
+    floor.participant_quiet.set()
+    return floor
+
+
+async def _decline(database: Database, case: CaseFixture) -> None:
+    """Commit the gate's choice of no implementation for the case."""
+    await _close_without_implementation(
+        database,
+        client_id=case.client_id,
+        product_signal_id=case.product_signal_id,
+        outcome=GateOutcome(
+            gate_decision_id=uuid7(),
+            decision=GateDecisionKind.NO_IMPLEMENTATION,
+            approved_scope=None,
+            blocker=GateBlocker.INSUFFICIENT_EVIDENCE,
+            blocker_detail="the agreed checks cite no observed behavior",
+            findings=(),
+            evidence_window_id=uuid7(),
+        ),
+    )
+
+
 async def _cue_heard_after(
     database: Database,
     case: CaseFixture,
     session_id: UUID,
     commit: Callable[[], Awaitable[None]],
+    *,
+    agent: RecordingAgent,
+    floor: Floor,
 ) -> RecordingAgent:
     """Run the case's gate-outcome cue, commit the outcome once it listens, and return
     the agent once the outcome reached it, spoken or noted."""
     changes = SessionChanges(database, interview_session_id=session_id)
     listener = asyncio.create_task(changes.run())
     await changes.listening()
-    agent = RecordingAgent()
-    agent_quiet = asyncio.Event()
-    agent_quiet.set()
     cue = asyncio.create_task(
         announce_gate_outcome(
             database,
             changes,
             product_signal_id=case.product_signal_id,
             agent=agent,
-            agent_quiet=agent_quiet,
+            floor=floor,
         )
     )
     try:
@@ -160,7 +189,11 @@ async def test_a_failed_gate_closes_with_a_blocker_and_the_agent_hears_it(
     async def fail_the_gate() -> None:
         assert await worker.run_once() is True
 
-    (cue,) = (await _cue_heard_after(database, case, session_id, fail_the_gate)).said
+    (cue,) = (
+        await _cue_heard_after(
+            database, case, session_id, fail_the_gate, agent=RecordingAgent(), floor=_free_floor()
+        )
+    ).said
     assert "cannot be started" in cue
 
     async with database.connection() as conn, conn.cursor() as cur:
@@ -208,22 +241,13 @@ async def test_a_gate_that_chooses_no_implementation_tells_the_agent(
     case, session_id = await _gate_pending_case(database, auth_users)
 
     async def decline() -> None:
-        await _close_without_implementation(
-            database,
-            client_id=case.client_id,
-            product_signal_id=case.product_signal_id,
-            outcome=GateOutcome(
-                gate_decision_id=uuid7(),
-                decision=GateDecisionKind.NO_IMPLEMENTATION,
-                approved_scope=None,
-                blocker=GateBlocker.INSUFFICIENT_EVIDENCE,
-                blocker_detail="the agreed checks cite no observed behavior",
-                findings=(),
-                evidence_window_id=uuid7(),
-            ),
-        )
+        await _decline(database, case)
 
-    (cue,) = (await _cue_heard_after(database, case, session_id, decline)).said
+    (cue,) = (
+        await _cue_heard_after(
+            database, case, session_id, decline, agent=RecordingAgent(), floor=_free_floor()
+        )
+    ).said
 
     assert "will not be built" in cue
     assert "do not say a new version is coming" in cue
@@ -250,8 +274,34 @@ async def test_an_approved_gate_tells_the_agent_without_a_second_line(
             configuration_release_id=case.configuration_release_id,
         )
 
-    agent = await _cue_heard_after(database, case, session_id, approve)
+    agent = await _cue_heard_after(
+        database, case, session_id, approve, agent=RecordingAgent(), floor=_free_floor()
+    )
 
     assert agent.said == []
     (cue,) = agent.noted
     assert "being built now" in cue
+
+
+async def test_a_spoken_gate_outcome_waits_for_the_person_to_finish(
+    database: Database, auth_users: dict[str, SignedInUser]
+) -> None:
+    """Spoken over the person, the outcome could not be interrupted by their barge-in,
+    which began first, so it waits until they finish."""
+    case, session_id = await _gate_pending_case(database, auth_users)
+    agent = RecordingAgent()
+    floor = _free_floor()
+    floor.participant_quiet.clear()
+
+    async def decline_while_they_talk() -> None:
+        await _decline(database, case)
+        await asyncio.sleep(_LISTENING_SECONDS)
+        assert agent.said == []
+        floor.participant_quiet.set()
+
+    await _cue_heard_after(
+        database, case, session_id, decline_while_they_talk, agent=agent, floor=floor
+    )
+
+    (cue,) = agent.said
+    assert "will not be built" in cue
