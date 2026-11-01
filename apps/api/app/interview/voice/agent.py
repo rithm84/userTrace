@@ -198,7 +198,9 @@ async def run_voice_agent(
         user_id=_AGENT_USER_ID,
         owner=True,
     )
-    floor = Floor(agent_quiet=asyncio.Event(), participant_quiet=asyncio.Event())
+    floor = Floor(
+        agent_quiet=asyncio.Event(), participant_quiet=asyncio.Event(), agent_spoke=asyncio.Event()
+    )
     floor.agent_quiet.set()
     floor.participant_quiet.set()
     turn = AgentTurn(floor)

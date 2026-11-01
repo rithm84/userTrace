@@ -224,7 +224,9 @@ reconnects. The cues are:
   checks, so it walks through what changed, mentioning a moved control only when
   it matters to the agreed change, and then exactly the recorded criteria.
 - **Validation outcome:** once the outcome is recorded and nobody has the floor,
-  the agent closes the conversation; after its goodbye plays, the session closes.
+  the agent closes the conversation; after its goodbye plays out, the session
+  closes. A goodbye the participant talks over before it finishes does not count:
+  the agent's reply to them is the goodbye.
 
 ## Call setup
 

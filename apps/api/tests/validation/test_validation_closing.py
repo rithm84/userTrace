@@ -16,6 +16,7 @@ from app.db.pool import Database
 from app.interview.voice.channel import Floor
 from app.interview.voice.cues import announce_validation_outcome
 from app.interview.voice.session_changes import SessionChanges
+from app.interview.voice.turn_taking import AgentTurn
 from app.validation.completion import CriterionConfirmation, complete_validation
 from app.validation.controller import begin_validation, open_validation_attempt
 from app.validation.evidence import DurableEvidenceQuery, EvidenceStance
@@ -86,9 +87,12 @@ async def test_a_validated_case_has_the_agent_close_the_conversation(
     listener = asyncio.create_task(changes.run())
     await changes.listening()
     agent = RecordingAgent()
-    floor = Floor(agent_quiet=asyncio.Event(), participant_quiet=asyncio.Event())
+    floor = Floor(
+        agent_quiet=asyncio.Event(), participant_quiet=asyncio.Event(), agent_spoke=asyncio.Event()
+    )
     for event in (floor.agent_quiet, floor.participant_quiet):
         event.set()
+    turn = AgentTurn(floor)
     cue = asyncio.create_task(
         announce_validation_outcome(
             database,
@@ -100,26 +104,38 @@ async def test_a_validated_case_has_the_agent_close_the_conversation(
         )
     )
 
+    async def session_closure() -> str | None:
+        async with database.connection() as conn, conn.cursor() as cur:
+            await cur.execute(
+                "select state::text as state, closure_reason from public.interview_sessions"
+                " where id = %s",
+                (scenario.interview_session_id,),
+            )
+            row = await cur.fetchone()
+        return str(row["closure_reason"]) if row is not None and row["state"] == "closed" else None
+
     async def session_closed() -> str:
-        while True:
-            async with database.connection() as conn, conn.cursor() as cur:
-                await cur.execute(
-                    "select state::text as state, closure_reason from public.interview_sessions"
-                    " where id = %s",
-                    (scenario.interview_session_id,),
-                )
-                row = await cur.fetchone()
-            if row is not None and row["state"] == "closed":
-                return str(row["closure_reason"])
+        while (closure := await session_closure()) is None:
             await asyncio.sleep(0.1)
+        return closure
 
     try:
         async with asyncio.timeout(_CUE_DEADLINE_SECONDS):
             await agent.spoke.wait()
-            # The agent says its goodbye; the session closes once it has played.
-            floor.agent_quiet.clear()
+            # The pipeline holds the floor for the goodbye, then they say "Yeah." over
+            # it before it plays: the floor frees, but nothing has been said yet, so the
+            # session stays open.
+            turn.request()
+            await asyncio.sleep(0.3)
+            turn.interrupted()
             await asyncio.sleep(1.0)
-            floor.agent_quiet.set()
+            assert await session_closure() is None
+            # The agent's reply to them is the goodbye; the session closes once it plays.
+            turn.started()
+            turn.ended(with_words=True)
+            turn.speaking(True)
+            await asyncio.sleep(0.5)
+            turn.speaking(False)
             closure_reason = await session_closed()
     finally:
         for task in (cue, listener):
