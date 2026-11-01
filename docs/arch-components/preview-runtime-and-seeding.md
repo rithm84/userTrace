@@ -138,6 +138,13 @@ authenticated identity the product handoff signs in as. The client configuration
 pins it by digest. Installation writes it into the runtime's isolated database and
 verifies referential integrity and the pinned hashes before readiness.
 
+The fixture clock stays part of the identity, but the runtime presents the data on
+today's date: each time it starts, it moves every date in the dataset forward by
+the whole days elapsed since the clock, and the product's "now" moves with them.
+The clock's day therefore reads as today, a relative range such as `Last 30 days`
+ends today and selects the same rows as at the clock, and the recorded manifest
+and hashes do not change.
+
 Base and candidate runtimes install the same manifest independently; a candidate
 never copies data from the base. The manifest preserves the relationships and
 properties the workflow depends on, and a synthetic value is never presented as
