@@ -365,6 +365,44 @@ describe("session tab", () => {
     });
   });
 
+  it("re-reads the projection each time the subscription joins and offers the new version it missed", async () => {
+    let joined: () => void = () => undefined;
+    realtime.subscribeToSession.mockImplementation(
+      (parameters: { onStatus: (status: string) => void; onJoined: () => void }) => {
+        parameters.onStatus("live");
+        joined = parameters.onJoined;
+        return () => undefined;
+      },
+    );
+    actions.refreshSessionProjection.mockResolvedValue({
+      ok: true,
+      value: projectionWith({
+        revision: fixtureSessionProjection.revision + 4,
+        implementation_progress: "ready_for_validation",
+      }),
+    });
+    renderSession(fixtureSessionProjection);
+    await waitFor(() => {
+      expect(actions.fetchBindingOffer).toHaveBeenCalledTimes(1);
+    });
+
+    // The channel was lost while the new version became ready, then joined again.
+    act(() => {
+      joined();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("session-tab")).toHaveAttribute(
+        "data-revision",
+        String(fixtureSessionProjection.revision + 4),
+      );
+    });
+    await waitFor(() => {
+      expect(actions.fetchBindingOffer).toHaveBeenCalledTimes(2);
+    });
+    expect(extension.deliverBindingOffer).toHaveBeenCalledTimes(2);
+  });
+
   it("explains an unavailable observation path without ending the conversation", () => {
     renderSession(
       projectionWith({

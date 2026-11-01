@@ -121,16 +121,6 @@ export function SessionTab(
     setTurns((current) => appendTranscriptDelta(current, delta));
   }, []);
 
-  useEffect(
-    () =>
-      subscribeToSession({
-        sessionId,
-        onProjection: acceptProjection,
-        onStatus: setRealtimeStatus,
-      }),
-    [sessionId, acceptProjection],
-  );
-
   const playAgent = useCallback((): void => {
     const element = audio.current;
     if (element === null) return;
@@ -301,6 +291,17 @@ export function SessionTab(
       acceptProjection(result.value);
     });
   }, [sessionId, acceptProjection]);
+
+  useEffect(
+    () =>
+      subscribeToSession({
+        sessionId,
+        onProjection: acceptProjection,
+        onStatus: setRealtimeStatus,
+        onJoined: refresh,
+      }),
+    [sessionId, acceptProjection, refresh],
+  );
 
   const applyControl = (action: SessionControlAction): void => {
     startTransition(async () => {
