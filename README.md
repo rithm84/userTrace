@@ -10,9 +10,9 @@
 
 <p align="center">
   <a href="https://utrace.dev">utrace.dev</a> ·
-  <a href="docs/SCENARIO.md">Demo journey</a> ·
-  <a href="docs/ARCHITECTURE.md">Architecture</a> ·
-  <a href="docs/PRD.md">Product spec</a>
+  <a href="https://youtu.be/cG6-BqIvpSw">Demo video</a> ·
+  <a href="docs/PRD.md">Product spec</a> ·
+  <a href="docs/ARCHITECTURE.md">Architecture</a>
 </p>
 
 uTrace is a forward-deployed agent for product teams. When a customer
