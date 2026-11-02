@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Landing } from "@/components/landing/Landing";
 
 const DESCRIPTION =
-  "Forward-deployed agents that investigate product feedback through user interviews, uncover underlying pain points, and build solutions those same users validate.";
+  "Forward-deployed agents that turn community feedback into merge-ready changes by interviewing users, building improvements, and validating outcomes.";
 
 export const metadata: Metadata = {
   title: "uTrace — Ship features your customers actually want",
