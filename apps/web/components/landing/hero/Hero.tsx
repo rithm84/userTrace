@@ -5,7 +5,7 @@ import { City } from '../city/City';
 import { Waitlist } from '../Waitlist';
 import { ROTATING_WORDS, RotatingWord } from './RotatingWord';
 
-export const HERO_SUBHEAD = 'Forward-deployed agents that investigate product feedback through user interviews, uncover underlying pain points, and build solutions those same users validate.';
+export const HERO_SUBHEAD = 'Forward-deployed agents that turn community feedback into merge-ready changes by interviewing users, building improvements, and validating outcomes.';
 
 /**
  * The settled hero copy over the isometric city. `live` runs the city's motion, `still` holds its

@@ -100,7 +100,7 @@ describe("web route smoke", () => {
     expect(homeMetadata.title).toBe(
       "uTrace — Ship features your customers actually want",
     );
-    expect(homeMetadata.description).toContain("build solutions those same users validate");
+    expect(homeMetadata.description).toContain("turn community feedback into merge-ready changes");
 
   });
 });
