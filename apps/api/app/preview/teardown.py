@@ -37,7 +37,7 @@ from app.preview.activation import (
     terminate_server_activation,
 )
 from app.preview.machines import PreviewRuntimeAllocationFacts
-from app.preview.pool import commit_allocation_transition
+from app.preview.pool import acquire_allocation, commit_allocation_transition
 from app.preview.routing import revoke_routes
 from app.preview.runtime import PreviewRuntimeHandle, PreviewRuntimeProvider
 
@@ -127,6 +127,7 @@ async def release_allocation(
     client_id: UUID,
     runtime_ref: str,
     application_port: int,
+    fencing_token: int,
     reason: str,
 ) -> dict[str, str | int | bool]:
     """Revoke routes, end the server stream, extract evidence, and commit."""
@@ -172,6 +173,7 @@ async def release_allocation(
             conn,
             client_id=client_id,
             allocation_id=allocation_id,
+            fencing_token=fencing_token,
             trigger="release",
             facts=PreviewRuntimeAllocationFacts(
                 runtime_reachable=True,
@@ -239,6 +241,9 @@ async def tear_down_allocation(
         return
     runtime_ref = as_str(row, "runtime_ref")
     application_port = int(row["application_port"])
+    # Tearing down takes the allocation over, so a worker still holding it cannot
+    # move it once it is being destroyed.
+    _, fencing_token = await acquire_allocation(database, allocation_id=allocation_id)
 
     releasable = {
         PreviewRuntimeAllocationState.READY.value,
@@ -253,6 +258,7 @@ async def tear_down_allocation(
             client_id=client_id,
             runtime_ref=runtime_ref,
             application_port=application_port,
+            fencing_token=fencing_token,
             reason=reason,
         )
         trigger = "terminate"
@@ -271,6 +277,7 @@ async def tear_down_allocation(
             conn,
             client_id=client_id,
             allocation_id=allocation_id,
+            fencing_token=fencing_token,
             trigger=trigger,
             facts=PreviewRuntimeAllocationFacts(
                 runtime_reachable=False,

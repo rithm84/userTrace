@@ -12,9 +12,9 @@ preview area needs on top of ``app.connectors.vercel_sandboxes``:
   no provider-level authorization; the runtime's own middleware and entry token
   are the ingress check. The URL is a server-side route target only.
 
-This adapter does not fence. ``app.preview.pool.acquire_allocation`` mints a fresh
-fencing token for an allocation, but no preview step re-reads that token before a
-mutating sequence, so a worker holding a superseded handle is not refused here.
+This adapter does not fence. Fencing happens where an allocation changes state:
+``app.preview.pool.commit_allocation_transition`` refuses a worker whose fencing
+token ``acquire_allocation`` has since superseded.
 """
 
 from __future__ import annotations

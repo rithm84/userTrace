@@ -43,9 +43,9 @@ from app.preview.artifacts import (
 from app.preview.config import PreviewSettings
 from app.preview.machines import PreviewRuntimeAllocationFacts
 from app.preview.pool import (
+    acquire_allocation,
     commit_allocation_transition,
     insert_allocation,
-    load_pins,
     mint_secret,
 )
 from app.preview.ports import ObservationReadinessPort
@@ -368,12 +368,13 @@ async def deploy_candidate(
         )
 
     try:
-        pins = await load_pins(database, allocation_id=allocation_id)
+        pins, fencing_token = await acquire_allocation(database, allocation_id=allocation_id)
         async with database.transaction() as conn:
             await commit_allocation_transition(
                 conn,
                 client_id=template.client_id,
                 allocation_id=allocation_id,
+                fencing_token=fencing_token,
                 trigger="begin_seeding",
                 facts=PreviewRuntimeAllocationFacts(
                     runtime_reachable=True,
@@ -494,6 +495,7 @@ async def deploy_candidate(
                 conn,
                 client_id=template.client_id,
                 allocation_id=allocation_id,
+                fencing_token=fencing_token,
                 trigger="bind_candidate",
                 facts=PreviewRuntimeAllocationFacts(
                     runtime_reachable=True,

@@ -109,6 +109,12 @@ with the `candidate` role, its Product Signal, and its Preview Version. One base
 allocation per Interview Session and one live candidate per Preview Version are
 database constraints, not conventions.
 
+Each step that changes an allocation, from provisioning, claiming, and candidate
+deployment to release and teardown, first takes it over by minting a new
+fencing token. An allocation's state moves only with its current token, so a
+worker that another step has since taken it over from is refused instead of
+acting on a runtime it no longer holds.
+
 ### Claim-time configuration
 
 Claim-time configuration is required, not an optimization: a pooled runtime has
