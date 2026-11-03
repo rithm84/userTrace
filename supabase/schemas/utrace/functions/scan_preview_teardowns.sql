@@ -17,6 +17,20 @@ begin
         'closed_validated', 'closed_no_implementation', 'closed_blocked', 'canceled'
       )
     union all
+    -- A spare or standby spare serves only its own session, so it goes when the
+    -- session closes, as when the participant leaves, even while the case goes on.
+    select allocations.id, allocations.client_id, 'session_ended' as reason
+    from public.preview_runtime_allocations as allocations
+    join public.interview_sessions as sessions on sessions.id = allocations.interview_session_id
+    join public.product_signals as signals on signals.id = allocations.product_signal_id
+    where allocations.allocation_kind = 'candidate'
+      and allocations.preview_version_id is null
+      and allocations.state <> 'terminated'
+      and sessions.state = 'closed'
+      and signals.state not in (
+        'closed_validated', 'closed_no_implementation', 'closed_blocked', 'canceled'
+      )
+    union all
     select allocations.id, allocations.client_id, 'template_retired' as reason
     from public.preview_runtime_allocations as allocations
     join public.preview_runtime_templates as templates

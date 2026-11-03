@@ -16,6 +16,12 @@ While preparation is still running the attempt waits for it, since it is further
 along than a fresh start; with none to claim, the attempt prepares its own. A
 prepared workspace no attempt claims is released once its case ends or its window
 passes (`utrace.scan_prepared_workspace_releases`).
+
+Each workspace is one generation of the case's. An attempt whose version passed
+its full checks hands its sandbox over as the next generation
+(`hand_over_workspace`), holding that version's files, so a change asked for while
+the participant tries the version is drafted ahead in it; one that destroys its
+workspace marks the claim released instead (`release_claimed_workspace`).
 """
 
 from __future__ import annotations
@@ -33,13 +39,9 @@ from utrace_contracts.canonical import payload_digest
 from utrace_contracts.domain.lifecycle import ProductSignalState
 
 from app.connectors.github_delivery import github_app_from_environment
-from app.connectors.vercel_sandboxes import (
-    SandboxHandle,
-    VercelSandboxes,
-    sandbox_grant_from_environment,
-)
+from app.connectors.vercel_sandboxes import VercelSandboxes, sandbox_grant_from_environment
 from app.db.pool import Database
-from app.db.rows import as_str, as_uuid
+from app.db.rows import as_optional_str, as_optional_uuid, as_str, as_uuid
 from app.errors import AggregateNotFoundError
 from app.execution.jobs import ClaimedJob
 from app.execution.sandbox_deadlines import initial_deadline_seconds
@@ -47,6 +49,7 @@ from app.gate.policy import ImplementationPolicy, load_implementation_policy
 from app.gate.scope import RequiredCheck
 from app.ids import uuid7
 from app.implementation.checks import CheckRun
+from app.implementation.drafts import record_intake_draft
 from app.implementation.environment import (
     PLACEHOLDER_API_KEY,
     WORKSPACE_ROOT,
@@ -62,21 +65,25 @@ from app.implementation.workspace_setup import (
     export_clean_base,
     install_dependencies,
     run_baseline,
+    warm_fast_checks,
 )
 
 __all__ = [
+    "WORKSPACE_WINDOW_SECONDS",
     "ClaimedWorkspace",
     "WorkspacePins",
     "claim_prepared_workspace",
+    "hand_over_workspace",
     "pins_for_attempt",
     "prepare_case_workspace",
     "prepare_workspace",
+    "release_claimed_workspace",
     "release_prepared_workspace",
 ]
 
 _logger = structlog.get_logger(__name__)
 
-_WINDOW_SECONDS: Final[int] = 3600
+WORKSPACE_WINDOW_SECONDS: Final[int] = 3600
 """How long a prepared workspace waits for its attempt before it is released."""
 _CLAIM_WAIT_SECONDS: Final[float] = 300.0
 """How long an attempt waits for a preparation still running before preparing its own."""
@@ -141,8 +148,15 @@ class ClaimedWorkspace:
     """A prepared workspace an attempt now holds, with its clean-base check runs."""
 
     prepared_workspace_id: UUID
-    handle: SandboxHandle
+    sandbox_name: str
+    """The sandbox the attempt attaches, while it publishes a draft it adopted."""
     baseline: tuple[CheckRun, ...]
+    prepared_draft_id: UUID | None
+    """The last prepared draft written in it, which the attempt adopts or removes."""
+    starting_tree: str | None
+    """The git tree its checkout started from, when that is not the base revision."""
+    preview_version_id: UUID | None
+    """The published version whose files it started from, when it did."""
 
 
 async def prepare_workspace(database: Database, claimed: ClaimedJob) -> None:
@@ -208,7 +222,7 @@ async def prepare_case_workspace(
             snapshot_id=pins.workspace_snapshot_id,
             egress=preparation_egress(repository_token=repository_token),
             env={"CODEX_API_KEY": PLACEHOLDER_API_KEY, "CI": "1"},
-            execution_time_limit_seconds=initial_deadline_seconds(_WINDOW_SECONDS),
+            execution_time_limit_seconds=initial_deadline_seconds(WORKSPACE_WINDOW_SECONDS),
             vcpus=pins.vcpus,
         )
     except Exception as error:
@@ -227,7 +241,10 @@ async def prepare_case_workspace(
         await exclude_check_logs(shell)
         await export_clean_base(shell)
         await install_dependencies(shell, install_command=pins.install_command)
-        baseline = await run_baseline(shell, checks=pins.required_checks)
+        baseline, _ = await asyncio.gather(
+            run_baseline(shell, checks=pins.required_checks),
+            warm_fast_checks(shell, checks=pins.required_checks),
+        )
     except Exception as error:
         await _fail(database, product_signal_id=product_signal_id, detail=repr(error))
         await sandboxes.delete(handle)
@@ -237,6 +254,9 @@ async def prepare_case_workspace(
         # already took the row: nothing will claim this sandbox.
         await sandboxes.delete(handle)
         return
+    # The requested feature is drafted from the original request at once, so code
+    # exists before the call does; a proposal later revises it.
+    await record_intake_draft(database, client_id=client_id, product_signal_id=product_signal_id)
     _logger.info(
         "implementation.prepared_workspace.ready",
         product_signal_id=str(product_signal_id),
@@ -248,7 +268,6 @@ async def prepare_case_workspace(
 
 async def claim_prepared_workspace(
     database: Database,
-    sandboxes: VercelSandboxes,
     *,
     specification: AttemptSpecification,
     pins: WorkspacePins,
@@ -256,7 +275,9 @@ async def claim_prepared_workspace(
     """Bind the case's prepared workspace to this attempt's lease, or return `None`.
 
     A preparation still running is waited for. A workspace prepared from other pins,
-    failed, released, or about to be released is left alone.
+    failed, released, or about to be released is left alone. The sandbox is not
+    attached here: what the attempt can do before it needs the sandbox runs while
+    the attempt attaches it.
     """
     product_signal_id = specification.product_signal_id
     deadline = time.monotonic() + _CLAIM_WAIT_SECONDS
@@ -265,10 +286,13 @@ async def claim_prepared_workspace(
         async with database.transaction() as conn, conn.cursor() as cur:
             await cur.execute(
                 """
-                select id, state, sandbox_name, pins_digest, baseline_checks,
+                select id, state, sandbox_name, pins_digest, baseline_checks, generation,
+                       prepared_draft_id, starting_tree, preview_version_id,
                        expires_at > now() + make_interval(secs => %s) as fresh
                 from public.prepared_workspaces
                 where product_signal_id = %s
+                order by generation desc
+                limit 1
                 for update
                 """,
                 (_CLAIM_MARGIN_SECONDS, product_signal_id),
@@ -280,7 +304,7 @@ async def claim_prepared_workspace(
                 refusal = "none was prepared"
             elif waiting:
                 pass
-            elif state != "ready":
+            elif state not in ("ready", "drafting"):
                 refusal = f"it is {state}"
             elif as_str(row, "pins_digest") != pins.digest():
                 refusal = "it was prepared from other pins"
@@ -315,18 +339,21 @@ async def claim_prepared_workspace(
         recorded = row["baseline_checks"]
         if not isinstance(recorded, list):
             raise TypeError("prepared_workspaces.baseline_checks is not a JSON array")
-        handle = await sandboxes.attach(name=as_str(row, "sandbox_name"))
         _logger.info(
             "implementation.prepared_workspace.claimed",
             product_signal_id=str(product_signal_id),
             implementation_attempt_id=str(specification.implementation_attempt_id),
             fencing_token=specification.lease.fencing_token,
-            sandbox=handle.name,
+            sandbox=as_str(row, "sandbox_name"),
+            generation=row["generation"],
         )
         return ClaimedWorkspace(
             prepared_workspace_id=as_uuid(row, "id"),
-            handle=handle,
+            sandbox_name=as_str(row, "sandbox_name"),
             baseline=tuple(CheckRun.model_validate(item) for item in recorded),
+            prepared_draft_id=as_optional_uuid(row, "prepared_draft_id"),
+            starting_tree=as_optional_str(row, "starting_tree"),
+            preview_version_id=as_optional_uuid(row, "preview_version_id"),
         )
 
 
@@ -342,7 +369,7 @@ async def release_prepared_workspace(database: Database, claimed: ClaimedJob) ->
             """
             update public.prepared_workspaces
             set state = 'released', updated_at = now()
-            where id = %s and state in ('preparing', 'ready', 'failed')
+            where id = %s and state in ('preparing', 'ready', 'drafting', 'failed')
             returning sandbox_name
             """,
             (workspace_id,),
@@ -359,6 +386,87 @@ async def release_prepared_workspace(database: Database, claimed: ClaimedJob) ->
         prepared_workspace_id=str(workspace_id),
         sandbox=as_str(row, "sandbox_name"),
     )
+
+
+async def release_claimed_workspace(database: Database, *, prepared_workspace_id: UUID) -> None:
+    """Record that the attempt holding a claimed workspace destroyed its sandbox.
+
+    A draft waiting for the attempt to hand the workspace over stops waiting.
+    """
+    async with database.transaction() as conn, conn.cursor() as cur:
+        await cur.execute(
+            """
+            update public.prepared_workspaces
+            set state = 'released', updated_at = now()
+            where id = %s and state = 'claimed'
+            """,
+            (prepared_workspace_id,),
+        )
+
+
+async def hand_over_workspace(
+    database: Database,
+    *,
+    client_id: UUID,
+    product_signal_id: UUID,
+    sandbox_name: str,
+    pins: WorkspacePins,
+    baseline: tuple[CheckRun, ...],
+    starting_tree: str,
+    preview_version_id: UUID,
+    implementation_limit: int,
+) -> UUID | None:
+    """Prepare the next change's workspace from the sandbox a published version left.
+
+    The sandbox holds that version's files, the installed dependencies, and warm
+    caches, so a change asked for while trying the version is drafted in it at once.
+    It becomes the case's next prepared workspace, holding no lease or authority,
+    with the clean base's checks as its baseline and the version's tree as the files
+    a draft starts over from. `None` means it was not handed over: the case has
+    used `implementation_limit` attempts, or it already has an open workspace.
+    """
+    workspace_id = uuid7()
+    async with database.transaction() as conn, conn.cursor() as cur:
+        await cur.execute(
+            """
+            insert into public.prepared_workspaces (
+                id, client_id, product_signal_id, state, sandbox_name, pins_digest,
+                baseline_checks, generation, starting_tree, preview_version_id, expires_at
+            )
+            select %s, %s, %s, 'ready', %s, %s, %s, coalesce(max(generation), 0) + 1, %s, %s,
+                   now() + make_interval(secs => %s)
+            from public.prepared_workspaces where product_signal_id = %s
+            having (
+              select count(*) from public.implementation_attempts where product_signal_id = %s
+            ) < %s
+            on conflict do nothing
+            returning id
+            """,
+            (
+                workspace_id,
+                client_id,
+                product_signal_id,
+                sandbox_name,
+                pins.digest(),
+                Jsonb([run.model_dump(mode="json") for run in baseline]),
+                starting_tree,
+                preview_version_id,
+                WORKSPACE_WINDOW_SECONDS,
+                product_signal_id,
+                product_signal_id,
+                implementation_limit,
+            ),
+        )
+        if await cur.fetchone() is None:
+            return None
+    _logger.info(
+        "implementation.prepared_workspace.handed_over",
+        product_signal_id=str(product_signal_id),
+        prepared_workspace_id=str(workspace_id),
+        sandbox=sandbox_name,
+        preview_version_id=str(preview_version_id),
+    )
+    return workspace_id
 
 
 async def _case(database: Database, *, product_signal_id: UUID) -> tuple[str, UUID]:
@@ -385,7 +493,7 @@ async def _begin(
                 id, client_id, product_signal_id, state, sandbox_name, pins_digest, expires_at
             )
             values (%s, %s, %s, 'preparing', %s, %s, now() + make_interval(secs => %s))
-            on conflict (product_signal_id) do update
+            on conflict (product_signal_id, generation) do update
             set state = 'preparing', pins_digest = excluded.pins_digest,
                 expires_at = excluded.expires_at, baseline_checks = null,
                 failure_detail = null, updated_at = now()
@@ -398,7 +506,7 @@ async def _begin(
                 product_signal_id,
                 f"utrace-workspace-{product_signal_id.hex}",
                 pins.digest(),
-                _WINDOW_SECONDS,
+                WORKSPACE_WINDOW_SECONDS,
             ),
         )
         row = await cur.fetchone()

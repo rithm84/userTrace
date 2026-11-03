@@ -119,7 +119,10 @@ commits to a deterministic uTrace branch in the one authorized repository, and
 nothing is pushed before the same user validates the exact candidate and dataset.
 Delivery is one real draft PR bound to the exact validated source commit, base
 revision, build manifest, and Product Signal, as the Case File and dashboard
-state.
+state. Its files are the validated Preview Version's files, and delivery refuses
+any whose digests differ from the ones that version's
+[full checks](./preview-build.md#readiness-and-preview-version-lifecycle) passed
+on.
 
 Preflight checks the installation, repository, target branch, validated head,
 deterministic branch, permissions, and existing markers. The draft PR carries a

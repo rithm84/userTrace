@@ -24,6 +24,7 @@ from app.errors import AggregateNotFoundError, IllegalTransitionError, RevisionC
 from app.logging import get_logger
 
 __all__ = [
+    "JOBS_READY_CHANNEL",
     "AggregateRef",
     "ColumnValue",
     "TransitionOutcome",
@@ -35,6 +36,9 @@ __all__ = [
 ]
 
 _log = get_logger(__name__)
+
+JOBS_READY_CHANNEL = "utrace_jobs_ready"
+"""Notified, without a payload, by every transaction that commits a ready Job."""
 
 type ColumnValue = str | int | float | bool | None | UUID | datetime | Jsonb
 
@@ -326,11 +330,16 @@ async def _write_audit(
 
 
 async def _wake_outbox(conn: AsyncConnection[DictRow], expected: int) -> None:
-    """Move the freshly written outbox rows onto the pgmq wake-up queue."""
+    """Move the freshly written outbox rows onto the pgmq wake-up queue.
+
+    Workers listening on `JOBS_READY_CHANNEL` hear it when the transaction commits,
+    so an idle worker claims the Job at once rather than at its next poll.
+    """
     if expected == 0:
         return
     async with conn.cursor() as cur:
         await cur.execute("select utrace.enqueue_ready_outbox(%s) as moved", (expected,))
+        await cur.execute("select pg_notify(%s, '')", (JOBS_READY_CHANNEL,))
 
 
 async def append_fact(

@@ -200,7 +200,12 @@ The Implementation Gate evaluates the interview-established classification, evid
 
 The gate selects live work when the approved scope can be completed within the
 live constraints. If no implementation proposal passes the gate, uTrace produces
-an explanatory Case File without a PR. Explicit participant cancellation remains a
+an explanatory Case File without a PR. Work the gate has not approved, such as a
+[prepared draft](#live-implementation), carries no authority. The gate may
+prepare its evaluation of a change while the agent proposes it, but it decides
+only after the originating user agrees, and only on what they agreed to; if the
+agreed change, its evidence, or the pinned policy differs from what it prepared,
+it evaluates again. Explicit participant cancellation remains a
 separate no-output path. Async implementation, for work that does not fit the live
 session, is outside the demo.
 
@@ -430,7 +435,11 @@ A preview runtime and an implementation workspace are different resources:
 
 A Preview Runtime Allocation gives an Interview Session or Preview Version exclusive access to a full running copy of the client's product: frontend, backend, database, embedded browser SDK, Server SDK, seeded data, authentication handoff, and telemetry path.
 
-Read-only investigation may inspect an authorized repository checkout before the gate; only an authorized Implementation Attempt may change code in its workspace. The workspace contains no production credentials and never becomes the customer-facing product runtime.
+Read-only investigation may inspect an authorized repository checkout before the
+gate, and a [prepared draft](#live-implementation) may change code in a throwaway
+workspace before the gate. Only an authorized Implementation Attempt may turn code
+into a Preview Version. Workspaces contain no production credentials and never
+become the customer-facing product runtime.
 
 Each Product Signal has its own base allocation and candidate lineage, and every
 candidate also binds a validation record. An allocation that held seeded data is
@@ -455,9 +464,36 @@ owns workspace authority, checks, artifacts, and cleanup.
 ### Live implementation
 
 The [product-loop diagram](#product-thesis) defines the path through the gate,
-candidate, validation, and delivery. During implementation, the agent reads exact
-files, applies the approved change, and runs required checks while conversation
-continues. Once checks pass, uTrace confirms the candidate preview runs correctly and its telemetry is bound properly, then makes it available via the user’s existing preview URL.
+candidate, validation, and delivery. The originating user tries the agreed change
+seconds after agreeing to it, because uTrace prepares it while the agent proposes
+it and proves it fully while they try it:
+
+- **Prepared draft:** once the Product Signal exists, the coding agent drafts
+  the requested feature from the original request in a throwaway workspace, and
+  while the agent proposes a change it adjusts that draft to exactly the proposed
+  change. A change asked for while trying a version is drafted from that
+  version's files the same way. A draft is prepared, not authorized: neither the
+  user nor the voice agent hears of it, and it reaches the user, a Preview
+  Version, or a PR only when the Implementation Gate approves the change the user
+  agreed to and that change is the one drafted; otherwise uTrace discards it.
+  uTrace records what every draft costs, including drafts of cases that end with
+  no implementation.
+- **Safety gate before the swap:** the drafted change runs in a separate,
+  already-running candidate preview with its own copy of the dataset, with any
+  database schema the change adds applied to that copy, while the user's current
+  preview stays untouched. A safety gate confirms that the change type-checks,
+  builds for production, and renders the workflow's page with the controls it
+  adds, and that the preview's telemetry is bound properly; the candidate
+  preview serves that production build. These checks run
+  before the user answers and again only if they are no longer fresh once the
+  gate approves. Only then does the user's existing preview URL switch to the new
+  version, all at once: the user sees either the version they had or the complete
+  new one, never a partial or failing page.
+- **Full proof while the user tries it:** the remaining required checks, such
+  as the linters and tests, run while the user validates. If one fails, the
+  coding agent fixes it within the same Implementation Attempt, and the user
+  takes a quick second look at the fixed version. A version's validation can
+  succeed only once its full checks have passed.
 
 If authorized work no longer fits the live session, uTrace checkpoints it and
 closes the case with a blocker Case File. An outage or departure never turns live
@@ -467,7 +503,8 @@ work into a different kind of work.
 
 Each Implementation Gate approval authorizes one Implementation Attempt. Technical
 retries and check-fix cycles stay inside that attempt and use its time, cost, and
-other execution budgets.
+other execution budgets; a fix made after the user started trying a version is a
+new Preview Version, which they validate afresh.
 
 While trying a new Preview Version, the originating user may ask for something to
 be different in it. Once they agree out loud on the change and the checks that now
@@ -567,16 +604,18 @@ The Case File includes:
 - Customer evidence: source message, interview excerpts, expected vs actual behavior, impact, workaround
 - Product trace: criterion-level observed evidence and coverage limits, route, DOM/accessibility target, API/backend spans, errors, before/after validation
 - Implementation Gate decision: live implementation or no implementation
-- Implementation: repository, branch, PR, diff summaries/files touched, tests/checks, cleanup state, and the validated preview build identity
+- Implementation: repository, branch, PR, diff summaries/files touched, tests/checks, cleanup state, the validated Preview Version's file identity, and the production build that passed on those files
 - Risk: blast radius, assumptions, follow-up checks
 - Next action: review/merge the PR, assess the blocker, or take no action
 
 ### PR
 
 A validated implementation produces one draft PR in the product
-repository, bound to the exact candidate the originating user validated. The PR
-links the authenticated Case File and identifies its validated commit and tested
-base. Validation does not automatically apply to later PR edits or a different
+repository, bound to the exact candidate the originating user validated. It opens
+only after the full required checks and the production build passed on exactly
+the files the user validated, matched by digest, so the PR's files are the
+validated files. The PR links the authenticated Case File and identifies its
+validated commit and tested base. Validation does not automatically apply to later PR edits or a different
 merge result. uTrace never merges automatically and never
 opens a PR for unvalidated work.
 
@@ -617,6 +656,7 @@ passes and these hold along the way:
 
 - Intake creates one Product Signal and one private invitation from the canonical request.
 - Conversation remains useful and interruptible while implementation runs, without constant progress narration.
+- The preview switches to the agreed change within seconds of the originating user's agreement, and they never see a partial or failing version.
 - The complete SDK path correlates browser observations and server spans; the required extension presents the synchronized character, controls, cursor, and overlays.
 - Participant setup passes before interviewing; problem discussion can then begin during preview preparation, while observation-dependent probing and validation wait for full readiness.
 - The agent asks context-informed questions without exposing internal code or diagnostics.

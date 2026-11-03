@@ -103,6 +103,8 @@ class CycleFeedback(_Frozen):
     cycle_index: int
     scope_violations: tuple[ScopeViolation, ...]
     new_check_failures: tuple[CheckRun, ...]
+    adjustment: str | None = None
+    """In place of a correction, how to revise a draft the workspace already holds."""
 
     def render(self) -> str:
         """The typed feedback the next cycle reads as part of its task."""
@@ -487,6 +489,8 @@ def _cycle_prompt(
         opening += f"\nThe cited files at the base revision, in full:\n{files}\n"
     if feedback is None:
         return opening
+    if feedback.adjustment is not None:
+        return f"{opening}\n{feedback.adjustment}"
     return (
         f"{opening}\nThe previous cycle was not accepted. Fix exactly this and nothing else:\n"
         f"{feedback.render()}"

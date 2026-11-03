@@ -39,6 +39,7 @@ __all__ = [
     "AttemptEvidence",
     "CycleRecord",
     "extract_attempt_artifacts",
+    "prestore_draft_artifacts",
     "record_cycle_evidence",
     "scope_summary",
 ]
@@ -269,6 +270,46 @@ async def extract_attempt_artifacts(
         artifact_count=len(manifest.references()),
     )
     return manifest
+
+
+async def prestore_draft_artifacts(
+    store: ArtifactStore,
+    *,
+    client_id: UUID,
+    product_signal_id: UUID,
+    base_revision: str,
+    files: Mapping[str, str],
+    patch: str,
+) -> tuple[ArtifactReference, ...]:
+    """Store a prepared draft's large artifacts before any attempt exists.
+
+    An artifact is identified by its tenant, type, and bytes, so the attempt that
+    adopts the draft stores these same bodies by reference when it extracts its
+    own, and only the attempt's own small records are uploaded on the way to its
+    Preview Version. Nothing binds them to an attempt or lease until then.
+    """
+
+    async def put(artifact_type: str, media_type: str, body: bytes) -> ArtifactReference:
+        return await store.put(
+            client_id=client_id,
+            artifact_type=artifact_type,
+            media_type=media_type,
+            retention_class="client_evidence",
+            producer=PRODUCER,
+            body=body,
+            source_revision=base_revision,
+            implementation_attempt_id=None,
+            environment_lease_id=None,
+            product_signal_id=product_signal_id,
+        )
+
+    return tuple(
+        await asyncio.gather(
+            put("implementation_final_diff", _PATCH, patch.encode("utf-8")),
+            put("implementation_revision_patch", _PATCH, patch.encode("utf-8")),
+            put(CANDIDATE_FILES_ARTIFACT, _JSON, _json_bytes(dict(files))),
+        )
+    )
 
 
 async def record_cycle_evidence(

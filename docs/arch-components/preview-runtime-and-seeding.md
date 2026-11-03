@@ -87,13 +87,13 @@ behavior without real external effects.
 ## Allocation lifecycle
 
 A claimed base allocation is exclusive to one Interview Session; candidate
-allocations are separate and immutable per Preview Version, and a base runtime
-never becomes a candidate. Vercel sandbox names, session IDs, and port URLs are
+allocations are separate, bind at most one Preview Version, and are immutable once
+bound, and a base runtime never becomes a candidate. Vercel sandbox names, session IDs, and port URLs are
 provider references, not lifecycle identity.
 
 Each allocation carries a pool role:
 
-![A warm_pool runtime is claimed into session_base, where it is bound, configured, and routed; a candidate is inserted directly; a warm runtime whose template is retired or whose claim margin has passed, and any allocation no longer needed, is stopped and deleted.](../diagrams/svg/preview-runtime-and-seeding-allocation-lifecycle.svg)
+![A warm_pool runtime is claimed into session_base, where it is bound, configured, and routed; a candidate is inserted directly as a spare, or as a standby that builds the newest draft and becomes a spare once that draft's version swaps in, and binds one Preview Version once its fast checks and readiness pass; a warm runtime whose template is retired or whose claim margin has passed, and any allocation no longer needed, is stopped and deleted.](../diagrams/svg/preview-runtime-and-seeding-allocation-lifecycle.svg)
 
 <details><summary>Diagram key</summary>
 
@@ -105,7 +105,9 @@ Each allocation carries a pool role:
 A warm runtime's case columns start empty. The claim locks the runtime and sets
 the `session_base` role and its Product Signal and Interview Session in one
 transaction. A candidate is inserted
-with the `candidate` role, its Product Signal, and its Preview Version. One base
+as a spare with the `candidate` role, its Product Signal, and its Interview
+Session, and records its Preview Version when it binds one, as
+[Preview Build](./preview-build.md#spare-candidate-runtimes) describes. One base
 allocation per Interview Session and one live candidate per Preview Version are
 database constraints, not conventions.
 
@@ -119,7 +121,9 @@ acting on a runtime it no longer holds.
 
 Claim-time configuration is required, not an optimization: a pooled runtime has
 no Interview Session or preview origin, so it cannot yet hold a Server SDK
-bootstrap credential bound to either. The activation settings go into the
+bootstrap credential bound to either. A spare candidate runtime is created for its
+session, so its activation is written before its first start and it never
+restarts to activate. The activation settings go into the
 runtime's application directory, and a sandbox command restarts the product's
 supervisor so the supervised process reads them before the claim-time health
 probe.
@@ -181,7 +185,11 @@ and selects the same rows as at the clock, and the recorded manifest and hashes
 do not change.
 
 Base and candidate runtimes install the same manifest independently; a candidate
-never copies data from the base. As the
+never copies data from the base. A candidate whose change adds to the schema runs
+the same manifest under that schema: its spare's database
+[follows the change](./preview-build.md#schema-changes) in place or installs
+afresh from it, the installed manifest identity still verifies, and the candidate
+records the schema change beside the seed identity. As the
 [PRD](../PRD.md#seed-data) requires, the manifest preserves what the workflow
 depends on and never presents a synthetic value as production evidence. No
 customer data source or production credential is involved, and the
@@ -202,7 +210,9 @@ the case ends as
 describes.
 
 When an allocation is no longer needed, required minimized evidence is extracted,
-the route and credentials are revoked, and the sandbox is stopped and deleted. A
+the route and credentials are revoked, and the sandbox is stopped and deleted:
+every allocation of a case that has ended, and every unbound spare of an Interview
+Session that has closed. A
 data-bearing runtime is never reset into a warm pool; fresh provisioning replaces
 it. Pinning a new template retires the previous one: its unclaimed warm runtimes
 can never serve a claim, so the pool replaces them, and any warm runtime past the

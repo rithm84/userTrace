@@ -3,7 +3,7 @@ title: Preview Runtime Allocation · pool role, claim-time configuration, deleti
 ---
 stateDiagram-v2
   [*] --> warm_pool: provisioned from the current template
-  [*] --> candidate: inserted for one Preview Version
+  [*] --> candidate: inserted as a spare for an Interview Session
   state "warm_pool" as warm_pool
   warm_pool : No Product Signal or session yet
   state "session_base" as session_base {
@@ -22,16 +22,31 @@ stateDiagram-v2
     claimed --> configured
     configured --> routed
   }
-  state "candidate" as candidate
-  candidate : Never passes through the pool
+  state "candidate" as candidate {
+    state "Spare" as spare
+    spare : Activated before its first start
+    spare : Production server, own dataset
+    spare : Unrouted, no Preview Version
+    state "Standby" as standby
+    standby : Builds the newest draft
+    standby : Never given a candidate
+    state "Bound" as bound
+    bound : One Preview Version's files
+    bound : Route switched to it
+    [*] --> spare
+    [*] --> standby: a draft builds
+    standby --> standby: a newer draft builds
+    standby --> spare: its draft's version swaps in
+    spare --> bound: fast checks and readiness pass
+  }
   state "Stopped and deleted" as deleted
 
   warm_pool --> session_base: claim with more than the claim margin left
   warm_pool --> deleted: template retired or claim margin passed
   session_base --> deleted: no longer needed
-  candidate --> deleted: no longer needed
+  candidate --> deleted: no longer needed or its session closed
   deleted --> [*]
 
   class warm_pool async
-  class claimed,configured,routed,candidate observation
+  class claimed,configured,routed,spare,standby,bound observation
   class deleted neutral

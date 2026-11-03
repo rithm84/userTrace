@@ -1,31 +1,35 @@
 ---
-title: Candidate publication · exact artifacts before route activation
+title: Candidate publication · fast checks and readiness before the answer, full checks before delivery
 ---
 flowchart TB
   result["`**Workspace result**
-  Agent change + exact revision
-  Scope and patch inspection`"]:::runtime
-  checks{{"`**Required checks**
-  Baseline + candidate
-  Pinned policy; real results`"}}:::gate
-  manifest@{ shape: doc, label: "**Artifact manifest**<br/>Source / build hashes<br/>Dependency + template identity" }
-  candidate["`**Fresh candidate**
-  Vercel Sandbox product runtime
-  Exact immutable Preview Version`"]:::observation
+  Draft or correction cycle
+  Exact files + scope check`"]:::runtime
+  spare["`**Spare candidate runtime**
+  Production server already running
+  Own dataset copy · follows the schema`"]:::observation
+  fast{{"`**Fast checks**
+  Incremental type check
+  Production build + render check`"}}:::gate
   readiness{{"`**Readiness proof**
-  Health + seed + auth
-  Server SDK activation + route`"}}:::gate
+  Health + seed + auth + SDK + route
+  Before the answer · again if stale`"}}:::gate
   route(["`**Preview route**
-  Atomically activate revision
+  Atomically switch revision
   Fresh document binding`"]):::people
+  full{{"`**Full checks**
+  Lint and tests
+  On the same digests`"}}:::gate
+  deliverable@{ shape: doc, label: "**Deliverable Preview Version**<br/>Validated files = PR files<br/>Check + build evidence" }
   blocker([Typed blocker · no validation claim]):::external
 
-  result -->|run| checks
-  checks -->|passes| manifest
-  manifest -->|deploy · digests match| candidate
-  candidate -->|verify| readiness
-  readiness -->|publish| route
-  result async_1@-.->|same staged files, built in parallel| candidate
-  checks async_2@-.->|fail · correction cycle| result
+  result -->|install the files| spare
+  spare -->|build and restart| fast
+  fast -->|pass| readiness
+  readiness -->|approved · switch| route
+  route -->|while the participant validates| full
+  full -->|pass| deliverable
+  fast async_1@-.->|fail · correction cycle| result
+  full async_2@-.->|fail · correction cycle| result
   readiness blocked_1@-->|fail| blocker
-  class manifest outcome
+  class deliverable outcome

@@ -12,7 +12,7 @@ begin
     select workspaces.id, workspaces.client_id
     from public.prepared_workspaces as workspaces
     join public.product_signals as signals on signals.id = workspaces.product_signal_id
-    where workspaces.state in ('preparing', 'ready', 'failed')
+    where workspaces.state in ('preparing', 'ready', 'drafting', 'failed')
       and (
         workspaces.expires_at < now()
         or signals.state in (

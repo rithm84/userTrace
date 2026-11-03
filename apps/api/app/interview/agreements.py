@@ -41,6 +41,11 @@ from app.envelope import Actor, AuditIntent, EventAppend, JsonValue, StreamRef
 from app.errors import GuardRejectedError, StaleContextError
 from app.gate.job_types import decide_gate_job
 from app.ids import uuid7
+from app.implementation.draft_records import (
+    ProposedChange,
+    discard_open_drafts,
+    draft_for_agreement,
+)
 from app.interview.projection import return_to_implementation_on_connection
 from app.lifecycle.product_signal import ProductSignalFacts
 from app.lifecycle.signal_transitions import advance_product_signal_on_connection
@@ -220,8 +225,14 @@ async def record_acceptance_criteria_agreement(
     agreed_scope: Mapping[str, JsonValue],
     criteria: Sequence[CriterionDraft],
     supporting_evidence_ids: Sequence[UUID],
+    proposal: ProposedChange | None = None,
+    as_proposed: bool = False,
 ) -> AcceptanceCriteriaAgreement:
     """Freeze the agreed scope and its acceptance criteria at a new revision.
+
+    The agreement records the open prepared draft it agreed to: the last proposal
+    when `as_proposed`, else the one whose change is `proposal`. Every other open
+    draft of the case is discarded in the same transaction.
 
     The first agreement is what makes the interview's evidence sufficient for the
     gate: an interviewing Product Signal moves to `gate_pending` in the same
@@ -240,6 +251,9 @@ async def record_acceptance_criteria_agreement(
             agreed_scope=agreed_scope,
             criteria=criteria,
             supporting_evidence_ids=supporting_evidence_ids,
+            prepared_draft_id=await _agreed_draft(
+                conn, bundle=bundle, proposal=proposal, as_proposed=as_proposed
+            ),
         )
         if as_str(signal, "state") == ProductSignalState.INTERVIEWING.value:
             await advance_product_signal_on_connection(
@@ -270,6 +284,8 @@ async def record_change_request(
     criteria: Sequence[CriterionDraft],
     supporting_evidence_ids: Sequence[UUID],
     implementation_limit: int,
+    proposal: ProposedChange | None = None,
+    as_proposed: bool = False,
 ) -> ChangeRequest:
     """Freeze a change the originating user asked for in the new version, and gate it.
 
@@ -308,6 +324,9 @@ async def record_change_request(
             agreed_scope=agreed_scope,
             criteria=criteria,
             supporting_evidence_ids=supporting_evidence_ids,
+            prepared_draft_id=await _agreed_draft(
+                conn, bundle=bundle, proposal=proposal, as_proposed=as_proposed
+            ),
         )
         open_validation = await open_attempt_id(conn, product_signal_id=bundle.product_signal_id)
         if open_validation is not None:
@@ -353,6 +372,37 @@ async def record_change_request(
     )
 
 
+async def _agreed_draft(
+    conn: AsyncConnection[DictRow],
+    *,
+    bundle: AssembledBundle,
+    proposal: ProposedChange | None,
+    as_proposed: bool,
+) -> UUID | None:
+    """The open prepared draft this agreement records, discarding every other one.
+
+    Only the session's last proposal can be agreed to: as it stands when
+    `as_proposed`, or when the agreed change is that proposal. With neither, no draft
+    is recorded and the attempt authors the change itself.
+    """
+    found = None
+    if bundle.interview_session_id is not None and (as_proposed or proposal is not None):
+        found = await draft_for_agreement(
+            conn,
+            product_signal_id=bundle.product_signal_id,
+            interview_session_id=bundle.interview_session_id,
+            change=None if as_proposed else proposal,
+        )
+    draft_id = None if found is None else found[0]
+    await discard_open_drafts(
+        conn,
+        product_signal_id=bundle.product_signal_id,
+        keep=draft_id,
+        reason="the agreement records a different change",
+    )
+    return draft_id
+
+
 def _require_agreement(*, bundle: AssembledBundle, criteria: Sequence[CriterionDraft]) -> None:
     if not criteria:
         raise ValueError("an acceptance-criteria agreement needs at least one criterion")
@@ -380,6 +430,7 @@ async def _freeze_agreement(
     agreed_scope: Mapping[str, JsonValue],
     criteria: Sequence[CriterionDraft],
     supporting_evidence_ids: Sequence[UUID],
+    prepared_draft_id: UUID | None,
 ) -> AcceptanceCriteriaAgreement:
     """Insert the criteria and the agreement at the next revision, with its fact."""
     criteria_revision = as_int(signal, "acceptance_criteria_revision") + 1
@@ -413,9 +464,9 @@ async def _freeze_agreement(
             insert into public.acceptance_criteria_agreements (
                 id, client_id, product_signal_id, interview_session_id,
                 acceptance_criteria_revision, agreed_scope, criterion_ids,
-                supporting_evidence_ids, context_bundle_id
+                supporting_evidence_ids, context_bundle_id, prepared_draft_id
             )
-            values (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
             (
                 record_id,
@@ -427,6 +478,7 @@ async def _freeze_agreement(
                 criterion_ids,
                 list(supporting_evidence_ids),
                 bundle.bundle_id,
+                prepared_draft_id,
             ),
         )
         await cur.execute(
@@ -454,6 +506,7 @@ async def _freeze_agreement(
                 "concern_revision": concern_revision,
                 "criterion_ids": [str(identifier) for identifier in criterion_ids],
                 "context_bundle_id": str(bundle.bundle_id),
+                "prepared_draft_id": None if prepared_draft_id is None else str(prepared_draft_id),
             },
             actor=_AGENT_ACTOR,
             causation_id=None,

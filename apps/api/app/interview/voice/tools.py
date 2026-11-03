@@ -17,7 +17,7 @@ Two rules shape every tool here:
 
 import json
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Final
@@ -38,6 +38,8 @@ from app.db.rows import as_optional_str, as_str
 from app.envelope import JsonValue
 from app.errors import ControlPlaneError
 from app.gate.policy import load_implementation_policy
+from app.implementation.draft_records import ProposedChange, ProposedCriterion
+from app.implementation.drafts import record_change_proposal
 from app.ingestion.errors import QueryAuthorizationError
 from app.interview.agreements import (
     CriterionDraft,
@@ -86,6 +88,15 @@ _CRITERIA_SCHEMA: Final[dict[str, object]] = {
         "required": ["statement", "observability"],
         "additionalProperties": False,
     },
+}
+
+#: Whether an agreement is the change exactly as the agent last proposed it.
+_AS_PROPOSED_SCHEMA: Final[dict[str, object]] = {
+    "type": "boolean",
+    "description": (
+        "true when they agreed to the change and checks exactly as you last proposed "
+        "them with propose_change."
+    ),
 }
 
 __all__ = [
@@ -169,6 +180,31 @@ TOOL_DEFINITIONS: tuple[FunctionSchema, ...] = (
         required=["statement", "claim_state"],
     ),
     FunctionSchema(
+        name="propose_change",
+        description=(
+            "In the same reply in which you propose a change and its checks, after your "
+            "words, record what you proposed, so it is prepared while the person "
+            "decides; call it again whenever you propose it differently. It agrees "
+            "nothing and the person hears nothing about it."
+        ),
+        properties={
+            "proposed_outcome": {
+                "type": "string",
+                "description": "The change you proposed, in one sentence.",
+            },
+            "workflow": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{2,63}$",
+                "description": (
+                    "A short snake_case name for the workflow validation will "
+                    "observe, such as saved_conversion_views."
+                ),
+            },
+            "criteria": _CRITERIA_SCHEMA,
+        },
+        required=["proposed_outcome", "workflow", "criteria"],
+    ),
+    FunctionSchema(
         name="record_acceptance_criteria",
         description=(
             "Freeze the agreed scope and its observable acceptance criteria once the "
@@ -186,6 +222,7 @@ TOOL_DEFINITIONS: tuple[FunctionSchema, ...] = (
                 ),
             },
             "criteria": _CRITERIA_SCHEMA,
+            "as_proposed": _AS_PROPOSED_SCHEMA,
         },
         required=["agreed_outcome", "workflow", "criteria"],
     ),
@@ -209,6 +246,7 @@ TOOL_DEFINITIONS: tuple[FunctionSchema, ...] = (
                 "description": "The snake_case workflow name recorded with the first agreement.",
             },
             "criteria": _CRITERIA_SCHEMA,
+            "as_proposed": _AS_PROPOSED_SCHEMA,
         },
         required=["agreed_outcome", "workflow", "criteria"],
     ),
@@ -307,6 +345,8 @@ async def execute_tool(
         return await _review_observed_activity(context, parsed)
     if name == "record_evidence_claim":
         return await _record_evidence_claim(context, parsed)
+    if name == "propose_change":
+        return await _propose_change(context, parsed)
     if name == "record_acceptance_criteria":
         return await _record_acceptance_criteria(context, parsed)
     if name == "record_requested_change":
@@ -386,14 +426,14 @@ class _CriterionArgument(BaseModel):
 
 
 def _agreement_arguments(
-    arguments: Mapping[str, object],
+    arguments: Mapping[str, object], *, outcome_key: str = "agreed_outcome"
 ) -> tuple[Mapping[str, JsonValue], list[CriterionDraft]] | str:
     """The agreed scope and criteria the model supplied, or the error result to return."""
-    outcome = str(arguments.get("agreed_outcome", "")).strip()
+    outcome = str(arguments.get(outcome_key, "")).strip()
     workflow = str(arguments.get("workflow", "")).strip()
     raw = arguments.get("criteria")
     if not outcome or not isinstance(raw, list) or not raw:
-        return _result({"error": "agreed_outcome and at least one criterion are required"})
+        return _result({"error": f"{outcome_key} and at least one criterion are required"})
     if _WORKFLOW_PATTERN.fullmatch(workflow) is None:
         return _result({"error": "workflow must be a short snake_case name"})
     try:
@@ -412,6 +452,39 @@ def _agreement_arguments(
     return {"intended_outcome": outcome, "workflow_ref": workflow}, drafts
 
 
+async def _propose_change(context: ToolContext, arguments: Mapping[str, object]) -> str:
+    """Record the change the agent is proposing, so its draft starts before the answer.
+
+    Nothing the person hears depends on it, so a proposal that cannot be recorded is
+    reported as not noted rather than refused: the agent has nothing to say about it.
+    """
+    supplied = _agreement_arguments(arguments, outcome_key="proposed_outcome")
+    if isinstance(supplied, str):
+        return supplied
+    scope, drafts = supplied
+    try:
+        await record_change_proposal(
+            context.database, bundle=context.bundle, change=_proposed_change(scope, drafts)
+        )
+    except ControlPlaneError as error:
+        _log.info("voice_tool_proposal_not_noted", detail=str(error))
+        return _result({"noted": False})
+    return _result({"noted": True})
+
+
+def _proposed_change(
+    scope: Mapping[str, JsonValue], drafts: Sequence[CriterionDraft]
+) -> ProposedChange:
+    return ProposedChange(
+        intended_outcome=str(scope["intended_outcome"]),
+        workflow_ref=str(scope["workflow_ref"]),
+        criteria=tuple(
+            ProposedCriterion(statement=draft.statement, observability=draft.observability)
+            for draft in drafts
+        ),
+    )
+
+
 async def _record_acceptance_criteria(
     context: ToolContext, arguments: Mapping[str, object]
 ) -> str:
@@ -427,6 +500,8 @@ async def _record_acceptance_criteria(
             agreed_scope=agreed_scope,
             criteria=drafts,
             supporting_evidence_ids=context.bundle.cited_evidence_ids(),
+            proposal=_proposed_change(agreed_scope, drafts),
+            as_proposed=arguments.get("as_proposed") is True,
         )
     except ControlPlaneError as error:
         return _result({"refused": "stale_context", "detail": str(error)})
@@ -458,6 +533,8 @@ async def _record_requested_change(
             criteria=drafts,
             supporting_evidence_ids=context.bundle.cited_evidence_ids(),
             implementation_limit=policy.implementation_limit,
+            proposal=_proposed_change(agreed_scope, drafts),
+            as_proposed=arguments.get("as_proposed") is True,
         )
     except ControlPlaneError as error:
         return _result({"refused": str(error)})

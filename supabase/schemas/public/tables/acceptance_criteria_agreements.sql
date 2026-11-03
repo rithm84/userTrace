@@ -8,6 +8,7 @@ CREATE TABLE "public"."acceptance_criteria_agreements" (
   "criterion_ids"                uuid[]                   NOT NULL,
   "supporting_evidence_ids"      uuid[]                   NOT NULL,
   "context_bundle_id"            uuid                     NOT NULL,
+  "prepared_draft_id"            uuid,
   "recorded_at"                  timestamp with time zone NOT NULL DEFAULT now(),
   "schema_version"               smallint                 NOT NULL DEFAULT 1,
   CONSTRAINT "acceptance_criteria_agreement_product_signal_id_acceptance__key" UNIQUE (product_signal_id, acceptance_criteria_revision),
@@ -15,7 +16,8 @@ CREATE TABLE "public"."acceptance_criteria_agreements" (
   CONSTRAINT "acceptance_criteria_agreements_client_id_fkey" FOREIGN KEY (client_id) REFERENCES public.clients(id),
   CONSTRAINT "acceptance_criteria_agreements_context_bundle_id_fkey" FOREIGN KEY (context_bundle_id) REFERENCES public.context_bundles(id),
   CONSTRAINT "acceptance_criteria_agreements_interview_session_id_fkey" FOREIGN KEY (interview_session_id) REFERENCES public.interview_sessions(id),
-  CONSTRAINT "acceptance_criteria_agreements_product_signal_id_fkey" FOREIGN KEY (product_signal_id) REFERENCES public.product_signals(id)
+  CONSTRAINT "acceptance_criteria_agreements_product_signal_id_fkey" FOREIGN KEY (product_signal_id) REFERENCES public.product_signals(id),
+  CONSTRAINT "acceptance_criteria_agreements_prepared_draft_id_fkey" FOREIGN KEY (prepared_draft_id) REFERENCES public.prepared_drafts(id)
 );
 
 ALTER TABLE "public"."acceptance_criteria_agreements"

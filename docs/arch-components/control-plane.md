@@ -203,7 +203,9 @@ audits its category, code, message, and, for a refused guard, the guard's machin
 trigger, and reason.
 
 A worker with nothing to claim waits one poll interval but wakes when one of its
-own running Jobs finishes, which has usually committed its chain's next step.
+own running Jobs finishes, which has usually committed its chain's next step, and
+when any process commits a ready Job, which notifies the `utrace_jobs_ready`
+channel in the committing transaction.
 Inbox deduplication, revisions, concurrency keys, and fencing make repeated
 delivery safe.
 

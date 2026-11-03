@@ -63,6 +63,7 @@ __all__ = [
     "load_runtime_secrets",
     "mint_secret",
     "session_allocation_id",
+    "take_over_allocation",
 ]
 
 _log = get_logger(__name__)
@@ -207,6 +208,12 @@ async def acquire_allocation(
             table="preview_runtime_allocations", row_id=allocation_id
         )
     return _as_pins(row), token
+
+
+async def take_over_allocation(database: Database, *, allocation_id: UUID) -> int:
+    """Take over one allocation and return only its new fencing token."""
+    async with database.transaction() as conn:
+        return await _acquire_on(conn, allocation_id=allocation_id)
 
 
 async def _acquire_on(conn: AsyncConnection[DictRow], *, allocation_id: UUID) -> int:

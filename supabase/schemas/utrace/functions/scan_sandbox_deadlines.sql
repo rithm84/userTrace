@@ -17,7 +17,7 @@ begin
     union
     select workspaces.client_id
     from public.prepared_workspaces as workspaces
-    where workspaces.state in ('preparing', 'ready')
+    where workspaces.state in ('preparing', 'ready', 'drafting')
       and workspaces.expires_at > now()
   loop
     if exists (

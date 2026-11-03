@@ -37,6 +37,7 @@ __all__ = [
     "export_clean_base",
     "install_dependencies",
     "run_baseline",
+    "warm_fast_checks",
 ]
 
 _INSTALL_TIMEOUT_SECONDS: Final[int] = 1800
@@ -151,6 +152,18 @@ async def run_baseline(
     return await run_required_checks(
         shell.at_root(BASELINE_ROOT), checks=checks, phase=CheckPhase.BASELINE, cycle_index=0
     )
+
+
+async def warm_fast_checks(shell: WorkspaceShell, *, checks: Sequence[RequiredCheck]) -> None:
+    """Run the fast checks once in the checkout itself, so a change's run is incremental.
+
+    The baseline runs beside the checkout, so the checkout's own caches, such as the
+    type checker's build information, would otherwise be cold for the first change.
+    The results are not evidence and are not kept.
+    """
+    fast = tuple(check for check in checks if check.fast and not check.runs_in_candidate_runtime)
+    if fast:
+        await run_required_checks(shell, checks=fast, phase=CheckPhase.BASELINE, cycle_index=0)
 
 
 async def _require_success(

@@ -196,7 +196,10 @@ including a candidate rebind:
 - Without a compatible SDK, readiness is suspended. Old documents and runtimes
   never receive commands for a replacement attachment.
 - On a candidate advance, the extension reloads the bound tab because its
-  document belongs to the old runtime. A rebind always names the allocation the
+  document belongs to the old runtime. The session tab learns of the advance from
+  its projection, which names the session's current route revision and is
+  republished with every implementation progress step, and hands the extension a
+  fresh offer for that revision at once. A rebind always names the allocation the
   session origin currently serves.
 
 ## Transport and temporary state

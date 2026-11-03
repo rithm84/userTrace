@@ -61,8 +61,12 @@ Each step has its own requirements:
   rebuilt or replaced candidate cannot inherit an interrupted attempt.
 - **Complete:** a recorded outcome. Completing as `validated` additionally
   requires the user's confirmation of every criterion, affirmative proof for every
-  criterion, and no unresolved contradiction. The state machine refuses the
-  transition otherwise, rather than relying on the caller to check.
+  criterion, no unresolved contradiction, and passed
+  [full checks](./implementation.md#fast-and-full-checks) on the candidate's
+  files. The state machine refuses the transition otherwise, rather than relying
+  on the caller to check. An outcome recorded while those checks still run waits
+  up to a minute for them; a version whose full checks failed records no outcome,
+  because a corrected version replaces it.
 
 An interruption is recorded as such, never as a verdict, and no outcome may be
 recorded while the originating user is absent.
@@ -180,6 +184,15 @@ Preview Versions and validation outcomes remain immutable.
 The [debrief cue](./interview-and-voice.md#application-cues) walks the participant
 through what changed before they try a new version.
 
+### A fix after a failed full check
+
+A full check that fails on the version being validated is a technical result, not
+the participant's judgment. The open Validation Attempt is abandoned, the
+Implementation Attempt corrects the change, and the corrected version swaps in as
+a new Preview Version. The participant validates it afresh, and the agent asks for
+a quick second look rather than the whole walkthrough again. The criteria stay the
+same, and no revision of the change is used.
+
 ## Interruption and departure
 
 Temporary transport or voice loss retains the Validation Attempt through the
@@ -195,5 +208,6 @@ applicable recovery deadline; it does not become a user judgment.
 
 A validated result sent to output assembly always carries its full binding tuple,
 criterion-level confirmation, proportionate observed proof, contradiction check,
-candidate source digest, base revision, and artifact provenance. GitHub delivery
+candidate source digest, base revision, the full-check results on the same file
+digests, and artifact provenance. GitHub delivery
 may begin only from that frozen record.

@@ -58,7 +58,6 @@ function useCharacterSize(): number {
 }
 
 /** Which runtime the session's preview serves: the base, or the candidate ready for validation. */
-type PreviewRuntimeStage = "base" | "candidate";
 
 /**
  * The uTrace session tab: the live anchor for one Interview Session.
@@ -98,7 +97,7 @@ export function SessionTab(
   const characterSize = useCharacterSize();
 
   const audio = useRef<HTMLAudioElement>(null);
-  const offerDeliveredFor = useRef<PreviewRuntimeStage | null>(null);
+  const offerDeliveredFor = useRef<number | null>(null);
 
   const ended = projection.state === "ended";
   const inSetup = projection.state === "participant_setup";
@@ -108,10 +107,10 @@ export function SessionTab(
   const conversational = projection.readiness.conversational;
   const voiceStatus = describeVoice(wantsVoice, voice, voiceFailure, conversational);
   const microphoneEnabled = projection.controls.microphone === "unmuted";
-  // The preview moves to a new runtime when the candidate is ready, so the extension
-  // gets a fresh offer for it then and reloads the preview tab onto it.
-  const previewStage: PreviewRuntimeStage =
-    projection.implementation_progress === "ready_for_validation" ? "candidate" : "base";
+  // Each new route revision may serve another runtime, a new version's above all, so
+  // the extension gets a fresh offer for every revision and reloads the preview tab
+  // onto a revision that moved to another runtime.
+  const previewRouteRevision = projection.preview_route_revision;
 
   const acceptProjection = useCallback((next: SessionProjection): void => {
     setProjection((current) => (next.revision < current.revision ? current : next));
@@ -263,10 +262,16 @@ export function SessionTab(
   // otherwise leave the extension with no offer, and nothing would observe it.
   const previewAvailable = projection.preview_available;
   useEffect(() => {
-    if (inSetup || ended || !previewAvailable || offerDeliveredFor.current === previewStage) {
+    if (
+      inSetup ||
+      ended ||
+      !previewAvailable ||
+      previewRouteRevision === null ||
+      offerDeliveredFor.current === previewRouteRevision
+    ) {
       return;
     }
-    offerDeliveredFor.current = previewStage;
+    offerDeliveredFor.current = previewRouteRevision;
     void (async () => {
       const result = await fetchBindingOffer(sessionId);
       if (!result.ok) {
@@ -283,7 +288,7 @@ export function SessionTab(
         );
       }
     })();
-  }, [inSetup, ended, previewAvailable, previewStage, sessionId, extensionId]);
+  }, [inSetup, ended, previewAvailable, previewRouteRevision, sessionId, extensionId]);
 
   const refresh = useCallback((): void => {
     startTransition(async () => {

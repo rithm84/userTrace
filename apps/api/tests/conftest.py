@@ -105,6 +105,7 @@ OWNED_TABLES: tuple[str, ...] = (
     "preview_runtime_allocations",
     "preview_runtime_templates",
     "environment_leases",
+    "prepared_drafts",
     "prepared_workspaces",
     "implementation_attempts",
     "gate_decisions",

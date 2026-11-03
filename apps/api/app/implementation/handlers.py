@@ -47,6 +47,7 @@ from app.implementation.artifact_store import ArtifactStore
 from app.implementation.attempt import AttemptRunner, AttemptRunResult, WorkspaceDependencies
 from app.implementation.budgets import BudgetLedger
 from app.implementation.environment import WORKSPACE_ROOT
+from app.implementation.ports import CandidateHandoff
 from app.implementation.specification import (
     AttemptSpecification,
     CodeFindingHint,
@@ -247,12 +248,17 @@ async def run_implementation_attempt(database: Database, claimed: ClaimedJob) ->
                     configuration=openai_configuration_for(OpenAIRole.IMPLEMENTATION),
                     ledger=ledger,
                 ),
+                candidate_ready=lambda handoff: _commit_candidate_ready(
+                    database, specification=specification, handoff=handoff
+                ),
             ),
             specification=specification,
             build_recipe=policy.build_recipe,
-            repository_access_token=await github.installation_token(),
+            # Only an attempt that checks the repository out itself needs the token.
+            repository_access_token=github.installation_token,
             openai_api_key=openai_api_key(),
             ledger=ledger,
+            implementation_limit=policy.implementation_limit,
         )
         result = await runner.run()
     await _commit_outcome(database, specification=specification, result=result)
@@ -268,6 +274,16 @@ async def _commit_outcome(
             lease_id=specification.lease.lease_id,
             fencing_token=specification.lease.fencing_token,
         )
+    if result.outcome is ImplementationAttemptState.CANDIDATE_READY:
+        # `candidate_ready` was committed when the first version began serving.
+        if not result.full_checks_passed:
+            await close_with_blocker_case_file(
+                database,
+                specification=specification,
+                blocker_reason=f"the version did not pass its full checks: {result.reason}",
+                stop_reason=CaseStopReason.TECHNICAL_BLOCKER,
+            )
+        return
     triggers = _OUTCOME_TRIGGERS.get(result.outcome)
     if triggers is None:
         _log.info(
@@ -285,9 +301,7 @@ async def _commit_outcome(
             reason=result.reason,
         )
     blocker = _BLOCKERS.get(result.outcome)
-    if result.outcome is ImplementationAttemptState.CANDIDATE_READY:
-        await advance_product_signal_to_validation(database, specification=specification, result=result)
-    elif blocker is not None:
+    if blocker is not None:
         text, stop_reason = blocker
         await close_with_blocker_case_file(
             database,
@@ -297,8 +311,29 @@ async def _commit_outcome(
         )
 
 
+async def _commit_candidate_ready(
+    database: Database, *, specification: AttemptSpecification, handoff: CandidateHandoff
+) -> None:
+    """Commit the attempt's `candidate_ready` once its first version serves the participant.
+
+    Its full checks are still running; they decide whether the version can be
+    delivered, not whether the participant may try it.
+    """
+    for trigger in _OUTCOME_TRIGGERS[ImplementationAttemptState.CANDIDATE_READY]:
+        await _advance(
+            database,
+            client_id=specification.client_id,
+            attempt_id=specification.implementation_attempt_id,
+            trigger=trigger,
+            reason=None,
+        )
+    await advance_product_signal_to_validation(
+        database, specification=specification, preview_version_id=handoff.preview_version_id
+    )
+
+
 async def advance_product_signal_to_validation(
-    database: Database, *, specification: AttemptSpecification, result: AttemptRunResult
+    database: Database, *, specification: AttemptSpecification, preview_version_id: UUID
 ) -> None:
     """Move the Product Signal to `awaiting_validation` behind its ready candidate."""
     await advance_product_signal(
@@ -310,9 +345,7 @@ async def advance_product_signal_to_validation(
         actor=_ACTOR,
         payload={
             "implementation_attempt_id": str(specification.implementation_attempt_id),
-            "preview_version_id": (
-                None if result.handoff is None else str(result.handoff.preview_version_id)
-            ),
+            "preview_version_id": str(preview_version_id),
         },
         jobs=(),
         reason_code=None,

@@ -98,7 +98,7 @@ async def extend_sandbox_deadlines(database: Database, claimed: ClaimedJob) -> N
             select sandbox_name, expires_at as planned_end
             from public.prepared_workspaces
             where client_id = %s
-              and state in ('preparing', 'ready')
+              and state in ('preparing', 'ready', 'drafting')
               and expires_at > now()
             """,
             (claimed.client_id, claimed.client_id),

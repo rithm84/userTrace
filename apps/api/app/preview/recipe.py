@@ -67,8 +67,22 @@ class TemplateRecipe(BaseModel):
     """A minimal valid request the data API accepts, used to probe that it still
     refuses an unauthenticated caller after the boundary validation passes."""
     application_directory: str
+    rebuild_command: str
+    """Builds the product's production application from the files written into it, in
+    the environment the image's build ran in and with the build cache that build left,
+    so a candidate's rebuild compiles only what its files changed."""
+    restart_application_command: str
+    """Restarts the application alone, serving its newest build while the database
+    keeps running, and exits once the new process answers its health check."""
+    schema_path: str
+    """The product's schema file, which a runtime's dataset is installed from."""
+    schema_command: str
+    """Runs one SQL file, named by `{file}`, against the runtime's own database in one
+    transaction; a candidate's additive schema change is applied with it."""
     dockerfile_build_args: Mapping[str, str]
     vcpus: int = Field(ge=1)
+    candidate_vcpus: int = Field(ge=1)
+    """A candidate runtime's vCPUs, which bound how fast it builds a candidate."""
     gating_probes: tuple[ReadinessProbe, ...]
     advisory_probes: tuple[ReadinessProbe, ...]
     not_applicable_probes: Mapping[ReadinessProbe, str]

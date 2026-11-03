@@ -25,8 +25,12 @@ CREATE TABLE "public"."preview_versions" (
   "artifact_manifest_digest"         text,
   "check_summary"                    jsonb,
   "superseded_by_preview_version_id" uuid,
+  "full_checks_state"                text,
+  "full_checks"                      jsonb,
+  "full_checks_source_digest"        text,
+  "full_checks_recorded_at"          timestamp with time zone,
   CONSTRAINT "preview_versions_client_id_fkey" FOREIGN KEY (client_id) REFERENCES public.clients(id),
-  CONSTRAINT "preview_versions_implementation_attempt_id_key" UNIQUE (implementation_attempt_id),
+  CONSTRAINT "preview_versions_full_checks_state_check" CHECK ((full_checks_state = ANY (ARRAY['running'::text, 'passed'::text, 'failed'::text]))),
   CONSTRAINT "preview_versions_pkey" PRIMARY KEY (id),
   CONSTRAINT "preview_versions_superseded_by_preview_version_id_fkey" FOREIGN KEY (superseded_by_preview_version_id) REFERENCES public.preview_versions(id),
   CONSTRAINT "preview_versions_product_signal_id_fkey" FOREIGN KEY (product_signal_id) REFERENCES public.product_signals(id)

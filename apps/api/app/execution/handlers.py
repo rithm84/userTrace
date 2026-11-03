@@ -24,6 +24,7 @@ from app.execution.sandbox_deadlines import EXTEND_SANDBOX_DEADLINES, extend_san
 from app.gate.job_types import DECIDE_GATE
 from app.gate.jobs import run_early_investigation, run_gate, settle_failed_gate
 from app.ids import uuid7
+from app.implementation.drafts import PREPARE_DRAFT, prepare_draft
 from app.implementation.handlers import (
     RUN_IMPLEMENTATION_ATTEMPT,
     run_implementation_attempt,
@@ -139,6 +140,7 @@ def build_handlers() -> Mapping[str, Callable[[Database, ClaimedJob], Awaitable[
         DECIDE_GATE: run_gate,
         INVESTIGATE_CODE: run_early_investigation,
         PREPARE_WORKSPACE: prepare_workspace,
+        PREPARE_DRAFT: prepare_draft,
         RELEASE_PREPARED_WORKSPACE: release_prepared_workspace,
         EXTEND_SANDBOX_DEADLINES: extend_sandbox_deadlines,
         RUN_IMPLEMENTATION_ATTEMPT: run_implementation_attempt,

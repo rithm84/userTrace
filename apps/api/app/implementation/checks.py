@@ -17,7 +17,7 @@ a response body.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict
@@ -29,8 +29,10 @@ __all__ = [
     "CheckComparison",
     "CheckPhase",
     "CheckRun",
+    "candidate_runtime_runs",
     "compare_checks",
     "run_required_checks",
+    "workspace_fast_checks",
 ]
 
 LOG_DIRECTORY = ".utrace-checks"
@@ -94,7 +96,8 @@ async def run_required_checks(
     """Run every required check once and capture each one's combined output.
 
     A check that fails still releases the checks waiting for it: every check runs,
-    as it would one after another, and only the overlap changes.
+    as it would one after another, and only the overlap changes. A check waits only
+    for the checks this run includes; one that ran in an earlier stage has finished.
     """
     await executor.execute(
         RunProcess(
@@ -112,7 +115,7 @@ async def run_required_checks(
                 check=check,
                 phase=phase,
                 cycle_index=cycle_index,
-                prerequisites=tuple(started[name] for name in check.after),
+                prerequisites=tuple(started[name] for name in check.after if name in started),
             )
         )
     try:
@@ -183,4 +186,41 @@ def compare_checks(
         new_failures=tuple(new_failures),
         pre_existing_failures=tuple(pre_existing),
         fixed_failures=tuple(fixed),
+    )
+
+
+def workspace_fast_checks(checks: Sequence[RequiredCheck]) -> tuple[RequiredCheck, ...]:
+    """The fast checks the workspace runs itself; the candidate runtime runs the rest."""
+    return tuple(check for check in checks if check.fast and not check.runs_in_candidate_runtime)
+
+
+def candidate_runtime_runs(
+    checks: Sequence[RequiredCheck], *, build: Mapping[str, object] | None, cycle_index: int
+) -> tuple[CheckRun, ...]:
+    """The runs of the checks the candidate runtime ran, from the build it serves.
+
+    The build of a cycle's exact staged files is each such check's run. A cycle
+    whose files the runtime did not build fails them, so nothing it did not build is
+    ever published.
+    """
+    recorded = build or {}
+    exit_code = recorded.get("exit_code")
+    seconds = recorded.get("seconds")
+    output = recorded.get("output_tail")
+    return tuple(
+        CheckRun(
+            phase=CheckPhase.CANDIDATE,
+            name=check.name,
+            command=check.command,
+            exit_code=exit_code if isinstance(exit_code, int) else 1,
+            duration_seconds=float(seconds) if isinstance(seconds, int | float) else 0.0,
+            log_path=f"{LOG_DIRECTORY}/candidate-{cycle_index}-{check.name}.log",
+            output_tail=(
+                output
+                if isinstance(output, str)
+                else "the candidate runtime did not build these files"
+            ),
+        )
+        for check in checks
+        if check.runs_in_candidate_runtime
     )

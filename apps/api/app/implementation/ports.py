@@ -27,10 +27,10 @@ __all__ = [
     "BuildRecipe",
     "CandidateHandoff",
     "DependencyLockIdentity",
-    "PrebuiltCandidate",
     "PreviewRuntimeAcceptance",
     "PreviewRuntimePort",
     "SourceManifest",
+    "StagedCandidate",
 ]
 
 
@@ -105,40 +105,49 @@ class PreviewRuntimeAcceptance(HandoffModel):
 
 
 @dataclass(frozen=True, slots=True)
-class PrebuiltCandidate:
-    """A candidate runtime built from files the checks had not passed yet.
+class StagedCandidate:
+    """Files written into the session's unrouted spare candidate runtime, and its render check.
 
-    Nothing is started in it or routed to it. Only a deployment whose artifact
-    carries exactly these file digests adopts it.
+    Nothing routes to the spare. A deployment whose artifact carries exactly these
+    file digests serves them from it; any other deployment stages its own.
     """
 
     runtime_ref: str
     file_digests: Mapping[str, str]
+    render_passed: bool
+    render: Mapping[str, object]
+    """What the render check saw: the pages, the targets expected and missing, failures."""
+    build: Mapping[str, object]
+    """The production build of these files the spare serves: its exit code, seconds,
+    whether it was reused, and the tail of its output. Empty when nothing built."""
 
 
 class PreviewRuntimePort(Protocol):
     """The operations this stream calls on the preview-runtime stream."""
 
-    async def prebuild_candidate(
-        self, *, client_id: UUID, files: Mapping[str, str], build_command: str
-    ) -> PrebuiltCandidate:
-        """Build a candidate runtime from staged files while the workspace checks them."""
-        ...
+    async def stage_candidate(
+        self,
+        *,
+        client_id: UUID,
+        files: Mapping[str, str],
+        preview_version_id: UUID | None = None,
+    ) -> StagedCandidate:
+        """Write files into the session's spare and run the render check on them.
 
-    async def discard_prebuilt(self, prebuilt: PrebuiltCandidate) -> None:
-        """Destroy a prebuilt runtime no deployment will adopt."""
+        With `preview_version_id`, the spare is also proven ready for that version.
+        """
         ...
 
     async def deploy_candidate(
-        self, *, handoff: CandidateHandoff, prebuilt: PrebuiltCandidate | None
+        self, *, handoff: CandidateHandoff, staged: StagedCandidate | None
     ) -> PreviewRuntimeAcceptance:
-        """Start a fresh candidate runtime from the pinned template for this version.
+        """Serve this version from the session's spare and advance its route.
 
-        The implementation of this port owns seeding, service health, the
-        observation path, the front-door route, and readiness. It adopts the
-        prebuilt runtime only when its files match the handoff's artifact exactly,
-        and builds afresh otherwise. It must never mutate the base allocation and
-        must never rebuild from an unpinned branch.
+        The implementation of this port owns the dataset, service health, the
+        observation path, the front-door route, and readiness. It serves the staged
+        files only when they match the handoff's artifact exactly, and stages the
+        artifact's otherwise. It must never mutate the base allocation and must
+        never install from an unpinned branch.
         """
         ...
 

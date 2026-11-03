@@ -1,5 +1,5 @@
 ---
-title: Prepared workspace · built during the interview, claimed by an approved attempt
+title: Prepared workspace · built during the interview, drafted in, claimed, handed to the next change
 ---
 stateDiagram-v2
   [*] --> preparing: participant claims the invitation
@@ -10,21 +10,29 @@ stateDiagram-v2
   preparing : Checks run on the clean base
   state "Prepared" as prepared
   prepared : No lease, data, or authority
-  prepared : Package registry only
+  prepared : The base, or a version's files
+  state "Drafting" as drafting
+  drafting : The request, then the proposal
+  drafting : Egress opened to the model
+  drafting : Still no lease or authority
   state "Claimed" as claimed
   claimed : Bound to the attempt
   claimed : and its fencing token
-  claimed : Egress opened to the model
   claimed : Limit extended to the budget
   state "Released" as released
   released : Sandbox destroyed
 
   preparing --> prepared: baseline recorded
+  prepared --> drafting: the request or a proposal is drafted
+  drafting --> drafting: a proposal adjusts it or starts over
   prepared --> claimed: approved attempt with matching pins
+  drafting --> claimed: approved attempt with matching pins
   prepared --> released: case ends or one-hour window passes
-  claimed --> [*]: first cycle starts at once
+  drafting --> released: case ends or one-hour window passes
+  claimed --> prepared: its version passes its full checks · the next generation
+  claimed --> released: the attempt ends without handing it over
   released --> [*]
 
-  class preparing,prepared async
+  class preparing,prepared,drafting async
   class claimed runtime
   class released neutral

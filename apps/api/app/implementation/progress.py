@@ -24,6 +24,7 @@ from app.db.kernel import append_fact
 from app.db.pool import Database
 from app.envelope import Actor, AuditIntent, EventAppend, StreamRef
 from app.ids import uuid7
+from app.interview.projection import publish_projection_on_connection
 
 __all__ = ["record_progress"]
 
@@ -95,6 +96,13 @@ async def record_progress(
             ),
             jobs=(),
         )
+        # The session tab learns of a ready version from its projection, so the
+        # projection carries each change in the same transaction rather than waiting
+        # for an unrelated publish.
+        if interview_session_id is not None:
+            await publish_projection_on_connection(
+                conn, interview_session_id=interview_session_id
+            )
     _logger.info(
         "implementation.progress",
         attempt_id=str(implementation_attempt_id),

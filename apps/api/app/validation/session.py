@@ -22,6 +22,7 @@ Contract: docs/arch-components/validation.md
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
@@ -80,6 +81,9 @@ __all__ = [
 ]
 
 _EVIDENCE_PURPOSE = "validation_outcome"
+FULL_CHECKS_WAIT_SECONDS = 60.0
+"""How long recording an outcome waits for the version's full checks to finish."""
+_FULL_CHECKS_POLL_SECONDS = 0.5
 _CITATION_PURPOSE = "validation_citation"
 _BROWSER_OBSERVATION = "browser_observation"
 
@@ -242,8 +246,13 @@ async def finish_session_validation(
     A criterion the user gave no answer for is completed as unconfirmed, never
     as met. Whether the agreed workflow was observed at all is read from the
     session's own observations on the candidate, not taken from the model.
+
+    The candidate's full checks run while the user validates it, and only a version
+    that passed them can be validated, so recording waits for them, within a bound.
+    A version that failed them is being corrected, and nothing is recorded for it.
     """
     attempt = await _current_attempt(database, interview_session_id=interview_session_id)
+    await _await_full_checks(database, preview_version_id=attempt.preview_version_id)
     async with database.transaction() as conn:
         criteria = {
             criterion.ordinal: criterion
@@ -311,6 +320,41 @@ async def finish_session_validation(
         confirmations=confirmations,
         assembly_deadline_seconds=CASE_FILE_DEADLINE_SECONDS,
     )
+
+
+async def _await_full_checks(database: Database, *, preview_version_id: UUID) -> None:
+    """Wait while the version's full checks run; refuse once they failed or never finish."""
+    deadline = asyncio.get_running_loop().time() + FULL_CHECKS_WAIT_SECONDS
+    while True:
+        async with database.connection() as conn, conn.cursor() as cur:
+            await cur.execute(
+                "select full_checks_state from public.preview_versions where id = %s",
+                (preview_version_id,),
+            )
+            row = await cur.fetchone()
+        state = None if row is None else row["full_checks_state"]
+        if state is None or state == "passed":
+            return
+        if state == "failed":
+            raise GuardRejectedError(
+                machine="validation_attempt",
+                trigger="complete",
+                reason=(
+                    "a final check on this version found a problem, so a corrected "
+                    "version is being prepared; tell them it is on its way and that they "
+                    "will take a quick look at it"
+                ),
+            )
+        if asyncio.get_running_loop().time() >= deadline:
+            raise GuardRejectedError(
+                machine="validation_attempt",
+                trigger="complete",
+                reason=(
+                    "the version's final checks are still running; tell them you are "
+                    "doing one last check, then record their answers again"
+                ),
+            )
+        await asyncio.sleep(_FULL_CHECKS_POLL_SECONDS)
 
 
 async def _confirmed_but_contradicted(

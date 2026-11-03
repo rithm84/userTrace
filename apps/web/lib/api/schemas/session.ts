@@ -172,6 +172,7 @@ export const sessionProjectionSchema = z.object({
   controls: controlsStateSchema,
   implementation_progress: tabProgressSchema.nullable(),
   preview_available: z.boolean(),
+  preview_route_revision: z.int().nullable(),
   end_reason: sessionEndReasonSchema.nullable(),
 });
 export type SessionProjection = z.infer<typeof sessionProjectionSchema>;

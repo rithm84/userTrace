@@ -135,6 +135,17 @@ class BudgetLedger:
             if total > allowance:
                 raise BudgetExhaustedError(budget=budget, consumed=total, allowance=allowance)
 
+    def charge_prepared_draft(self, spent: ConsumedBudgets) -> None:
+        """Charge what an adopted prepared draft spent before the attempt began.
+
+        The draft's turns, spend, processes, and bytes are the attempt's first cycle,
+        so they count against its budgets; its time does not, because it ran before
+        the attempt's allowance started.
+        """
+        self.consume_agent_run(turns=spent.agent_turns, cost_cents=spent.agent_cost_cents)
+        self._processes += spent.process_executions
+        self.consume_artifact_bytes(spent.artifact_bytes)
+
     def consume_process_execution(self) -> None:
         """Charge one process execution before it runs."""
         self._processes += 1

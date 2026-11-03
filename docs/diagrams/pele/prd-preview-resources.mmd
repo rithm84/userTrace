@@ -12,11 +12,12 @@ flowchart TB
     Pinned seed dataset
     The user's scoped auth handoff`"]:::observation
     candidate["`**Candidate allocation**
-    Immutable Preview Version
-    Same dataset identity`"]:::observation
+    Running before its version exists
+    Same dataset identity, own copy`"]:::observation
   end
   subgraph code_authority [Implementation workspace · code authority, no client data]
     workspace["`**Isolated code workspace**
+    Prepared draft before the gate
     Attempt-scoped fenced Environment Lease`"]:::runtime
   end
   ended(["`**Terminated, never reused**
@@ -26,8 +27,8 @@ flowchart TB
   pool -->|claim for the Interview Session| base
   door -->|routes to| base
   gate -->|authorizes one attempt| workspace
-  workspace -->|checked change| candidate
-  door async_1@-.->|switches to when ready| candidate
+  workspace -->|fast-checked change| candidate
+  door async_1@-.->|switches to it whole when ready| candidate
   base --> ended
   candidate --> ended
   workspace --> ended

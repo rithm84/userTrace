@@ -352,6 +352,11 @@ async def _load_session_row(
                      where routes.interview_session_id = sessions.id
                        and routes.state = 'active' and routes.readiness_state = 'ready'
                    ) as preview_routed,
+                   (
+                     select routes.route_revision from public.preview_routes routes
+                     where routes.interview_session_id = sessions.id
+                       and routes.state = 'active'
+                   ) as preview_route_revision,
                    exists (
                      select 1 from public.validation_attempts attempts
                      where attempts.interview_session_id = sessions.id
@@ -440,6 +445,9 @@ def _build(
             as_str(row, "implementation_progress")
         ],
         "preview_available": preview_ready,
+        # The session tab hands the extension a new binding offer for each revision,
+        # which reloads the preview tab whenever the revision serves another runtime.
+        "preview_route_revision": row["preview_route_revision"],
         "end_reason": (
             _TAB_END_REASON_BY_CLOSURE.get(closure_reason, "blocked")
             if closure_reason is not None

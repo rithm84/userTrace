@@ -55,8 +55,10 @@ __all__ = [
     "ServerActivationEndpoints",
     "ServerTermination",
     "await_stream_end",
+    "end_server_stream",
     "install_server_activation",
     "observation_hosts",
+    "restart_application",
     "restart_observed_runtime",
     "terminate_server_activation",
 ]
@@ -74,6 +76,9 @@ ACTIVATION_FILE_NAME = ".utrace-activation"
 _ED25519_SPKI_PREFIX = bytes.fromhex("302a300506032b6570032100")
 
 _COMMAND_SCHEMA_VERSION = "utrace-server-control-command-request-v1"
+
+_APPLICATION_RESTART_SECONDS: Final[int] = 90
+"""How long a restarted application has to answer its health check again."""
 _COMMAND_TIMEOUT_SECONDS = 15.0
 
 STREAM_END_SECONDS: Final[float] = 15.0
@@ -472,6 +477,33 @@ async def restart_observed_runtime(
     arrive is logged and leaves the stream open, a visible evidence gap, and the
     restart goes ahead: the runtime has to serve again.
     """
+    await end_server_stream(
+        database,
+        commands=commands,
+        client_id=client_id,
+        preview_runtime_allocation_id=preview_runtime_allocation_id,
+    )
+    await provider.restart_runtime(
+        handle=handle,
+        supervisor_command=supervisor_command,
+        application_directory=application_directory,
+    )
+
+
+async def end_server_stream(
+    database: Database,
+    *,
+    commands: ControlPlaneCommands,
+    client_id: UUID,
+    preview_runtime_allocation_id: UUID,
+) -> None:
+    """End the allocation's live server stream before its process is replaced.
+
+    The replacement process opens a new activation that supersedes the current one,
+    so the current stream is ended as release ends it: terminate, then wait for the
+    terminal report. A report that does not arrive is logged and leaves the stream
+    open, a visible evidence gap, and the replacement goes ahead.
+    """
     termination = await terminate_server_activation(
         database,
         commands=commands,
@@ -491,8 +523,40 @@ async def restart_observed_runtime(
             activation_id=str(termination.activation_id),
             waited_seconds=STREAM_END_SECONDS,
         )
-    await provider.restart_runtime(
+
+
+async def restart_application(
+    *,
+    provider: PreviewRuntimeProvider,
+    preview_runtime_allocation_id: UUID,
+    handle: PreviewRuntimeHandle,
+    restart_command: str,
+    application_directory: str,
+) -> None:
+    """Restart the runtime's application alone, once its server stream has ended.
+
+    This is how a rebuilt candidate begins being served: the database and its dataset
+    keep running, and `restart_command` returns once the new process answers its
+    health check. The caller ends the stream first (`end_server_stream`), which a
+    rebuild does while it builds.
+    """
+    restarted = await provider.execute(
         handle=handle,
-        supervisor_command=supervisor_command,
-        application_directory=application_directory,
+        script=restart_command,
+        working_directory=application_directory,
+        timeout_seconds=_APPLICATION_RESTART_SECONDS,
+    )
+    if restarted.exit_code != 0:
+        raise GuardRejectedError(
+            machine="preview_runtime_allocation",
+            trigger="restart_application",
+            reason=(
+                f"the application did not restart (exit {restarted.exit_code}): "
+                f"{restarted.stdout[-1000:]}"
+            ),
+        )
+    _log.info(
+        "preview_application_restarted",
+        preview_runtime_allocation_id=str(preview_runtime_allocation_id),
+        detail=restarted.stdout.strip()[-200:],
     )

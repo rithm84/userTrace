@@ -379,6 +379,7 @@ describe("session tab", () => {
       value: projectionWith({
         revision: fixtureSessionProjection.revision + 4,
         implementation_progress: "ready_for_validation",
+        preview_route_revision: 3,
       }),
     });
     renderSession(fixtureSessionProjection);
@@ -401,6 +402,34 @@ describe("session tab", () => {
       expect(actions.fetchBindingOffer).toHaveBeenCalledTimes(2);
     });
     expect(extension.deliverBindingOffer).toHaveBeenCalledTimes(2);
+  });
+
+  it("hands the extension a fresh offer for a corrected version on a new route revision", async () => {
+    let publish: (next: SessionProjection) => void = () => undefined;
+    realtime.subscribeToSession.mockImplementation(
+      (parameters: { onStatus: (status: string) => void; onProjection: (next: SessionProjection) => void }) => {
+        parameters.onStatus("live");
+        publish = parameters.onProjection;
+        return () => undefined;
+      },
+    );
+    const ready = projectionWith({
+      implementation_progress: "ready_for_validation",
+      preview_route_revision: 3,
+    });
+    renderSession(ready);
+    await waitFor(() => {
+      expect(extension.deliverBindingOffer).toHaveBeenCalledTimes(1);
+    });
+
+    // The corrected version is ready too, so only the route revision says it moved.
+    act(() => {
+      publish({ ...ready, revision: ready.revision + 1, preview_route_revision: 4 });
+    });
+    await waitFor(() => {
+      expect(extension.deliverBindingOffer).toHaveBeenCalledTimes(2);
+    });
+    expect(actions.fetchBindingOffer).toHaveBeenCalledTimes(2);
   });
 
   it("asks for the extension's offer only once the preview serves the session", async () => {
