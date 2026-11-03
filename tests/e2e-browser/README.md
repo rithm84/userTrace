@@ -56,8 +56,15 @@ npm ci                                  # in this directory
 (cd ../../packages/utrace-browser-sdk && npm ci)
 (cd ../../packages/utrace-server-sdk && npm ci)
 
-SHOPALYTICS_ROOT=/path/to/shopalytics npm test
+E2E_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres \
+  SHOPALYTICS_ROOT=/path/to/shopalytics npm test
 ```
+
+`E2E_DATABASE_URL` names a Postgres the journey may write to, such as the local
+Supabase database (`npm run supabase -- start` from the repository root). Before
+Shopalytics starts, the journey seeds the committed fixture into its own
+`shopalytics_e2e_browser` schema there with the client's `db:seed:base`, rather
+than using whatever database the client checkout's `.env.local` names.
 
 `SHOPALYTICS_ROOT` defaults to `../shopalytics` beside the uTrace checkout. The
 client checkout must already have run `npm ci` and `npm run utrace:manifest`, so

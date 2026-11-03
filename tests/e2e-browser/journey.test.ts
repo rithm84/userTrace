@@ -10,7 +10,8 @@
  *   claims the session, routes it, and relays the SDK's activation.
  * - The Shopalytics checkout on 3300 in its preview profile, with
  *   `@utrace/browser-sdk` gating hydration and `@utrace/server-sdk` preloaded
- *   before any application module.
+ *   before any application module, serving the fixture the journey seeds into
+ *   its own schema on `E2E_DATABASE_URL`.
  *
  * Everything those four depend on and do not own — the control plane, browser
  * telemetry ingestion, the Server SDK's control socket, and the OTLP edge — is
@@ -43,6 +44,7 @@ import { TestOtlpReceiver } from "../../packages/utrace-server-sdk/tests/helpers
 import { ShadowInspector } from "../../apps/browser-extension/tests/chrome/shadow.js";
 import { launchChrome, seedInstallation, type JourneyBrowser } from "./support/chrome.js";
 import { startControlPlane, type ControlPlane } from "./support/control-plane.js";
+import { seedShopalyticsDatabase } from "./support/database.js";
 import { resignServerManifest } from "./support/server-manifest.js";
 import { buildApp, startApp, waitForUrl, type AppSpec, type RunningApp } from "./support/servers.js";
 import { startTlsTerminator, type TlsTerminator } from "./support/tls.js";
@@ -176,6 +178,18 @@ beforeAll(async () => {
     },
   };
 
+  const databaseUrl = process.env["E2E_DATABASE_URL"];
+  if (databaseUrl === undefined || databaseUrl === "") {
+    throw new Error(
+      "E2E_DATABASE_URL must name a Postgres the journey may seed Shopalytics into, such as the local Supabase database",
+    );
+  }
+  const database = seedShopalyticsDatabase({
+    clientRoot: SHOPALYTICS_ROOT,
+    url: databaseUrl,
+    schema: "shopalytics_e2e_browser",
+  });
+
   shopalyticsSpec = {
     name: "shopalytics",
     directory: SHOPALYTICS_ROOT,
@@ -183,7 +197,10 @@ beforeAll(async () => {
     startScript: "start:preview",
     readyUrl: `http://127.0.0.1:${String(PORTS.shopalytics)}/api/health`,
     environment: {
-      ...readShopalyticsEnvironment(),
+      DATABASE_URL: database.url,
+      DATABASE_SSL: "false",
+      SHOPALYTICS_DATABASE_SCHEMA: database.schema,
+      SHOPALYTICS_FIXTURE_CLOCK: database.fixtureClock,
       UTRACE_PROFILE: "preview",
       NEXT_PUBLIC_UTRACE_PROFILE: "preview",
       NEXT_PUBLIC_UTRACE_SDK_INSTALLATION_ID: SDK_INSTALLATION_ID,
@@ -736,12 +753,3 @@ function readShopalyticsManifest(file: string): Record<string, unknown> {
 }
 
 /** Reads the client checkout's own `.env.local`, which holds its database. */
-function readShopalyticsEnvironment(): Record<string, string> {
-  const contents = readFileSync(resolve(SHOPALYTICS_ROOT, ".env.local"), "utf8");
-  const values: Record<string, string> = {};
-  for (const line of contents.split("\n")) {
-    const match = /^([A-Z0-9_]+)=(.*)$/u.exec(line.trim());
-    if (match !== null) values[match[1] ?? ""] = match[2] ?? "";
-  }
-  return values;
-}
