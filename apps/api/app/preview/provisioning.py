@@ -198,12 +198,13 @@ async def provision_warm_runtime(
         )
 
     try:
-        pins, _ = await acquire_allocation(database, allocation_id=allocation_id)
+        pins, fencing_token = await acquire_allocation(database, allocation_id=allocation_id)
         async with database.transaction() as conn:
             await commit_allocation_transition(
                 conn,
                 client_id=template.client_id,
                 allocation_id=allocation_id,
+                fencing_token=fencing_token,
                 trigger="begin_seeding",
                 facts=_facts(
                     runtime_reachable=True,
@@ -260,6 +261,7 @@ async def provision_warm_runtime(
                 conn,
                 client_id=template.client_id,
                 allocation_id=allocation_id,
+                fencing_token=fencing_token,
                 trigger="mark_ready",
                 facts=_facts(
                     runtime_reachable=True,

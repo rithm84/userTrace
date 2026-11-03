@@ -43,7 +43,7 @@ from app.db.rows import (
     as_uuid,
 )
 from app.envelope import Actor, AuditIntent, EventAppend, StreamRef
-from app.errors import AggregateNotFoundError, GuardRejectedError
+from app.errors import AggregateNotFoundError, GuardRejectedError, LeaseLostError
 from app.ids import uuid7
 from app.lifecycle.machine import resolve
 from app.logging import get_logger
@@ -195,20 +195,11 @@ async def acquire_allocation(
 ) -> tuple[AllocationPins, int]:
     """Take over one allocation for this worker and return its new fencing token.
 
-    Acquiring mints a fresh token that supersedes the previous holder's. No
-    preview step re-reads the token before mutating, so this alone does not stop
-    a worker still holding the previous one.
+    Acquiring mints a fresh token that supersedes the previous holder's, so every
+    later transition of the previous holder is refused (`commit_allocation_transition`).
     """
     async with database.transaction() as conn, conn.cursor() as cur:
-        await cur.execute(
-            "select utrace.acquire_preview_allocation(%s) as token", (allocation_id,)
-        )
-        minted = await cur.fetchone()
-        if minted is None:
-            raise AggregateNotFoundError(
-                table="preview_runtime_allocations", row_id=allocation_id
-            )
-        token = as_int(minted, "token")
+        token = await _acquire_on(conn, allocation_id=allocation_id)
         await cur.execute(_PINS_QUERY, (allocation_id,))
         row = await cur.fetchone()
     if row is None:
@@ -218,11 +209,24 @@ async def acquire_allocation(
     return _as_pins(row), token
 
 
+async def _acquire_on(conn: AsyncConnection[DictRow], *, allocation_id: UUID) -> int:
+    """Mint the allocation's new fencing token inside the caller's transaction."""
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "select utrace.acquire_preview_allocation(%s) as token", (allocation_id,)
+        )
+        minted = await cur.fetchone()
+    if minted is None:
+        raise AggregateNotFoundError(table="preview_runtime_allocations", row_id=allocation_id)
+    return as_int(minted, "token")
+
+
 async def commit_allocation_transition(
     conn: AsyncConnection[DictRow],
     *,
     client_id: UUID,
     allocation_id: UUID,
+    fencing_token: int,
     trigger: str,
     facts: PreviewRuntimeAllocationFacts,
     mutation: Mapping[str, ColumnValue],
@@ -232,10 +236,18 @@ async def commit_allocation_transition(
     correlation_id: UUID | None,
     additional_locks: Sequence[AggregateRef],
 ) -> str:
-    """Resolve and commit one allocation transition inside a caller's transaction."""
+    """Resolve and commit one allocation transition inside a caller's transaction.
+
+    Only the holder of the allocation's current fencing token may move it: the row
+    is locked before the token is compared, so a worker another one has taken the
+    allocation over from is refused even if both commit at once.
+    """
     async with conn.cursor() as cur:
         await cur.execute(
-            "select state, revision from public.preview_runtime_allocations where id = %s",
+            """
+            select state, revision, fencing_token from public.preview_runtime_allocations
+            where id = %s for update
+            """,
             (allocation_id,),
         )
         row = await cur.fetchone()
@@ -243,6 +255,8 @@ async def commit_allocation_transition(
         raise AggregateNotFoundError(
             table="preview_runtime_allocations", row_id=allocation_id
         )
+    if as_int(row, "fencing_token") != fencing_token:
+        raise LeaseLostError("preview_runtime_allocation", allocation_id, fencing_token)
     plan = resolve(
         PREVIEW_RUNTIME_ALLOCATION_MACHINE, as_str(row, "state"), trigger, facts
     )
@@ -328,6 +342,7 @@ async def claim_base_allocation(
             conn,
             client_id=client_id,
             allocation_id=allocation_id,
+            fencing_token=await _acquire_on(conn, allocation_id=allocation_id),
             trigger="claim",
             facts=PreviewRuntimeAllocationFacts(
                 runtime_reachable=True,
