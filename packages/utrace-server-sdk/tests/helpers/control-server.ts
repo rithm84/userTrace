@@ -62,6 +62,7 @@ export class TestControlPlane {
   private expectedCredential: string;
   private readonly sockets = new Set<WebSocket>();
   private rejectActivation = false;
+  private garbleActivation = false;
 
   public constructor(expectedCredential: string) {
     this.expectedCredential = expectedCredential;
@@ -102,6 +103,11 @@ export class TestControlPlane {
 
   public failNextActivation(): void {
     this.rejectActivation = true;
+  }
+
+  /** Answers the next activation with an `activated` reply the contract does not allow. */
+  public garbleNextActivation(): void {
+    this.garbleActivation = true;
   }
 
   public listen(port: number): Promise<URL> {
@@ -205,6 +211,11 @@ export class TestControlPlane {
 
   private onActivate(socket: WebSocket, message: ActivateMessage): void {
     const requestId = message.request_id;
+    if (this.garbleActivation) {
+      this.garbleActivation = false;
+      socket.send(JSON.stringify({ type: 'activated', request_id: requestId, activation: {} }));
+      return;
+    }
     const template = this.template;
     if (template === undefined || this.rejectActivation) {
       this.rejectActivation = false;

@@ -232,29 +232,42 @@ export class ControlSocket {
     try {
       parsed = JSON.parse(data.toString('utf8'));
     } catch {
-      this.handlers.onControlFailure(
-        createFailure({
-          code: 'incompatible_runtime_or_contract',
-          retry: 'never',
-          readiness_consequence: 'withdraw_readiness',
-          detail: { reason: 'control_frame_not_json' },
-        }, new Date()),
-      );
+      this.refuseFrame(undefined, 'control_frame_not_json');
       return;
     }
     const validated = controlServerMessageSchema.safeParse(parsed);
     if (!validated.success) {
-      this.handlers.onControlFailure(
-        createFailure({
-          code: 'incompatible_runtime_or_contract',
-          retry: 'never',
-          readiness_consequence: 'withdraw_readiness',
-          detail: { reason: 'control_frame_schema_violation' },
-        }, new Date()),
-      );
+      this.refuseFrame(parsed, 'control_frame_schema_violation');
       return;
     }
     this.dispatch(validated.data);
+  }
+
+  /**
+   * Fails what a frame the contract does not allow leaves waiting, so a caller such
+   * as activation never waits forever for a reply that came and was refused. A frame
+   * naming a pending request fails that request; one naming none could be the reply
+   * any of them waits for, so all of them fail and the channel reports the failure.
+   */
+  private refuseFrame(parsed: unknown, reason: string): void {
+    const failure = createFailure({
+      code: 'incompatible_runtime_or_contract',
+      retry: 'never',
+      readiness_consequence: 'withdraw_readiness',
+      detail: { reason },
+    }, new Date());
+    const requestId = requestIdOf(parsed);
+    const waiting = requestId === undefined ? undefined : this.pending.get(requestId);
+    if (requestId !== undefined && waiting !== undefined) {
+      this.pending.delete(requestId);
+      waiting.reject(new ServerSdkError('The control plane sent a reply the contract does not allow.', failure));
+      return;
+    }
+    for (const [pendingId, pending] of this.pending) {
+      this.pending.delete(pendingId);
+      pending.reject(new ServerSdkError('The control plane sent a frame the contract does not allow.', failure));
+    }
+    this.handlers.onControlFailure(failure);
   }
 
   private dispatch(message: ControlServerMessage): void {
@@ -314,4 +327,12 @@ export class ControlSocket {
       detail: { expected, received: message.type },
     }, new Date());
   }
+}
+
+/** The `request_id` a frame names, read before the frame is known to be valid. */
+function requestIdOf(frame: unknown): string | undefined {
+  if (typeof frame !== 'object' || frame === null || !('request_id' in frame)) {
+    return undefined;
+  }
+  return typeof frame.request_id === 'string' ? frame.request_id : undefined;
 }

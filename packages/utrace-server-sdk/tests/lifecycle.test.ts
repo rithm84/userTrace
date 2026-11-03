@@ -325,6 +325,20 @@ describe('a preview that cannot be observed', () => {
     expect(blocked.stderr.join('')).toContain('duplicate_provider_or_hook');
     expect(blocked.stdout.join('')).not.toContain('APP_LISTENING');
   });
+
+  it('refuses to boot, rather than waiting forever, when the activation reply breaks the contract', async () => {
+    control.garbleNextActivation();
+    const blocked = await startApp({
+      appFile: 'annotated-app.mjs',
+      withPreload: true,
+      expectListening: false,
+      environment: { APP_PORT: String(BLOCKED_APP_PORT), ...baseEnvironment() },
+    });
+    const code = await blocked.exited;
+    expect(code).not.toBe(0);
+    expect(blocked.stderr.join('')).toContain('control_frame_schema_violation');
+    expect(blocked.stdout.join('')).not.toContain('APP_LISTENING');
+  });
 });
 
 describe('a manifest-required adapter with no tested library', () => {
