@@ -59,6 +59,27 @@ async def _agreed(database: Database, product_signal_id: UUID) -> bool:
         return await cur.fetchone() is not None
 
 
+async def _proposal(database: Database, product_signal_id: UUID) -> dict[str, object]:
+    """Whether the agent proposed the change before the agreement, and the agreement names it."""
+    async with database.connection() as conn, conn.cursor() as cur:
+        await cur.execute(
+            """
+            select
+              (select count(*) from public.prepared_drafts d, public.acceptance_criteria_agreements a
+                where d.product_signal_id = %(signal)s and d.kind = 'proposal'
+                  and a.product_signal_id = %(signal)s
+                  and d.proposed_at <= a.recorded_at) as proposals_before_agreement,
+              (select prepared_draft_id from public.acceptance_criteria_agreements
+                where product_signal_id = %(signal)s
+                order by acceptance_criteria_revision limit 1) as agreed_draft
+            """,
+            {"signal": product_signal_id},
+        )
+        row = await cur.fetchone()
+    assert row is not None
+    return dict(row)
+
+
 async def _watch_idle_transactions(maximum: list[float], database: Database) -> None:
     """Record the longest any connection sits idle inside a transaction during the call."""
     while True:
@@ -222,6 +243,7 @@ async def test_one_interview_from_greeting_to_a_ready_version(
         finally:
             watcher.cancel()
     health = await _health(database, signal_id, call.session_id)
+    proposal = await _proposal(database, signal_id)
     elapsed = time.time() - started
 
     print("\njourney report")
@@ -231,12 +253,19 @@ async def test_one_interview_from_greeting_to_a_ready_version(
     print(f"  spoken while building: {spoken_while_building!r}")
     print(f"  ready announcement: {ready_reply[1]!r}")
     print(f"  health: {health}, longest idle transaction {idle[0]:.1f}s over {elapsed:.0f}s")
+    print(f"  proposal: {proposal}")
     print("  character:", [(round(at - call.connected_at, 1), state) for at, state in report.character])
     print("  timeline (seconds after connect):")
     for at, speaker, text in words:
         print(f"    +{at - call.connected_at:6.2f}  {speaker}: {text!r}")
 
     assert recap_dispatches, "the recap circled none of the controls it named"
+    # The draft starts only from a recorded proposal, so the agent must record one
+    # as it proposes, and the agreement must name it for the attempt to adopt it.
+    assert int(str(proposal["proposals_before_agreement"])) >= 1, (
+        "the agent never recorded its proposal before the agreement"
+    )
+    assert proposal["agreed_draft"] is not None, "the agreement names no proposal's draft"
     assert not any(word in agreement_answer.lower() for word in _BUILD_WORDS), (
         f"the agent promised a build before the gate approved it: {agreement_answer!r}"
     )
