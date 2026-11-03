@@ -32,7 +32,7 @@ swimlane-beta TB
   discord --> intake
   intake -->|private invite + Stripe offer| interview
   interview -->|agreed change| gate
-  gate ok_1@-->|build it live · ~1 min| build
+  gate ok_1@-->|build it live · up ~3 s after the yes| build
   gate blocked_1@-->|explain why not| explained
   build -->|new preview| validate
   validate ok_2@-->|validated| delivered
