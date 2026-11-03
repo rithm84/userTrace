@@ -178,6 +178,10 @@ async def test_the_agent_acknowledges_what_was_awaited_once_and_narrates_nothing
         print(f"  agent's first words {dashboard_reply[0] - dashboard_at:.2f}s after the dashboard loaded: {dashboard_reply[1]!r}")
     print(f"  agent audio began {None if speaking_after_dashboard is None else round(speaking_after_dashboard - dashboard_at, 2)}s after the dashboard loaded")
     print(f"  acknowledgements during the walkthrough: {len(walk_acks)}; agent said: {walk_said!r}")
+    print(
+        "  agent words per walkthrough step: "
+        f"{sum(len(said.split()) for said in walk_said) / len(_STEPS):.2f}"
+    )
     print(f"  new version: ready cue {ready_cue_at - ready_at:.2f}s after ready, then: {loading_reply[1]!r}")
     print(f"  debrief cue {debrief_at - loaded_at:.2f}s and words {debrief_reply[0] - loaded_at:.2f}s after it loaded: {debrief_reply[1]!r}")
     print(f"  acknowledgements while the new version was announced: {len(version_acks)}")

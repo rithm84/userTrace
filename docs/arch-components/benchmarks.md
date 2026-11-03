@@ -192,7 +192,9 @@ any network to a listener.
 | `gpt-6-luna` | Eleven v4 Turbo | Around | 1.50 s | 2.02 s | 7/18 | 0 | 11.9 |
 | `gemini-3.5-flash-lite` | Eleven v4 Turbo | Around | 1.78 s | 2.41 s | 10/18 | 8 | 15.1 |
 
-A walkthrough step should get one word ("Mm-hmm"); Haiku narrated the steps.
+A walkthrough step should get at most one word ("Mm-hmm"), and since the agent
+[listens without a word](#listening-instead-of-backchanneling) usually none; Haiku
+narrated the steps.
 
 #### Speech engine timing
 
@@ -539,6 +541,96 @@ line 55–69 ms after the call arrived. The agreement's first audio came a media
 1.14 seconds (0.61–1.37) after Flux's end of turn. The realtime voice (2 runs),
 acknowledgement (2), walkthrough (1), and vague-ask (1) checks also passed on the
 same code.
+
+### Listening instead of backchanneling
+
+On 2026-11-02 the live checks ran on a workstation's local stack with the
+production providers, before and after the agent could
+[listen without a word](./interview-and-voice.md#listening-and-backchannels).
+Before, its instructions made "Mm-hmm." its answer to every walkthrough step.
+A new listening check replays a recorded call: trying the new version, the
+participant says "Sure." and "Let me try.", then a few words for each of six more
+steps as they set their filters, save the view, refresh, and reopen it, and
+finally how it went.
+
+What the agent said while the participant was still taking the steps:
+
+| Check | Before | After |
+| --- | --- | --- |
+| New version tried, 8 spoken steps | "Mm-hmm." after 8 of 8 and 7 of 8 steps, 2.9–6.7 s apart | Nothing in 3 of 3 runs: every step got the listening mark |
+| Walkthrough, 4 steps | "Mm-hmm." after 3 and 4 of 4 steps: 0.75 and 1.00 words per step | Nothing in 3 of 3: 0 words per step |
+| Acknowledgement check's walkthrough, 3 steps | "Mm-hmm." after every step: 1.00 words per step | Nothing in 3 of 3 |
+
+Narration did not return: no step got more than a listening mark, and no run
+circled a control during a walkthrough. The agent still answered as soon as it was
+owed:
+
+- After the participant said how the try went, it answered 1.83–2.42 seconds
+  after they stopped, against 2.46 and 4.26 seconds before.
+- The recap after the participant's ask began 1.89–2.10 seconds after it, against
+  2.37 and 2.53 seconds before.
+- The only backchannel it spoke was "Go ahead.", in 10 of the 11 runs where the
+  participant offered to show their workflow or said they would open their
+  dashboard; in the other it listened.
+- In the realtime voice check it answered what was applied, circled the channel
+  filter, and gave the build's progress 0.64–1.13 seconds after each question. In
+  both journey runs it said nothing while the change was built.
+- The listening stage held an answer's start a median 59 ms before passing it on
+  (largest 131 ms, 10 holds).
+
+With the example phrases removed from the
+[acknowledgement cue](./interview-and-voice.md#jevs-interview-responsibilities),
+the loaded dashboard was acknowledged with "I'm following.", "I'm with you.", and
+"I'm with you." 1.07–1.48 seconds after it loaded. Before, it was "There it is."
+in both runs, 1.23 and 1.28 seconds after.
+
+| Check | Before | After |
+| --- | --- | --- |
+| Listening | 0 of 2 | 3 of 3 |
+| Walkthrough | 2 of 2 | 3 of 3 |
+| Acknowledgement | 2 of 2 | 3 of 3 |
+| Realtime voice | 1 of 1 | 2 of 2 |
+| Journey | Not run | 2 of 2 |
+| Vague ask | Not run | 1 of 1 |
+
+#### Without the checks-shown note
+
+Those runs still had Jev's note on which checks a new version showed, ending "Let
+them carry on, with no questions". That judgment has since moved to the agent
+([Jev in the live interview](#jev-in-the-live-interview)), and the note is gone.
+Without it, in 1 of 2 listening runs the agent began asking "Did it keep the view under your…"
+right after "And reopening it.", before the participant said how it went. A
+replay outside the pipeline, with the production instructions, tools, model,
+tier, and effort, did so in 2 of 4. The instructions now say that naming even the
+last step means the participant is looking at the result. With that, the replay
+listened in 6 of 6, still asked how it went when the participant said only "Okay,
+done." (4 of 4), and the live listening check passed 3 of 3, with nothing said
+during the try and the outcome answered 1.83–2.55 seconds after it. The realtime
+voice check passed 1 of 1; in it the listening stage withheld a "Mm-hmm." the agent
+gave a Jev acknowledgement 4 seconds after its own "Go ahead.", the one
+backchannel it withheld in these runs.
+
+#### Cancelled answers
+
+A barge-in cancels the answer being generated, but in 35 cancellations over the
+earlier runs the API finished every one, and the next answer waited for the rest of it:
+0.5–4.6 seconds in 10 of the 35. Past Pipecat's five-second cap, the cancelled
+answer was delivered as the next one. Twice the listening mark meant for a
+walkthrough step answered the participant's ask, and the acknowledgement check
+failed. A cancelled answer now gets half a second before its connection is
+replaced ([GPT-6.1 Sol](./interview-and-voice.md#voice-pipeline)). The 54
+reconnects took a median 0.23 seconds, and the 14 runs above replaced two
+connections.
+
+#### Runs left out
+
+Two runs crossed a laptop sleep. The 26 runs between 20:11 and 21:01 ran while
+GPT-6.1 Sol on the Ultrafast tier stalled 2–28 seconds between accepting a request
+and its first text, against 0.8–1.6 seconds for the same greeting before then and
+after. A probe outside the pipeline at 21:02, with the production instructions,
+measured 5.3–9.2 seconds to first text on Ultrafast and 1.0–1.6 seconds on the
+default tier. Answers that late arrived after the participant's next line, so those
+runs measured the provider, not the change.
 
 ### Preview cold start
 
