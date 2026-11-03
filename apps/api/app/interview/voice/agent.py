@@ -73,7 +73,6 @@ from app.interview.voice.call_record import (
     record_fragment,
 )
 from app.interview.voice.channel import Floor
-from app.interview.voice.checks_shown import ShownChecks
 from app.interview.voice.cues import (
     agreed_change,
     agreed_checks,
@@ -583,7 +582,6 @@ def _start_background(
             voice_subject,
             agent,
             floor.agent_quiet,
-            ShownChecks(database, subject=voice_subject, judge=judge),
             Acknowledgements(subject=voice_subject, judge=judge, floor=floor),
         ),
     ]

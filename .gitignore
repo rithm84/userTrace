@@ -29,6 +29,8 @@ out/
 *.db-*
 *.sqlite
 *.sqlite3
+# The Jev evaluation's labeled set, rebuilt from a production session export
+apps/api/tests/evals/jev/replay_set.json
 
 # Local tooling
 .DS_Store

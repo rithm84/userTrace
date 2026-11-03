@@ -550,9 +550,166 @@ probes and the session's claim, which warm and cold starts share, so a
 [warm runtime](./preview-runtime-and-seeding.md#allocation-lifecycle) saves only
 these seconds, which overlap participant setup and the greeting.
 
+## Jev in the live interview
+
+Taken on 2026-11-02, these test whether Jev's interview judgments earn their place
+beside the voice agent's own model, which already hears the participant's preview
+activity as application notes. During an interview Jev judges whether an action
+merits a few spoken words (`judge_acknowledgement`), which agreed checks a new
+version already showed (`judge_checks_shown`), and, before the Implementation
+Gate, which flow the interview established (`propose_flow_classification`). Jev
+ran as `typesafe-ai/jev` with the production questions and thresholds; GPT-6.1 Sol
+ran as the voice agent runs it, `gpt-6.1-sol` on the Ultrafast tier at low effort.
+Each judge answered every moment three times from a workstation, one request at a
+time per provider; latency is the request alone. Jev lists at USD 0.042 per million
+input tokens on Vercel AI Gateway, with no output price.
+
+Following these measurements, production stopped asking Jev which checks were
+shown: the voice agent judges that from the activity it hears, with the wording
+the `sol` arm below used. Jev's unwired evidence coverage, claim relationship,
+and attention routing judgments were removed with it.
+
+### Replay set
+
+The labeled set mixes moments from the one recorded production interview
+(2026-11-01, Product Signal `01a19627-8d6d-70cc-b1ca-165f98e70e89`) with scripted
+Saved Conversion Views moments. A label a careful reader could set either way is
+marked ambiguous and reported both ways.
+
+| Question | Moments | From the recorded run | Labels |
+| --- | --- | --- | --- |
+| Acknowledgement | 35 | 14 | 11 acknowledge, 24 stay quiet; 4 ambiguous |
+| Checks shown | 46 batches, 138 checks | 16 batches | 41 shown, 10 contradicted, 87 not shown; 7 ambiguous |
+| Flow classification | 5 interviews | 1 | 2 feature requests, 2 product failures, 1 unclear |
+
+Recorded moments are rebuilt from the session's transcript, its activity, and the
+context bundle each judgment read. Replayed, Jev reached its live decision in all
+36 acknowledgement trials and in 171 of 174 check decisions. Twelve of the recorded
+run's 14 acknowledgement moments call for silence, so the scripted moments add
+awaited ones: a page the participant said they would open, a step the agent asked
+for, a result they were waiting on, and the steps, asides, and idle clicks around
+them. The scripted checks replay the 2026-10-03 validation pass at each new
+milestone, and copies in which the reopen restores some filters, none, or frozen
+dates, or skips the refresh, against three phrasings of the agreed checks.
+
+### Acknowledgements
+
+Precision and recall of acknowledging, over 35 moments answered three times; in
+parentheses, without the four ambiguous moments.
+
+| Judge | Precision | Recall | p50 / p90 latency | USD per call |
+| --- | --- | --- | --- | --- |
+| Jev | 80% (88%) | 97% (100%) | 0.22 s / 0.32 s | 0.00004 |
+| Sol, asked the same question | 83% (100%) | 91% (100%) | 0.96 s / 1.24 s | 0.008 |
+| Sol as the agent, deciding in its own reply | 81% (100%) | 76% (83%) | 0.93 s / 1.21 s | 0.004 |
+| Rule: acknowledge a save, a reopen, or a page load | 69% (80%) | 82% (80%) | — | — |
+
+- Jev's clear false acknowledgements were refreshes: the recorded run's unannounced
+  refresh between the save and the reopen (3 of 3 repeats), and a refresh the agent
+  had asked for as the first half of "refresh and reopen it" (1 of 3).
+- As the agent, Sol stayed silent, or said "Mm-hmm.", when the participant showed
+  what they said they would show: a refresh losing their filters, and the trend
+  chart going blank.
+- The production feed drops a decision that arrives more than 1.2 seconds after the
+  activity was read. Sol's standalone p90 is past that.
+- In the recorded run the 15-second spacing between acknowledgements, not Jev, kept
+  the reopen from being judged: the save had been acknowledged 10 seconds earlier.
+
+### Checks shown
+
+Each of 46 batches answered three times. A check reported shown that the activity
+did not show tells the agent never to ask about it; in parentheses, without the
+ambiguous labels. The rules match each of the demo's checks to its milestones by
+the check's words, so they fit this scenario only.
+
+| Judge | Shown: precision | Shown: recall | Contradicted: recall | Reported shown, wrongly | p50 / p90 latency | USD per call |
+| --- | --- | --- | --- | --- | --- | --- |
+| Jev | 99% | 75% (85%) | 17% | 1 (0) | 0.22 s / 0.35 s | 0.0001 |
+| Sol, asked the same questions | 94% | 99% (99%) | 83% | 8 (5) | 1.02 s / 1.40 s | 0.009 |
+| Rules for this scenario | 98% | 95% (94%) | 100% | 1 (0) | — | — |
+
+- Jev's floor of 0.75 makes it miss rather than err: it reported 5 of 30
+  contradictions and never reported the recorded run's relative date range. Live,
+  it reported the refresh and reopen 2.95 seconds after the reopen, once the
+  participant had already begun saying it worked.
+- Sol called a reopen that restored frozen dates a restore of every filter in 5 of
+  its 9 answers across the three phrasings.
+- Production awaits the judgment before sending the activity it judged, so during
+  validation each activity note waited for it: 0.27 seconds at the median in the
+  recorded run, from the bundle to the recorded answer.
+
+### The recorded run's last validation turn
+
+The recorded participant reopened the saved view and said "It looks like it works
+perfect, and the positioning is good too." That turn was replayed 30 times with the
+agent's context rebuilt from the session, with Jev's two checks lines (the save
+shown, then the refresh and reopen), and 30 times without them, the instructions
+and debrief cue asking the agent to judge from the activity instead.
+
+| Agent's context | Asked about the relative range | Also asked again about the save or the restore |
+| --- | --- | --- |
+| With Jev's checks lines | 30 of 30 | 18 of 30 |
+| Without them | 30 of 30 | 3 of 30 |
+
+The debrief cue tells the agent to have the participant confirm the checks the
+application reports shown, and with the lines it did, walking back through checks
+the activity had already shown. Live, the agent asked only about the range.
+
+### Flow classification
+
+| Judge | Correct | p50 / p90 latency | USD per call |
+| --- | --- | --- | --- |
+| Jev | 15 of 15 | 0.27 s / 0.52 s | 0.0003 |
+| Sol, asked the same question | 15 of 15 | 0.81 s / 1.08 s | 0.02 |
+| No classification: keep intake's flow | 2 of 5 | — | — |
+
+The gate runs the classification before code investigation and its proposal. In
+the recorded run it took 0.40 seconds from the bundle's assembly to the recorded
+answer, which came 1.66 seconds after the agreement.
+
+### Whole interviews with and without Jev
+
+Nine scripted interviews ran over a real call on a workstation's local stack, three
+per arm, interleaved. Each arm changed only the running agent:
+
+- `jev`: production. Jev decides which moments are acknowledged and which agreed
+  checks were shown.
+- `sol`: no Jev call. Every moment the floor allows is appended for the agent to
+  acknowledge or pass over, without the 15-second spacing, and the instructions and
+  debrief cue ask the agent to judge shown checks from the activity.
+- `quiet`: no Jev call and no acknowledgements; checks as in `sol`.
+
+The participant said they would open the dashboard and it loaded; set three filters
+while naming each; agreed the change; and, once the new version was debriefed, said
+only "Okay, let me try it", then rebuilt the filters, saved, refreshed, and reopened
+without a word, and said "Looks like it all came back".
+
+| Arm | Validated | Spoke after the dashboard, the save, the refresh, the reopen | First word after a moment, median | The closing question asked about | Sol runs, USD per interview (medians) | Jev calls per interview |
+| --- | --- | --- | --- | --- | --- | --- |
+| `jev` | 3 of 3 | 3, 3, 0, 0 of 3 | 1.48 s | The rolling range, 3 of 3 | 18, 0.44 | 11 |
+| `sol` | 3 of 3 | 3, 1, 2, 2 of 3 | 0.89 s | The rolling range, 2 of 3; it and the save, 1 of 3 | 22, 0.72 | 0 |
+| `quiet` | 3 of 3 | 0, 0, 0, 0 of 3 | — | The rolling range, 3 of 3 | 16, 0.37 | 0 |
+
+- With Jev, the agent said "There it is." or "Nice." at the dashboard (once only
+  "Mm-hmm.") and at the save, never at the unannounced refresh, and never at the
+  reopen, which came within 15 seconds of the save's acknowledgement.
+- Deciding itself, Sol spoke sooner but less consistently: "Nice." after the
+  unannounced refresh in 2 of 3 runs, the save acknowledged in 1.
+- No arm asked the participant to repeat a check, and no activity cue made the
+  agent talk over them.
+- From "it all came back" to the application's validation-complete cue took
+  19.7–23.2 seconds with Jev, 18.6–19.9 with `sol`, and 17.3–20.2 with `quiet`;
+  most of it is the agent's question, the scripted answer, and the recording.
+- Jev's 34 calls in the `jev` runs took 0.27 seconds at the median (p90 0.37).
+
 ## Measurement harnesses
 
-None was committed. Beyond the methods above, they comprised:
+Only the Jev evaluation is committed, in
+[`apps/api/tests/evals/jev`](../../apps/api/tests/evals/jev/): a read-only session
+export, the code that rebuilds the labeled replay set from it (the set holds a
+production session's transcript, so it is not committed), the replay and its
+scorer, the counterfactual turn, and the live ablation. Beyond the methods above,
+the others comprised:
 
 - **Agent cursor:** Playwright captures of the Shopalytics fixture served locally
   at 1440×900, a screenshot and the SDK-reported target registry per state (base,

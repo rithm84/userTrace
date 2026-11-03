@@ -56,9 +56,8 @@ a Vercel Sandbox, and Implementation Gate proposals; intake assistance; and Case
 File drafting. The code investigation and the case's
 implementation workspace are prepared while the interview runs, so the gate and
 the coding agent start from them the moment the participant agrees. Jev is the default intake
-decision model. During interviews Jev judges which activity to acknowledge and
-which agreed checks a new version already showed, and before the gate it proposes
-the interview-established flow classification. The [Jev decision contract](./arch-components/cross-component-contracts.md#jev-decision-contract)
+decision model. During interviews Jev judges which activity to acknowledge, and
+before the gate it proposes the interview-established flow classification. The [Jev decision contract](./arch-components/cross-component-contracts.md#jev-decision-contract)
 defines question types and acceptance checks. Jev neither serializes every spoken
 turn nor grants authority.
 

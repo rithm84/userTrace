@@ -80,7 +80,8 @@ or blocked before implementation authority depends on it. The preview
 [presents its dataset on today's date](./preview-runtime-and-seeding.md#seed-manifest),
 and the agent is told that date, so a criterion about a relative range such as the
 last 30 days holds on any day. A check the participant already performed in the
-candidate is [confirmed rather than repeated](./interview-and-voice.md#jevs-interview-responsibilities).
+candidate is [confirmed rather than repeated](./interview-and-voice.md#application-cues):
+the voice agent judges that from the activity it is told about.
 
 There is no fixed demonstration duration. The conversation stays focused on the
 accepted workflow and adjacent surfaces materially touched by the diff. The voice
@@ -92,11 +93,9 @@ limits what fragments prove.
 Cognitive assistance follows the [runtime roles](../ARCHITECTURE.md#system) and
 [context contract](./context-assembly.md#stage-boundaries) and is advisory: the
 validation controller owns criteria, evidence binding, outcomes, and transitions.
-Jev's per-criterion judgments
-([interview responsibilities](./interview-and-voice.md#jevs-interview-responsibilities))
-never substitute for explicit originating-user confirmation, observed behavior, or
-exact-candidate binding; unresolved interpretations need clarification or deeper
-analysis.
+The agent's judgment of which checks a run already showed never substitutes for
+explicit originating-user confirmation, observed behavior, or exact-candidate
+binding; unresolved interpretations need clarification or deeper analysis.
 
 ## Outcome criteria
 

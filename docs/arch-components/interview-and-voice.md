@@ -127,8 +127,7 @@ GPT-6.1 Sol's other roles run at these tiers and efforts:
 
 Jev supplies concurrent judgments under the
 [Jev decision contract](./cross-component-contracts.md#jev-decision-contract). They
-can initiate scoped read-only work or direct attention, but never confirm evidence
-or authorize an effect. Jev is active, not shadow-only, and its jobs run on
+never confirm evidence or authorize an effect. Jev is active, not shadow-only, and its jobs run on
 relevant updates, never as a serial approval step before every utterance.
 Deterministic connection, identity, lease, and policy facts never need a
 classifier.
@@ -169,35 +168,21 @@ bottom, so chart points or reviews never crowd out a filter.
 
 ### Jev's interview responsibilities
 
-- **Evidence coverage:** per supplied objective or acceptance criterion, judge
-  whether relevant statements or observations address it, leave it unanswered, or
-  contradict it. Code checks missing records; Jev assesses meaning. The voice agent
-  turns the gaps into follow-up questions.
-- **Checks shown during validation:** when new milestones arrive from the
-  candidate, judge per agreed check whether activity since the Validation Attempt
-  opened shows the product doing it. A check judged shown or contradicted reaches
-  the voice agent in one note with that activity, so the agent never asks for a
-  repeat, lets the participant carry on while checks remain, and takes their word
-  once they say how it went. The judgment records no outcome. Activity is
-  described by what changed: a milestone heard before is reported by its changed
-  values only.
-- **Claim relationships:** classify a new contextualized statement against
-  supplied relevant claims as supports, contradicts, unrelated, or unclear. A flag
-  does not rewrite the canonical account.
-- **Attention and routing:** identify relevant observations and choose among
-  supplied lookup or reasoning tasks; the controller checks scope and budgets.
-- **Acknowledgements:** for each participant action in the preview, judge from the
-  conversation whether it was awaited, such as a screen they said they would open
-  or a step the agent asked for, and so merits a few spoken words. Code decides
-  only when: nobody has the floor (the agent is neither talking nor running a
-  tool, and the participant is not mid-turn), the last acknowledgement was at
-  least 15 seconds ago, and the decision arrives within about a second; otherwise
-  the moment passes quietly. Activity from before the connection, or held while
-  someone talked, is never acknowledged.
+During the call Jev judges acknowledgements: for each participant action in the
+preview, whether it was awaited, such as a screen they said they would open or a
+step the agent asked for, and so merits a few spoken words. Code decides only
+when: nobody has the floor (the agent is neither talking nor running a tool, and
+the participant is not mid-turn), the last acknowledgement was at least 15 seconds
+ago, and the decision arrives within about a second; otherwise the moment passes
+quietly. Activity from before the connection, or held while someone talked, is
+never acknowledged.
 
-[Context Assembly](./context-assembly.md#stage-boundaries) owns retrieved-passage
-selection; [flow classification](#flow-classification) owns the classification
-judgment.
+Which agreed checks a new version already showed is the voice agent's own
+judgment, from the activity it is told about (the [debrief](#application-cues)
+cue). The [benchmarks](./benchmarks.md#jev-in-the-live-interview) measured both
+splits. [Context Assembly](./context-assembly.md#stage-boundaries) owns
+retrieved-passage selection; [flow classification](#flow-classification) owns the
+classification judgment.
 
 ### Application cues
 
@@ -218,7 +203,8 @@ These cues track the call and the preview:
 - **Preview activity:** while the observation path is ready, each committed
   preview action reaches the agent as a note: the product's declared milestones
   with released values, clicks on named controls, and page loads, coalesced so a
-  repeated report is not resent. A moment Jev judges worth
+  repeated report is not resent; a milestone heard before is reported by its
+  changed values only. A moment Jev judges worth
   [acknowledging](#jevs-interview-responsibilities) goes as a `say` instead.
   What arrives while the agent talks is sent combined once it stops.
 - **Participant controls:** Mute, Unmute, Pause, and Resume arrive as queued
@@ -256,7 +242,9 @@ These cues track the agreed change and its validation:
   shows. It describes the controls delivering the change in the order the
   participant will use them, a sentence each, circling each as named, mentions a
   moved control only when it matters, then walks through exactly the recorded
-  criteria.
+  criteria. When the participant tries several at once, the agent judges from
+  their activity which checks the new version already showed and asks them to
+  confirm those rather than repeat them.
 - **Validation outcome:** once the outcome is recorded and nobody has the floor,
   the agent closes the conversation, and the session closes after its goodbye
   plays out. A goodbye the participant talks over does not count: the agent's
@@ -491,15 +479,6 @@ neither preapproves each spoken sentence nor guarantees silence.
 ### Contradictions and corrections
 
 Every result names the evidence and context revision and the dependencies it used.
-A plausible Jev contradiction flag against a requirement that active
-implementation uses holds new dependent steps until interpretation or participant
-clarification resolves it; conversation and independent work continue, and
-dispatched operations settle or checkpoint with recorded outcomes. A flag is not a
-confirmed correction: dismissed, it releases the hold after dependency checks;
-unresolved, it stays within existing time and execution budgets and takes the
-blocker path if it cannot be resolved. This internal dependency hold is not the
-participant's Pause control.
-
 An accepted user correction immediately supersedes the affected claim and
 invalidates dependent analysis. If it affects authorized implementation, stop new
 incompatible steps, record the current workspace state, and re-evaluate the gate
