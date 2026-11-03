@@ -15,12 +15,10 @@ export function parseUuidV7(value: unknown): UuidV7 {
   return uuidV7Schema.parse(value);
 }
 
-/** Validate one first-class identifier name. */
 export function parseIdentifierName(value: unknown): IdentifierName {
   return identifierNameSchema.parse(value);
 }
 
-/** Validate a typed domain identifier object. */
 export function parseIdentifiers(value: unknown): DomainIds {
   return domainIdsSchema.parse(value);
 }

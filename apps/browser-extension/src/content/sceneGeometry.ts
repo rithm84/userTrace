@@ -13,11 +13,11 @@ import type { Point, Viewport } from "./orbGeometry";
 /** A target must be at least this visible before a gesture may point at it. */
 export const MINIMUM_VISIBLE_FRACTION = 0.6;
 
-export type TargetRefusal = Readonly<{
+type TargetRefusal = Readonly<{
   reason: "target_obscured" | "target_offscreen" | "target_not_visual" | "target_degenerate";
 }>;
 
-export type TargetCheck = Readonly<{ usable: true }> | (Readonly<{ usable: false }> & TargetRefusal);
+type TargetCheck = Readonly<{ usable: true }> | (Readonly<{ usable: false }> & TargetRefusal);
 
 /**
  * The check run immediately before a gesture executes. Occlusion and clipped
@@ -69,7 +69,7 @@ export function circlePath(rect: ViewportRect, padding: number): string {
   ].join(" ");
 }
 
-export type TraceEdge = "top" | "bottom" | "leading" | "trailing";
+type TraceEdge = "top" | "bottom" | "leading" | "trailing";
 
 /** A single drawn stroke along one edge of a target, bowed like a hand line. */
 export function tracePath(rect: ViewportRect, edge: TraceEdge, padding: number): string {
@@ -111,7 +111,7 @@ function traceEnds(
 
 export type LabelPlacement = "above" | "below" | "leading" | "trailing";
 
-export type LabelBox = Readonly<{ x: number; y: number; width: number; height: number }>;
+type LabelBox = Readonly<{ x: number; y: number; width: number; height: number }>;
 
 /**
  * Places a label beside its target and keeps it inside the viewport. The

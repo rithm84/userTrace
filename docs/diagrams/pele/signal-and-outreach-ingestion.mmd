@@ -1,0 +1,25 @@
+---
+title: Discord ingestion · deduplicate, debounce, seal, route
+---
+sequenceDiagram
+  autonumber
+  participant discord as Discord
+  participant conn as Discord connector · worker process
+  participant intake as Intake records
+  participant router as Intake routing
+
+  alt live gateway
+    discord->>conn: message in a watched channel
+    Note over conn: Drop the bot's own messages.
+  else staff re-ingestion of a missed message
+    Note over conn: Refuse an unwatched channel first.
+    conn->>discord: fetch exactly that message
+  end
+  conn->>intake: receipt · author mapping · message ID deduplicates
+  intake->>intake: open or extend the batch · one author, one channel
+  loop until the quiet window passes
+    discord->>conn: typing indicator · same author and channel
+    conn->>intake: hold the open batch, never past its hard deadline
+  end
+  intake->>intake: seal one immutable Intake Item
+  intake->>router: route the sealed batch

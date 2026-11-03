@@ -22,7 +22,6 @@
 /build
 
 # generated agent character runtime assets
-/public/agent/utrace-agent-character.riv
 /public/agent/rive.wasm
 /public/agent/*.riv.gz
 

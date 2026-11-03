@@ -2,8 +2,7 @@
 
 The voice agent acts on state other processes commit: a queued mute, the preview
 route and readiness, implementation progress, and the participant's preview
-activity. Database triggers notify the `voice_sideband` channel (named for the
-earlier voice design, kept to avoid a schema change) with the session
+activity. Database triggers notify the `voice_sideband` channel with the session
 each change belongs to, and a controller whose committed fact no trigger covers
 notifies it in the same transaction (`wake_voice_agents`). This listener wakes
 every watcher of that session, so each re-reads its state at once instead of
@@ -24,11 +23,11 @@ from psycopg.rows import DictRow
 from app.db.pool import Database
 from app.logging import get_logger
 
-__all__ = ["VOICE_SIDEBAND_CHANNEL", "SessionChanges", "wake_voice_agents"]
+__all__ = ["SessionChanges", "wake_voice_agents"]
 
 _log = get_logger(__name__)
 
-VOICE_SIDEBAND_CHANNEL: Final[str] = "voice_sideband"
+_VOICE_SIDEBAND_CHANNEL: Final[str] = "voice_sideband"
 #: Waits before each reconnect of a lost listener; after the last, it fails.
 _RECONNECT_DELAYS_SECONDS: Final[tuple[float, ...]] = (0.5, 1.0, 2.0, 4.0, 8.0)
 
@@ -71,7 +70,7 @@ class SessionChanges:
         delays = iter(_RECONNECT_DELAYS_SECONDS)
         while True:
             try:
-                async with self._database.listener(VOICE_SIDEBAND_CHANNEL) as listener:
+                async with self._database.listener(_VOICE_SIDEBAND_CHANNEL) as listener:
                     delays = iter(_RECONNECT_DELAYS_SECONDS)
                     self._wake_all()
                     self._listening.set()
@@ -108,5 +107,5 @@ async def wake_voice_agents(conn: AsyncConnection[DictRow], *, product_signal_id
             from public.interview_sessions as sessions
             where sessions.product_signal_id = %s and sessions.state <> 'closed'
             """,
-            (VOICE_SIDEBAND_CHANNEL, product_signal_id),
+            (_VOICE_SIDEBAND_CHANNEL, product_signal_id),
         )

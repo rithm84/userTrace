@@ -6,16 +6,15 @@
  * control plane published it; the pages never compute it locally.
  */
 import { requestFromWorker, type ExtensionResponse } from "../shared/extensionMessages";
+import { HOST_PERMISSIONS } from "../build/buildOrigins";
 import type { StatusSnapshot } from "../background/session";
 
-export type Row = Readonly<{
+type Row = Readonly<{
   label: string;
   value: string;
   tone: "good" | "bad" | "neutral";
   testId: string;
 }>;
-
-export const HOST_PERMISSIONS = ["https://*/*", "http://*/*"] as const;
 
 export async function loadStatus(): Promise<StatusSnapshot> {
   const response = await requestFromWorker({ kind: "status" });
@@ -41,7 +40,7 @@ export async function hostPermissionGranted(): Promise<boolean> {
  * its own click handler; a request relayed through the service worker has no
  * user gesture and is refused.
  */
-export function requestHostPermission(): Promise<boolean> {
+function requestHostPermission(): Promise<boolean> {
   return chrome.permissions.request({ origins: [...HOST_PERMISSIONS] });
 }
 
@@ -138,4 +137,34 @@ export function renderRows(container: HTMLElement, rows: readonly Row[]): void {
 
 export function showNotice(element: HTMLElement, message: string): void {
   element.textContent = message;
+}
+
+export function element(id: string): HTMLElement {
+  const found = document.getElementById(id);
+  if (found === null) {
+    throw new Error(`The extension page is missing its ${id} element.`);
+  }
+  return found;
+}
+
+export function buttonElement(id: string): HTMLButtonElement {
+  const found = element(id);
+  if (!(found instanceof HTMLButtonElement)) {
+    throw new Error(`The ${id} element is not a button.`);
+  }
+  return found;
+}
+
+export function report(error: unknown): void {
+  showNotice(element("notice"), error instanceof Error ? error.message : String(error));
+}
+
+/** Wires the account-link and host-permission buttons both pages carry. */
+export function bindAccountButtons(refresh: () => Promise<void>): void {
+  element("link").addEventListener("click", () => {
+    void requestFromWorker({ kind: "link_account" }).then(expectStatus).then(refresh).catch(report);
+  });
+  element("permissions").addEventListener("click", () => {
+    void requestHostPermission().then(refresh).catch(report);
+  });
 }

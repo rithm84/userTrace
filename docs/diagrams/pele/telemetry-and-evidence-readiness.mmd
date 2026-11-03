@@ -1,0 +1,24 @@
+---
+title: Readiness · activation projections answer a per-session evaluation
+---
+flowchart TB
+  trace([Trace correlation completes]):::observation
+  health([Server SDK health report]):::observation
+  sweep([Stale-projection sweep]):::async
+  job["`**Readiness Job**
+  One per Interview Session`"]:::runtime
+  subgraph projections ["Readiness projections · per activation and kind"]
+    browser[(Browser)]:::outcome
+    server[(Server)]:::outcome
+    correlation[(Correlation)]:::outcome
+  end
+  others[Voice, preview, and extension facts]:::neutral
+  record[("`**Session readiness record**
+  Control-plane combination`")]:::outcome
+
+  trace -->|schedules while not current| job
+  health -->|prompts| job
+  sweep async_1@-.->|re-runs| job
+  job -->|append next revision| projections
+  projections -->|open page's resources only| record
+  others -->|component facts| record

@@ -15,7 +15,6 @@ import type {
   AnnotationDefinition,
   NetworkTarget,
   OperationalNoise,
-  RedactionRules,
   RegisteredRoute,
 } from '../contracts/manifest.js';
 
@@ -43,13 +42,8 @@ export interface RedactionPolicy {
   readonly productArea: string;
 }
 
-function rules(observation: ActiveObservation): RedactionRules {
-  return observation.manifest.redaction_rules;
-}
-
-/** Compiles the activation's manifest into a redaction policy. */
 export function compileRedactionPolicy(observation: ActiveObservation): RedactionPolicy {
-  const manifestRules = rules(observation);
+  const manifestRules = observation.manifest.redaction_rules;
   const eligibleScopes = new Set<string>([ANNOTATION_SCOPE_NAME]);
   const suppressedScopes = new Set<string>();
   for (const adapter of observation.service.required_adapters) {

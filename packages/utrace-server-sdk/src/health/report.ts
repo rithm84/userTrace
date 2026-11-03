@@ -18,8 +18,7 @@ import type {
 } from '../contracts/health.js';
 import type { LifecycleState, ServerSdkFailure } from '../errors.js';
 
-/** Everything the runtime knows when it is asked for its health. */
-export interface HealthInputs {
+interface HealthInputs {
   readonly serviceKey: string;
   readonly serviceInstanceId: string;
   readonly serverStreamId: string;
@@ -51,7 +50,6 @@ export const UNSTARTED_PROBE: ProbeResult = {
   required_hops: [],
 };
 
-/** Builds one health report. */
 export function buildHealthReport(inputs: HealthInputs): ServerSdkHealthReport {
   const observation = inputs.observation;
   return {

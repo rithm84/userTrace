@@ -42,12 +42,12 @@ export function centreOf(rect: Rect): Point {
 }
 
 /** How long the cursor takes to glide between two points: longer for longer distances, within bounds. */
-export function glideMs(from: Point, to: Point): number {
+function glideMs(from: Point, to: Point): number {
   return Math.min(Math.max(Math.hypot(to.x - from.x, to.y - from.y) / GLIDE_PX_PER_MS, GLIDE_MIN_MS), GLIDE_MAX_MS);
 }
 
 /** The cursor `linear` (0..1) of the way through a glide: eased in and out along a curve bowed to the left of travel. */
-export function glideAt(from: Point, to: Point, linear: number): Point {
+function glideAt(from: Point, to: Point, linear: number): Point {
   const l = Math.min(1, Math.max(0, linear));
   const t = l < 0.5 ? 4 * l ** 3 : 1 - (-2 * l + 2) ** 3 / 2;
   const u = 1 - t;

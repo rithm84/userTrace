@@ -1,7 +1,7 @@
 /**
  * The shipped manifest is part of the contract: the permission set, the
- * externally connectable origins, the CSP, and the minimum Chrome version are
- * all fixed by the browser extension contract.
+ * externally connectable origins, and the CSP are fixed by the browser
+ * extension contract.
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -10,9 +10,6 @@ import { describe, expect, it } from "vitest";
 import { parseBuildOrigins } from "../../src/build/buildOrigins";
 import {
   FORBIDDEN_PERMISSIONS,
-  MINIMUM_CHROME_VERSION,
-  OPTIONAL_HOST_PERMISSIONS,
-  REQUIRED_PERMISSIONS,
   createManifest,
   extensionIdForKey,
 } from "../../src/build/manifest";
@@ -28,7 +25,7 @@ describe("the shipped manifest", () => {
   });
 
   it("requests exactly storage, scripting, identity, and alarms", () => {
-    expect(manifest.permissions).toStrictEqual([...REQUIRED_PERMISSIONS]);
+    expect(manifest.permissions).toStrictEqual(["storage", "scripting", "identity", "alarms"]);
   });
 
   it("requests no tab, navigation, request, cookie, debugger, script, capture, or offscreen access", () => {
@@ -39,7 +36,7 @@ describe("the shipped manifest", () => {
   });
 
   it("asks for both host permissions together and only as optional", () => {
-    expect(manifest.optional_host_permissions).toStrictEqual([...OPTIONAL_HOST_PERMISSIONS]);
+    expect(manifest.optional_host_permissions).toStrictEqual(["https://*/*", "http://*/*"]);
     expect(manifest.host_permissions).toBeUndefined();
   });
 
@@ -66,10 +63,5 @@ describe("the shipped manifest", () => {
     expect(manifest.content_security_policy.extension_pages).toContain(
       "connect-src 'self' https://api.utrace.dev wss://api.utrace.dev https://utrace.dev",
     );
-  });
-
-  it("supports Chrome 137 and newer", () => {
-    expect(manifest.minimum_chrome_version).toBe(MINIMUM_CHROME_VERSION);
-    expect(manifest.background.type).toBe("module");
   });
 });

@@ -14,7 +14,7 @@
 
 import { z } from "zod";
 
-export const PRODUCT_SIGNAL_STATES = [
+export const productSignalStateSchema = z.enum([
   "awaiting_interview",
   "interviewing",
   "gate_pending",
@@ -25,13 +25,15 @@ export const PRODUCT_SIGNAL_STATES = [
   "closed_no_implementation",
   "closed_blocked",
   "canceled",
-] as const;
+]);
+export type ProductSignalState = z.infer<typeof productSignalStateSchema>;
 
-export const FLOW_TYPES = ["bugfix_flow", "feature_request_flow"] as const;
+export const flowTypeSchema = z.enum(["bugfix_flow", "feature_request_flow"]);
+export type FlowType = z.infer<typeof flowTypeSchema>;
 
-export const GATE_DECISION_KINDS = ["approved_live", "no_implementation"] as const;
+export const gateDecisionKindSchema = z.enum(["approved_live", "no_implementation"]);
 
-export const IMPLEMENTATION_ATTEMPT_STATES = [
+export const implementationAttemptStateSchema = z.enum([
   "authorized",
   "queued",
   "acquiring_environment",
@@ -46,30 +48,30 @@ export const IMPLEMENTATION_ATTEMPT_STATES = [
   "paused",
   "canceled",
   "budget_exhausted",
-] as const;
+]);
 
-export const PREVIEW_VERSION_STATES = ["building", "ready", "retired", "failed"] as const;
+export const previewVersionStateSchema = z.enum(["building", "ready", "retired", "failed"]);
 
-export const VALIDATION_ATTEMPT_STATES = [
+export const validationAttemptStateSchema = z.enum([
   "pending",
   "in_progress",
   "interrupted",
   "completed",
   "abandoned",
-] as const;
+]);
 
-export const VALIDATION_OUTCOMES = [
+export const validationOutcomeSchema = z.enum([
   "validated",
   "partially_validated",
   "not_validated",
   "unclear",
-] as const;
+]);
 
-export const CRITERION_RESULTS = ["met", "unmet", "unconfirmed", "contradicted"] as const;
+export const criterionResultSchema = z.enum(["met", "unmet", "unconfirmed", "contradicted"]);
 
-export const CRITERION_OBSERVABILITIES = ["observed", "subjective"] as const;
+export const criterionObservabilitySchema = z.enum(["observed", "subjective"]);
 
-export const EVIDENCE_CLASSES = [
+export const evidenceClassSchema = z.enum([
   "intake_source",
   "transcript_fragment",
   "browser_observation",
@@ -77,57 +79,57 @@ export const EVIDENCE_CLASSES = [
   "implementation_artifact",
   "check_result",
   "validation_observation",
-] as const;
+]);
 
-export const CASE_FILE_VARIANTS = [
+export const caseFileVariantSchema = z.enum([
   "validated_implementation",
   "no_implementation",
   "blocked",
-] as const;
+]);
 
-export const CASE_FILE_STAGES = [
+export const caseFileStageSchema = z.enum([
   "draft",
   "verified",
   "delivery_resolved",
   "ready",
   "published",
-] as const;
+]);
 
-export const CLIENT_MEMBER_ROLES = ["owner", "admin"] as const;
+export const clientMemberRoleSchema = z.enum(["owner", "admin"]);
 
-export const MEMBERSHIP_STATUSES = ["active", "revoked"] as const;
+export const membershipStatusSchema = z.enum(["active", "revoked"]);
 
-export const DELIVERY_STATES = [
+export const deliveryStateSchema = z.enum([
   "reserved",
   "preflighting",
   "creating",
   "reconciling",
   "delivered",
   "blocked",
-] as const;
+]);
 
-export const OFFER_STATES = ["reserved", "earned", "released"] as const;
+export const offerStateSchema = z.enum(["reserved", "earned", "released"]);
 
-export const OFFER_ISSUANCE_STATES = ["pending", "dispatched", "issued", "blocked"] as const;
+export const offerIssuanceStateSchema = z.enum(["pending", "dispatched", "issued", "blocked"]);
 
-export const INTERVIEW_PHASES = [
+export const interviewPhaseSchema = z.enum([
   "participant_setup",
   "greeting",
   "discovery",
   "implementation",
   "validation",
   "closing",
-] as const;
+]);
 
-export const INTERVIEW_SESSION_STATES = [
+export const interviewSessionStateSchema = z.enum([
   "invited",
   "claimed",
   "preparing",
   "live",
   "closed",
-] as const;
+]);
 
-export const AGENT_CHARACTER_STATES = [
+export const agentCharacterStateSchema = z.enum([
   "idle",
   "listening",
   "thinking",
@@ -137,84 +139,40 @@ export const AGENT_CHARACTER_STATES = [
   "paused",
   "reconnecting",
   "completion",
-] as const;
+]);
 
-export const IMPLEMENTATION_PROGRESS_STATES = [
+export const implementationProgressSchema = z.enum([
   "not_started",
   "reproduction_captured",
   "making_changes",
   "preparing_preview",
   "ready_for_validation",
-] as const;
+]);
 
 /** Every domain enumeration, by the schema file that owns it. */
 export const DOMAIN_ENUMS: Readonly<Record<string, readonly string[]>> = {
-  "product-signal-state": PRODUCT_SIGNAL_STATES,
-  "flow-type": FLOW_TYPES,
-  "gate-decision-kind": GATE_DECISION_KINDS,
-  "implementation-attempt-state": IMPLEMENTATION_ATTEMPT_STATES,
-  "preview-version-state": PREVIEW_VERSION_STATES,
-  "validation-attempt-state": VALIDATION_ATTEMPT_STATES,
-  "validation-outcome": VALIDATION_OUTCOMES,
-  "criterion-result": CRITERION_RESULTS,
-  "criterion-observability": CRITERION_OBSERVABILITIES,
-  "evidence-class": EVIDENCE_CLASSES,
-  "case-file-variant": CASE_FILE_VARIANTS,
-  "case-file-stage": CASE_FILE_STAGES,
-  "client-member-role": CLIENT_MEMBER_ROLES,
-  "membership-status": MEMBERSHIP_STATUSES,
-  "delivery-state": DELIVERY_STATES,
-  "offer-state": OFFER_STATES,
-  "offer-issuance-state": OFFER_ISSUANCE_STATES,
-  "interview-phase": INTERVIEW_PHASES,
-  "interview-session-state": INTERVIEW_SESSION_STATES,
-  "agent-character-state": AGENT_CHARACTER_STATES,
-  "implementation-progress": IMPLEMENTATION_PROGRESS_STATES,
+  "product-signal-state": productSignalStateSchema.options,
+  "flow-type": flowTypeSchema.options,
+  "gate-decision-kind": gateDecisionKindSchema.options,
+  "implementation-attempt-state": implementationAttemptStateSchema.options,
+  "preview-version-state": previewVersionStateSchema.options,
+  "validation-attempt-state": validationAttemptStateSchema.options,
+  "validation-outcome": validationOutcomeSchema.options,
+  "criterion-result": criterionResultSchema.options,
+  "criterion-observability": criterionObservabilitySchema.options,
+  "evidence-class": evidenceClassSchema.options,
+  "case-file-variant": caseFileVariantSchema.options,
+  "case-file-stage": caseFileStageSchema.options,
+  "client-member-role": clientMemberRoleSchema.options,
+  "membership-status": membershipStatusSchema.options,
+  "delivery-state": deliveryStateSchema.options,
+  "offer-state": offerStateSchema.options,
+  "offer-issuance-state": offerIssuanceStateSchema.options,
+  "interview-phase": interviewPhaseSchema.options,
+  "interview-session-state": interviewSessionStateSchema.options,
+  "agent-character-state": agentCharacterStateSchema.options,
+  "implementation-progress": implementationProgressSchema.options,
 };
-
-export const productSignalStateSchema = z.enum(PRODUCT_SIGNAL_STATES);
-export type ProductSignalState = z.infer<typeof productSignalStateSchema>;
-
-export const flowTypeSchema = z.enum(FLOW_TYPES);
-export type FlowType = z.infer<typeof flowTypeSchema>;
-
-export const gateDecisionKindSchema = z.enum(GATE_DECISION_KINDS);
-
-export const implementationAttemptStateSchema = z.enum(IMPLEMENTATION_ATTEMPT_STATES);
-
-export const previewVersionStateSchema = z.enum(PREVIEW_VERSION_STATES);
-
-export const validationAttemptStateSchema = z.enum(VALIDATION_ATTEMPT_STATES);
-
-export const validationOutcomeSchema = z.enum(VALIDATION_OUTCOMES);
-
-export const criterionResultSchema = z.enum(CRITERION_RESULTS);
-
-export const criterionObservabilitySchema = z.enum(CRITERION_OBSERVABILITIES);
-
-export const evidenceClassSchema = z.enum(EVIDENCE_CLASSES);
-
-export const caseFileVariantSchema = z.enum(CASE_FILE_VARIANTS);
-
-export const caseFileStageSchema = z.enum(CASE_FILE_STAGES);
-
-export const clientMemberRoleSchema = z.enum(CLIENT_MEMBER_ROLES);
-
-export const membershipStatusSchema = z.enum(MEMBERSHIP_STATUSES);
-
-export const deliveryStateSchema = z.enum(DELIVERY_STATES);
-
-export const offerStateSchema = z.enum(OFFER_STATES);
-
-export const offerIssuanceStateSchema = z.enum(OFFER_ISSUANCE_STATES);
-
-export const interviewPhaseSchema = z.enum(INTERVIEW_PHASES);
-
-export const interviewSessionStateSchema = z.enum(INTERVIEW_SESSION_STATES);
-
-export const agentCharacterStateSchema = z.enum(AGENT_CHARACTER_STATES);
-
-export const implementationProgressSchema = z.enum(IMPLEMENTATION_PROGRESS_STATES);
 
 /**
  * The Product Signal states in which uTrace holds no further authority. The
@@ -222,7 +180,7 @@ export const implementationProgressSchema = z.enum(IMPLEMENTATION_PROGRESS_STATE
  * `stoppable` on a case detail is the authoritative answer; this is what a list
  * uses to separate in-progress work from finished work.
  */
-export const TERMINAL_PRODUCT_SIGNAL_STATES: ReadonlySet<ProductSignalState> =
+const TERMINAL_PRODUCT_SIGNAL_STATES: ReadonlySet<ProductSignalState> =
   new Set<ProductSignalState>([
     "closed_validated",
     "closed_no_implementation",

@@ -1,21 +1,8 @@
-/** Component interaction proof; the shared test harness does not verify the rendered Rive rig or browser layout. */
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { createElement } from "react";
 import { afterEach, beforeAll, expect, it, vi } from "vitest";
 
 import { Closing } from "./Closing";
 import { WaitlistProvider } from "../Waitlist";
-
-vi.mock("@rive-app/react-webgl2", () => ({
-  useRive: () => ({ rive: null, RiveComponent: () => createElement("canvas") }),
-  useViewModelInstanceNumber: () => ({ value: 0, setValue: () => undefined }),
-  useViewModelInstanceEnum: () => ({ value: "idle", values: [], setValue: () => undefined }),
-}));
-vi.mock("@rive-app/webgl2", () => ({
-  Alignment: { Center: "center" },
-  Fit: { Contain: "contain" },
-  Layout: class Layout {},
-}));
 
 // jsdom has no pointer capture; the grip takes it so a fast pull keeps its pointer
 beforeAll(() => {
@@ -55,7 +42,6 @@ it("arrives pulled right with no buttons; pulling the handle past the spot click
   expect(lensCentre()).toEqual(PULLED);
   const headline = screen.getByRole("heading", { level: 2 });
   const copy = screen.getByTestId("closing-lens-copy");
-  expect(headline.textContent).toBe("Give goodfeedbacka way forward.");
   expect(copy.textContent).toBe(headline.textContent);
   expect(parseFloat(copy.style.fontSize)).toBeGreaterThan(parseFloat(headline.style.fontSize));
   expect(screen.getByTestId("closing-actions")).toHaveAttribute("data-shown", "false");

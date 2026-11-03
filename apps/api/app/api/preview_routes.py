@@ -27,7 +27,7 @@ from app.db.rows import as_str
 from app.errors import ControlPlaneError
 from app.logging import get_logger
 from app.preview.handoff import mint_product_handoff, verify_session_credential
-from app.preview.pool import load_pins, load_runtime_secret
+from app.preview.pool import load_pins, load_runtime_secrets
 from app.preview.records import PreviewRouteRecord, RouteReadinessState
 from app.preview.routing import route_for_host
 from app.preview.template import load_recipe
@@ -115,9 +115,9 @@ async def mint_product_sign_in(
     pins = await load_pins(database, allocation_id=allocation_id)
     recipe = await load_recipe(database, template_id=pins.preview_runtime_template_id)
     token = mint_product_handoff(
-        handoff_secret=await load_runtime_secret(
-            database, allocation_id=allocation_id, column="handoff_secret"
-        ),
+        handoff_secret=(
+            await load_runtime_secrets(database, allocation_id=allocation_id)
+        ).handoff_secret,
         audience_host=record.public_preview_host,
         subject_email=pins.authenticated_identity,
         lifetime_seconds=_PRODUCT_SIGN_IN_LIFETIME_SECONDS,
@@ -173,7 +173,6 @@ async def _authorized_route(
 async def _session_closed(
     database: Database, *, interview_session_id: UUID
 ) -> bool:
-    """Whether the bound Interview Session has ended."""
     async with database.connection() as conn, conn.cursor() as cur:
         await cur.execute(
             "select state from public.interview_sessions where id = %s",

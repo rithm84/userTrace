@@ -50,8 +50,7 @@ export type Ground =
 /** A speech or feedback bubble floating above the scene, in front of everything. */
 export type Bubble = Readonly<{ id: string; at: readonly [number, number, number]; glyph: 'bug' | 'star' | 'question' | 'heart' | 'lines' | 'alert'; cue: 'feed' | 'customer' | 'pain' | 'reply' }>;
 
-/** A cloud in the sky above the towers, in design pixels, drifting `drift` pixels to and fro. */
-/** A cloud at `size` times its drawn scale, drifting `drift` px either way in front of the towers. */
+/** A cloud at `size` times its drawn scale, in design pixels, drifting `drift` px either way in front of the towers. */
 export type Sky = Readonly<{ cloud: Cloud; at: Pt; size: number; drift: number }>;
 
 export type CityPlan = Readonly<{ ground: readonly Ground[]; items: readonly Item[]; bubbles: readonly Bubble[]; sky: readonly Sky[] }>;

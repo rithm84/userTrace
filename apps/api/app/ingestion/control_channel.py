@@ -4,11 +4,9 @@ One WebSocket per service process carries activation, credential rotation,
 health, pause, resume, and termination. It never carries product telemetry:
 spans go to the OTLP ingestion edge only.
 
-The activation outlives the socket. A dropped control connection reconnects with
-the same bootstrap credential and rotates its credential; ``activate`` is the
-one-time exchange, and the unique index on ``server_stream_id`` is what makes it
-one-time. A frame naming a stream that belongs to another allocation, or a stream
-whose activation is no longer active, is refused rather than served.
+The activation outlives the socket (see ``bootstrap``). A frame naming a stream
+that belongs to another allocation, or a stream whose activation is no longer
+active, is refused rather than served.
 
 Contracts: docs/arch-components/server-sdk.md#configuration-identity-and-credentials
            docs/arch-components/server-sdk.md#readiness-health-and-failure
@@ -273,7 +271,6 @@ class ServerControlSession:
             _log.warning("server_control_request_refused", detail=str(error))
 
     def _require_scope(self) -> ServerBootstrapScope:
-        """Return the allocation this socket authenticated for."""
         if self._scope is None:
             raise TelemetryAuthenticationError("the control socket is unauthenticated")
         return self._scope
@@ -419,7 +416,6 @@ class ServerControlSession:
         )
 
     def _require_activation(self) -> ServerActivation:
-        """Return the activation this socket is bound to, or refuse."""
         if self._activation is None:
             raise TelemetryAuthenticationError(
                 "this control connection holds no observation activation"
@@ -466,7 +462,6 @@ class ServerControlSession:
         self._hub.register(activation.server_stream_id, self)
 
     async def _send(self, message: ServerMessage) -> None:
-        """Send one server frame."""
         await self._websocket.send_text(message.model_dump_json(exclude_none=True))
 
     async def deliver(self, message: ServerMessage) -> None:

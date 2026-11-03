@@ -1,0 +1,37 @@
+---
+title: Preview Runtime Allocation · pool role, claim-time configuration, deletion
+---
+stateDiagram-v2
+  [*] --> warm_pool: provisioned from the current template
+  [*] --> candidate: inserted for one Preview Version
+  state "warm_pool" as warm_pool
+  warm_pool : No Product Signal or session yet
+  state "session_base" as session_base {
+    state "Claimed" as claimed
+    claimed : Bound to a Product Signal
+    claimed : and an Interview Session
+    state "Configured" as configured
+    configured : Session origin minted
+    configured : Server SDK activation written
+    configured : Supervisor restarted
+    state "Routed" as routed
+    routed : Health probed through the port
+    routed : Route committed
+    routed : Readiness recorded
+    [*] --> claimed
+    claimed --> configured
+    configured --> routed
+  }
+  state "candidate" as candidate
+  candidate : Never passes through the pool
+  state "Stopped and deleted" as deleted
+
+  warm_pool --> session_base: claim with more than the claim margin left
+  warm_pool --> deleted: template retired or claim margin passed
+  session_base --> deleted: no longer needed
+  candidate --> deleted: no longer needed
+  deleted --> [*]
+
+  class warm_pool async
+  class claimed,configured,routed,candidate observation
+  class deleted neutral

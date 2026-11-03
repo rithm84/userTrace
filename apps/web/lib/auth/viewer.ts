@@ -39,9 +39,9 @@ const claimsSchema = z.object({
     .optional(),
 });
 
-export type AuthErrorCode = "claims_unverified" | "unknown_provider";
+type AuthErrorCode = "claims_unverified" | "unknown_provider";
 
-export class AuthError extends Error {
+class AuthError extends Error {
   readonly code: AuthErrorCode;
 
   constructor(code: AuthErrorCode, message: string) {
@@ -64,7 +64,6 @@ const FIXTURE_PARTICIPANT: Viewer = Object.freeze({
   accessToken: "fixture-participant",
 });
 
-/** The signed-in viewer, or `null` when this request carries no session. */
 export async function readViewer(): Promise<Viewer | null> {
   if (usesFixtureParticipant()) {
     return FIXTURE_PARTICIPANT;

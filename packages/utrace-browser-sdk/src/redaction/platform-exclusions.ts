@@ -63,7 +63,7 @@ const EXCLUDED_IDENTIFIER_PATTERNS: readonly RegExp[] = [
   /otp|totp|mfa[-_]?code/,
 ];
 
-export interface PlatformExclusionResult {
+interface PlatformExclusionResult {
   readonly excluded: boolean;
   readonly rule_id: string;
 }

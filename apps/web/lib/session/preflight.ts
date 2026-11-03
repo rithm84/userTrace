@@ -12,7 +12,7 @@ import { probeExtension } from "./extension";
  */
 
 /** The extension's minimum supported Chrome, from the extension contract. */
-export const MINIMUM_CHROME_MAJOR = 137;
+const MINIMUM_CHROME_MAJOR = 137;
 
 type UserAgentBrand = Readonly<{ brand: string; version: string }>;
 
@@ -22,7 +22,7 @@ declare global {
   }
 }
 
-export type BrowserIdentity = Readonly<{ name: string; majorVersion: number; supported: boolean }>;
+type BrowserIdentity = Readonly<{ name: string; majorVersion: number; supported: boolean }>;
 
 /**
  * Chromium brands report themselves in `userAgentData`; the user-agent string
@@ -85,7 +85,6 @@ export async function checkMicrophone(): Promise<boolean> {
   }
 }
 
-/** Collects the full report the control plane evaluates. */
 export async function collectPreflightReport(extensionId: string): Promise<PreflightReport> {
   const browser = identifyBrowser(navigator);
   const extension = browser.supported ? await probeExtension(extensionId) : null;

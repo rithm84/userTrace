@@ -7,7 +7,7 @@
  * A part is shown for `span` of every `period` milliseconds, starting `from` of the way into the
  * period, with the whole cycle advanced by `offset` milliseconds.
  */
-export type Cycle = Readonly<{ period: number; offset: number; from: number; span: number }>;
+type Cycle = Readonly<{ period: number; offset: number; from: number; span: number }>;
 
 export function shownAt(cycle: Cycle, ms: number): boolean {
   const phase = (ms + cycle.offset) / cycle.period - cycle.from;

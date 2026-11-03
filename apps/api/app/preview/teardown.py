@@ -41,11 +41,9 @@ from app.preview.pool import commit_allocation_transition
 from app.preview.routing import revoke_routes
 from app.preview.runtime import PreviewRuntimeHandle, PreviewRuntimeProvider
 
-__all__ = ["extract_evidence", "release_allocation", "tear_down_allocation"]
+__all__ = ["tear_down_allocation"]
 
 _log = get_logger(__name__)
-
-
 
 
 async def extract_evidence(
@@ -126,33 +124,17 @@ async def release_allocation(
     provider: PreviewRuntimeProvider,
     activation: ServerActivationContext,
     allocation_id: UUID,
+    client_id: UUID,
+    runtime_ref: str,
+    application_port: int,
     reason: str,
 ) -> dict[str, str | int | bool]:
     """Revoke routes, end the server stream, extract evidence, and commit."""
-    async with database.connection() as conn, conn.cursor() as cur:
-        await cur.execute(
-            """
-            select client_id, runtime_ref, application_port, state
-            from public.preview_runtime_allocations where id = %s
-            """,
-            (allocation_id,),
-        )
-        row = await cur.fetchone()
-    if row is None:
-        raise AggregateNotFoundError(
-            table="preview_runtime_allocations", row_id=allocation_id
-        )
-    client_id = row["client_id"]
-    if not isinstance(client_id, UUID):
-        raise TypeError("preview_runtime_allocations.client_id is not a UUID")
-
     revoked = await revoke_routes(
         database, preview_runtime_allocation_id=allocation_id, reason=reason
     )
     handle = await _attach_if_present(
-        provider=provider,
-        runtime_ref=as_str(row, "runtime_ref"),
-        application_port=int(row["application_port"]),
+        provider=provider, runtime_ref=runtime_ref, application_port=application_port
     )
 
     # The Server SDK flushes and reports a terminal stream state on terminate.
@@ -222,7 +204,6 @@ async def release_allocation(
     return evidence
 
 
-
 async def tear_down_allocation(
     database: Database,
     *,
@@ -256,6 +237,8 @@ async def tear_down_allocation(
     state = as_str(row, "state")
     if state == PreviewRuntimeAllocationState.TERMINATED.value:
         return
+    runtime_ref = as_str(row, "runtime_ref")
+    application_port = int(row["application_port"])
 
     releasable = {
         PreviewRuntimeAllocationState.READY.value,
@@ -267,6 +250,9 @@ async def tear_down_allocation(
             provider=provider,
             activation=activation,
             allocation_id=allocation_id,
+            client_id=client_id,
+            runtime_ref=runtime_ref,
+            application_port=application_port,
             reason=reason,
         )
         trigger = "terminate"
@@ -276,9 +262,7 @@ async def tear_down_allocation(
         trigger = "abandon"
 
     handle = await _attach_if_present(
-        provider=provider,
-        runtime_ref=as_str(row, "runtime_ref"),
-        application_port=int(row["application_port"]),
+        provider=provider, runtime_ref=runtime_ref, application_port=application_port
     )
     if handle is not None:
         await provider.delete_runtime(handle=handle)

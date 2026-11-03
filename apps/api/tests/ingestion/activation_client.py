@@ -34,7 +34,6 @@ class ActivatedDocument:
 
 
 def _b64url(value: str) -> bytes:
-    """Decode unpadded base64url."""
     return urlsafe_b64decode(value + "=" * (-len(value) % 4))
 
 

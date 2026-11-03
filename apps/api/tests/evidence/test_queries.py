@@ -35,7 +35,6 @@ def _scope(
     projection: tuple[str, ...],
     source_classes: tuple[str, ...],
 ) -> QueryScope:
-    """Build a scope naming the session, the purpose, and the projection."""
     return QueryScope(
         client_id=observed.preview.case.client_id,
         purpose="live_interview",
@@ -44,6 +43,20 @@ def _scope(
         projection=projection,
         limit=50,
     )
+
+
+async def _grant_membership(
+    database: Database, observed: ObservedSession, *, auth_user_id: UUID
+) -> None:
+    """Give one Supabase Auth identity an active owner membership of the client."""
+    async with database.transaction() as conn, conn.cursor() as cur:
+        await cur.execute(
+            """
+            insert into public.client_members (id, client_id, auth_user_id, role, status)
+            values (%s, %s, %s, 'owner', 'active')
+            """,
+            (uuid7(), observed.preview.case.client_id, auth_user_id),
+        )
 
 
 @pytest_asyncio.fixture
@@ -55,7 +68,6 @@ async def observed(
     ingest_websocket_url: str,
     auth_users: dict[str, SignedInUser],
 ) -> ObservedSession:
-    """One session with committed browser telemetry behind it."""
     return await observe_session(
         telemetry_database,
         settings,
@@ -170,7 +182,6 @@ async def test_a_query_must_name_a_session_or_a_frozen_window(
 async def test_a_query_cannot_read_a_source_class_it_did_not_name(
     telemetry_database: Database, observed: ObservedSession
 ) -> None:
-    """A shape refuses when its source class is outside the query's authorization."""
     with pytest.raises(QueryAuthorizationError, match="source class"):
         await session_timeline(
             telemetry_database,
@@ -202,7 +213,6 @@ async def test_a_window_from_another_client_is_refused_before_lookup(
     auth_users: dict[str, SignedInUser],
     observed: ObservedSession,
 ) -> None:
-    """A cross-client reference mismatch fails before anything is fetched."""
     other = await observe_session(
         telemetry_database,
         settings,
@@ -336,7 +346,6 @@ async def test_a_validation_comparison_needs_two_frozen_windows_of_one_signal(
 
 
 async def test_staff_authorization_is_enforced_on_the_http_surface(
-    telemetry_database: Database,
     observed: ObservedSession,
     ingest_server: str,
     auth_users: dict[str, SignedInUser],
@@ -373,19 +382,9 @@ async def test_a_member_reads_its_own_client_telemetry(
     auth_users: dict[str, SignedInUser],
 ) -> None:
     """An active membership row is what grants the read, not the bearer token."""
-    member_id = uuid7()
-    async with telemetry_database.transaction() as conn, conn.cursor() as cur:
-        await cur.execute(
-            """
-            insert into public.client_members (id, client_id, auth_user_id, role, status)
-            values (%s, %s, %s, 'owner', 'active')
-            """,
-            (
-                member_id,
-                observed.preview.case.client_id,
-                auth_users["owner_a"].auth_user_id,
-            ),
-        )
+    await _grant_membership(
+        telemetry_database, observed, auth_user_id=auth_users["owner_a"].auth_user_id
+    )
     path = f"/v1/clients/{observed.preview.case.client_id}/telemetry/session-timeline"
     async with httpx.AsyncClient(base_url=ingest_server, timeout=30.0) as client:
         response = await client.post(
@@ -419,19 +418,9 @@ async def test_a_scope_cannot_name_a_client_other_than_its_path(
     auth_users: dict[str, SignedInUser],
 ) -> None:
     """The authenticated path is the authority; the body cannot widen it."""
-    member_id = uuid7()
-    async with telemetry_database.transaction() as conn, conn.cursor() as cur:
-        await cur.execute(
-            """
-            insert into public.client_members (id, client_id, auth_user_id, role, status)
-            values (%s, %s, %s, 'owner', 'active')
-            """,
-            (
-                member_id,
-                observed.preview.case.client_id,
-                auth_users["owner_a"].auth_user_id,
-            ),
-        )
+    await _grant_membership(
+        telemetry_database, observed, auth_user_id=auth_users["owner_a"].auth_user_id
+    )
     path = f"/v1/clients/{observed.preview.case.client_id}/telemetry/session-timeline"
     async with httpx.AsyncClient(base_url=ingest_server, timeout=30.0) as client:
         response = await client.post(

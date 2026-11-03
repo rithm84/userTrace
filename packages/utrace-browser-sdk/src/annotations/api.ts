@@ -117,7 +117,6 @@ export class AnnotationApi implements AnnotationSurface {
     };
   };
 
-  /** Records an explicit workflow milestone. */
   milestone = (request: MilestoneRequest): AnnotationResult<null> => {
     const manifest = this.#runtime.manifest;
     const definition = manifest.milestone(request.milestoneId);

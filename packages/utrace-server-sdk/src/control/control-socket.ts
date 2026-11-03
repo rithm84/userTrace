@@ -19,13 +19,13 @@ import {
   type TerminateMessage,
 } from '../contracts/control.js';
 import type { ServerSdkHealthReport } from '../contracts/health.js';
-import { CONTRACT_MAJOR, SDK_CAPABILITIES, SDK_VERSION } from '../constants.js';
+import { CONTRACT_MAJOR, SDK_CAPABILITIES, SDK_USER_AGENT, SDK_VERSION } from '../constants.js';
 import type { LifecycleState, ServerSdkFailure } from '../errors.js';
 import { ServerSdkError, createFailure, failureError } from '../errors.js';
 import type { StructuredLogger } from '../logging.js';
 
 /** Callbacks the orchestrator installs for unsolicited control frames. */
-export interface ControlSocketHandlers {
+interface ControlSocketHandlers {
   onPause(message: PauseMessage): void;
   onResume(commandId: string): void;
   onTerminate(message: TerminateMessage): void;
@@ -34,7 +34,7 @@ export interface ControlSocketHandlers {
 }
 
 /** Process-created stream identity presented during activation. */
-export interface ActivationRequestIdentity {
+interface ActivationRequestIdentity {
   readonly serviceName: string;
   readonly serverStreamId: string;
   readonly serviceInstanceId: string;
@@ -53,7 +53,6 @@ export function controlSocketUrl(controlBaseUrl: URL): URL {
   return new URL(CONTROL_PATH, controlBaseUrl);
 }
 
-/** Authenticated control WebSocket client. */
 export class ControlSocket {
   private readonly url: URL;
   private readonly bootstrapCredential: string;
@@ -75,7 +74,6 @@ export class ControlSocket {
     this.handlers = handlers;
   }
 
-  /** True while the socket is open. */
   public get isOpen(): boolean {
     return this.socket !== undefined && this.socket.readyState === WebSocket.OPEN;
   }
@@ -86,7 +84,7 @@ export class ControlSocket {
       const socket = new WebSocket(this.url, {
         headers: {
           authorization: `Bearer ${this.bootstrapCredential}`,
-          'user-agent': `utrace-server-sdk/${SDK_VERSION} contract/${String(CONTRACT_MAJOR)}`,
+          'user-agent': SDK_USER_AGENT,
         },
       });
       this.socket = socket;
@@ -201,17 +199,9 @@ export class ControlSocket {
     this.socket = undefined;
   }
 
-  private exchange(message: ControlClientMessage): Promise<ControlServerMessage> {
-    if (!('request_id' in message)) {
-      return Promise.reject(
-        failureError('Only request-bearing control frames can be exchanged.', {
-          code: 'invalid_activation',
-          retry: 'never',
-          readiness_consequence: 'fail_stream',
-          detail: { message_type: message.type },
-        }, new Date()),
-      );
-    }
+  private exchange(
+    message: Extract<ControlClientMessage, { request_id: string }>,
+  ): Promise<ControlServerMessage> {
     const requestId = message.request_id;
     return new Promise<ControlServerMessage>((resolve, reject) => {
       this.pending.set(requestId, { resolve, reject });

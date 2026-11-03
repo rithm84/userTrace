@@ -23,7 +23,6 @@ import { SessionCharacter } from "./SessionCharacter";
 import { SessionControls } from "./SessionControls";
 import { TranscriptPanel } from "./TranscriptPanel";
 
-/** How long the tab gives itself to join the voice call's room. */
 const VOICE_JOIN_TIMEOUT_MS = 20_000;
 /**
  * How many times in a row a lost voice connection is reopened before the tab asks
@@ -40,7 +39,7 @@ type VoiceStatus = "idle" | "connecting" | "connected" | "failed";
  * How the call is carried: a Daily call with the voice agent, or the fixture's
  * replayed conversation when the control plane is the in-repository fixture.
  */
-export type VoiceTransport = "daily" | "fixture";
+type VoiceTransport = "daily" | "fixture";
 
 /** The rig's canvas size: large on a roomy screen, smaller when height or width is short. */
 const CHARACTER_SIZE = { roomy: 300, compact: 200 } as const;
@@ -58,6 +57,9 @@ function useCharacterSize(): number {
   return compact ? CHARACTER_SIZE.compact : CHARACTER_SIZE.roomy;
 }
 
+/** Which runtime the session's preview serves: the base, or the candidate ready for validation. */
+type PreviewRuntimeStage = "base" | "candidate";
+
 /**
  * The uTrace session tab: the live anchor for one Interview Session.
  *
@@ -66,8 +68,6 @@ function useCharacterSize(): number {
  * a control is applied from the revision the control plane returns, and voice
  * runs over a Daily call the uTrace API opens.
  */
-/** Which runtime the session's preview serves: the base, or the candidate ready for validation. */
-type PreviewRuntimeStage = "base" | "candidate";
 
 export function SessionTab(
   props: Readonly<{

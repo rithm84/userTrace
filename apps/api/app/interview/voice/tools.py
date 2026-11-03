@@ -23,6 +23,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Final
 from uuid import UUID
 
+from pipecat.adapters.schemas.function_schema import FunctionSchema
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from utrace_contracts.domain.lifecycle import (
     CriterionObservability,
@@ -90,7 +91,6 @@ _CRITERIA_SCHEMA: Final[dict[str, object]] = {
 __all__ = [
     "TOOL_DEFINITIONS",
     "ToolContext",
-    "ToolDefinition",
     "announcement",
     "answer_follows",
     "execute_tool",
@@ -134,83 +134,62 @@ class ToolContext:
     observation_window_seconds: int
 
 
-@dataclass(frozen=True, slots=True)
-class ToolDefinition:
-    """One tool as the model sees it: a name, what it is for, and its JSON Schema."""
-
-    name: str
-    description: str
-    parameters: Mapping[str, object]
-
-
-TOOL_DEFINITIONS: tuple[ToolDefinition, ...] = (
-    ToolDefinition(
+TOOL_DEFINITIONS: tuple[FunctionSchema, ...] = (
+    FunctionSchema(
         name="review_observed_activity",
         description=(
             "Return what uTrace observed in the person's product session recently, "
             "as plain summaries. Use it to ground a question about what they just "
             "did, never to describe internals."
         ),
-        parameters={
-            "type": "object",
-            "properties": {
-                "limit": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 20,
-                    "description": "How many recent observations to return.",
-                }
-            },
-            "required": ["limit"],
-            "additionalProperties": False,
+        properties={
+            "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 20,
+                "description": "How many recent observations to return.",
+            }
         },
+        required=["limit"],
     ),
-    ToolDefinition(
+    FunctionSchema(
         name="record_evidence_claim",
         description=(
             "Record what the person established, as a claim citing this "
             "conversation. Use `confirmed` only for a deliberate, criterion-bound "
             "confirmation."
         ),
-        parameters={
-            "type": "object",
-            "properties": {
-                "statement": {"type": "string"},
-                "claim_state": {
-                    "type": "string",
-                    "enum": ["proposed", "confirmed", "contradicted"],
-                },
+        properties={
+            "statement": {"type": "string"},
+            "claim_state": {
+                "type": "string",
+                "enum": ["proposed", "confirmed", "contradicted"],
             },
-            "required": ["statement", "claim_state"],
-            "additionalProperties": False,
         },
+        required=["statement", "claim_state"],
     ),
-    ToolDefinition(
+    FunctionSchema(
         name="record_acceptance_criteria",
         description=(
             "Freeze the agreed scope and its observable acceptance criteria once the "
             "person has agreed to them out loud. Say that it is agreed first, in the "
             "same reply, before calling this."
         ),
-        parameters={
-            "type": "object",
-            "properties": {
-                "agreed_outcome": {"type": "string"},
-                "workflow": {
-                    "type": "string",
-                    "pattern": "^[a-z][a-z0-9_]{2,63}$",
-                    "description": (
-                        "A short snake_case name for the workflow validation will "
-                        "observe, such as saved_conversion_views."
-                    ),
-                },
-                "criteria": _CRITERIA_SCHEMA,
+        properties={
+            "agreed_outcome": {"type": "string"},
+            "workflow": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{2,63}$",
+                "description": (
+                    "A short snake_case name for the workflow validation will "
+                    "observe, such as saved_conversion_views."
+                ),
             },
-            "required": ["agreed_outcome", "workflow", "criteria"],
-            "additionalProperties": False,
+            "criteria": _CRITERIA_SCHEMA,
         },
+        required=["agreed_outcome", "workflow", "criteria"],
     ),
-    ToolDefinition(
+    FunctionSchema(
         name="record_requested_change",
         description=(
             "While the person tries a new version, record a change they asked for in "
@@ -219,39 +198,31 @@ TOOL_DEFINITIONS: tuple[ToolDefinition, ...] = (
             "replaces them. The application builds the next version while the "
             "voice agent waits in silence. Refused when the case has used all its versions."
         ),
-        parameters={
-            "type": "object",
-            "properties": {
-                "agreed_outcome": {
-                    "type": "string",
-                    "description": "The whole change as it now stands, the asked-for change included.",
-                },
-                "workflow": {
-                    "type": "string",
-                    "pattern": "^[a-z][a-z0-9_]{2,63}$",
-                    "description": "The snake_case workflow name recorded with the first agreement.",
-                },
-                "criteria": _CRITERIA_SCHEMA,
+        properties={
+            "agreed_outcome": {
+                "type": "string",
+                "description": "The whole change as it now stands, the asked-for change included.",
             },
-            "required": ["agreed_outcome", "workflow", "criteria"],
-            "additionalProperties": False,
+            "workflow": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{2,63}$",
+                "description": "The snake_case workflow name recorded with the first agreement.",
+            },
+            "criteria": _CRITERIA_SCHEMA,
         },
+        required=["agreed_outcome", "workflow", "criteria"],
     ),
-    ToolDefinition(
+    FunctionSchema(
         name="begin_validation",
         description=(
             "Begin or resume validating the person's ready preview. Validation "
             "normally begins by itself once the new version is ready, so this is "
             "needed only when it has not. Returns the agreed criteria, in order."
         ),
-        parameters={
-            "type": "object",
-            "properties": {},
-            "required": [],
-            "additionalProperties": False,
-        },
+        properties={},
+        required=[],
     ),
-    ToolDefinition(
+    FunctionSchema(
         name="record_validation_outcome",
         description=(
             "Record the person's answer for every criterion once they have answered "
@@ -261,71 +232,63 @@ TOOL_DEFINITIONS: tuple[ToolDefinition, ...] = (
             "settle it. Cite an observation as contradicting a criterion only when "
             "the product did something other than it says for what they actually did."
         ),
-        parameters={
-            "type": "object",
-            "properties": {
-                "answers": {
-                    "type": "array",
-                    "minItems": 1,
-                    "maxItems": 8,
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "check_number": {
-                                "type": "integer",
-                                "minimum": 1,
-                                "description": "The agreed check's number, as the application lists it.",
-                            },
-                            "answer": {
-                                "type": "string",
-                                "enum": ["confirmed", "rejected", "unsure"],
-                            },
-                            "statement": {
-                                "type": "string",
-                                "description": "What the person said, close to their words.",
-                            },
-                            "evidence": {
-                                "type": "array",
-                                "maxItems": 4,
-                                "items": {
-                                    "type": "object",
-                                    "properties": {
-                                        "observation_id": {"type": "string"},
-                                        "stance": {
-                                            "type": "string",
-                                            "enum": ["supports", "contradicts"],
-                                        },
-                                        "summary": {
-                                            "type": "string",
-                                            "description": "What the product did, in one plain sentence.",
-                                        },
+        properties={
+            "answers": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 8,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "check_number": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "description": "The agreed check's number, as the application lists it.",
+                        },
+                        "answer": {
+                            "type": "string",
+                            "enum": ["confirmed", "rejected", "unsure"],
+                        },
+                        "statement": {
+                            "type": "string",
+                            "description": "What the person said, close to their words.",
+                        },
+                        "evidence": {
+                            "type": "array",
+                            "maxItems": 4,
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "observation_id": {"type": "string"},
+                                    "stance": {
+                                        "type": "string",
+                                        "enum": ["supports", "contradicts"],
                                     },
-                                    "required": ["observation_id", "stance", "summary"],
-                                    "additionalProperties": False,
+                                    "summary": {
+                                        "type": "string",
+                                        "description": "What the product did, in one plain sentence.",
+                                    },
                                 },
+                                "required": ["observation_id", "stance", "summary"],
+                                "additionalProperties": False,
                             },
                         },
-                        "required": ["check_number", "answer", "statement", "evidence"],
-                        "additionalProperties": False,
                     },
+                    "required": ["check_number", "answer", "statement", "evidence"],
+                    "additionalProperties": False,
                 },
             },
-            "required": ["answers"],
-            "additionalProperties": False,
         },
+        required=["answers"],
     ),
-    ToolDefinition(
+    FunctionSchema(
         name="implementation_status",
         description=(
             "Return the current user-facing progress of any work uTrace is doing for "
             "this person, in plain language."
         ),
-        parameters={
-            "type": "object",
-            "properties": {},
-            "required": [],
-            "additionalProperties": False,
-        },
+        properties={},
+        required=[],
     ),
 )
 
@@ -422,51 +385,10 @@ class _CriterionArgument(BaseModel):
     observability: CriterionObservability
 
 
-async def _record_acceptance_criteria(
-    context: ToolContext, arguments: Mapping[str, object]
-) -> str:
-    """Freeze the agreed scope and criteria at a new criteria revision."""
-    outcome = str(arguments.get("agreed_outcome", "")).strip()
-    workflow = str(arguments.get("workflow", "")).strip()
-    raw = arguments.get("criteria")
-    if not outcome or not isinstance(raw, list) or not raw:
-        return _result({"error": "agreed_outcome and at least one criterion are required"})
-    if _WORKFLOW_PATTERN.fullmatch(workflow) is None:
-        return _result({"error": "workflow must be a short snake_case name"})
-    try:
-        supplied = [_CriterionArgument.model_validate(item) for item in raw]
-        drafts = [
-            CriterionDraft(
-                ordinal=index,
-                statement=criterion.statement,
-                observability=criterion.observability,
-            )
-            for index, criterion in enumerate(supplied)
-        ]
-    except ValidationError as error:
-        return _result({"error": f"a criterion failed validation: {error.error_count()}"})
-    try:
-        agreement = await record_acceptance_criteria_agreement(
-            context.database,
-            bundle=context.bundle,
-            agreed_scope={"intended_outcome": outcome, "workflow_ref": workflow},
-            criteria=drafts,
-            supporting_evidence_ids=context.bundle.cited_evidence_ids(),
-        )
-    except ControlPlaneError as error:
-        return _result({"refused": "stale_context", "detail": str(error)})
-    return _result(
-        {
-            "acceptance_criteria_revision": agreement.acceptance_criteria_revision,
-            "criterion_count": len(agreement.criterion_ids),
-        }
-    )
-
-
-async def _record_requested_change(
-    context: ToolContext, arguments: Mapping[str, object]
-) -> str:
-    """Freeze a change asked for in the new version and send it to the gate."""
+def _agreement_arguments(
+    arguments: Mapping[str, object],
+) -> tuple[Mapping[str, JsonValue], list[CriterionDraft]] | str:
+    """The agreed scope and criteria the model supplied, or the error result to return."""
     outcome = str(arguments.get("agreed_outcome", "")).strip()
     workflow = str(arguments.get("workflow", "")).strip()
     raw = arguments.get("criteria")
@@ -487,6 +409,43 @@ async def _record_requested_change(
         ]
     except ValidationError as error:
         return _result({"error": f"a criterion failed validation: {error.error_count()}"})
+    return {"intended_outcome": outcome, "workflow_ref": workflow}, drafts
+
+
+async def _record_acceptance_criteria(
+    context: ToolContext, arguments: Mapping[str, object]
+) -> str:
+    """Freeze the agreed scope and criteria at a new criteria revision."""
+    supplied = _agreement_arguments(arguments)
+    if isinstance(supplied, str):
+        return supplied
+    agreed_scope, drafts = supplied
+    try:
+        agreement = await record_acceptance_criteria_agreement(
+            context.database,
+            bundle=context.bundle,
+            agreed_scope=agreed_scope,
+            criteria=drafts,
+            supporting_evidence_ids=context.bundle.cited_evidence_ids(),
+        )
+    except ControlPlaneError as error:
+        return _result({"refused": "stale_context", "detail": str(error)})
+    return _result(
+        {
+            "acceptance_criteria_revision": agreement.acceptance_criteria_revision,
+            "criterion_count": len(agreement.criterion_ids),
+        }
+    )
+
+
+async def _record_requested_change(
+    context: ToolContext, arguments: Mapping[str, object]
+) -> str:
+    """Freeze a change asked for in the new version and send it to the gate."""
+    supplied = _agreement_arguments(arguments)
+    if isinstance(supplied, str):
+        return supplied
+    agreed_scope, drafts = supplied
     policy = await load_implementation_policy(
         context.database,
         configuration_release_id=context.bundle.dependencies.pinned_configuration_release_id,
@@ -495,7 +454,7 @@ async def _record_requested_change(
         request = await record_change_request(
             context.database,
             bundle=context.bundle,
-            agreed_scope={"intended_outcome": outcome, "workflow_ref": workflow},
+            agreed_scope=agreed_scope,
             criteria=drafts,
             supporting_evidence_ids=context.bundle.cited_evidence_ids(),
             implementation_limit=policy.implementation_limit,
@@ -719,5 +678,4 @@ def _bounded_int(value: object, *, default: int) -> int:
 
 
 def _result(payload: Mapping[str, JsonValue]) -> str:
-    """Serialize one tool result for the provider's function-call output."""
     return json.dumps(payload, separators=(",", ":"))

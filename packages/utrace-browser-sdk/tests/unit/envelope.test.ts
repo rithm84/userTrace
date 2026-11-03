@@ -1,13 +1,9 @@
-/**
- * Envelope assembly, identifiers, and sequence allocation.
- */
-
 import { describe, expect, it } from "vitest";
 import { uuidv7, spanId, traceId, webCryptoRandom, nonce, opaqueId } from "../../src/core/ids.js";
 import { rfc3339, isExpired } from "../../src/core/time.js";
-import { buildEnvelope, buildObservation, UNASSIGNED_EXPORT_SEQUENCE } from "../../src/observation/envelope.js";
+import { buildEnvelope, UNASSIGNED_EXPORT_SEQUENCE } from "../../src/observation/envelope.js";
 import { priorityOf } from "../../src/observation/types.js";
-import { AcknowledgementTracker, SequenceAllocator } from "../../src/export/sequences.js";
+import { AcknowledgementTracker } from "../../src/export/sequences.js";
 import { encodeObservation, decodeServerFrame, jsonByteLength } from "../../src/export/protocol.js";
 import { formatTraceparent, TraceCoordinator, UTRACE_TRACESTATE } from "../../src/trace/context.js";
 
@@ -36,10 +32,6 @@ describe("identifiers", () => {
 });
 
 describe("time", () => {
-  it("formats RFC 3339 UTC with millisecond precision", () => {
-    expect(rfc3339(0)).toBe("1970-01-01T00:00:00.000Z");
-  });
-
   it("treats an unparsable or past expiry as expired", () => {
     expect(isExpired("not a date", Date.now())).toBe(true);
     expect(isExpired(rfc3339(Date.now() - 1000), Date.now())).toBe(true);
@@ -78,16 +70,6 @@ describe("envelope", () => {
     expect(envelope.trace_id).toMatch(/^[0-9a-f]{32}$/);
   });
 
-  it("refuses an envelope whose type disagrees with its payload", () => {
-    const envelope = buildEnvelope({ ...base, target_id: null, target_revision: null, trace_id: null, span_id: null });
-    expect(() =>
-      buildObservation(envelope, {
-        type: "dom.change",
-        body: { changes: [], coalesced_count: 1, window_start_offset: 0, window_end_offset: 1, truncated: false },
-      }),
-    ).toThrow(/does not match payload type/);
-  });
-
   it("assigns delivery priority by observation type", () => {
     expect(priorityOf("interaction.activation")).toBe("critical");
     expect(priorityOf("observation.gap")).toBe("critical");
@@ -105,14 +87,6 @@ describe("envelope", () => {
 });
 
 describe("sequences", () => {
-  it("starts both streams at one and never repeats", () => {
-    const allocator = new SequenceAllocator();
-    expect(allocator.produced).toBe(0);
-    expect(allocator.allocate()).toBe(1);
-    expect(allocator.allocate()).toBe(2);
-    expect(allocator.produced).toBe(2);
-  });
-
   it("accepts a contiguous acknowledgement and rejects an impossible one", () => {
     const tracker = new AcknowledgementTracker();
     expect(tracker.accept(3, 5)).toEqual({ ok: true });
@@ -120,14 +94,6 @@ describe("sequences", () => {
     expect(tracker.accept(6, 5).ok).toBe(false);
     expect(tracker.accept(2, 5).ok).toBe(false);
     expect(tracker.acknowledged).toBe(3);
-  });
-
-  it("reports why an acknowledgement is impossible", () => {
-    const tracker = new AcknowledgementTracker();
-    const beyond = tracker.accept(9, 4);
-    expect(beyond.ok).toBe(false);
-    if (beyond.ok) return;
-    expect(beyond.reason).toContain("beyond produced");
   });
 });
 

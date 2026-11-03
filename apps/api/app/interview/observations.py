@@ -29,15 +29,15 @@ from app.ingestion.target_registry import load_registered_targets
 from app.logging import get_logger
 
 __all__ = [
-    "LIVE_INTERVIEW_PURPOSE",
     "ObservedActivity",
     "describe_activity",
+    "identifier_words",
     "recent_activity",
 ]
 
 _log = get_logger(__name__)
 
-LIVE_INTERVIEW_PURPOSE: QueryPurpose = "live_interview"
+_LIVE_INTERVIEW_PURPOSE: QueryPurpose = "live_interview"
 
 _BROWSER_SOURCE: tuple[SourceClass, ...] = ("browser_observation",)
 _ACTIVITY_PROJECTION: tuple[str, ...] = (
@@ -85,7 +85,7 @@ async def recent_activity(
         database,
         QueryScope(
             client_id=client_id,
-            purpose=LIVE_INTERVIEW_PURPOSE,
+            purpose=_LIVE_INTERVIEW_PURPOSE,
             interview_session_id=interview_session_id,
             allowed_source_classes=_BROWSER_SOURCE,
             not_before=since,
@@ -106,17 +106,19 @@ def describe_activity(activity: ObservedActivity) -> str:
     """One plain line the agent may use: what the person did, in product terms."""
     if activity.milestone is not None:
         details = ", ".join(
-            f"{_words(name)} {value}" for name, value in activity.milestone_attributes.items()
+            f"{identifier_words(name)} {value}"
+            for name, value in activity.milestone_attributes.items()
         )
-        return f"{_words(activity.milestone)}" + (f" ({details})" if details else "")
+        return f"{identifier_words(activity.milestone)}" + (f" ({details})" if details else "")
     if activity.observation_type == _ACTIVATION_OBSERVATION:
         return f"clicked {activity.control}" if activity.control else "clicked a control"
     if activity.observation_type == _PAGE_LOAD_OBSERVATION:
         return "the page loaded"
-    return _words(activity.observation_type)
+    return identifier_words(activity.observation_type)
 
 
-def _words(identifier: str) -> str:
+def identifier_words(identifier: str) -> str:
+    """A dotted or snake_case identifier as words, such as `product milestone`."""
     return identifier.replace(".", " ").replace("_", " ")
 
 
@@ -142,7 +144,7 @@ async def _control_descriptions(
             interview_session_id=interview_session_id,
             document_attachment_id=UUID(document),
         ):
-            described[target.target_id] = _words(target.description)
+            described[target.target_id] = identifier_words(target.description)
     return described
 
 

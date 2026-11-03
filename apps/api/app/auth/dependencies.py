@@ -10,6 +10,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import Depends, Header, Path, Request
+from fastapi.requests import HTTPConnection
 from utrace_contracts.domain.lifecycle import ClientMemberRole, MembershipStatus
 
 from app.auth.jwt import SupabaseJwtVerifier, VerifiedIdentity
@@ -17,35 +18,43 @@ from app.auth.principals import ParticipantPrincipal, ServicePrincipal, StaffPri
 from app.db.pool import Database
 from app.db.rows import as_str, as_uuid
 from app.errors import AuthorizationError
+from app.ports import PortRegistry
 from app.settings import Settings
 
 __all__ = [
     "AuthenticatedIdentity",
     "CurrentDatabase",
+    "CurrentPorts",
+    "CurrentSettings",
     "FrontDoorService",
     "ParticipantOfPath",
     "StaffOfPath",
-    "get_database",
-    "get_settings_dependency",
 ]
 
 _BEARER = "bearer"
 
 
-def get_database(request: Request) -> Database:
-    """Return the process-wide database connector."""
-    database = request.app.state.database
+# The app-state accessors take an ``HTTPConnection`` so HTTP and WebSocket routes
+# share them.
+def get_database(connection: HTTPConnection) -> Database:
+    database = connection.app.state.database
     if not isinstance(database, Database):
         raise TypeError("the application was assembled without a database connector")
     return database
 
 
-def get_settings_dependency(request: Request) -> Settings:
-    """Return the process-wide settings."""
-    settings = request.app.state.settings
+def get_settings_dependency(connection: HTTPConnection) -> Settings:
+    settings = connection.app.state.settings
     if not isinstance(settings, Settings):
         raise TypeError("the application was assembled without settings")
     return settings
+
+
+def get_ports(connection: HTTPConnection) -> PortRegistry:
+    registry = connection.app.state.ports
+    if not isinstance(registry, PortRegistry):
+        raise TypeError("the application was assembled without a port registry")
+    return registry
 
 
 def _get_verifier(request: Request) -> SupabaseJwtVerifier:
@@ -80,6 +89,7 @@ async def authenticated_identity(
 AuthenticatedIdentity = Annotated[VerifiedIdentity, Depends(authenticated_identity)]
 CurrentDatabase = Annotated[Database, Depends(get_database)]
 CurrentSettings = Annotated[Settings, Depends(get_settings_dependency)]
+CurrentPorts = Annotated[PortRegistry, Depends(get_ports)]
 
 
 async def resolve_staff_membership(

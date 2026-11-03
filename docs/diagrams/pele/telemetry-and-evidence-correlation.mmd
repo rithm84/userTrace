@@ -1,0 +1,56 @@
+---
+title: Telemetry records · identity keys and correlation joins
+---
+erDiagram
+  activation["Observation activation"] {
+    id activation_id PK "authenticated scope"
+  }
+  browser_stream["Browser stream"] {
+    id browser_stream_id PK
+    seq export_sequence
+  }
+  server_stream["Server stream"] {
+    id server_stream_id PK
+    seq batch_sequence
+  }
+  receipt["Ingestion receipt"] {
+    id ingestion_receipt_id PK "UUIDv7"
+    ref source_stream_id UK "batch identity"
+    id batch_id UK "batch identity"
+  }
+  raw_batch["Raw batch artifact"] {
+    id artifact_id PK "UUIDv7, SHA-256"
+  }
+  gap["Delivery gap"] {
+    seq source_sequence_range "first to last"
+  }
+  observation["Browser observation"] {
+    id observation_id PK
+    ref trace_id_span_id "CLIENT span, when applicable"
+  }
+  span["Server span"] {
+    ref activation_id PK
+    id trace_id PK "W3C"
+    id span_id PK
+  }
+  correlation["Correlation projection"] {
+    key exact_ids "client, activation, trace, request, stream, domain"
+    enum status
+    int revision
+  }
+
+  activation ||--o| browser_stream : binds
+  activation ||--o| server_stream : binds
+  browser_stream ||--o{ receipt : "sends batches"
+  server_stream ||--o{ receipt : "sends batches"
+  receipt ||--o| raw_batch : "accepted, kept whole as"
+  receipt ||--o{ observation : commits
+  receipt ||--o{ span : commits
+  browser_stream ||--o{ gap : records
+  observation }o--o| correlation : "browser CLIENT span"
+  span }o--o| correlation : "parentage or links"
+
+  class activation runtime
+  class browser_stream,observation,server_stream,span observation
+  class receipt,raw_batch,correlation outcome
+  class gap neutral

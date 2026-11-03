@@ -32,7 +32,6 @@ from app.outputs.delivery import (
     DeliveryFacts,
     DeliveryRepositoryPort,
     DeliveryRow,
-    delivered_identities,
     load_delivery,
     pull_request_body,
     pull_request_title,
@@ -60,15 +59,11 @@ class DeliveryRequest:
 
 @dataclass(frozen=True, slots=True)
 class DeliveryOutcome:
-    """The delivery's terminal state and the identities it verified."""
+    """The delivery's terminal state."""
 
-    delivery_id: UUID
     state: DeliveryState
-    pull_request_ref: str | None
     pull_request_number: int | None
-    verified_head_sha: str | None
     blocker_reason: str | None
-    adopted_existing: bool
 
 
 async def _transition(
@@ -170,13 +165,7 @@ async def _block(
         blocker_reason=reason,
     )
     return DeliveryOutcome(
-        delivery_id=delivery_id,
-        state=DeliveryState.BLOCKED,
-        pull_request_ref=None,
-        pull_request_number=None,
-        verified_head_sha=None,
-        blocker_reason=reason,
-        adopted_existing=False,
+        state=DeliveryState.BLOCKED, pull_request_number=None, blocker_reason=reason
     )
 
 
@@ -225,31 +214,26 @@ async def _adopt(
                 f"head={head_verified}); uTrace does not force-push or close it"
             ),
         )
-    identities = dict(delivered_identities(existing))
     delivered = await _step(
         database,
         delivery.id,
         trigger="deliver",
         facts=facts,
         mutation={
-            "pull_request_ref": str(identities["pull_request_ref"]),
-            "pull_request_number": int(str(identities["pull_request_number"])),
-            "pull_request_node_id": str(identities["pull_request_node_id"]),
-            "verified_head_sha": str(identities["verified_head_sha"]),
-            "branch_ref": str(identities["branch_ref"]),
-            "base_branch": str(identities["base_branch"]),
+            "pull_request_ref": existing.html_url,
+            "pull_request_number": existing.number,
+            "pull_request_node_id": existing.node_id,
+            "verified_head_sha": existing.head_sha,
+            "branch_ref": existing.head_branch,
+            "base_branch": existing.base_branch,
             "reconciliation": Jsonb({"adopted_existing": True}),
         },
         payload={"pull_request_number": existing.number, "adopted_existing": True},
     )
     return DeliveryOutcome(
-        delivery_id=delivery.id,
         state=DeliveryState.DELIVERED,
-        pull_request_ref=delivered.pull_request_ref,
         pull_request_number=delivered.pull_request_number,
-        verified_head_sha=delivered.verified_head_sha,
         blocker_reason=None,
-        adopted_existing=True,
     )
 
 
@@ -264,13 +248,9 @@ async def run_delivery(
         delivery = await load_delivery(conn, delivery_id=request.delivery_id)
     if delivery.state is DeliveryState.DELIVERED:
         return DeliveryOutcome(
-            delivery_id=delivery.id,
             state=DeliveryState.DELIVERED,
-            pull_request_ref=delivery.pull_request_ref,
             pull_request_number=delivery.pull_request_number,
-            verified_head_sha=delivery.verified_head_sha,
             blocker_reason=None,
-            adopted_existing=True,
         )
 
     frozen = await _validation_is_frozen(database, delivery)
@@ -410,7 +390,6 @@ async def _finish(
                 f"head={head_verified})"
             ),
         )
-    identities = dict(delivered_identities(delivered))
     final = await _step(
         database,
         delivery.id,
@@ -424,10 +403,10 @@ async def _finish(
             blocker_reason=None,
         ),
         mutation={
-            "pull_request_ref": str(identities["pull_request_ref"]),
-            "pull_request_number": int(str(identities["pull_request_number"])),
-            "pull_request_node_id": str(identities["pull_request_node_id"]),
-            "verified_head_sha": str(identities["verified_head_sha"]),
+            "pull_request_ref": delivered.html_url,
+            "pull_request_number": delivered.number,
+            "pull_request_node_id": delivered.node_id,
+            "verified_head_sha": delivered.head_sha,
             "reconciliation": Jsonb({"adopted_existing": False}),
         },
         payload={"pull_request_number": delivered.number, "adopted_existing": False},
@@ -441,13 +420,9 @@ async def _finish(
         verified_head_sha=final.verified_head_sha,
     )
     return DeliveryOutcome(
-        delivery_id=delivery.id,
         state=DeliveryState.DELIVERED,
-        pull_request_ref=final.pull_request_ref,
         pull_request_number=final.pull_request_number,
-        verified_head_sha=final.verified_head_sha,
         blocker_reason=None,
-        adopted_existing=False,
     )
 
 

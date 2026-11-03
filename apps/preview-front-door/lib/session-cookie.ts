@@ -40,9 +40,9 @@ function readCookie(params: {
 }
 
 /**
- * Read the session credential presented by the request. Returns `null` when the cookie is
- * absent or does not have the shape of a credential this door issued; the control plane
- * remains the authority on whether a well-formed credential is still valid.
+ * `null` when the cookie is absent or does not have the shape of a credential this door
+ * issued; the control plane remains the authority on whether a well-formed credential is
+ * still valid.
  */
 export function readSessionCredential(params: {
   cookieHeader: string | null;
@@ -58,7 +58,6 @@ export function readSessionCredential(params: {
   return value;
 }
 
-/** Build the `Set-Cookie` value for a claimed session. */
 export function buildSessionCookie(params: {
   cookieName: string;
   sessionCredential: string;
@@ -85,7 +84,7 @@ export function buildSessionCookie(params: {
 }
 
 /** The name of the cookie recording which runtime the product signed this browser into. */
-export function runtimeCookieName(sessionCookieName: string): string {
+function runtimeCookieName(sessionCookieName: string): string {
   return `${sessionCookieName}-runtime`;
 }
 
@@ -104,7 +103,6 @@ export function readSignedInRuntime(params: {
   return value;
 }
 
-/** Build the `Set-Cookie` value recording the runtime the product just signed in to. */
 export function buildRuntimeCookie(params: {
   sessionCookieName: string;
   previewRuntimeAllocationId: string;

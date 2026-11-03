@@ -7,7 +7,7 @@
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
-import { REDACTION_STEPS, restrictionRank, lengthBucket, mostRestrictive } from "../../src/redaction/classes.js";
+import { restrictionRank, lengthBucket, mostRestrictive } from "../../src/redaction/classes.js";
 import { RedactionPipeline } from "../../src/redaction/pipeline.js";
 import { TaintRegistry } from "../../src/redaction/taint.js";
 import { detectSensitiveContent } from "../../src/redaction/detectors.js";
@@ -41,18 +41,6 @@ describe("output classes", () => {
     expect(restrictionRank("pseudonymized")).toBeGreaterThan(restrictionRank("bounded_safe_value"));
     expect(restrictionRank("bounded_safe_value")).toBeGreaterThan(restrictionRank("structural_operational_safe"));
     expect(mostRestrictive("bounded_safe_value", "metadata_only")).toBe("metadata_only");
-  });
-
-  it("evaluates exactly the seven documented steps in order", () => {
-    expect(REDACTION_STEPS).toEqual([
-      "platform_exclusions",
-      "session_document_scope",
-      "signed_client_policy",
-      "structural_inheritance",
-      "per_value_evaluation",
-      "defensive_detection",
-      "normalization_and_limits",
-    ]);
   });
 
   it("buckets lengths without exporting the length itself", () => {

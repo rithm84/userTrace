@@ -91,7 +91,6 @@ class CaseFileRow:
 async def load_case_file_row(
     conn: AsyncConnection[DictRow], *, case_file_id: UUID
 ) -> CaseFileRow:
-    """Return one Case File row by its identity."""
     async with conn.cursor() as cur:
         await cur.execute(
             """

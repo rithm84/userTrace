@@ -23,8 +23,6 @@ from uuid import UUID
 
 import httpx
 import structlog
-from psycopg import AsyncConnection
-from psycopg.rows import DictRow
 from utrace_contracts.envelope.artifacts import (
     ArtifactDigest,
     ArtifactReference,
@@ -36,7 +34,7 @@ from app.db.pool import Database
 from app.db.rows import as_datetime, as_int, as_str, as_uuid
 from app.ids import uuid7
 
-__all__ = ["ARTIFACT_BUCKET", "ArtifactStore", "ArtifactStoreError", "digest_of"]
+__all__ = ["ArtifactStore", "ArtifactStoreError", "digest_of"]
 
 _logger = structlog.get_logger(__name__)
 
@@ -101,22 +99,33 @@ class ArtifactStore:
         await self._upload(path=path, media_type=media_type, body=body)
         artifact_id = uuid7()
         created_at = datetime.now(tz=UTC)
-        async with self._database.transaction() as conn:
-            await self._insert(
-                conn,
-                artifact_id=artifact_id,
-                client_id=client_id,
-                artifact_type=artifact_type,
-                media_type=media_type,
-                digest=digest,
-                byte_size=len(body),
-                retention_class=retention_class,
-                path=path,
-                producer=producer,
-                source_revision=source_revision,
-                implementation_attempt_id=implementation_attempt_id,
-                environment_lease_id=environment_lease_id,
-                product_signal_id=product_signal_id,
+        async with self._database.transaction() as conn, conn.cursor() as cur:
+            await cur.execute(
+                """
+                insert into public.artifacts (
+                    id, client_id, artifact_type, media_type, digest, byte_size,
+                    retention_class, storage_bucket, storage_path, producer,
+                    source_revision, implementation_attempt_id, environment_lease_id,
+                    product_signal_id
+                )
+                values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    artifact_id,
+                    client_id,
+                    artifact_type,
+                    media_type,
+                    digest,
+                    len(body),
+                    retention_class,
+                    ARTIFACT_BUCKET,
+                    path,
+                    producer,
+                    source_revision,
+                    implementation_attempt_id,
+                    environment_lease_id,
+                    product_signal_id,
+                ),
             )
         _logger.info(
             "implementation.artifact.stored",
@@ -215,53 +224,6 @@ class ArtifactStore:
                 status_code=response.status_code,
                 body=response.text[:500],
                 path=path,
-            )
-
-    async def _insert(
-        self,
-        conn: AsyncConnection[DictRow],
-        *,
-        artifact_id: UUID,
-        client_id: UUID,
-        artifact_type: str,
-        media_type: str,
-        digest: str,
-        byte_size: int,
-        retention_class: RetentionClass,
-        path: str,
-        producer: str,
-        source_revision: str | None,
-        implementation_attempt_id: UUID | None,
-        environment_lease_id: UUID | None,
-        product_signal_id: UUID | None,
-    ) -> None:
-        async with conn.cursor() as cur:
-            await cur.execute(
-                """
-                insert into public.artifacts (
-                    id, client_id, artifact_type, media_type, digest, byte_size,
-                    retention_class, storage_bucket, storage_path, producer,
-                    source_revision, implementation_attempt_id, environment_lease_id,
-                    product_signal_id
-                )
-                values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """,
-                (
-                    artifact_id,
-                    client_id,
-                    artifact_type,
-                    media_type,
-                    digest,
-                    byte_size,
-                    retention_class,
-                    ARTIFACT_BUCKET,
-                    path,
-                    producer,
-                    source_revision,
-                    implementation_attempt_id,
-                    environment_lease_id,
-                    product_signal_id,
-                ),
             )
 
 

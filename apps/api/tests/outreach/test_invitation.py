@@ -14,9 +14,8 @@ from app.db.pool import Database
 from app.db.rows import as_int, as_str
 from app.ids import uuid7
 from app.intake.settings import get_intake_settings
-from app.outreach.delivery import UncertainDeliveryError
+from app.offers.budget import read_allowance
 from app.outreach.dispatch import send_initial_invitation
-from app.outreach.offers import remaining_allowance
 from app.outreach.reasons import CONTACT_BUDGET_EXHAUSTED, UNREACHABLE
 from tests.cases import seed_product_signal
 from tests.conftest import require_env
@@ -134,7 +133,7 @@ async def test_one_reservation_and_one_direct_message_per_invitation(
         "deliveries": 1,
     }
 
-    allowance = await remaining_allowance(
+    allowance = await read_allowance(
         database, client_id=fixture.client_id, currency="USD"
     )
     assert allowance.reserved_minor_units == OFFER_AMOUNT_MINOR_UNITS
@@ -217,7 +216,7 @@ async def test_an_unreachable_recipient_cancels_and_releases_the_reservation(
     assert invitation is not None
     assert invitation["revoked_at"] is not None
 
-    allowance = await remaining_allowance(
+    allowance = await read_allowance(
         database, client_id=fixture.client_id, currency="USD"
     )
     assert allowance.reserved_minor_units == 0
@@ -292,12 +291,3 @@ async def _consume_person_budget(
                     "return_reminder" if index else "initial_invitation",
                 ),
             )
-
-
-def test_an_uncertain_delivery_refuses_to_resend() -> None:
-    """The typed refusal names the attempt and its command, and advises no retry."""
-    error = UncertainDeliveryError(
-        outreach_attempt_id=UUID(int=1), command_id=UUID(int=2)
-    )
-    assert "reconcile the direct-message channel" in error.reason
-    assert str(UUID(int=1)) in error.reason

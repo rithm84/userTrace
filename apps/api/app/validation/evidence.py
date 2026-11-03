@@ -23,7 +23,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from datetime import datetime
 from enum import StrEnum
-from typing import Protocol, runtime_checkable
+from typing import Protocol
 from uuid import UUID
 
 from psycopg.rows import DictRow
@@ -70,8 +70,6 @@ class EvidenceStance(StrEnum):
 
 
 class _Frozen(BaseModel):
-    """Immutable, closed result shape."""
-
     model_config = ConfigDict(frozen=True, extra="forbid")
 
 
@@ -131,7 +129,6 @@ class BeforeAfterComparison(_Frozen):
     coverage_limits: tuple[str, ...]
 
 
-@runtime_checkable
 class EvidenceQueryPort(Protocol):
     """Read-only, purpose-scoped access to promoted telemetry evidence."""
 

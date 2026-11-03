@@ -44,7 +44,7 @@ import {
  */
 
 /** Where a claimed browser goes next: the product sign-in, before any product page. */
-export const SIGN_IN_PATH = "/__utrace/sign-in";
+const SIGN_IN_PATH = "/__utrace/sign-in";
 
 /** The sign-in query parameter naming the page to return to afterwards. */
 const RETURN_TO_PARAMETER = "return_to";
@@ -105,7 +105,6 @@ async function resolveRoute(params: {
   return { kind: "resolved", record };
 }
 
-/** Show the participant the surface for one refusal. */
 function refused(params: {
   request: Request;
   startedAt: number;
@@ -122,72 +121,92 @@ function refused(params: {
   });
 }
 
-/** Serve one product request: verify, resolve, sign, forward, and stream the answer. */
-export async function handleProxyRequest(request: Request): Promise<Response> {
-  const startedAt = Date.now();
+type Admission =
+  | {
+      readonly kind: "admitted";
+      readonly entry: DoorEntry;
+      readonly sessionCredential: string;
+      readonly record: PreviewRouteRecord;
+      readonly now: Date;
+    }
+  | { readonly kind: "refused"; readonly response: Response };
+
+/**
+ * Admit a request on a claimed session origin: door entry, the session cookie, then a
+ * committed route that passes the door's guards and is ready. Otherwise answer with the
+ * surface for the first check that fails.
+ */
+async function admitRoutedRequest(request: Request, startedAt: number): Promise<Admission> {
   const entered = enterDoor({ request, startedAt, json: false });
   if (entered.kind === "refused") {
-    return entered.response;
+    return entered;
   }
-  const { config, origin } = entered.entry;
 
   const sessionCredential = readSessionCredential({
     cookieHeader: request.headers.get("cookie"),
-    cookieName: config.sessionCookieName,
+    cookieName: entered.entry.config.sessionCookieName,
   });
   if (sessionCredential === null) {
-    return finish({
-      request,
-      startedAt,
-      response: interstitialResponse({ kind: "neutral", status: 404 }),
-      outcome: "neutral",
-      reason: "missing_session_cookie",
-      route: null,
-    });
+    return {
+      kind: "refused",
+      response: finish({
+        request,
+        startedAt,
+        response: interstitialResponse({ kind: "neutral", status: 404 }),
+        outcome: "neutral",
+        reason: "missing_session_cookie",
+        route: null,
+      }),
+    };
   }
 
   const now = new Date();
   let route: RouteOutcome;
   try {
-    route = await resolveRoute({
-      entry: entered.entry,
-      sessionCredential,
-      now,
-    });
+    route = await resolveRoute({ entry: entered.entry, sessionCredential, now });
   } catch (error) {
-    return unavailable({
-      request,
-      startedAt,
-      reason: "route_resolution_failed",
-      status: 502,
-      json: false,
-      error,
-    });
+    return {
+      kind: "refused",
+      response: unavailable({
+        request,
+        startedAt,
+        reason: "route_resolution_failed",
+        status: 502,
+        json: false,
+        error,
+      }),
+    };
   }
-
   if (route.kind === "refused") {
-    const surface = refusalSurfaces[route.refusal];
-    return finish({
-      request,
-      startedAt,
-      response: interstitialResponse(surface),
-      outcome: surface.kind,
-      reason: route.refusal,
-      route: null,
-    });
+    return { kind: "refused", response: refused({ request, startedAt, refusal: route.refusal }) };
   }
 
   const record = route.record;
   if (record.readiness_state === "reconnecting") {
-    return finish({
-      request,
-      startedAt,
-      response: interstitialResponse({ kind: "reconnecting", status: 503 }),
-      outcome: "reconnecting",
-      reason: "readiness_withdrawn",
-      route: record,
-    });
+    return {
+      kind: "refused",
+      response: finish({
+        request,
+        startedAt,
+        response: interstitialResponse({ kind: "reconnecting", status: 503 }),
+        outcome: "reconnecting",
+        reason: "readiness_withdrawn",
+        route: record,
+      }),
+    };
   }
+  return { kind: "admitted", entry: entered.entry, sessionCredential, record, now };
+}
+
+/** Serve one product request: verify, resolve, sign, forward, and stream the answer. */
+export async function handleProxyRequest(request: Request): Promise<Response> {
+  const startedAt = Date.now();
+  const admitted = await admitRoutedRequest(request, startedAt);
+  if (admitted.kind === "refused") {
+    return admitted.response;
+  }
+  const { entry, record, now } = admitted;
+  const { config, origin } = entry;
 
   // The product's session is signed with a secret that belongs to the runtime that
   // issued it, so after the origin advances to a candidate the browser signs in again
@@ -375,55 +394,12 @@ export async function handleClaimRequest(request: Request): Promise<Response> {
  */
 export async function handleSignInRequest(request: Request): Promise<Response> {
   const startedAt = Date.now();
-  const entered = enterDoor({ request, startedAt, json: false });
-  if (entered.kind === "refused") {
-    return entered.response;
+  const admitted = await admitRoutedRequest(request, startedAt);
+  if (admitted.kind === "refused") {
+    return admitted.response;
   }
-  const { config, client, origin } = entered.entry;
-
-  const sessionCredential = readSessionCredential({
-    cookieHeader: request.headers.get("cookie"),
-    cookieName: config.sessionCookieName,
-  });
-  if (sessionCredential === null) {
-    return finish({
-      request,
-      startedAt,
-      response: interstitialResponse({ kind: "neutral", status: 404 }),
-      outcome: "neutral",
-      reason: "missing_session_cookie",
-      route: null,
-    });
-  }
-
-  const now = new Date();
-  let route: RouteOutcome;
-  try {
-    route = await resolveRoute({ entry: entered.entry, sessionCredential, now });
-  } catch (error) {
-    return unavailable({
-      request,
-      startedAt,
-      reason: "route_resolution_failed",
-      status: 502,
-      json: false,
-      error,
-    });
-  }
-  if (route.kind === "refused") {
-    return refused({ request, startedAt, refusal: route.refusal });
-  }
-  const record = route.record;
-  if (record.readiness_state === "reconnecting") {
-    return finish({
-      request,
-      startedAt,
-      response: interstitialResponse({ kind: "reconnecting", status: 503 }),
-      outcome: "reconnecting",
-      reason: "readiness_withdrawn",
-      route: record,
-    });
-  }
+  const { entry, sessionCredential, record, now } = admitted;
+  const { config, client, origin } = entry;
 
   let minted: ControlPlaneOutcome<ProductSignIn>;
   try {

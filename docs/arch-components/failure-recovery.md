@@ -2,9 +2,82 @@
 
 [Back to uTrace architecture](../ARCHITECTURE.md)
 
-The following diagram distinguishes interruption, departure, cancellation, blockers, and budget exhaustion:
+The [PRD's stopping rules](../PRD.md#user-facing-implementation-progress) decide
+what each stopping reason produces; this contract owns the mechanics.
 
-![Each stopping reason preserves or revokes different work, evidence, and delivery authority.](../diagrams/svg/failure-recovery.svg)
+## Failure boundary
+
+Failures never substitute another participant, combine lifecycle authority,
+expand repository scope, or change the kind of work.
+
+## Typed failure and retry contract
+
+Command disposition, side-effect certainty, technical category, and retry advice
+remain separate. Unknown or partially applied external effects enter
+reconciliation, never blind repetition. Provider adapters map raw errors to
+closed typed categories; unmapped errors fail closed with an engineering-visible
+finding.
+
+Retries use durable budgets, jittered backoff, idempotency keys, and provider
+circuit breakers. Supabase Queues and Cron may wake and schedule work, but
+authoritative Job, Command, lifecycle, and projection state stays in Postgres,
+and Realtime notifications are hints, never proof of completion.
+
+## Voice, cognition, and observation failure
+
+### Voice and transport
+
+Temporary transport or voice loss starts the bounded reconnect window of the
+[interruption contract](./implementation.md#conversation-pause-and-interruption).
+Room creation, rejoin, and voice agent failures follow the
+[call setup contract](./interview-and-voice.md#call-setup), which decides whether
+a reconnect rejoins the same room or repeats backend-authorized setup with a new
+one; neither refreshes a browser-held credential. Superseded rooms are deleted
+and their late results rejected. A voice agent absent from the call makes voice
+unready for dependent probing and validation, and voice failures never switch
+providers.
+
+[Transcript fragments](./interview-and-voice.md#transcript-and-evidence-contract)
+are provisional. A replacement call gets a new transport identity and context
+revision; accepted corrections invalidate claims derived from the earlier
+wording.
+
+### Model and observation unavailability
+
+Unavailability of the OpenAI API, a voice provider, or Jev pauses only work that
+requires that role, with no silent substitute, lower-fidelity path, or model
+substitution.
+
+- Routine Jev intake with complete pinned context does not depend on GPT-6.1 Sol;
+  a Jev outage blocks that route after bounded retries.
+  [Conditional assistance](./signal-and-outreach.md#conditional-assistance)
+  follows the intake contract.
+- During interviews, Jev supplies concurrent semantic attention, never a serial
+  speech preapproval gate.
+- Product-specific claims and validation pause whenever the extension, browser
+  SDK, Server SDK, trace correlation, target freshness, or exact candidate
+  readiness is incomplete.
+
+## User intent during interruption
+
+A spoken request for a quiet moment suppresses speech without activating the
+Pause control. Reopening a session preserves consumed budgets and never restores
+revoked authority. After successful validation, departure does not stop Case
+File assembly, draft-PR delivery, or cleanup unless authority is withdrawn; no
+new coding is authorized, and later code changes do not inherit the validation.
+
+A terminal product outcome also triggers
+[Outreach Offers eligibility evaluation](./outreach-offers.md#completion-and-entitlement).
+Credit issuance failures recover
+separately and never reopen the case, change validation, or erase an earned
+reward.
+
+## Bounded return and terminal expiry
+
+Each case records at most one return-and-closure deadline, from its pinned
+policy:
+
+![The first stop records one fixed deadline; later stops and re-entries never extend it, and expiry closes the case.](../diagrams/svg/failure-recovery.svg)
 
 <details><summary>Diagram key</summary>
 
@@ -13,98 +86,87 @@ The following diagram distinguishes interruption, departure, cancellation, block
 </details>
 <p></p>
 
-## Failure boundary
+Pause, retry, repair, repeated departures, recovery, and resumed work never
+extend or reset the deadline. While stopped, the case retains only the durable
+artifacts needed to verify and reconstruct the authorized scope, dataset,
+attempt, and candidate. Completion before the deadline ends its scheduling
+obligation, and expiry cannot rewrite a completed outcome.
 
-Failures never substitute another participant, combine lifecycle authority, or expand repository scope, and a failure never changes the kind of work.
+### Return
 
-## Typed failure and retry contract
+Until the deadline, the originating user can return from their dashboard
+through a private return link, and uTrace may send bounded private Discord
+reminders within the pinned contact allowance. Re-entry proves the same identity
+and reruns current policy, permission, budget, extension, SDK, dataset, preview,
+and observation-readiness checks before work resumes. Restored resources must
+reproduce the exact authorized scope and data lineage; reconstruction creates no
+evidence and resets no consumption.
 
-Command disposition, side-effect certainty, technical category, and retry advice remain separate. Unknown or partially applied external effects enter reconciliation and are never blindly repeated. Provider adapters map raw errors to closed typed categories; unmapped errors fail closed and create an engineering-visible finding.
+### Expiry
 
-Retries use durable budgets, jittered backoff, idempotency keys, and provider circuit breakers. Supabase Queues and Cron may wake and schedule work, while authoritative Job, Command, lifecycle, and projection state remains in Postgres. Realtime notifications are hints, never proof of completion.
-
-## Voice, cognition, and observation failure
-
-The voice agent holds full-duplex voice in a private Daily room the session tab joins over WebRTC. Temporary transport or voice loss starts a bounded reconnect window. Current already-authorized implementation and checks may continue; new validation evidence cannot be accepted without the same user.
-
-Voice transcript fragments are provisional. They do not establish what the user meant or prove that synthesized speech was heard. A replacement call creates a new transport identity and context revision; accepted corrections invalidate derived claims that depended on the earlier wording.
-
-Room creation, rejoin, and voice agent failures follow the
-[call setup contract](./interview-and-voice.md#call-setup). A voice agent that is
-not in the call makes voice unready for dependent probing and validation. While
-the call's voice agent Job is still live and its room has at least 15 minutes
-left, a reconnecting participant rejoins the same room with a new meeting token
-and keeps the connection and `voice_run_id`. Otherwise the reconnect repeats
-backend-authorized setup with a new room. Neither path refreshes a browser-held
-credential. Delete superseded rooms and reject their late results. Voice failures
-never trigger a switch to another provider.
-
-OpenAI API, voice provider, or Jev unavailability pauses only work that requires that role. There is no silent substitute or lower-fidelity path, and no model is substituted for another. Routine Jev intake with complete pinned context does not depend on GPT-6.1 Sol availability; a Jev outage blocks that route after bounded retries. Conditional assistance follows the [intake contract](./signal-and-outreach.md#conditional-assistance). During interviews Jev supplies concurrent semantic attention and never a serial speech preapproval gate. Product-specific claims and validation pause whenever extension, browser SDK, Server SDK, trace correlation, target freshness, or exact candidate readiness is incomplete.
-
-## User intent during interruption
-
-The diagram owns the reason-specific outcomes. A spoken request for a quiet
-moment suppresses speech without activating the Pause control. Pause takes effect
-for voice, observation, and new live implementation steps immediately;
-already-dispatched operations settle or checkpoint, with their outcomes recorded. Reopening a session preserves
-consumed budgets and never restores revoked authority.
-
-After successful validation, departure does not stop sealed Case File assembly, draft-PR delivery, or cleanup.
-
-A terminal product outcome also triggers [Outreach Offers eligibility evaluation](./outreach-offers.md#completion-and-entitlement).
-Temporary blockers keep the offer pending. Credit issuance failures use their own recovery
-path and do not reopen the case, change validation, or erase an earned reward.
-
-## Bounded return and terminal expiry
-
-At the first Pause, **Finish later**, participant departure, expired reconnection window, or recoverable technical blocker, the controller records a case-level return-and-closure deadline using the pinned policy. Pause, retry, repair, and repeated departures do not extend or reset it. Stop live compute after dispatched operations settle or checkpoint; retain only the durable artifacts needed to verify and reconstruct the authorized scope, dataset, attempt, and candidate.
-
-While the deadline remains open, the originating user can return from their dashboard through a private return link. uTrace may send bounded private Discord reminders within the pinned contact allowance. Re-entry proves the same identity and reruns current policy, permission, budget, extension, SDK, dataset, preview, and observation-readiness checks before work resumes. Restored resources must reproduce the exact authorized scope and data lineage; reconstruction does not create new evidence or reset consumption.
-
-Expiry is terminal. The controller fences remaining leases, revokes invitations and credentials, reconciles dispatched effects, destroys unneeded runtime resources after durable extraction, resolves the Outreach Offer under its existing participation rules, and closes with an explanatory blocker Case File when participation occurred. Before participation, it creates the applicable cancellation or compatibility record and no Case File. Recovery or resumed work cannot extend an already recorded case
-deadline. Completion before that deadline ends its scheduling obligation; expiry
-cannot rewrite a completed outcome.
-
-After validation, the frozen result permits routine delivery once the user has
-departed unless authority is withdrawn. No new coding is authorized, and later
-code changes do not inherit the validation.
+Expiry is terminal: the controller fences remaining leases, revokes invitations
+and credentials, reconciles dispatched effects, destroys unneeded runtime
+resources after durable extraction, resolves the Outreach Offer under its
+existing participation rules, and closes the case as the diagram shows.
 
 ## Blockers and recovery
 
-Infrastructure failures preserve a blocked attempt that can resume after engineering repair only while the case-level return-and-closure deadline remains open. The control plane verifies tenant, Product Signal, attempt, lease, policy, base revision, scope, workspace integrity, artifact hashes, candidate identity, and remaining budgets before resumption. No engineer edits product state or fabricates evidence.
+### Resuming a blocked attempt
 
-Recovery must respect terminal boundaries:
+An attempt blocked by infrastructure failure can resume after engineering repair
+only while the deadline is open. Before resumption, the control plane verifies
+tenant, Product Signal, attempt, lease, policy, base revision, scope, workspace
+integrity, artifact hashes, candidate identity, and remaining budgets. No
+engineer edits product state or fabricates evidence.
+
+Automatic remediation is limited to idempotent, evidence-preserving legal
+transitions: reclaiming Jobs, renewing fenced leases, rebuilding a workspace from
+pinned inputs and durable artifacts, reconstructing an exact candidate from its
+artifact and dataset manifest, re-dispatching an undispatched outbox entry, or
+reconciling a provider resource by stable identity.
+
+### Terminal boundaries
+
+Recovery respects these boundaries:
 
 - [Implementation limits](./implementation.md#outcomes-and-budget-exhaustion)
-  close exhausted work with a blocker.
+  and denied scope close the work with a blocker Case File.
 - Repair cannot resume a closed signal.
 - [Initial outreach](./signal-and-outreach.md#originating-user-and-invitation-lifecycle)
-  and explicit cancellation retain their no-Case-File outcomes.
-- A participant environment that cannot satisfy the supported browser, extension,
-  permission, or extension compatibility contract closes before interviewing in `canceled` with reason
-  `unsupported_participant_environment`, with a user-safe notice, no Case File,
-  and no earned reward. Setup timeout has the same outcome and is distinct from
-  voluntary cancellation. A readiness loss after participation uses the bounded
-  blocker and expiry rules above.
-- Unknown GitHub outcomes remain in reconciliation. A definitive delivery failure
-  records the exact draft/branch state.
+  and explicit cancellation keep their no-Case-File outcomes.
+- A participant environment failing the supported browser, extension,
+  permission, or extension compatibility contract closes before interviewing in
+  `canceled` with reason `unsupported_participant_environment`, a user-safe
+  notice, no Case File, and no earned reward. Setup timeout has the same outcome,
+  distinct from voluntary cancellation; a readiness loss after participation
+  follows the deadline rules.
+- Data that exceeds the contract stops the case with the user notified and access
+  never widened: before participation with no interview, Case File, or reward,
+  and after participation in `closed_blocked`.
+- Unknown GitHub outcomes stay in reconciliation; a definitive delivery failure
+  records the exact draft and branch state.
 
-An Implementation Gate that cannot decide is a technical blocker. Its bounded
-recovery is the gate Job's run budget and its fresh-context retries; once no run
-is left, the change cannot start. A case with a ready version keeps it and the
-asked-for change is declined (`revision_declined`); any other case commits its
-blocker Case File and closes `closed_blocked` when that is published. Either way
-the live agent is told at once, so it never promises a version that is not coming.
+After participation, all of these close in `closed_blocked` under the
+[lifecycle contract's](./control-plane.md#product-signal) guard.
 
-These reasons differ in what they preserve, but after participation they close
-into the same terminal blocked state, which is why that state is reachable from
-every nonterminal state rather than only from the late ones. The
-[lifecycle contract](./control-plane.md#product-signal) owns its guard.
+### Undecidable Implementation Gate
 
-Automatic remediation is limited to idempotent, evidence-preserving legal transitions: reclaiming Jobs, renewing fenced leases, rebuilding a workspace from pinned inputs and durable artifacts, reconstructing an exact candidate from its artifact and dataset manifest, re-dispatching an undispatched outbox entry, or reconciling a provider resource by stable identity.
+An Implementation Gate that cannot decide is a technical blocker, bounded by the
+gate Job's run budget and its fresh-context retries; once no run is left, the
+change cannot start. A case with a ready version keeps it, and the requested
+change is declined (`revision_declined`); any other case commits its blocker
+Case File and closes `closed_blocked` on publication. Either way the live agent
+is told at once, so it never promises a version that is not coming.
 
 ## Restart and reconciliation
 
-Before a service becomes ready after restart, it reconciles inbox/outbox state, Jobs and Queues, leases and heartbeats, session reconnect windows, provider breakers, stale preview routes, and cleanup work. The API and worker on Supabase Compute and the voice agent's sessions on Pipecat Cloud recover from Supabase-backed durable state. No in-memory worker is authoritative. Engineering response happens through code or configuration deployment outside product authority.
+Before becoming ready after restart, a service reconciles inbox and outbox state,
+Jobs and Queues, leases and heartbeats, session reconnect windows, provider
+breakers, stale preview routes, and cleanup work. The API and worker on Supabase
+Compute and the voice agent's sessions on Pipecat Cloud recover from
+Supabase-backed durable state; no in-memory worker is authoritative. Engineering
+responds through code or configuration deployment outside product authority.
 
-Structured logs support operational diagnosis while durable uTrace records remain workflow truth. Overload shedding, incident freezes, and failure drills are outside the demo.
+Structured logs support operational diagnosis; durable uTrace records remain
+workflow truth. Overload shedding, incident freezes, and failure drills are
+outside the demo.

@@ -45,7 +45,6 @@ __all__ = [
     "LinkCode",
     "ProofOfPossession",
     "consume_possession_proof",
-    "link_code_digest",
     "load_installation",
     "mint_link_code",
     "register_installation",
@@ -59,7 +58,6 @@ _log = get_logger(__name__)
 _LINK_CODE_BYTES = 32
 _BASE64URL = r"^[A-Za-z0-9_-]{16,4096}$"
 _EXTENSION_VERSION = r"^[0-9]+(\.[0-9]+){0,3}$"
-_PROTOCOL_VERSION = r"^1\.[0-9]{1,3}$"
 
 _LINKED = "linked"
 _REVOKED = "revoked"
@@ -138,7 +136,7 @@ def validate_extension_redirect_uri(redirect_uri: str) -> str:
     return redirect_uri
 
 
-def link_code_digest(code: str) -> str:
+def _link_code_digest(code: str) -> str:
     """Return the stored digest of an opaque link code."""
     return sha256(code.encode("utf-8")).hexdigest()
 
@@ -170,7 +168,7 @@ async def mint_link_code(
             """,
             (
                 uuid7(),
-                link_code_digest(code),
+                _link_code_digest(code),
                 utrace_user_id,
                 redirect_uri,
                 extension_version,
@@ -445,7 +443,7 @@ async def _claim_link_code(
             where code_digest = %s and consumed_at is null and expires_at > %s
             for update
             """,
-            (link_code_digest(code), now),
+            (_link_code_digest(code), now),
         )
         row = await cur.fetchone()
     if row is None:

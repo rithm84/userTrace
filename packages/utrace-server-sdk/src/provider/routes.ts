@@ -8,8 +8,7 @@
 
 import type { HttpMethod, OperationalNoise, RegisteredRoute } from '../contracts/manifest.js';
 
-/** Outcome of resolving one inbound request path against the manifest. */
-export type RouteResolution =
+type RouteResolution =
   | { readonly kind: 'product'; readonly route: RegisteredRoute }
   | { readonly kind: 'operational_noise' }
   | { readonly kind: 'unregistered' };

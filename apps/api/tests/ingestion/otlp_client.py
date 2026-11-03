@@ -53,7 +53,6 @@ class SpanSpec:
 
 
 def _value(raw: str | int | bool) -> AnyValue:
-    """Convert one attribute value to its OTLP representation."""
     if isinstance(raw, bool):
         return AnyValue(bool_value=raw)
     if isinstance(raw, int):
@@ -69,7 +68,6 @@ def serialize(
     service_version: str,
     environment: str,
 ) -> bytes:
-    """Serialize spans into one OTLP export request body."""
     by_scope: dict[str, list[SpanSpec]] = {}
     for spec in spans:
         by_scope.setdefault(spec.scope_name, []).append(spec)

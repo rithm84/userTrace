@@ -1,0 +1,39 @@
+---
+title: Outreach Offer and credit issuance · an earned credit stays owed until verified
+---
+stateDiagram-v2
+  direction TB
+  state "reserved" as reserved
+  reserved : Full credit held against the ceiling
+  reserved : Return reminders reuse it
+  state "released" as released
+  released : Allowance returned
+  state "earned" as earned
+  earned : One entitlement, owed
+  state "Issuance operation" as issuance {
+    state "pending" as pending
+    state "dispatched" as dispatched
+    dispatched : Command and outbox intent persisted first
+    state "issued" as issued
+    issued : Returned transaction verified
+    state "blocked" as blocked
+    blocked : Earned obligation preserved
+    [*] --> pending
+    pending --> dispatched: mapping rechecked
+    pending --> blocked: billing identity changed, deleted, or ambiguous
+    dispatched --> issued: transaction verified
+    dispatched --> blocked: outcome not established
+    blocked --> issued: reconciliation finds the transaction
+    issued --> [*]
+  }
+  [*] --> reserved: reserved with the invitation intent
+  reserved --> earned: final required participation milestone
+  reserved --> released: not earned, once reconciled
+  earned --> issuance: issuance enqueued
+  released --> [*]
+
+  class reserved async
+  class released neutral
+  class earned,issued outcome
+  class pending,dispatched runtime
+  class blocked external

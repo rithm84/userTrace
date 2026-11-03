@@ -53,7 +53,7 @@ export interface DoorConfig {
   readonly routeContextTtlSeconds: number;
 }
 
-/** Read and validate door configuration. Throws `DoorConfigurationError` when it is unusable. */
+/** Throws `DoorConfigurationError` when the environment does not satisfy its contract. */
 export function readDoorConfig(environment: NodeJS.ProcessEnv): DoorConfig {
   const parsed = environmentSchema.safeParse(environment);
   if (!parsed.success) {

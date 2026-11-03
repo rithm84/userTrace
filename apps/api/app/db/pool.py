@@ -58,7 +58,6 @@ class Database:
         _log.info("database_pool_opened", min_size=self._pool.min_size, max_size=self._pool.max_size)
 
     async def close(self) -> None:
-        """Drain and close the pool."""
         await self._pool.close()
         _log.info("database_pool_closed")
 

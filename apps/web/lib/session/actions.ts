@@ -66,7 +66,6 @@ export async function refreshSessionProjection(
   return run(id, (api) => api.getSessionProjection(id));
 }
 
-/** Submits the participant compatibility preflight this browser collected. */
 export async function submitSessionPreflight(
   sessionId: string,
   report: unknown,
@@ -94,7 +93,6 @@ export async function sendSessionControl(
   return run(id, (api) => api.sendControl(id, parsed));
 }
 
-/** Requests the one-time front-door handoff for the preview tab. */
 export async function openPreviewHandoff(
   sessionId: string,
 ): Promise<ActionResult<PreviewHandoff>> {

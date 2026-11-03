@@ -88,10 +88,6 @@ class RoutingJudgement:
     answers: Mapping[str, JsonValue]
     acceptance: Mapping[str, JsonValue]
 
-    def resolved(self) -> bool:
-        """Return whether every question routing depends on was resolved."""
-        return not self.unresolved
-
 
 type ComposedQuestion = Noul | Choice
 

@@ -14,7 +14,7 @@ import { newUuidV7 } from "../shared/identifiers";
 
 const PROBE_TIMEOUT_MS = 400;
 
-export type ProbeOutcome = Readonly<{
+type ProbeOutcome = Readonly<{
   response: PageProofResponse;
   claims: PageProofClaims;
   documentOrigin: string;
@@ -66,7 +66,7 @@ function pageProofProbe(
   });
 }
 
-/** Returns the SDK's page proof, or null when the document has no uTrace SDK. */
+/** `null` when no uTrace SDK answered, or its proof does not describe the probed document. */
 export async function probeTabForPageProof(tabId: number): Promise<ProbeOutcome | null> {
   const exchangeId = newUuidV7();
   const injections = await chrome.scripting.executeScript({

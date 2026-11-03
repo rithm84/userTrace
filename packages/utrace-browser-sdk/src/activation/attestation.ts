@@ -64,7 +64,7 @@ export const decodeAttestation = (payload: JsonObject): DocumentAttestation => {
   };
 };
 
-export interface AttestationBinding {
+interface AttestationBinding {
   readonly config: BrowserSdkConfig;
   readonly documentOrigin: string;
   readonly documentNonce: string;

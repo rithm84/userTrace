@@ -35,16 +35,12 @@ from app.ids import uuid7
 from app.logging import get_logger
 
 __all__ = [
-    "READINESS_KINDS",
     "READINESS_LIFETIME_SECONDS",
     "KindReadiness",
     "OpenPageReadiness",
     "ReadinessFact",
-    "ReadinessProjection",
-    "current_readiness",
     "open_page_readiness",
     "publish_readiness",
-    "withdraw_readiness",
 ]
 
 _log = get_logger(__name__)
@@ -76,18 +72,6 @@ class ReadinessFact:
     failures: Sequence[Mapping[str, JsonValue]]
 
 
-@dataclass(frozen=True, slots=True)
-class ReadinessProjection:
-    """A committed readiness projection and its monotonic revision."""
-
-    readiness_id: UUID
-    kind: str
-    revision: int
-    ready: bool
-    checked_at: datetime
-    expires_at: datetime
-
-
 async def publish_readiness(
     database: Database,
     *,
@@ -95,7 +79,7 @@ async def publish_readiness(
     activation_id: UUID,
     interview_session_id: UUID,
     fact: ReadinessFact,
-) -> ReadinessProjection:
+) -> None:
     """Commit one readiness projection and append its control-plane fact.
 
     The projection row and the Event are written in the same transaction, so the
@@ -195,41 +179,6 @@ async def publish_readiness(
         revision=revision,
         ready=fact.ready,
     )
-    return ReadinessProjection(
-        readiness_id=readiness_id,
-        kind=fact.kind,
-        revision=revision,
-        ready=fact.ready,
-        checked_at=checked_at,
-        expires_at=expires_at,
-    )
-
-
-async def withdraw_readiness(
-    database: Database,
-    *,
-    client_id: UUID,
-    activation_id: UUID,
-    interview_session_id: UUID,
-    kind: str,
-    failure_code: str,
-    detail: Mapping[str, JsonValue],
-) -> ReadinessProjection:
-    """Remove readiness immediately and say exactly which failure removed it."""
-    return await publish_readiness(
-        database,
-        client_id=client_id,
-        activation_id=activation_id,
-        interview_session_id=interview_session_id,
-        fact=ReadinessFact(
-            kind=kind,
-            ready=False,
-            contributing_resource_ids=(),
-            accepted_watermarks={},
-            probe_id=None,
-            failures=({"code": failure_code, "detail": dict(detail)},),
-        ),
-    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -260,7 +209,6 @@ class OpenPageReadiness:
 
     @property
     def ready(self) -> bool:
-        """Whether every kind is ready for the open page."""
         return all(kind.ready for kind in self.kinds)
 
 
@@ -365,36 +313,4 @@ def _failure_codes(failures: object) -> str:
         return "not ready, with no failure recorded"
     return ", ".join(
         str(failure["code"]) for failure in failures if isinstance(failure, Mapping)
-    )
-
-
-async def current_readiness(
-    database: Database, *, activation_id: UUID, kind: str
-) -> ReadinessProjection | None:
-    """Return the highest-revision projection for one activation and kind."""
-    async with database.connection() as conn, conn.cursor() as cur:
-        await cur.execute(
-            """
-            select id, revision, ready, checked_at, expires_at
-            from public.telemetry_readiness_projections
-            where activation_id = %s and kind = %s
-            order by revision desc
-            limit 1
-            """,
-            (activation_id, kind),
-        )
-        row = await cur.fetchone()
-    if row is None:
-        return None
-    checked_at = row["checked_at"]
-    expires_at = row["expires_at"]
-    if not isinstance(checked_at, datetime) or not isinstance(expires_at, datetime):
-        raise TypeError("a readiness projection has non-timestamp times")
-    return ReadinessProjection(
-        readiness_id=as_uuid(row, "id"),
-        kind=kind,
-        revision=as_int(row, "revision"),
-        ready=as_bool(row, "ready"),
-        checked_at=checked_at,
-        expires_at=expires_at,
     )

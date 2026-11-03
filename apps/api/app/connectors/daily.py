@@ -94,7 +94,6 @@ class DailyRooms:
         )
 
     async def __aenter__(self) -> Self:
-        """Enter the scope whose exit closes the HTTP transport."""
         return self
 
     async def __aexit__(

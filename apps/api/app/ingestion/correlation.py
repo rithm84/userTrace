@@ -10,9 +10,6 @@ Arrival time may rank a diagnostic, but it never establishes causality. Missing
 parentage stays missing: ingestion never creates a synthetic span or parent to
 make a trace look complete.
 
-Ordering authority is, in order: source sequence where defined, explicit span
-parentage or link, paired request identity, and then clock-adjusted time.
-
 Contract: docs/arch-components/telemetry-and-evidence.md#correlation-model
 """
 
@@ -26,7 +23,7 @@ from psycopg.rows import DictRow
 from psycopg.types.json import Jsonb
 
 from app.db.pool import Database
-from app.db.rows import as_int, as_optional_str, as_str, as_uuid
+from app.db.rows import as_optional_str, as_str, as_uuid
 from app.envelope import JsonValue
 from app.ids import uuid7
 from app.ingestion.scheduling import schedule_readiness
@@ -38,7 +35,6 @@ __all__ = [
     "ServerSpanRef",
     "correlate_trace",
     "evaluate_correlation",
-    "ordering_key",
 ]
 
 _log = get_logger(__name__)
@@ -55,16 +51,13 @@ class ServerSpanRef:
     parent_span_id: str | None
     span_kind: str
     link_span_ids: tuple[str, ...]
-    start_time_unix_nano: int
 
 
 @dataclass(frozen=True, slots=True)
 class CorrelationInput:
     """Everything one trace's correlation decision reads. No I/O happens here."""
 
-    trace_id: str
     browser_client_span_ids: frozenset[str]
-    browser_request_ids: frozenset[str]
     server_spans: tuple[ServerSpanRef, ...]
     required_downstream_hops: frozenset[str]
 
@@ -173,29 +166,6 @@ def evaluate_correlation(source: CorrelationInput) -> CorrelationProjection:
     )
 
 
-def ordering_key(
-    *,
-    source_sequence: int | None,
-    parent_depth: int | None,
-    paired_request_id: str | None,
-    clock_adjusted_nanos: int,
-) -> tuple[int, int, int, str, int]:
-    """Return the ordering key ingestion sorts a mixed timeline by.
-
-    The authority order is source sequence where defined, then explicit span
-    parentage, then paired request identity, then clock-adjusted time. Records
-    without an earlier authority sort after the ones that have it, so uTrace never
-    claims a physical total order across frames, services, and workers.
-    """
-    return (
-        0 if source_sequence is not None else 1,
-        source_sequence if source_sequence is not None else 0,
-        parent_depth if parent_depth is not None else 0,
-        paired_request_id if paired_request_id is not None else "",
-        clock_adjusted_nanos,
-    )
-
-
 async def correlate_trace(
     database: Database, *, client_id: UUID, activation_id: UUID, trace_id: str
 ) -> CorrelationProjection:
@@ -209,7 +179,7 @@ async def correlate_trace(
         async with conn.cursor() as cur:
             await cur.execute(
                 """
-                select span_id, browser_request_id, browser_stream_id, occurred_at
+                select span_id, occurred_at
                 from public.browser_observations
                 where client_id = %s and activation_id = %s and trace_id = %s
                   and span_id is not null
@@ -219,9 +189,7 @@ async def correlate_trace(
             browser_rows = await cur.fetchall()
             await cur.execute(
                 """
-                select activations.id as server_activation_id,
-                       spans.span_id, spans.parent_span_id, spans.span_kind,
-                       spans.links, spans.start_time_unix_nano
+                select spans.span_id, spans.parent_span_id, spans.span_kind, spans.links
                 from public.server_spans as spans
                 join public.telemetry_activations as activations
                   on activations.id = spans.activation_id
@@ -236,7 +204,7 @@ async def correlate_trace(
             server_rows = await cur.fetchall()
             await cur.execute(
                 """
-                select interview_session_id, required_hops
+                select interview_session_id
                 from public.telemetry_activations
                 where id = %s
                 """,
@@ -262,14 +230,8 @@ async def correlate_trace(
 
         hops = server_activation["required_hops"] if server_activation is not None else None
         source = CorrelationInput(
-            trace_id=trace_id,
             browser_client_span_ids=frozenset(
                 as_str(row, "span_id") for row in browser_rows
-            ),
-            browser_request_ids=frozenset(
-                value
-                for row in browser_rows
-                if (value := as_optional_str(row, "browser_request_id")) is not None
             ),
             server_spans=tuple(
                 ServerSpanRef(
@@ -281,7 +243,6 @@ async def correlate_trace(
                         for link in (row["links"] if isinstance(row["links"], list) else [])
                         if isinstance(link, dict) and "span_id" in link
                     ),
-                    start_time_unix_nano=as_int(row, "start_time_unix_nano"),
                 )
                 for row in server_rows
             ),

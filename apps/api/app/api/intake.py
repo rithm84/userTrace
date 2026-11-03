@@ -92,7 +92,6 @@ class IntakeItemDetail(BaseModel):
 
 
 def _summary(row: dict[str, object]) -> IntakeItemSummary:
-    """Build one Intake Item summary from its projection row."""
     return IntakeItemSummary(
         id=as_uuid(row, "id"),
         state=as_str(row, "state"),

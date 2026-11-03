@@ -7,7 +7,6 @@ CREATE TABLE "public"."outbox" (
   "enqueued_at"    timestamp with time zone,
   "dispatched_at"  timestamp with time zone,
   "attempts"       integer                  NOT NULL DEFAULT 0,
-  "last_error"     text,
   "schema_version" smallint                 NOT NULL DEFAULT 1,
   "created_at"     timestamp with time zone NOT NULL DEFAULT now(),
   "updated_at"     timestamp with time zone NOT NULL DEFAULT now(),

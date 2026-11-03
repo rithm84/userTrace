@@ -28,7 +28,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 export type RealtimeStatus = "connecting" | "live" | "unavailable";
 
-export type SubscribeParameters = Readonly<{
+type SubscribeParameters = Readonly<{
   sessionId: string;
   onProjection: (projection: SessionProjection) => void;
   onStatus: (status: RealtimeStatus) => void;
@@ -36,7 +36,6 @@ export type SubscribeParameters = Readonly<{
   onJoined: () => void;
 }>;
 
-/** How long a lost channel waits before it joins again. */
 const REJOIN_DELAY_MS = 2_000;
 
 export function subscribeToSession(parameters: SubscribeParameters): () => void {

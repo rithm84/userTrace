@@ -1,5 +1,5 @@
 ---
-title: Implementation · gated attempts, fenced code work
+title: Implementation Attempt · one gate approval, fenced code cycles, one candidate
 ---
 sequenceDiagram
   autonumber
@@ -7,24 +7,27 @@ sequenceDiagram
   participant cp as Implementation controller
   box Vercel Sandbox · fenced by the lease
     participant codex as Codex · GPT-6.1 Sol
-    participant repo as Repository checkout
+    participant ws as Workspace checkout
   end
-  participant pv as Preview Version
+  participant build as Candidate build
 
-  gate->>cp: approved_live<br/>frozen scope + current budgets
-  Note over gate,cp: Dispatch authority covers approved live work only.
-  cp->>cp: atomic commit
-  Note over cp: Attempt + dispatch intent.<br/>One attempt per gate decision, up to the limit.
-  cp->>repo: claim the prepared workspace under the lease
-  loop Each cycle, within scope + execution limits
-    cp->>codex: codex exec · frozen scope + cited files
-    codex->>repo: inspect · scoped search<br/>exact reads of current files
-    codex->>repo: implement · bounded edit
-    codex-->>cp: checkpoint result + artifacts<br/>collected under the lease
-    cp->>repo: format the changed files · required checks<br/>on baseline + candidate, then the scope check
+  gate->>cp: approved_live · frozen scope + budgets
+  cp->>cp: lock the Product Signal, recheck, commit<br/>attempt + dispatch intent atomically
+  cp->>ws: claim the prepared workspace under the lease
+  Note over ws: A later attempt uses a fresh workspace holding<br/>the newest ready Preview Version's files.
+  loop Each cycle, within scope + budgets
+    cp->>codex: codex exec · task + cited files
+    codex->>ws: scoped search, exact reads, bounded edits
+    codex-->>cp: final report · event stream read after the run
+    cp->>ws: format the changed files
+    par Checks
+      cp->>ws: required checks against the baseline · scope check
+    and Build
+      cp->>build: build from the same staged files
+    end
     opt New failure or mechanical violation
       cp-->>codex: correction cycle
     end
   end
-  cp->>pv: publish if ready
-  Note over pv: Immutable checked build.<br/>Separate candidate runtime.
+  cp->>build: accept the candidate, collected under the lease
+  Note over build: Preview Build publishes<br/>the Preview Version.

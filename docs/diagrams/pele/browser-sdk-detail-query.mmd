@@ -1,0 +1,18 @@
+---
+title: Browser SDK · one authorized detail query
+---
+sequenceDiagram
+  autonumber
+  participant model as Voice agent model
+  participant cp as Control plane
+  participant ext as Extension control path
+  participant rt as Bound runtime
+
+  Note over model: Jev may recommend the target and<br/>fields as typed semantic attention.
+  model->>cp: typed detail query
+  Note over cp: Authorizes and records it.
+  cp->>ext: query for the exact bound runtime
+  ext->>rt: query
+  rt-->>ext: redacted result or specific failure
+  ext-->>cp: result
+  cp-->>model: redacted result in interview context

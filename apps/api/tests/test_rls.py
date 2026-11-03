@@ -108,7 +108,6 @@ async def _two_clients(
 async def test_each_client_sees_only_its_own_cases(
     database: Database, settings: Settings, auth_users: dict[str, SignedInUser]
 ) -> None:
-    """A signed-in owner reads their tenant's Product Signals and no others."""
     first, second = await _two_clients(database, auth_users)
 
     owner_a_rows = await _rest(

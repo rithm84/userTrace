@@ -28,7 +28,6 @@ from app.envelope import JsonValue
 from app.evidence.observed_time import SESSION_OBSERVATIONS
 from app.evidence.windows import EvidenceWindow, current_watermarks, load_window
 from app.ingestion.errors import QueryAuthorizationError
-from app.logging import get_logger
 
 __all__ = [
     "QueryScope",
@@ -43,8 +42,6 @@ __all__ = [
     "target_history",
     "trace_with_completeness",
 ]
-
-_log = get_logger(__name__)
 
 #: The purposes a caller may name. A purpose is part of the authorization: a
 #: live-interview read cannot quietly become an evaluation replay.
@@ -173,7 +170,6 @@ def _render(value: object) -> JsonValue:
 
 
 def _session_of(scope: QueryScope, window: EvidenceWindow | None) -> UUID:
-    """Return the exact session the query reads."""
     if window is not None:
         return window.interview_session_id
     if scope.interview_session_id is None:
@@ -208,30 +204,19 @@ async def _result(
     next_cursor = (
         UUID(str(rows[-1]["id"])) if len(rows) == scope.limit and "id" in rows[-1] else None
     )
-    if window is not None:
-        watermarks = window.watermarks
-        return TelemetryQueryResult(
-            shape=shape,
-            rows=projected,
-            next_cursor=next_cursor,
-            accepted_through=watermarks.accepted_through,
-            browser_accepted_through=watermarks.browser_accepted_through,
-            server_accepted_through=watermarks.server_accepted_through,
-            correlation_revision=watermarks.correlation_revision,
-            completeness=completeness,
-            source_classes=tuple(scope.allowed_source_classes),
-        )
-    live = await current_watermarks(
-        conn, interview_session_id=_session_of(scope, window)
+    watermarks = (
+        window.watermarks
+        if window is not None
+        else await current_watermarks(conn, interview_session_id=_session_of(scope, window))
     )
     return TelemetryQueryResult(
         shape=shape,
         rows=projected,
         next_cursor=next_cursor,
-        accepted_through=live.accepted_through,
-        browser_accepted_through=live.browser_accepted_through,
-        server_accepted_through=live.server_accepted_through,
-        correlation_revision=live.correlation_revision,
+        accepted_through=watermarks.accepted_through,
+        browser_accepted_through=watermarks.browser_accepted_through,
+        server_accepted_through=watermarks.server_accepted_through,
+        correlation_revision=watermarks.correlation_revision,
         completeness=completeness,
         source_classes=tuple(scope.allowed_source_classes),
     )

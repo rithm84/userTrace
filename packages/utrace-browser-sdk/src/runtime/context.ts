@@ -39,9 +39,8 @@ export interface RuntimeContext {
   readonly registry: TargetRegistry;
   readonly routes: RouteTemplates;
   readonly trace: TraceCoordinator;
-  /** Current committed route state and its revision. */
+  /** Current committed route state. */
   readonly currentRoute: () => RouteState;
-  readonly routeRevision: () => number;
   /** Whether the current activity is attributed to the user or the agent. */
   readonly actor: () => Actor;
   readonly emit: (payload: ObservationPayload, options: EmitOptions) => void;

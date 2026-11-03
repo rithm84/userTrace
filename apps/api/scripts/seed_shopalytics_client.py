@@ -131,7 +131,6 @@ def _env(name: str) -> str:
 
 
 def _optional_env(name: str) -> str | None:
-    """Return an optional environment variable."""
     value = os.environ.get(name)
     return value if value else None
 
@@ -771,7 +770,6 @@ async def _run() -> int:
 
 
 def main() -> int:
-    """Entry point."""
     try:
         return asyncio.run(_run())
     except SeedError as error:

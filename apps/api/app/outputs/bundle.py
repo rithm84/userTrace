@@ -46,8 +46,6 @@ __all__ = [
 
 
 class _Frozen(BaseModel):
-    """Immutable, closed bundle shape."""
-
     model_config = ConfigDict(frozen=True, extra="forbid")
 
 
@@ -63,7 +61,6 @@ class BundleEvidence(_Frozen):
     body: Mapping[str, object]
 
     def citation(self) -> Citation:
-        """Return this slice as a Case File citation."""
         return Citation(
             evidence_record_id=self.evidence_record_id,
             evidence_class=self.evidence_class,

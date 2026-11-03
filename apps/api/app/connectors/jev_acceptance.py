@@ -93,12 +93,10 @@ class AcceptanceOutcome:
 
 
 def _rejected(rejection: AcceptanceRejection, detail: str) -> AcceptanceOutcome:
-    """Build a single-reason rejection."""
     return AcceptanceOutcome(accepted=False, rejections=(rejection,), detail=detail)
 
 
 def _accepted(detail: str) -> AcceptanceOutcome:
-    """Build an acceptance."""
     return AcceptanceOutcome(accepted=True, rejections=(), detail=detail)
 
 

@@ -15,18 +15,6 @@ const BINDING_OFFER = {
   expires_at: "2026-10-03T09:05:00Z",
 } as const;
 
-/** The same offer as the extension receives it, field for field. */
-const BINDING_OFFER_MESSAGE = {
-  schema_version: 1,
-  offer_token: BINDING_OFFER.offer_token,
-  session_id: BINDING_OFFER.session_id,
-  client_id: BINDING_OFFER.client_id,
-  extension_installation_id: BINDING_OFFER.extension_installation_id,
-  preview_runtime_allocation_id: BINDING_OFFER.preview_runtime_allocation_id,
-  protocol_version: BINDING_OFFER.protocol_version,
-  expires_at: BINDING_OFFER.expires_at,
-} as const;
-
 type Reply = Readonly<{ response?: unknown; lastError?: { message: string } }>;
 
 function stubExtension(reply: Reply | null): ReturnType<typeof vi.fn> {
@@ -90,7 +78,7 @@ describe("session tab to extension messaging", () => {
     expect(sendMessage.mock.calls[0][1]).toEqual({
       type: "utrace_binding_offer",
       session_id: "session-1",
-      binding_offer: BINDING_OFFER_MESSAGE,
+      binding_offer: BINDING_OFFER,
     });
 
     stubExtension({

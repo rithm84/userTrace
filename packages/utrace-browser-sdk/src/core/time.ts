@@ -3,7 +3,7 @@
 import type { BrowserView } from "./dom.js";
 
 export interface Clock {
-  /** RFC 3339 UTC wall time of the current instant. */
+  /** Wall-clock time of the current instant, in epoch milliseconds. */
   readonly wallNowMs: () => number;
   /** Document monotonic performance clock, in fractional milliseconds. */
   readonly monotonicNowMs: () => number;

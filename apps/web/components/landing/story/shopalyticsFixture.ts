@@ -6,9 +6,9 @@
  * Case File never disagree.
  */
 
-export type SurfaceKind = "discord" | "reddit" | "appstore" | "x";
+type SurfaceKind = "discord" | "reddit" | "appstore" | "x";
 
-export type Corroboration = Readonly<{
+type Corroboration = Readonly<{
   kind: SurfaceKind;
   quote: string;
   byline: string;
@@ -22,7 +22,7 @@ export type FilterChip = Readonly<{
   label: string;
 }>;
 
-export type ValidationOutcome = "validated" | "partially validated" | "not validated" | "unclear";
+type ValidationOutcome = "validated" | "partially validated" | "not validated" | "unclear";
 
 export const SHOPALYTICS = Object.freeze({
   client: "Shopalytics",

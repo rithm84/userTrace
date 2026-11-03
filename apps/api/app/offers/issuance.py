@@ -120,7 +120,6 @@ class CreditIssuancePort(Protocol):
 async def load_operation(
     conn: AsyncConnection[DictRow], *, operation_id: UUID
 ) -> IssuanceOperation:
-    """Return one issuance operation."""
     async with conn.cursor() as cur:
         await cur.execute(
             """

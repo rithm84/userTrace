@@ -41,8 +41,8 @@ from app.preview.pool import (
     commit_allocation_transition,
     insert_allocation,
     load_pins,
+    load_runtime_secrets,
     mint_secret,
-    require_current_fencing_token,
     session_allocation_id,
 )
 from app.preview.ports import ObservationReadinessPort
@@ -67,7 +67,7 @@ from app.preview.routing import (
     mint_origin_host,
 )
 from app.preview.runtime import PreviewRuntimeHandle, PreviewRuntimeProvider
-from app.preview.seeding import InstalledDataset, install_dataset, verify_dataset
+from app.preview.seeding import verify_dataset
 from app.preview.teardown import tear_down_allocation
 from app.preview.template import (
     build_runtime_env,
@@ -81,7 +81,6 @@ __all__ = [
     "maintain_warm_pool",
     "prepare_session_preview",
     "provision_warm_runtime",
-    "reseed_allocation",
     "wait_for_health",
     "withheld_reason",
 ]
@@ -89,7 +88,7 @@ __all__ = [
 _log = get_logger(__name__)
 
 # A new version is announced the moment it answers, so the poll is short: a two
-# second poll left the participant waiting up to two seconds after it was up.
+# second poll would leave the participant waiting up to two seconds after it is up.
 _HEALTH_POLL_SECONDS = 0.25
 # A candidate reinstalls the approved dataset at every start, so the window has
 # to cover a full reseed of the fixture, not just a process restart: six minutes.
@@ -445,22 +444,9 @@ async def prepare_session_preview(
             """,
             (origin_host, pins.preview_runtime_allocation_id),
         )
-        await cur.execute(
-            """
-            select handoff_secret, route_context_signing_secret, runtime_expires_at
-            from public.preview_runtime_allocations where id = %s
-            """,
-            (pins.preview_runtime_allocation_id,),
-        )
-        secrets_row = await cur.fetchone()
-    if secrets_row is None:
-        raise GuardRejectedError(
-            machine="preview_runtime_allocation",
-            trigger="prepare_session_preview",
-            reason="the claimed allocation carries no injected runtime secrets",
-        )
-    handoff_secret = str(secrets_row["handoff_secret"])
-    route_secret = str(secrets_row["route_context_signing_secret"])
+    runtime_secrets = await load_runtime_secrets(
+        database, allocation_id=pins.preview_runtime_allocation_id
+    )
 
     handle = await provider.attach(
         runtime_ref=pins.runtime_ref, application_port=pins.application_port
@@ -510,7 +496,7 @@ async def prepare_session_preview(
         public_preview_host=origin_host,
         upstream_port_url=upstream_url,
         application_port=pins.application_port,
-        route_context_signing_secret=route_secret,
+        route_context_signing_secret=runtime_secrets.route_context_signing_secret,
         ttl_seconds=settings.route_ttl_seconds,
     )
     report = await run_session_readiness(
@@ -519,7 +505,7 @@ async def prepare_session_preview(
         recipe=recipe,
         pins=pins,
         seed_target=SeedTarget.BASE,
-        handoff_secret=handoff_secret,
+        handoff_secret=runtime_secrets.handoff_secret,
         gating_probes=template.gating_probes,
         observation_port=observation_port,
         door_claim=(
@@ -549,53 +535,7 @@ async def prepare_session_preview(
     return PreparedSessionPreview(pins=pins, route=route, report=report)
 
 
-async def reseed_allocation(
-    database: Database,
-    *,
-    provider: PreviewRuntimeProvider,
-    allocation_id: UUID,
-    template: RuntimeTemplate,
-    seed_target: SeedTarget,
-) -> InstalledDataset:
-    """Reinstall the approved dataset into a running allocation and re-verify it.
-
-    The Data Seeding Contract permits a bounded fresh reseed when the approved
-    contract already covers the needed records and transforms. It reinstalls the
-    same approved identity — never a wider selection — and the installed manifest
-    is read back independently afterwards, so a drifted dataset is a refusal
-    rather than a quietly different preview.
-
-    Acquiring the allocation first mints a new fencing token, so a worker that
-    still holds the previous one cannot reseed underneath this one.
-    """
-    pins, fencing_token = await acquire_allocation(
-        database, allocation_id=allocation_id
-    )
-    await require_current_fencing_token(
-        database, allocation_id=allocation_id, fencing_token=fencing_token
-    )
-    recipe = await load_recipe(database, template_id=template.id)
-    handle = await provider.attach(
-        runtime_ref=pins.runtime_ref, application_port=pins.application_port
-    )
-    installed = await install_dataset(
-        provider=provider,
-        handle=handle,
-        recipe=recipe,
-        seed=template.seed,
-        seed_target=seed_target,
-    )
-    _log.info(
-        "preview_allocation_reseeded",
-        preview_runtime_allocation_id=str(allocation_id),
-        content_hash=installed.content_hash,
-        seed_target=installed.seed_target.value,
-    )
-    return installed
-
-
 def withheld_reason(report: ReadinessReport) -> str:
-    """Render the gating probes that are withholding readiness."""
     withheld = report.withheld()
     if not withheld:
         return "readiness was withheld without a recorded probe"
@@ -611,7 +551,6 @@ def _facts(
     seed_manifest_matches: bool,
     readiness_admits_traffic: bool,
 ) -> PreviewRuntimeAllocationFacts:
-    """Build allocation facts for a provisioning transition."""
     return PreviewRuntimeAllocationFacts(
         runtime_reachable=runtime_reachable,
         seed_manifest_matches=seed_manifest_matches,

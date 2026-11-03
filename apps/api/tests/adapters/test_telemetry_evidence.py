@@ -20,7 +20,6 @@ from tests.supabase_auth import SignedInUser
 
 
 async def _one_observation(database: Database, *, session: ObservedSession) -> UUID:
-    """Return one committed browser observation to cite."""
     async with database.connection() as conn, conn.cursor() as cur:
         await cur.execute(
             """
@@ -111,7 +110,6 @@ async def test_promoted_telemetry_returns_as_criterion_evidence(
     ingest_websocket_url: str,
     auth_users: dict[str, SignedInUser],
 ) -> None:
-    """A promoted observation is readable through the validation port's query."""
     session = await observe_session(
         telemetry_database,
         settings,
@@ -326,7 +324,6 @@ async def test_a_source_class_the_window_does_not_admit_is_refused(
     ingest_websocket_url: str,
     auth_users: dict[str, SignedInUser],
 ) -> None:
-    """A promotion cannot name a class the window was not opened for."""
     session = await observe_session(
         telemetry_database,
         settings,

@@ -21,7 +21,7 @@ import { BRIDGE_HANDSHAKE_GLOBAL } from "../shared/bridgeHandshake";
 const BRIDGE_FILE = "main-world-bridge.js";
 const CONTENT_FILE = "content.js";
 
-export type SurfaceAttachment = Readonly<{
+type SurfaceAttachment = Readonly<{
   nonce: string;
   sessionId: string;
   documentAttachmentId: string;
@@ -32,13 +32,13 @@ export type SurfaceAttachment = Readonly<{
  * character or control revision that arrives during the injection still
  * reaches the first frame the surface renders.
  */
-export type SurfaceState = Readonly<{
+type SurfaceState = Readonly<{
   projection: CharacterProjectionMessage;
   orb: OrbSettings;
   controls: ControlsState;
 }>;
 
-export type SurfaceOptions = Readonly<{
+type SurfaceOptions = Readonly<{
   onMessage: (tabId: number, message: SurfaceMessage) => void;
   currentState: () => SurfaceState;
 }>;
@@ -55,10 +55,6 @@ export class SurfaceController {
 
   constructor(options: SurfaceOptions) {
     this.options = options;
-  }
-
-  get boundTabId(): number | null {
-    return this.attachment?.tabId ?? null;
   }
 
   /** Injects the bridge and the surface into the freshly bound document. */

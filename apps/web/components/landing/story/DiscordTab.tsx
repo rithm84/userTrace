@@ -11,13 +11,13 @@ import { SHOPALYTICS } from "./shopalyticsFixture";
 import { useTargets } from "./useTargets";
 
 /** The uTrace app posts; the agent introduces itself by name, as the product's agent does. */
-export const REPLY_TEXT = `Thanks, Maya. I'm ${PRODUCT_AGENT.name}, a product agent helping the Shopalytics team. I'll DM you so we can look at that workflow together.`;
-export const DM_TEXT = `Hi Maya, it's ${PRODUCT_AGENT.name}. Could you show me the view you rebuild each Monday? We'll talk inside a prepared Shopalytics preview. Your live store stays untouched.`;
+const REPLY_TEXT = `Thanks, Maya. I'm ${PRODUCT_AGENT.name}, a product agent helping the Shopalytics team. I'll DM you so we can look at that workflow together.`;
+const DM_TEXT = `Hi Maya, it's ${PRODUCT_AGENT.name}. Could you show me the view you rebuild each Monday? We'll talk inside a prepared Shopalytics preview. Your live store stays untouched.`;
 /** The invitation states the Outreach Offer, the moment a reader wonders why Maya would say yes. */
-export const INVITE = Object.freeze({ title: "Let's see your Monday workflow", text: `A short voice interview.\n${SHOPALYTICS.account} gets $${SHOPALYTICS.offer.credit} off its next bill.`, meta: "Private invitation · only for you" });
-export const THANKS_TEXT = "Thanks for walking me through your Monday, Maya. Your saved views are with the Shopalytics team now.";
+const INVITE = Object.freeze({ title: "Let's see your Monday workflow", text: `A short voice interview.\n${SHOPALYTICS.account} gets $${SHOPALYTICS.offer.credit} off its next bill.`, meta: "Private invitation · only for you" });
+const THANKS_TEXT = "Thanks for walking me through your Monday, Maya. Your saved views are with the Shopalytics team now.";
 /** The reward, hinted here; For your users tells the rest. */
-export const CREDIT = Object.freeze({ title: "Interview complete", text: `${SHOPALYTICS.account} gets $${SHOPALYTICS.offer.credit} off its next Shopalytics bill.`, meta: "Applied to the next invoice automatically" });
+const CREDIT = Object.freeze({ title: "Interview complete", text: `${SHOPALYTICS.account} gets $${SHOPALYTICS.offer.credit} off its next Shopalytics bill.`, meta: "Applied to the next invoice automatically" });
 
 const JONAS: Author = { name: "jonas", avatar: { colour: "#5865f2" } };
 /** When things happen in each Discord beat, in ms into the beat. */

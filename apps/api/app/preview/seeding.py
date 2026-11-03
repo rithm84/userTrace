@@ -1,9 +1,8 @@
-"""Dataset installation and identity verification inside a preview runtime.
+"""Dataset identity verification inside a preview runtime.
 
-Preparation follows the approved Data Seeding Contract and verifies the resulting
-dataset. A base runtime carries the dataset the template's image was built with;
-a candidate installs that same approved identity independently, so the two can be
-compared without either being copied from the other.
+A base runtime carries the dataset the template's image was built with; a
+candidate's supervisor installs that same approved identity independently at
+start, so the two can be compared without either being copied from the other.
 
 Verification reads the runtime's own manifest table directly rather than the
 application's health route, so a dataset claim never depends on the surface being
@@ -23,12 +22,11 @@ from app.preview.recipe import TemplateRecipe
 from app.preview.records import SeedIdentity, SeedTarget
 from app.preview.runtime import PreviewRuntimeHandle, PreviewRuntimeProvider
 
-__all__ = ["InstalledDataset", "install_dataset", "read_installed_dataset", "verify_dataset"]
+__all__ = ["InstalledDataset", "read_installed_dataset", "verify_dataset"]
 
 _log = get_logger(__name__)
 
 _FIELD_SEPARATOR = "\x1f"
-_SEED_TIMEOUT_SECONDS = 900
 _READ_TIMEOUT_SECONDS = 120
 
 _MANIFEST_QUERY = (
@@ -50,7 +48,7 @@ class InstalledDataset(BaseModel):
     installed_at: datetime
 
 
-def _psql(recipe: TemplateRecipe, statement: str) -> str:
+def _psql(statement: str) -> str:
     """Render a psql invocation against the runtime's own database.
 
     The schema is read from the runtime's environment rather than assumed, so a
@@ -70,10 +68,9 @@ async def read_installed_dataset(
     handle: PreviewRuntimeHandle,
     recipe: TemplateRecipe,
 ) -> InstalledDataset:
-    """Read the dataset identity the runtime's database records."""
     result = await provider.execute(
         handle=handle,
-        script=_psql(recipe, _MANIFEST_QUERY),
+        script=_psql(_MANIFEST_QUERY),
         working_directory=recipe.application_directory,
         timeout_seconds=_READ_TIMEOUT_SECONDS,
     )
@@ -164,48 +161,3 @@ async def verify_dataset(
     )
     return installed
 
-
-async def install_dataset(
-    *,
-    provider: PreviewRuntimeProvider,
-    handle: PreviewRuntimeHandle,
-    recipe: TemplateRecipe,
-    seed: SeedIdentity,
-    seed_target: SeedTarget,
-) -> InstalledDataset:
-    """Install the approved dataset into the runtime and verify what landed.
-
-    The seeding script regenerates the dataset from its pinned definition,
-    compares the result against the committed manifest, installs it in one
-    transaction, and records the identity. This call runs it and then reads the
-    identity back independently.
-    """
-    script = (
-        f"SHOPALYTICS_{seed_target.value.upper()}_DATABASE_URL=\"$DATABASE_URL\" "
-        f"npm run db:seed:{seed_target.value}"
-    )
-    result = await provider.execute(
-        handle=handle,
-        script=(
-            'export DATABASE_URL="postgres://$POSTGRES_USER@127.0.0.1:5432/$POSTGRES_DB"; '
-            f"{script}"
-        ),
-        working_directory=recipe.application_directory,
-        timeout_seconds=_SEED_TIMEOUT_SECONDS,
-    )
-    if result.exit_code != 0:
-        raise GuardRejectedError(
-            machine="preview_runtime_allocation",
-            trigger="install_dataset",
-            reason=(
-                f"installing the {seed_target.value} dataset failed with exit "
-                f"{result.exit_code}: {result.stdout[-2000:]}"
-            ),
-        )
-    return await verify_dataset(
-        provider=provider,
-        handle=handle,
-        recipe=recipe,
-        seed=seed,
-        expected_target=seed_target,
-    )

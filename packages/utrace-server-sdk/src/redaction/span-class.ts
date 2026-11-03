@@ -25,8 +25,7 @@ export type SpanClass =
   | 'framework_handler'
   | 'product_operation';
 
-/** Classification outcome. */
-export type SpanClassification =
+type SpanClassification =
   | { readonly kind: 'classified'; readonly spanClass: SpanClass }
   | { readonly kind: 'ineligible_scope'; readonly scope: string }
   | { readonly kind: 'unclassified' };
@@ -37,7 +36,6 @@ function hasAttribute(span: ReadableSpan, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(span.attributes, key);
 }
 
-/** Classifies one finished span against the activation's policy. */
 export function classifySpan(span: ReadableSpan, policy: RedactionPolicy): SpanClassification {
   const scope = span.instrumentationScope.name;
   if (policy.suppressedScopes.has(scope)) {

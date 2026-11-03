@@ -1,8 +1,8 @@
 """Observing one running Server SDK from the control plane's durable state.
 
 The control-socket journey asserts on rows, not on the service's own claims, so
-these helpers read the activation, the health reports, the spans, and the
-control commands the journey produced. ``drain_ingestion_jobs`` runs the
+these helpers read the activation, the health reports, the spans, the readiness
+projections, and the control commands the journey produced. ``drain_ingestion_jobs`` runs the
 derivation the ingress path scheduled through the real worker contract, because
 the suite runs no worker process of its own.
 """
@@ -10,8 +10,8 @@ the suite runs no worker process of its own.
 from __future__ import annotations
 
 import asyncio
-import secrets
 from collections.abc import Awaitable, Callable, Mapping
+from dataclasses import dataclass
 from uuid import UUID
 
 import httpx
@@ -19,25 +19,21 @@ import httpx
 from app.db.pool import Database
 from app.execution.handlers import build_handlers
 from app.execution.jobs import claim_job, complete_job_run
-from app.ids import uuid7
 from app.ingestion.jobs import CORRELATE_TRACE, EVALUATE_READINESS
 from app.settings import Settings
-from tests.ingestion.activation_client import activate_document
-from tests.ingestion.browser_client import BrowserExporter, observation
-from tests.ingestion.factories import (
-    POLICY_VERSION,
-    REDACTION_VERSION,
-    PreviewFixture,
-    front_door_credential,
-)
+from tests.evidence.helpers import open_document
+from tests.ingestion.browser_client import baseline_snapshot, observation
+from tests.ingestion.factories import PreviewFixture
 from tests.ingestion.keys import SigningKeys
 from tests.ingestion.server_sdk_harness import APP_PORT, SdkProcess
 
 __all__ = [
     "APP_ORIGIN",
+    "ReadinessRevision",
     "active_server_activation",
     "call_product_route",
     "command_acknowledgement",
+    "current_readiness",
     "drain_ingestion_jobs",
     "issue_command",
     "latest_health",
@@ -98,6 +94,34 @@ async def drain_ingestion_jobs(database: Database) -> int:
         drained += 1
 
 
+@dataclass(frozen=True, slots=True)
+class ReadinessRevision:
+    """The newest readiness projection of one activation and kind."""
+
+    revision: int
+    ready: bool
+
+
+async def current_readiness(
+    database: Database, *, activation_id: UUID, kind: str
+) -> ReadinessRevision | None:
+    """Return the highest-revision readiness projection, or None before the first."""
+    async with database.connection() as conn, conn.cursor() as cur:
+        await cur.execute(
+            """
+            select revision, ready from public.telemetry_readiness_projections
+            where activation_id = %s and kind = %s
+            order by revision desc
+            limit 1
+            """,
+            (activation_id, kind),
+        )
+        row = await cur.fetchone()
+    if row is None:
+        return None
+    return ReadinessRevision(revision=int(str(row["revision"])), ready=row["ready"] is True)
+
+
 async def active_server_activation(
     database: Database, *, preview: PreviewFixture
 ) -> Mapping[str, object] | None:
@@ -128,7 +152,6 @@ async def active_server_activation(
 async def latest_health(
     database: Database, *, activation_id: UUID
 ) -> Mapping[str, object] | None:
-    """Return the newest health report for one activation."""
     async with database.connection() as conn, conn.cursor() as cur:
         await cur.execute(
             """
@@ -142,7 +165,6 @@ async def latest_health(
 
 
 async def span_count(database: Database, *, trace_id: str) -> int:
-    """Return how many canonical server spans one trace has committed."""
     async with database.connection() as conn, conn.cursor() as cur:
         await cur.execute(
             "select count(*) as spans from public.server_spans where trace_id = %s",
@@ -215,76 +237,26 @@ async def send_browser_half(
     client_span_id: str,
 ) -> None:
     """Open a real browser stream and export the CLIENT half of one operation."""
-    document = await activate_document(
+    opened = await open_document(
+        settings,
+        keys,
         ingest_server,
-        service_token=settings.front_door_service_token,
-        session_credential=front_door_credential(settings, preview),
-        public_preview_host=preview.origin_host,
-        document_origin=preview.document_origin,
-        document_nonce=secrets.token_hex(24),
-        sdk_installation_id="shopalytics-browser-sdk",
-        public_key=keys.attestation_public,
-    )
-    attachment = UUID(str(document.attestation["document_attachment_id"]))
-    runtime_id = uuid7()
-    browser_stream_id = uuid7()
-    exporter = BrowserExporter(
         ingest_websocket_url,
-        token=document.token,
-        scope={
-            "client_id": str(preview.case.client_id),
-            "client_user_id": str(preview.case.client_user_id),
-            "customer_account_id": str(preview.case.customer_account_id),
-            "session_id": str(preview.interview_session_id),
-            "preview_environment_id": str(preview.preview_environment_id),
-            "preview_runtime_allocation_id": str(
-                preview.preview_runtime_allocation_id
-            ),
-            "browser_stream_id": str(browser_stream_id),
-            "schema_version": "1",
-            "policy_version": POLICY_VERSION,
-            "redaction_version": REDACTION_VERSION,
-        },
-        browser_stream_id=browser_stream_id,
-        runtime_id=runtime_id,
-        document_attachment_id=attachment,
+        preview=preview,
+        preview_version_id=None,
     )
-    async with exporter:
+    async with opened.exporter as exporter:
         await exporter.open_stream(resume_from=0)
         await exporter.send_batch(
             [
-                observation(
-                    observation_type="baseline.snapshot",
-                    runtime_id=runtime_id,
-                    document_attachment_id=attachment,
-                    source_sequence=1,
-                    export_sequence=1,
-                    payload={
-                        "baseline_id": str(uuid7()),
-                        "reason": "activation",
-                        "route": {
-                            "route_template": "/dashboard/conversion",
-                            "unknown_route": False,
-                            "segment_count": 2,
-                            "has_query": False,
-                            "has_fragment": False,
-                            "params": [],
-                        },
-                        "landmarks": [],
-                        "targets": [],
-                        "surfaces": ["conversion_dashboard"],
-                        "entities": [],
-                        "node_budget_exhausted": False,
-                    },
-                    trace_id=None,
-                    span_id=None,
-                    target_id=None,
-                    occurred_at=None,
+                baseline_snapshot(
+                    runtime_id=opened.runtime_id,
+                    document_attachment_id=opened.document_attachment_id,
                 ),
                 observation(
                     observation_type="request.completed",
-                    runtime_id=runtime_id,
-                    document_attachment_id=attachment,
+                    runtime_id=opened.runtime_id,
+                    document_attachment_id=opened.document_attachment_id,
                     source_sequence=2,
                     export_sequence=2,
                     payload={

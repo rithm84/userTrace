@@ -24,9 +24,9 @@ const FIXTURE_DIR = resolve(here, "../fixture");
 const BUILD_DIR = join(FIXTURE_DIR, "build");
 const CHROME_PATH = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
-export const APP_PORT = 8210;
-export const INGEST_PORT = 8211;
-export const THIRD_PARTY_PORT = 8212;
+const APP_PORT = 8210;
+const INGEST_PORT = 8211;
+const THIRD_PARTY_PORT = 8212;
 
 /** The telemetry credential lifetime a test gets unless it shortens it. */
 export const CREDENTIAL_LIFETIME_MS = 10 * 60_000;
@@ -42,7 +42,7 @@ export interface Harness {
   readonly stop: () => Promise<void>;
 }
 
-export interface HarnessOptions {
+interface HarnessOptions {
   /** Lets a test force baseline chunking by shrinking the per-observation limit. */
   readonly maxObservationBytes: number;
   /** The fixture path to open. `/dashboard/conversions/framed` embeds a child frame. */

@@ -14,6 +14,7 @@ import hashlib
 import hmac
 import json
 from collections.abc import AsyncIterator
+from dataclasses import dataclass
 from uuid import UUID
 
 import httpx
@@ -26,6 +27,7 @@ from utrace_contracts.domain.lifecycle import (
 
 from app.db.pool import Database
 from app.extension.bindings import served_allocation
+from app.ids import uuid7
 from app.main import create_app
 from app.ports import PortRegistry
 from app.preview.pool import mint_secret
@@ -56,23 +58,14 @@ async def client(settings: Settings, database: Database) -> AsyncIterator[httpx.
             yield http
 
 
+@dataclass(frozen=True, slots=True)
 class RoutedSession:
     """A case, its Interview Session, and one committed route revision."""
 
-    __slots__ = ("allocation_id", "case", "route", "session_id")
-
-    def __init__(
-        self,
-        *,
-        case: CaseFixture,
-        session_id: UUID,
-        allocation_id: UUID,
-        route: PreviewRouteRecord,
-    ) -> None:
-        self.case = case
-        self.session_id = session_id
-        self.allocation_id = allocation_id
-        self.route = route
+    case: CaseFixture
+    session_id: UUID
+    allocation_id: UUID
+    route: PreviewRouteRecord
 
 
 async def _routed_session(
@@ -104,8 +97,13 @@ async def _routed_session(
     session_id = await create_interview_session(
         database, case=case, state=InterviewSessionState.LIVE, conversational_ready=True
     )
-    allocation_id = await _bound_allocation(
-        database, case=case, session_id=session_id, template_id=template.id
+    allocation_id = await _allocation(
+        database,
+        case=case,
+        session_id=session_id,
+        template_id=template.id,
+        kind="base",
+        pool_role="session_base",
     )
     route = await commit_route(
         database,
@@ -125,19 +123,6 @@ async def _routed_session(
     )
 
 
-async def _bound_allocation(
-    database: Database, *, case: CaseFixture, session_id: UUID, template_id: UUID
-) -> UUID:
-    return await _allocation(
-        database,
-        case=case,
-        session_id=session_id,
-        template_id=template_id,
-        kind="base",
-        pool_role="session_base",
-    )
-
-
 async def _allocation(
     database: Database,
     *,
@@ -147,8 +132,6 @@ async def _allocation(
     kind: str,
     pool_role: str,
 ) -> UUID:
-    from app.ids import uuid7
-
     allocation_id = uuid7()
     async with database.transaction() as conn, conn.cursor() as cur:
         await cur.execute(
@@ -194,6 +177,19 @@ def _participant(user: SignedInUser) -> dict[str, str]:
     return {"Authorization": f"Bearer {user.access_token}"}
 
 
+async def _exchange(
+    client: httpx.AsyncClient, settings: Settings, *, code: str, host: str
+) -> httpx.Response:
+    return await client.post(
+        f"/v1/preview/handoffs/{code}/exchange",
+        headers=_service(settings),
+        json={
+            "schema_version": "utrace_preview_handoff_exchange_request_v1",
+            "public_preview_host": host,
+        },
+    )
+
+
 async def _claim_code(
     client: httpx.AsyncClient, *, session: RoutedSession, participant: SignedInUser
 ) -> str:
@@ -231,13 +227,8 @@ async def test_the_claim_opens_the_sessions_current_route(
         client, session=session, participant=auth_users["participant"]
     )
 
-    exchanged = await client.post(
-        f"/v1/preview/handoffs/{code}/exchange",
-        headers=_service(settings),
-        json={
-            "schema_version": "utrace_preview_handoff_exchange_request_v1",
-            "public_preview_host": session.route.public_preview_host,
-        },
+    exchanged = await _exchange(
+        client, settings, code=code, host=session.route.public_preview_host
     )
     assert exchanged.status_code == 200, exchanged.text
     body = exchanged.json()
@@ -246,14 +237,7 @@ async def test_the_claim_opens_the_sessions_current_route(
     assert body["public_preview_host"] == session.route.public_preview_host
     credential = body["session_credential"]["value"]
 
-    replayed = await client.post(
-        f"/v1/preview/handoffs/{code}/exchange",
-        headers=_service(settings),
-        json={
-            "schema_version": "utrace_preview_handoff_exchange_request_v1",
-            "public_preview_host": session.route.public_preview_host,
-        },
-    )
+    replayed = await _exchange(client, settings, code=code, host=session.route.public_preview_host)
     assert replayed.status_code == 401
     assert replayed.json() == {
         "schema_version": "utrace_preview_denial_v1",
@@ -377,13 +361,8 @@ async def test_an_advanced_route_supersedes_the_previous_revision(
     code = await _claim_code(
         client, session=session, participant=auth_users["participant"]
     )
-    exchanged = await client.post(
-        f"/v1/preview/handoffs/{code}/exchange",
-        headers=_service(settings),
-        json={
-            "schema_version": "utrace_preview_handoff_exchange_request_v1",
-            "public_preview_host": session.route.public_preview_host,
-        },
+    exchanged = await _exchange(
+        client, settings, code=code, host=session.route.public_preview_host
     )
     credential = exchanged.json()["session_credential"]["value"]
 
@@ -509,13 +488,8 @@ async def test_withdrawn_readiness_and_a_closed_session_are_distinguishable(
     code = await _claim_code(
         client, session=session, participant=auth_users["participant"]
     )
-    exchanged = await client.post(
-        f"/v1/preview/handoffs/{code}/exchange",
-        headers=_service(settings),
-        json={
-            "schema_version": "utrace_preview_handoff_exchange_request_v1",
-            "public_preview_host": session.route.public_preview_host,
-        },
+    exchanged = await _exchange(
+        client, settings, code=code, host=session.route.public_preview_host
     )
     credential = exchanged.json()["session_credential"]["value"]
 

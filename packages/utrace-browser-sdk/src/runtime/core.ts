@@ -13,7 +13,6 @@
  * page.
  */
 
-import type { BrowserSdkConfig } from "../core/config.js";
 import type { BrowserView } from "../core/dom.js";
 import type { RandomSource } from "../core/ids.js";
 import { uuidv7 } from "../core/ids.js";
@@ -52,18 +51,18 @@ import { NO_TARGET_OR_TRACE } from "./context.js";
 import { PerformanceCollector } from "./performance.js";
 
 /** Where the core delivers a finished record. */
-export interface RecordSink {
+interface RecordSink {
   readonly deliver: (record: ExportRecord) => void;
 }
 
 /** Identity of this document's runtime inside the browser stream. */
-export interface CoreIdentity {
+interface CoreIdentity {
   readonly runtime_id: string;
   readonly document_attachment_id: string;
   readonly frame_id: string;
 }
 
-export interface CoreCallbacks {
+interface CoreCallbacks {
   /** Called after a route transition commits, so the owner can checkpoint. */
   readonly onRouteCommitted: () => void;
   /** Called when a record is delivered, so the owner can schedule a flush. */
@@ -80,7 +79,6 @@ export class ObservationCore implements RuntimeContext {
   readonly routes: RouteTemplates;
   readonly trace: TraceCoordinator;
 
-  readonly #config: BrowserSdkConfig;
   readonly #sink: RecordSink;
   readonly #callbacks: CoreCallbacks;
   readonly #taint = new TaintRegistry();
@@ -98,7 +96,6 @@ export class ObservationCore implements RuntimeContext {
     view: BrowserView,
     clock: Clock,
     random: RandomSource,
-    config: BrowserSdkConfig,
     attestation: AttestationResult,
     identity: CoreIdentity,
     sink: RecordSink,
@@ -107,7 +104,6 @@ export class ObservationCore implements RuntimeContext {
     this.view = view;
     this.clock = clock;
     this.random = random;
-    this.#config = config;
     this.#sink = sink;
     this.#callbacks = callbacks;
     this.#identity = identity;
@@ -142,8 +138,6 @@ export class ObservationCore implements RuntimeContext {
   }
 
   currentRoute = (): RouteState => this.#route;
-
-  routeRevision = (): number => this.#routeRevision;
 
   actor = (): Actor => this.#actor;
 
@@ -337,10 +331,6 @@ export class ObservationCore implements RuntimeContext {
   teardown(): void {
     this.stopPeriodicWork();
     this.#hooks.uninstallAll();
-  }
-
-  get schemaVersion(): string {
-    return this.#config.schemaVersion;
   }
 
   #visibility(): VisibilityState {

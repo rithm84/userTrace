@@ -56,6 +56,8 @@ describe("acceptCharacterProjection", () => {
     if (first.kind !== "applied") throw new Error("initial projection was not applied");
     expect(() => acceptCharacterProjection(first.projection, { ...valid, gazeX: 0 }))
       .toThrowError(CharacterProjectionError);
+    expect(() => acceptCharacterProjection(first.projection, { ...valid, gazeX: 0 }))
+      .toThrowError(expect.objectContaining({ code: "conflicting_revision" }));
   });
 
   it.each([
@@ -70,6 +72,8 @@ describe("acceptCharacterProjection", () => {
   ])("rejects invalid projection %o", (candidate) => {
     expect(() => acceptCharacterProjection(null, candidate))
       .toThrowError(CharacterProjectionError);
+    expect(() => acceptCharacterProjection(null, candidate))
+      .toThrowError(expect.objectContaining({ code: "invalid_projection" }));
   });
 
   it("ignores unrelated fields and freezes the accepted projection", () => {
@@ -78,16 +82,6 @@ describe("acceptCharacterProjection", () => {
 
     expect(Object.isFrozen(result.projection)).toBe(true);
     expect("unrelated" in result.projection).toBe(false);
-  });
-
-  it("reports explicit error codes", () => {
-    expect(() => acceptCharacterProjection(null, { state: "idle" })).toThrowError(
-      expect.objectContaining({ code: "invalid_projection" }),
-    );
-    const first = acceptCharacterProjection(null, valid);
-    if (first.kind !== "applied") throw new Error("initial projection was not applied");
-    expect(() => acceptCharacterProjection(first.projection, { ...valid, gazeY: 0 }))
-      .toThrowError(expect.objectContaining({ code: "conflicting_revision" }));
   });
 
   it.each([

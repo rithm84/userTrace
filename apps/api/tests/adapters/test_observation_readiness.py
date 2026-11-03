@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-from uuid import UUID
-
 from app.adapters.observation_readiness import IngestionObservationReadiness
 from app.db.pool import Database
 from app.ids import uuid7
 from app.ingestion.jobs import evaluate_readiness
-from app.ingestion.readiness import withdraw_readiness
-from app.settings import Settings
+from app.ingestion.readiness import ReadinessFact, publish_readiness
+from tests.ingestion.control_observations import current_readiness
 from tests.ingestion.factories import create_preview, start_server_activation
 from tests.ingestion.keys import SigningKeys
 from tests.supabase_auth import SignedInUser
@@ -17,7 +15,6 @@ from tests.supabase_auth import SignedInUser
 
 async def test_an_unobserved_preview_reports_no_activation(
     telemetry_database: Database,
-    settings: Settings,
     auth_users: dict[str, SignedInUser],
 ) -> None:
     """Without a server activation the probe fails, naming what is missing."""
@@ -48,17 +45,15 @@ async def test_an_unobserved_preview_reports_no_activation(
 
 async def test_an_activated_preview_reports_its_entry_token_and_failures(
     telemetry_database: Database,
-    settings: Settings,
     keys: SigningKeys,
     auth_users: dict[str, SignedInUser],
 ) -> None:
-    """The port reports the committed activation and the typed readiness failures."""
     preview = await create_preview(
         telemetry_database,
         name=f"observed-{uuid7().hex[:8]}",
         authorizing_auth_user_id=auth_users["owner_a"].auth_user_id,
     )
-    activation_id, _stream, _token, entry_token = await start_server_activation(
+    activation_id, _stream, _instance, _token, entry_token = await start_server_activation(
         telemetry_database, preview=preview, keys=keys
     )
     port = IngestionObservationReadiness(telemetry_database)
@@ -94,7 +89,6 @@ async def test_an_activated_preview_reports_its_entry_token_and_failures(
 
 async def test_a_withdrawn_projection_is_not_readiness(
     telemetry_database: Database,
-    settings: Settings,
     keys: SigningKeys,
     auth_users: dict[str, SignedInUser],
 ) -> None:
@@ -104,7 +98,7 @@ async def test_a_withdrawn_projection_is_not_readiness(
         name=f"withdrawn-{uuid7().hex[:8]}",
         authorizing_auth_user_id=auth_users["owner_a"].auth_user_id,
     )
-    activation_id, _stream, _token, _entry = await start_server_activation(
+    activation_id, _stream, _instance, _token, _entry = await start_server_activation(
         telemetry_database, preview=preview, keys=keys
     )
     await evaluate_readiness(
@@ -120,15 +114,29 @@ async def test_a_withdrawn_projection_is_not_readiness(
         )
     ).server_ready
 
-    withdrawn = await withdraw_readiness(
+    await publish_readiness(
         telemetry_database,
         client_id=preview.case.client_id,
         activation_id=activation_id,
         interview_session_id=preview.interview_session_id,
-        kind="server",
-        failure_code="ingestion_unavailable",
-        detail={"reason": "durable storage is unavailable"},
+        fact=ReadinessFact(
+            kind="server",
+            ready=False,
+            contributing_resource_ids=(),
+            accepted_watermarks={},
+            probe_id=None,
+            failures=(
+                {
+                    "code": "ingestion_unavailable",
+                    "detail": {"reason": "durable storage is unavailable"},
+                },
+            ),
+        ),
     )
+    withdrawn = await current_readiness(
+        telemetry_database, activation_id=activation_id, kind="server"
+    )
+    assert withdrawn is not None
     assert withdrawn.revision > 1
 
     readiness = await port.readiness(
@@ -141,7 +149,6 @@ async def test_a_withdrawn_projection_is_not_readiness(
 
 async def test_a_stale_projection_never_authorizes_probing(
     telemetry_database: Database,
-    settings: Settings,
     keys: SigningKeys,
     auth_users: dict[str, SignedInUser],
 ) -> None:
@@ -151,7 +158,7 @@ async def test_a_stale_projection_never_authorizes_probing(
         name=f"stale-{uuid7().hex[:8]}",
         authorizing_auth_user_id=auth_users["owner_a"].auth_user_id,
     )
-    activation_id, _stream, _token, _entry = await start_server_activation(
+    activation_id, _stream, _instance, _token, _entry = await start_server_activation(
         telemetry_database, preview=preview, keys=keys
     )
     async with telemetry_database.transaction() as conn, conn.cursor() as cur:
@@ -190,11 +197,9 @@ async def test_a_stale_projection_never_authorizes_probing(
 
 async def test_another_clients_activation_is_never_reported(
     telemetry_database: Database,
-    settings: Settings,
     keys: SigningKeys,
     auth_users: dict[str, SignedInUser],
 ) -> None:
-    """The port refuses to answer across a client boundary."""
     preview = await create_preview(
         telemetry_database,
         name=f"scoped-{uuid7().hex[:8]}",
@@ -213,4 +218,3 @@ async def test_another_clients_activation_is_never_reported(
     )
     assert not activation.activated
     assert activation.preview_entry_token is None
-    assert isinstance(preview.preview_runtime_allocation_id, UUID)

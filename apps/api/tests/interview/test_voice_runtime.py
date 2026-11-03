@@ -15,15 +15,12 @@ from uuid import UUID
 import pytest
 from utrace_contracts.domain.lifecycle import (
     InterviewSessionState,
-    ProductSignalState,
     VoiceConnectionState,
 )
 
-from app.auth.principals import ParticipantPrincipal
 from app.db.pool import Database
 from app.errors import GuardRejectedError
 from app.execution.jobs import claim_job, complete_job_run
-from app.ids import uuid7
 from app.interview.handlers import close_provider_session
 from app.interview.readiness import load_readiness
 from app.interview.reconnect import EXPIRE_RECONNECT_WINDOW
@@ -35,31 +32,9 @@ from app.interview.voice.connections import (
     VOICE_AGENT,
     open_voice_connection,
 )
-from tests.factories import CaseFixture, create_case, create_interview_session
+from tests.factories import CaseFixture, create_interview_session
+from tests.interview.fixtures import interviewing_case, participant_of
 from tests.supabase_auth import SignedInUser
-
-
-def participant_of(case: CaseFixture) -> ParticipantPrincipal:
-    """The originating user's resolved participation identity."""
-    return ParticipantPrincipal(
-        auth_user_id=uuid7(),
-        utrace_user_id=case.utrace_user_id,
-        client_user_id=case.client_user_id,
-        client_id=case.client_id,
-    )
-
-
-async def routed_case(
-    database: Database, auth_users: dict[str, SignedInUser], name: str
-) -> CaseFixture:
-    """One routed Product Signal with its originating participant."""
-    return await create_case(
-        database,
-        name=name,
-        state=ProductSignalState.INTERVIEWING,
-        authorizing_auth_user_id=auth_users["owner_a"].auth_user_id,
-        participant_auth_user_id=None,
-    )
 
 
 async def _connections(database: Database, session_id: UUID) -> list[Mapping[str, object]]:
@@ -101,7 +76,7 @@ def _adapter() -> DailyVoiceAdapter:
 async def test_opening_a_connection_binds_a_private_room_to_the_voice_run(
     database: Database, auth_users: dict[str, SignedInUser]
 ) -> None:
-    case = await routed_case(database, auth_users, "voice-setup")
+    case = await interviewing_case(database, auth_users, "voice-setup")
     session_id = await _preparing_session(database, case)
     async with _adapter() as adapter:
         opened = await open_voice_connection(
@@ -136,7 +111,7 @@ async def test_opening_a_connection_binds_a_private_room_to_the_voice_run(
 async def test_a_second_browser_rejoins_the_call_its_agent_is_still_holding(
     database: Database, auth_users: dict[str, SignedInUser]
 ) -> None:
-    case = await routed_case(database, auth_users, "voice-rejoin")
+    case = await interviewing_case(database, auth_users, "voice-rejoin")
     session_id = await _preparing_session(database, case)
     async with _adapter() as adapter:
         first = await open_voice_connection(
@@ -162,7 +137,7 @@ async def test_a_second_browser_rejoins_the_call_its_agent_is_still_holding(
 async def test_a_call_whose_agent_ended_is_replaced_and_its_room_deleted(
     database: Database, auth_users: dict[str, SignedInUser]
 ) -> None:
-    case = await routed_case(database, auth_users, "voice-replace")
+    case = await interviewing_case(database, auth_users, "voice-replace")
     session_id = await _preparing_session(database, case)
     async with _adapter() as adapter:
         first = await open_voice_connection(
@@ -217,7 +192,7 @@ async def test_a_call_whose_agent_ended_is_replaced_and_its_room_deleted(
 async def test_a_voice_connection_needs_a_preparing_or_live_session(
     database: Database, auth_users: dict[str, SignedInUser]
 ) -> None:
-    case = await routed_case(database, auth_users, "voice-state-guard")
+    case = await interviewing_case(database, auth_users, "voice-state-guard")
     session_id = await create_interview_session(
         database, case=case, state=InterviewSessionState.CLAIMED, conversational_ready=False
     )

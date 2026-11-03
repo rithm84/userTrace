@@ -44,7 +44,6 @@ from app.ingestion.limits import (
 from app.ingestion.never_collect import assert_server_attribute_allowed
 
 __all__ = [
-    "ENVELOPE_HEADER_PREFIX",
     "ExportBatchEnvelope",
     "NormalizedSpan",
     "decode_export_request",

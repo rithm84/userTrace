@@ -38,8 +38,7 @@ import type { ServerSdkFailureInput } from '../errors.js';
 import type { RedactionPolicy } from './policy.js';
 import type { SpanClass } from './span-class.js';
 
-/** Outcome of applying one class's rules. */
-export type ClassRedaction =
+type ClassRedaction =
   | { readonly kind: 'retain'; readonly attributes: Attributes; readonly spanName: string }
   | { readonly kind: 'exclude'; readonly reason: string }
   | { readonly kind: 'fail'; readonly failure: ServerSdkFailureInput };

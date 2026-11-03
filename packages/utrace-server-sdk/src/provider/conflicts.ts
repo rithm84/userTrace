@@ -13,7 +13,7 @@ import { Server as HttpServer } from 'node:http';
 import type { ServerSdkFailureInput } from '../errors.js';
 
 /** One detected conflict, ready to be raised as a typed failure. */
-export type ConflictFinding = ServerSdkFailureInput;
+type ConflictFinding = ServerSdkFailureInput;
 
 /** Environment variables that would configure a non-uTrace exporter. */
 const CONFLICTING_ENVIRONMENT_PREFIXES = [
@@ -59,24 +59,14 @@ export function detectStartupConflicts(
 
   for (const name of Object.keys(environment)) {
     if (CONFLICTING_ENVIRONMENT_PREFIXES.some((prefix) => name.startsWith(prefix))) {
-      findings.push({
-        code: 'duplicate_provider_or_hook',
-        retry: 'never',
-        readiness_consequence: 'fail_stream',
-        detail: { reason: 'conflicting_otel_environment', variable: name },
-      });
+      findings.push(duplicateHook({ reason: 'conflicting_otel_environment', variable: name }));
     }
   }
 
   const nodeOptions = environment['NODE_OPTIONS'] ?? '';
   for (const marker of CONFLICTING_PRELOAD_MARKERS) {
     if (nodeOptions.includes(marker)) {
-      findings.push({
-        code: 'duplicate_provider_or_hook',
-        retry: 'never',
-        readiness_consequence: 'fail_stream',
-        detail: { reason: 'conflicting_preload', marker },
-      });
+      findings.push(duplicateHook({ reason: 'conflicting_preload', marker }));
     }
   }
 

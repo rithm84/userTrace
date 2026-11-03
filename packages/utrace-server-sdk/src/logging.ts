@@ -87,7 +87,6 @@ export class StructuredLogger {
   }
 }
 
-/** Sink writing to the process's standard error stream. */
 export const stderrSink: LogSink = {
   write(record: string): void {
     process.stderr.write(record);

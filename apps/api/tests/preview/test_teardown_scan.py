@@ -50,6 +50,15 @@ async def _scan(database: Database) -> int:
     return int(row["queued"])
 
 
+async def _queued_teardowns(database: Database, client_id: UUID) -> list[object]:
+    async with database.connection() as conn, conn.cursor() as cur:
+        await cur.execute(
+            "select input from public.jobs where job_type = %s and client_id = %s",
+            (TEAR_DOWN_ALLOCATION, client_id),
+        )
+        return [row["input"] for row in await cur.fetchall()]
+
+
 async def test_an_ended_case_queues_one_teardown_per_live_runtime(
     database: Database, auth_users: dict[str, SignedInUser]
 ) -> None:
@@ -150,13 +159,7 @@ async def test_a_retired_templates_unclaimed_warm_runtime_is_torn_down(
         )
 
     assert await _scan(database) == 1
-    async with database.connection() as conn, conn.cursor() as cur:
-        await cur.execute(
-            "select input from public.jobs where job_type = %s and client_id = %s",
-            (TEAR_DOWN_ALLOCATION, case.client_id),
-        )
-        queued = await cur.fetchall()
-    assert [row["input"] for row in queued] == [
+    assert await _queued_teardowns(database, case.client_id) == [
         {"preview_runtime_allocation_id": str(warm), "reason": "template_retired"}
     ]
 
@@ -191,20 +194,15 @@ async def test_a_warm_runtime_near_its_execution_limit_is_replaced(
     )
 
     assert await _scan(database) == 1
+    assert await _queued_teardowns(database, case.client_id) == [
+        {"preview_runtime_allocation_id": str(expiring), "reason": "warm_runtime_expiring"}
+    ]
     async with database.connection() as conn, conn.cursor() as cur:
-        await cur.execute(
-            "select input from public.jobs where job_type = %s and client_id = %s",
-            (TEAR_DOWN_ALLOCATION, case.client_id),
-        )
-        queued = await cur.fetchall()
         await cur.execute(
             "select shortfall from utrace.preview_warm_pool_shortfall() "
             "where preview_runtime_template_id = %s",
             (template.id,),
         )
         shortfall = await cur.fetchone()
-    assert [row["input"] for row in queued] == [
-        {"preview_runtime_allocation_id": str(expiring), "reason": "warm_runtime_expiring"}
-    ]
     # It no longer counts toward the target, so the pool provisions its replacement.
     assert shortfall is not None and shortfall["shortfall"] == 1

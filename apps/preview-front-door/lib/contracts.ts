@@ -23,10 +23,10 @@ const previewHost = z
 export const handoffCodeSchema = z.string().regex(/^[A-Za-z0-9._~-]{24,512}$/);
 
 /** Document nonce minted by the browser SDK bootstrap for one document activation. */
-export const documentNonceSchema = z.string().regex(/^[A-Za-z0-9_-]{16,128}$/);
+const documentNonceSchema = z.string().regex(/^[A-Za-z0-9_-]{16,128}$/);
 
 /** Reasons the control plane may refuse a handoff exchange, a route, or a relay. */
-export const previewDenialReasonSchema = z.enum([
+const previewDenialReasonSchema = z.enum([
   "unknown_host",
   "unknown_handoff_code",
   "handoff_consumed",
@@ -149,7 +149,7 @@ export type RouteContextClaims = z.infer<typeof routeContextClaimsSchema>;
  * A detached Ed25519 signature over a base64url JSON payload. The browser SDK
  * verifies it with a packaged public key; the door only carries it.
  */
-export const signedEnvelopeSchema = z
+const signedEnvelopeSchema = z
   .object({
     algorithm: z.literal("ed25519"),
     key_id: z.string().regex(/^[A-Za-z0-9_.:-]{1,128}$/),

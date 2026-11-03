@@ -70,7 +70,7 @@ const targetQueryFrameSchema = z.strictObject({
   }),
 });
 
-export const resolvedTargetSchema = z.strictObject({
+const resolvedTargetSchema = z.strictObject({
   target_id: opaqueIdSchema,
   target_revision: revisionSchema,
   layout_revision: revisionSchema,
@@ -149,7 +149,7 @@ const pauseNoticeFrameSchema = z.strictObject({
   }),
 });
 
-export const bridgeFrameSchema = z.union([
+const bridgeFrameSchema = z.union([
   pageProofRequestSchema,
   pageProofResponseSchema,
   targetQueryFrameSchema,

@@ -18,7 +18,7 @@ Two rules hold for every port:
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal, Protocol, runtime_checkable
+from typing import Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict
 
@@ -125,8 +125,6 @@ class DirectMessageReceipt(_Frozen):
     sent_at: datetime
 
 
-@runtime_checkable
-@runtime_checkable
 class CustomerSurfacePort(Protocol):
     """Read and private-write access to one configured Customer Surface."""
 

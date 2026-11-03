@@ -138,17 +138,3 @@ def test_failure_message_names_provider_operation_and_disposition() -> None:
     assert failure.category is TechnicalCategory.CONFLICT
     assert failure.retry_advice is RetryAdvice.NEVER
     assert failure.effect_state is EffectState.ABSENT
-
-
-def test_failure_detail_defaults_to_no_parameters_or_body() -> None:
-    detail = FailureDetail(
-        provider="vercel",
-        operation="read_file",
-        category=TechnicalCategory.NOT_FOUND,
-        retry_advice=RetryAdvice.AFTER_CONDITION_CHANGE,
-        effect_state=EffectState.ABSENT,
-        message="file missing",
-    )
-    assert detail.request_parameters == {}
-    assert detail.response_body is None
-    assert detail.status_code is None

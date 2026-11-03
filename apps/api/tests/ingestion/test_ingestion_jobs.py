@@ -9,20 +9,13 @@ from app.db.pool import Database
 from app.execution.handlers import build_handlers
 from app.execution.jobs import claim_job, complete_job_run
 from app.ids import uuid7
-from app.ingestion.jobs import CORRELATE_TRACE, EVALUATE_READINESS
-from app.ingestion.readiness import current_readiness
+from app.ingestion.jobs import EVALUATE_READINESS
 from app.settings import Settings
 from tests.ingestion.activation_client import activate_document
+from tests.ingestion.control_observations import current_readiness
 from tests.ingestion.factories import create_preview, front_door_credential
 from tests.ingestion.keys import SigningKeys
 from tests.supabase_auth import SignedInUser
-
-
-def test_the_ingestion_job_types_are_registered() -> None:
-    """``build_handlers()`` exposes both ingestion job types to the worker."""
-    handlers = build_handlers()
-    assert CORRELATE_TRACE in handlers
-    assert EVALUATE_READINESS in handlers
 
 
 async def test_the_readiness_job_runs_through_the_worker_contract(

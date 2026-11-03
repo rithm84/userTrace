@@ -6,7 +6,7 @@
  * the message, action, and exchange identities it originates.
  */
 
-export class IdentifierError extends Error {
+class IdentifierError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "IdentifierError";
@@ -17,7 +17,7 @@ export class IdentifierError extends Error {
  * Builds a UUIDv7 from an explicit millisecond timestamp and ten random bytes,
  * per RFC 9562 section 5.7.
  */
-export function createUuidV7(epochMilliseconds: number, randomBytes: Uint8Array): string {
+function createUuidV7(epochMilliseconds: number, randomBytes: Uint8Array): string {
   if (!Number.isSafeInteger(epochMilliseconds) || epochMilliseconds < 0) {
     throw new IdentifierError(
       `UUIDv7 needs a non-negative integer timestamp; received ${String(epochMilliseconds)}.`,
@@ -55,12 +55,8 @@ export function newUuidV7(): string {
 }
 
 /** RFC 3339 UTC with millisecond precision, matching the contract pattern. */
-export function timestampOf(epochMilliseconds: number): string {
-  return new Date(epochMilliseconds).toISOString();
-}
-
 export function nowTimestamp(): string {
-  return timestampOf(Date.now());
+  return new Date().toISOString();
 }
 
 export function encodeBase64Url(bytes: Uint8Array): string {

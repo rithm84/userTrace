@@ -84,7 +84,6 @@ _LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "0.0.0.0", "::1"})
 
 
 def _permitted(host: str, permitted_domains: Sequence[str]) -> bool:
-    """Whether the wall's declared domain list covers this host."""
     for raw in permitted_domains:
         domain = raw.lower()
         if domain.startswith("*."):

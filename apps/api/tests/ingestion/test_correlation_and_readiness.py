@@ -13,17 +13,16 @@ from app.db.pool import Database
 from app.ids import uuid7
 from app.ingestion.correlation import correlate_trace
 from app.ingestion.jobs import evaluate_readiness
-from app.ingestion.readiness import current_readiness
 from app.settings import Settings
+from tests.evidence.helpers import open_document
 from tests.ingestion.activation_client import activate_document
-from tests.ingestion.browser_client import BrowserExporter, observation, request_started
+from tests.ingestion.browser_client import baseline_snapshot, observation, request_started
+from tests.ingestion.control_observations import current_readiness
 from tests.ingestion.factories import (
     MANIFEST_VERSION,
     POLICY_VERSION,
-    REDACTION_VERSION,
     SEMANTIC_CONVENTION_VERSION,
     UTRACE_SCHEMA_VERSION,
-    PreviewFixture,
     create_preview,
     front_door_credential,
     start_server_activation,
@@ -47,78 +46,30 @@ async def test_a_real_browser_client_parent_joins_its_server_child_and_database_
         name=f"correlate-{uuid7().hex[:8]}",
         authorizing_auth_user_id=auth_users["owner_a"].auth_user_id,
     )
-    document = await activate_document(
+    opened = await open_document(
+        settings,
+        keys,
         ingest_server,
-        service_token=settings.front_door_service_token,
-        session_credential=front_door_credential(settings, preview),
-        public_preview_host=preview.origin_host,
-        document_origin=preview.document_origin,
-        document_nonce=secrets.token_hex(24),
-        sdk_installation_id="shopalytics-browser-sdk",
-        public_key=keys.attestation_public,
+        ingest_websocket_url,
+        preview=preview,
+        preview_version_id=None,
     )
-    browser_activation_id = UUID(str(document.attestation["attestation_id"]))
-    attachment = UUID(str(document.attestation["document_attachment_id"]))
-    browser_stream_id = uuid7()
-    runtime_id = uuid7()
+    browser_activation_id = opened.activation_id
     trace_id = secrets.token_hex(16)
     client_span_id = secrets.token_hex(8)
 
-    exporter = BrowserExporter(
-        ingest_websocket_url,
-        token=document.token,
-        scope={
-            "client_id": str(preview.case.client_id),
-            "client_user_id": str(preview.case.client_user_id),
-            "customer_account_id": str(preview.case.customer_account_id),
-            "session_id": str(preview.interview_session_id),
-            "preview_environment_id": str(preview.preview_environment_id),
-            "preview_runtime_allocation_id": str(preview.preview_runtime_allocation_id),
-            "browser_stream_id": str(browser_stream_id),
-            "schema_version": "1",
-            "policy_version": POLICY_VERSION,
-            "redaction_version": REDACTION_VERSION,
-        },
-        browser_stream_id=browser_stream_id,
-        runtime_id=runtime_id,
-        document_attachment_id=attachment,
-    )
-    async with exporter:
+    async with opened.exporter as exporter:
         await exporter.open_stream(resume_from=0)
         await exporter.send_batch(
             [
-                observation(
-                    observation_type="baseline.snapshot",
-                    runtime_id=runtime_id,
-                    document_attachment_id=attachment,
-                    source_sequence=1,
-                    export_sequence=1,
-                    payload={
-                        "baseline_id": str(uuid7()),
-                        "reason": "activation",
-                        "route": {
-                            "route_template": "/dashboard/conversion",
-                            "unknown_route": False,
-                            "segment_count": 2,
-                            "has_query": False,
-                            "has_fragment": False,
-                            "params": [],
-                        },
-                        "landmarks": [],
-                        "targets": [],
-                        "surfaces": ["conversion_dashboard"],
-                        "entities": [],
-                        "node_budget_exhausted": False,
-                    },
-                    trace_id=None,
-                    span_id=None,
-                    target_id=None,
-                    occurred_at=None,
+                baseline_snapshot(
+                    runtime_id=opened.runtime_id,
+                    document_attachment_id=opened.document_attachment_id,
                 ),
                 observation(
                     observation_type="request.started",
-                    runtime_id=runtime_id,
-                    document_attachment_id=attachment,
+                    runtime_id=opened.runtime_id,
+                    document_attachment_id=opened.document_attachment_id,
                     source_sequence=2,
                     export_sequence=2,
                     payload=request_started("req_saved_view"),
@@ -131,16 +82,13 @@ async def test_a_real_browser_client_parent_joins_its_server_child_and_database_
             batch_id=None,
         )
 
-    activation_id, server_stream_id, token, _entry = await start_server_activation(
-        telemetry_database, preview=preview, keys=keys
-    )
-    async with telemetry_database.connection() as conn, conn.cursor() as cur:
-        await cur.execute(
-            "select service_instance_id from public.telemetry_activations where id = %s",
-            (activation_id,),
-        )
-        activation_row = await cur.fetchone()
-    assert activation_row is not None
+    (
+        activation_id,
+        server_stream_id,
+        service_instance_id,
+        token,
+        _entry,
+    ) = await start_server_activation(telemetry_database, preview=preview, keys=keys)
 
     server_span_id = secrets.token_hex(8)
     database_span_id = secrets.token_hex(8)
@@ -185,7 +133,7 @@ async def test_a_real_browser_client_parent_joins_its_server_child_and_database_
         token=token,
         activation_id=activation_id,
         server_stream_id=server_stream_id,
-        service_instance_id=UUID(str(activation_row["service_instance_id"])),
+        service_instance_id=service_instance_id,
         batch_sequence=1,
         body=body,
         span_count=2,
@@ -325,78 +273,6 @@ async def test_readiness_revisions_are_monotonic_per_activation(
     )
 
 
-async def _open_document(
-    *,
-    settings: Settings,
-    keys: SigningKeys,
-    ingest_server: str,
-    ingest_websocket_url: str,
-    preview: PreviewFixture,
-) -> tuple[UUID, BrowserExporter]:
-    """Attest one document the participant opened and return its exporter."""
-    document = await activate_document(
-        ingest_server,
-        service_token=settings.front_door_service_token,
-        session_credential=front_door_credential(settings, preview),
-        public_preview_host=preview.origin_host,
-        document_origin=preview.document_origin,
-        document_nonce=secrets.token_hex(24),
-        sdk_installation_id="shopalytics-browser-sdk",
-        public_key=keys.attestation_public,
-    )
-    browser_stream_id = uuid7()
-    return UUID(str(document.attestation["attestation_id"])), BrowserExporter(
-        ingest_websocket_url,
-        token=document.token,
-        scope={
-            "client_id": str(preview.case.client_id),
-            "client_user_id": str(preview.case.client_user_id),
-            "customer_account_id": str(preview.case.customer_account_id),
-            "session_id": str(preview.interview_session_id),
-            "preview_environment_id": str(preview.preview_environment_id),
-            "preview_runtime_allocation_id": str(preview.preview_runtime_allocation_id),
-            "browser_stream_id": str(browser_stream_id),
-            "schema_version": "1",
-            "policy_version": POLICY_VERSION,
-            "redaction_version": REDACTION_VERSION,
-        },
-        browser_stream_id=browser_stream_id,
-        runtime_id=uuid7(),
-        document_attachment_id=UUID(str(document.attestation["document_attachment_id"])),
-    )
-
-
-def _baseline(exporter: BrowserExporter) -> dict[str, object]:
-    return observation(
-        observation_type="baseline.snapshot",
-        runtime_id=exporter.runtime_id,
-        document_attachment_id=exporter.document_attachment_id,
-        source_sequence=1,
-        export_sequence=1,
-        payload={
-            "baseline_id": str(uuid7()),
-            "reason": "activation",
-            "route": {
-                "route_template": "/dashboard/conversion",
-                "unknown_route": False,
-                "segment_count": 2,
-                "has_query": False,
-                "has_fragment": False,
-                "params": [],
-            },
-            "landmarks": [],
-            "targets": [],
-            "surfaces": ["conversion_dashboard"],
-            "entities": [],
-            "node_budget_exhausted": False,
-        },
-        trace_id=None,
-        span_id=None,
-        target_id=None,
-        occurred_at=None,
-    )
-
-
 async def test_readiness_follows_the_current_document_and_its_complete_trace(
     telemetry_database: Database,
     settings: Settings,
@@ -411,21 +287,31 @@ async def test_readiness_follows_the_current_document_and_its_complete_trace(
         name=f"current-document-{uuid7().hex[:8]}",
         authorizing_auth_user_id=auth_users["owner_a"].auth_user_id,
     )
-    open_document = partial(
-        _open_document,
-        settings=settings,
-        keys=keys,
-        ingest_server=ingest_server,
-        ingest_websocket_url=ingest_websocket_url,
+    open_page = partial(
+        open_document,
+        settings,
+        keys,
+        ingest_server,
+        ingest_websocket_url,
         preview=preview,
+        preview_version_id=None,
     )
-    _, earlier = await open_document()
-    async with earlier:
+    async with (await open_page()).exporter as earlier:
         await earlier.open_stream(resume_from=0)
-        await earlier.send_batch([_baseline(earlier)], batch_id=None)
+        await earlier.send_batch(
+            [
+                baseline_snapshot(
+                    runtime_id=earlier.runtime_id,
+                    document_attachment_id=earlier.document_attachment_id,
+                )
+            ],
+            batch_id=None,
+        )
         await earlier.end_stream(reason="pagehide", terminal=1)
 
-    current_activation_id, current = await open_document()
+    current_page = await open_page()
+    current_activation_id = current_page.activation_id
+    current = current_page.exporter
     # The data request joins every required hop; the page load after it reaches
     # the server alone, as a product page that reads no data does.
     traces = {"data_request": secrets.token_hex(16), "page_load": secrets.token_hex(16)}
@@ -434,7 +320,10 @@ async def test_readiness_follows_the_current_document_and_its_complete_trace(
         await current.open_stream(resume_from=0)
         await current.send_batch(
             [
-                _baseline(current),
+                baseline_snapshot(
+                    runtime_id=current.runtime_id,
+                    document_attachment_id=current.document_attachment_id,
+                ),
                 *(
                     observation(
                         observation_type="request.started",
@@ -454,16 +343,13 @@ async def test_readiness_follows_the_current_document_and_its_complete_trace(
             batch_id=None,
         )
 
-    activation_id, server_stream_id, token, _entry = await start_server_activation(
-        telemetry_database, preview=preview, keys=keys
-    )
-    async with telemetry_database.connection() as conn, conn.cursor() as cur:
-        await cur.execute(
-            "select service_instance_id from public.telemetry_activations where id = %s",
-            (activation_id,),
-        )
-        activation_row = await cur.fetchone()
-    assert activation_row is not None
+    (
+        activation_id,
+        server_stream_id,
+        service_instance_id,
+        token,
+        _entry,
+    ) = await start_server_activation(telemetry_database, preview=preview, keys=keys)
     start = time.time_ns()
     server_spans = {name: secrets.token_hex(8) for name in traces}
     spans = [
@@ -502,7 +388,7 @@ async def test_readiness_follows_the_current_document_and_its_complete_trace(
         token=token,
         activation_id=activation_id,
         server_stream_id=server_stream_id,
-        service_instance_id=UUID(str(activation_row["service_instance_id"])),
+        service_instance_id=service_instance_id,
         batch_sequence=1,
         body=serialize(
             spans,

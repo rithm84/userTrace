@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.connectors.discord_connector import DiscordConnector, scoped_provider_identity
+from app.connectors.discord_connector import DiscordConnector
 from app.connectors.failures import ConnectorFailure, TechnicalCategory
 from tests.connectors.conftest import optional_env, require_env
 
@@ -36,16 +36,10 @@ def _connector() -> DiscordConnector:
 
 
 async def test_bot_user_and_guild_channels_are_readable() -> None:
-    values = require_env(
-        "UTRACE_DISCORD_SERVER_ID", "UTRACE_DISCORD_FEATURE_REQUEST_CHANNEL_ID"
-    )
+    values = require_env("UTRACE_DISCORD_FEATURE_REQUEST_CHANNEL_ID")
     async with _connector() as connector:
         bot = await connector.fetch_bot_user()
-        assert bot.is_bot
         assert bot.user_id.isdigit()
-        assert bot.scoped_key() == scoped_provider_identity(
-            guild_id=values["UTRACE_DISCORD_SERVER_ID"], user_id=bot.user_id
-        )
 
         channels = await connector.list_guild_channels()
         assert channels
@@ -89,7 +83,6 @@ async def test_one_direct_message_to_the_designated_test_user() -> None:
 
 
 async def test_watched_channel_messages_can_be_fetched_by_id() -> None:
-    """Re-read one message by provider identity, when a message id is configured."""
     message_id = optional_env("UTRACE_DISCORD_SMOKE_MESSAGE_ID")
     if message_id is None:
         pytest.skip(

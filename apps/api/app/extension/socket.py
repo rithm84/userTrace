@@ -26,6 +26,7 @@ revision the extension already holds is never sent twice on one connection.
 
 import asyncio
 import json
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -337,7 +338,11 @@ class ExtensionControlSocket:
                 "the recovery request names a different installation",
             )
         if frame.payload.protocol_version not in self._deps.supported_protocol_versions:
-            await self._send_unsequenced_close("unsupported_protocol_version")
+            # Closed without a frame, since the extension cannot accept one in a
+            # protocol version it does not share.
+            await self._close(
+                code=_CLOSE_POLICY_VIOLATION, reason="unsupported_protocol_version"
+            )
             return
         resume_from = frame.payload.resume_from_sequence
         superseded = await self._require_stream().truncate(resume_from=resume_from)
@@ -689,10 +694,6 @@ class ExtensionControlSocket:
             self._closed = True
             await self._socket.close(code=code, reason=reason[:120])
 
-    async def _send_unsequenced_close(self, reason: str) -> None:
-        """Close the socket without sending a frame the extension cannot accept."""
-        await self._close(code=_CLOSE_POLICY_VIOLATION, reason=reason)
-
     async def _receive(self) -> OutboundFrame:
         """Read and validate the next frame the extension sent."""
         text = await self._socket.receive_text()
@@ -766,7 +767,6 @@ class ExtensionControlSocket:
         )
 
     async def _client_for_session(self, session_id: UUID) -> UUID:
-        """Return the client that owns one Interview Session."""
         async with self._deps.database.connection() as conn, conn.cursor() as cur:
             await cur.execute(
                 "select client_id from public.interview_sessions where id = %s",
@@ -778,7 +778,6 @@ class ExtensionControlSocket:
         return as_uuid(row, "client_id")
 
     async def _client_for_binding(self, binding_id: UUID) -> UUID:
-        """Return the client that owns one binding."""
         async with self._deps.database.connection() as conn, conn.cursor() as cur:
             await cur.execute(
                 "select client_id from public.extension_bindings where id = %s",
@@ -890,15 +889,5 @@ def _reason(error: Exception) -> str:
 
 
 def _reason_code(error: Exception) -> str:
-    """Return the reason code a refused control action reports."""
-    return _snake(type(error).__name__)
-
-
-def _snake(name: str) -> str:
-    """Render a class name as the protocol's lowercase reason-code form."""
-    letters: list[str] = []
-    for index, character in enumerate(name):
-        if character.isupper() and index:
-            letters.append("_")
-        letters.append(character.lower())
-    return "".join(letters)[:64]
+    """Render the error's class name as the protocol's lowercase reason-code form."""
+    return re.sub(r"(?<!^)(?=[A-Z])", "_", type(error).__name__).lower()[:64]

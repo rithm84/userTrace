@@ -22,7 +22,7 @@ function repositoryRoot(): string {
 }
 
 /** Reads `UTRACE_DATABASE_URL` from the worktree's `.env.local`. */
-export function databaseUrl(): string {
+function databaseUrl(): string {
   const path = join(repositoryRoot(), '.env.local');
   const contents = readFileSync(path, 'utf8');
   for (const line of contents.split('\n')) {

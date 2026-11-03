@@ -14,10 +14,6 @@ the stronger proof; until then the record says which path answered.
 
 from __future__ import annotations
 
-import base64
-import hashlib
-import hmac
-import json
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -29,8 +25,8 @@ from psycopg.types.json import Jsonb
 from app.db.pool import Database
 from app.ids import uuid7
 from app.logging import get_logger
-from app.preview.handoff import mint_front_door_claim, mint_product_handoff
-from app.preview.ports import ACTIVATION_PORT_OWNER, ObservationReadinessPort
+from app.preview.handoff import mint_front_door_claim, mint_product_handoff, sign_v1_envelope
+from app.preview.ports import ObservationReadinessPort
 from app.preview.recipe import TemplateRecipe
 from app.preview.records import (
     AllocationPins,
@@ -44,9 +40,6 @@ from app.preview.records import (
 from app.preview.routing import BASE_PREVIEW_VERSION_ID
 
 __all__ = [
-    "OBSERVATION_PROBES",
-    "PROVISIONING_PROBES",
-    "SESSION_PROBES",
     "DoorClaim",
     "DoorEntryError",
     "ProbeTarget",
@@ -54,7 +47,6 @@ __all__ = [
     "record_readiness",
     "route_context_token",
     "run_provisioning_readiness",
-    "run_session_observation",
     "run_session_readiness",
 ]
 
@@ -66,7 +58,6 @@ ROUTE_CONTEXT_SCHEMA_VERSION = "utrace_preview_route_v1"
 #: Its absence on a refusal says the request never reached the runtime, so a
 #: provider hop is distinguishable from the product's middleware without guessing.
 PREVIEW_GATE_HEADER = "x-utrace-preview-gate"
-_TOKEN_VERSION = "v1"
 _PRODUCT_HANDOFF_LIFETIME_SECONDS = 60
 _ROUTE_CONTEXT_LIFETIME_SECONDS = 60
 _DOOR_CLAIM_LIFETIME_SECONDS = 60
@@ -122,16 +113,6 @@ PROVISIONING_PROBES: tuple[ReadinessProbe, ...] = (
     ReadinessProbe.SIDE_EFFECT_NEUTERING,
 )
 
-#: The probes only the participant's own traffic can satisfy. A browser stream
-#: and a joined trace exist once the participant has opened the routed origin,
-#: which is necessarily after the route that carries them was committed, so
-#: these are answered again by ``run_session_observation`` rather than gating
-#: the commit that makes them reachable.
-OBSERVATION_PROBES: tuple[ReadinessProbe, ...] = (
-    ReadinessProbe.BROWSER_OBSERVATION,
-    ReadinessProbe.TRACE_CORRELATION,
-)
-
 SESSION_PROBES: tuple[ReadinessProbe, ...] = (
     ReadinessProbe.SERVICE_HEALTH,
     ReadinessProbe.DATA_IDENTITY,
@@ -148,24 +129,18 @@ SESSION_PROBES: tuple[ReadinessProbe, ...] = (
 type ProbeDetail = Mapping[str, str | int | bool | None]
 
 
-def _base64url(raw: bytes) -> str:
-    return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
-
-
 def route_context_token(
     *, record: PreviewRouteRecord, signing_secret: str, lifetime_seconds: int
 ) -> str:
     """Sign the route context the front door attaches to every forwarded request.
 
-    The envelope and claim set are the runtime verifier's, not this module's:
-    ``v1.<base64url payload>.<base64url HMAC-SHA256 signature>`` over the encoded
-    payload bytes exactly as transmitted.
+    The envelope and claim set are the runtime verifier's, not this module's.
     """
     issued_at = datetime.now(tz=UTC)
     expires_at = min(
         record.expires_at, issued_at + timedelta(seconds=lifetime_seconds)
     )
-    claims = {
+    claims: dict[str, str | int] = {
         "schema_version": ROUTE_CONTEXT_SCHEMA_VERSION,
         "preview_route_id": str(record.preview_route_id),
         "client_id": str(record.client_id),
@@ -177,13 +152,7 @@ def route_context_token(
         "issued_at": issued_at.isoformat(timespec="milliseconds"),
         "expires_at": expires_at.isoformat(timespec="milliseconds"),
     }
-    payload = _base64url(json.dumps(claims, separators=(",", ":")).encode("utf-8"))
-    signature = _base64url(
-        hmac.new(
-            signing_secret.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256
-        ).digest()
-    )
-    return f"{_TOKEN_VERSION}.{payload}.{signature}"
+    return sign_v1_envelope(claims=claims, secret=signing_secret)
 
 
 @dataclass(frozen=True, slots=True)
@@ -203,7 +172,6 @@ class ProbeTarget:
     public_path: bool
 
     def headers(self, extra: Mapping[str, str]) -> dict[str, str]:
-        """Build the request headers for one probe."""
         headers = dict(extra)
         if self.route_context is not None and not self.public_path:
             # The door sets its own route context and strips any caller-supplied copy.
@@ -211,14 +179,12 @@ class ProbeTarget:
         return headers
 
     def url(self, path: str) -> str:
-        """Point the target's base URL at one path."""
         return f"{self.base_url.rstrip('/')}{path}"
 
 
 def upstream_target(
     *, record: PreviewRouteRecord, signing_secret: str, public_path_enabled: bool
 ) -> ProbeTarget:
-    """Build the probe target for one committed route revision."""
     if public_path_enabled:
         return ProbeTarget(
             base_url=f"https://{record.public_preview_host}",
@@ -471,7 +437,7 @@ async def _sign_in_once(
 
 
 async def _probe_observation(
-    port: ObservationReadinessPort | None,
+    port: ObservationReadinessPort,
     *,
     client_id: UUID,
     interview_session_id: UUID,
@@ -490,25 +456,6 @@ async def _probe_observation(
     correlation claim without a ready server stream would assert a join nobody
     observed.
     """
-    if port is None:
-        blocked = {
-            "reason": "no observation readiness adapter is installed",
-            "owning_workstream": ACTIVATION_PORT_OWNER,
-        }
-        return (
-            (
-                _result(
-                    ReadinessProbe.SERVER_SDK_ACTIVATION, ReadinessOutcome.BLOCKED, blocked
-                ),
-                _result(
-                    ReadinessProbe.BROWSER_OBSERVATION, ReadinessOutcome.BLOCKED, blocked
-                ),
-                _result(
-                    ReadinessProbe.TRACE_CORRELATION, ReadinessOutcome.BLOCKED, blocked
-                ),
-            ),
-            None,
-        )
     activation = await port.activation(
         client_id=client_id,
         interview_session_id=interview_session_id,
@@ -610,7 +557,7 @@ async def run_session_readiness(
     seed_target: SeedTarget,
     handoff_secret: str,
     gating_probes: Sequence[ReadinessProbe],
-    observation_port: ObservationReadinessPort | None,
+    observation_port: ObservationReadinessPort,
     door_claim: DoorClaim | None,
 ) -> ReadinessReport:
     """Probe a committed route revision end to end before it may carry traffic.
@@ -664,44 +611,6 @@ async def run_session_readiness(
     )
     _log.info(
         "preview_session_readiness",
-        preview_runtime_allocation_id=str(record.preview_runtime_allocation_id),
-        route_revision=record.route_revision,
-        ready=report.ready,
-        withheld=[result.probe.value for result in report.withheld()],
-    )
-    return report
-
-
-async def run_session_observation(
-    *,
-    record: PreviewRouteRecord,
-    observation_port: ObservationReadinessPort,
-) -> ReadinessReport:
-    """Answer the observation probes again for a route that already carries traffic.
-
-    The Server SDK activates when the runtime is prepared, but the browser and
-    correlation answers only exist once the participant's browser has reached
-    the routed origin and its telemetry has joined the server's. This re-runs
-    all three against the current route and gates on every one of them, so the
-    Interview Session's observation readiness is a recorded observation rather
-    than an assumption carried over from commit time.
-    """
-    results, entry_token = await _probe_observation(
-        observation_port,
-        client_id=record.client_id,
-        interview_session_id=record.interview_session_id,
-        preview_runtime_allocation_id=record.preview_runtime_allocation_id,
-    )
-    report = ReadinessReport(
-        preview_runtime_allocation_id=record.preview_runtime_allocation_id,
-        preview_version_id=record.preview_version_id,
-        route_revision=record.route_revision,
-        results=results,
-        gating_probes=(ReadinessProbe.SERVER_SDK_ACTIVATION, *OBSERVATION_PROBES),
-        preview_entry_token=entry_token,
-    )
-    _log.info(
-        "preview_session_observation",
         preview_runtime_allocation_id=str(record.preview_runtime_allocation_id),
         route_revision=record.route_revision,
         ready=report.ready,

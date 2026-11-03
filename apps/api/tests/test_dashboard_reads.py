@@ -35,7 +35,6 @@ from app.db.pool import Database
 from app.envelope import Actor, AuditIntent, EventAppend, StreamRef
 from app.ids import uuid7
 from app.main import create_app
-from app.outreach.invitations import link_supersession, revoke_live_invitation
 from app.ports import PortRegistry
 from app.settings import Settings
 from tests.factories import (
@@ -469,10 +468,11 @@ async def test_a_case_reports_its_outreach_attempts_and_their_invitations(
         bound_auth_user_id=auth_users["participant"].auth_user_id,
         expires_in_seconds=-60,
     )
-    async with database.transaction() as conn:
-        assert await revoke_live_invitation(
-            conn, product_signal_id=case.product_signal_id
-        ) == revoked_id
+    async with database.transaction() as conn, conn.cursor() as cur:
+        await cur.execute(
+            "update public.invitations set revoked_at = now(), updated_at = now() where id = %s",
+            (revoked_id,),
+        )
     claimed_id = await create_invitation(
         database,
         case=case,
@@ -485,8 +485,10 @@ async def test_a_case_reports_its_outreach_attempts_and_their_invitations(
         database, case=case, state=InterviewSessionState.LIVE, conversational_ready=True
     )
     async with database.transaction() as conn, conn.cursor() as cur:
-        await link_supersession(
-            conn, previous_id=revoked_id, replacement_id=claimed_id
+        await cur.execute(
+            "update public.invitations set superseded_by_id = %s, updated_at = now() "
+            "where id = %s",
+            (claimed_id, revoked_id),
         )
         await cur.execute(
             "update public.invitations set claimed_at = now(), interview_session_id = %s "

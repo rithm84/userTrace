@@ -12,9 +12,8 @@ accepted as a parent only on a request that already entered the authenticated
 active preview, which the preview front door proves by attaching that token in
 the ``x-utrace-preview-entry`` header.
 
-The control WebSocket (`app.ingestion.control_protocol`) is the live half; this
-module is the durable half it calls: creating an activation, rotating a credential, and
-verifying the signed instrumentation manifest.
+The control WebSocket (`app.ingestion.control_channel`) is the live half; this
+module is the durable half it calls.
 
 Contract: docs/arch-components/server-sdk.md#configuration-identity-and-credentials
 """

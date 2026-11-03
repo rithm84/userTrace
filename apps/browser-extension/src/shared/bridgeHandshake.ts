@@ -11,7 +11,7 @@
 export const BRIDGE_HANDSHAKE_GLOBAL = "__utraceBridgeHandshake";
 const ATTACH_KIND = "utrace.bridge.attach";
 
-export type BridgeAttachMessage = Readonly<{ kind: typeof ATTACH_KIND; nonce: string }>;
+type BridgeAttachMessage = Readonly<{ kind: typeof ATTACH_KIND; nonce: string }>;
 
 export function createAttachMessage(nonce: string): BridgeAttachMessage {
   return { kind: ATTACH_KIND, nonce };

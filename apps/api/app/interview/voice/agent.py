@@ -29,7 +29,6 @@ from datetime import UTC, datetime, timedelta
 from typing import Final
 from uuid import UUID
 
-from pipecat.adapters.schemas.function_schema import FunctionSchema
 from pipecat.adapters.schemas.tools_schema import ToolsSchema
 from pipecat.frames.frames import InterruptionWorkerFrame
 from pipecat.pipeline.pipeline import Pipeline
@@ -83,6 +82,7 @@ from app.interview.voice.cues import (
     announce_validation_outcome,
     apply_controls,
     begin_validation_when_ready,
+    implementation_progress,
     prompt_open_preview,
 )
 from app.interview.voice.instructions import session_instructions
@@ -285,17 +285,7 @@ async def run_voice_agent(
         messages=await conversation_so_far(
             database, subject=subject, limit=interview.recent_conversation_fragments
         ),
-        tools=ToolsSchema(
-            standard_tools=[
-                FunctionSchema(
-                    name=tool.name,
-                    description=tool.description,
-                    properties=dict(tool.parameters["properties"]),  # type: ignore[call-overload]
-                    required=list(tool.parameters["required"]),  # type: ignore[call-overload]
-                )
-                for tool in TOOL_DEFINITIONS
-            ]
-        ),
+        tools=ToolsSchema(standard_tools=list(TOOL_DEFINITIONS)),
     )
     strategies = EagerUserTurnStrategies()
     strategies.start = [BargeInStrategy(spoken=spoken, near_end=near_end)]
@@ -306,6 +296,9 @@ async def run_voice_agent(
 
     async def read_screen() -> Screen:
         agreed = await agreed_change(database, interview_session_id=subject.interview_session_id)
+        progress = await implementation_progress(
+            database, interview_session_id=subject.interview_session_id
+        )
         return Screen(
             targets=await judge.current_targets(subject=subject.voice()),
             agreed=agreed,
@@ -314,7 +307,7 @@ async def run_voice_agent(
                 if agreed
                 else ()
             ),
-            progress=await _implementation_progress(database, subject=subject),
+            progress=None if progress == "not_started" else progress_in_words(progress),
         )
 
     async def circle(target: RegisteredTarget) -> None:
@@ -653,19 +646,6 @@ async def _tool_context(
         bundle=bundle,
         observation_window_seconds=_OBSERVATION_WINDOW_SECONDS,
     )
-
-
-async def _implementation_progress(database: Database, *, subject: AgentSubject) -> str | None:
-    async with database.connection() as conn, conn.cursor() as cur:
-        await cur.execute(
-            "select implementation_progress from public.interview_sessions where id = %s",
-            (subject.interview_session_id,),
-        )
-        row = await cur.fetchone()
-    if row is None:
-        raise AggregateNotFoundError("interview_sessions", subject.interview_session_id)
-    progress = as_str(row, "implementation_progress")
-    return None if progress == "not_started" else progress_in_words(progress)
 
 
 async def _opening_cue(database: Database, *, interview_session_id: UUID) -> str:

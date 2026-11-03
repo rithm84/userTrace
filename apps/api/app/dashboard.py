@@ -1,6 +1,6 @@
 """The authenticated dashboard's read projections.
 
-[Client outputs](../../../docs/arch-components/client-outputs.md#full-client-dashboard)
+[Client outputs](../../../docs/arch-components/client-outputs.md#client-dashboard)
 gives the dashboard authorized projections and configuration status, never model
 reasoning, raw telemetry, or lifecycle-editing authority. These are the reads the
 kernel's durable records do not already answer: the established concern, the

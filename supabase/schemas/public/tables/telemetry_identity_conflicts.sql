@@ -8,12 +8,10 @@ CREATE TABLE "public"."telemetry_identity_conflicts" (
   "first_content_sha256"             text                     NOT NULL,
   "conflicting_content_sha256"       text                     NOT NULL,
   "first_ingestion_receipt_id"       uuid                     NOT NULL,
-  "conflicting_ingestion_receipt_id" uuid,
   "detected_at"                      timestamp with time zone NOT NULL DEFAULT now(),
   "schema_version"                   smallint                 NOT NULL DEFAULT 1,
   CONSTRAINT "telemetry_identity_conflicts_activation_id_fkey" FOREIGN KEY (activation_id) REFERENCES public.telemetry_activations(id),
   CONSTRAINT "telemetry_identity_conflicts_client_id_fkey" FOREIGN KEY (client_id) REFERENCES public.clients(id),
-  CONSTRAINT "telemetry_identity_conflicts_conflicting_ingestion_receipt_fkey" FOREIGN KEY (conflicting_ingestion_receipt_id) REFERENCES public.ingestion_receipts(id),
   CONSTRAINT "telemetry_identity_conflicts_first_ingestion_receipt_id_fkey" FOREIGN KEY (first_ingestion_receipt_id) REFERENCES public.ingestion_receipts(id),
   CONSTRAINT "telemetry_identity_conflicts_pkey" PRIMARY KEY (id)
 );

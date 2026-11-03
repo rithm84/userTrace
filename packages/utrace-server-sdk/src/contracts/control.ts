@@ -12,7 +12,7 @@ import { serverActivationSchema, serviceCredentialSchema } from './activation.js
 import { serverSdkFailureSchema, serverSdkHealthReportSchema } from './health.js';
 import { LIFECYCLE_STATES } from '../errors.js';
 
-export const activateMessageSchema = z.strictObject({
+const activateMessageSchema = z.strictObject({
   type: z.literal('activate'),
   request_id: z.uuid(),
   bootstrap_credential: z.string().min(1).max(4096),
@@ -32,25 +32,25 @@ export const activateMessageSchema = z.strictObject({
   }),
 });
 
-export const rotateMessageSchema = z.strictObject({
+const rotateMessageSchema = z.strictObject({
   type: z.literal('rotate'),
   request_id: z.uuid(),
   server_stream_id: z.uuid(),
 });
 
-export const healthMessageSchema = z.strictObject({
+const healthMessageSchema = z.strictObject({
   type: z.literal('health'),
   request_id: z.uuid(),
   report: serverSdkHealthReportSchema,
 });
 
-export const commandAckMessageSchema = z.strictObject({
+const commandAckMessageSchema = z.strictObject({
   type: z.literal('command_ack'),
   command_id: z.uuid(),
   lifecycle_state: z.enum(LIFECYCLE_STATES),
 });
 
-export const streamReportMessageSchema = z.strictObject({
+const streamReportMessageSchema = z.strictObject({
   type: z.literal('stream_report'),
   request_id: z.uuid(),
   server_stream_id: z.uuid(),
@@ -68,35 +68,35 @@ export const controlClientMessageSchema = z.discriminatedUnion('type', [
   streamReportMessageSchema,
 ]);
 
-export const activatedMessageSchema = z.strictObject({
+const activatedMessageSchema = z.strictObject({
   type: z.literal('activated'),
   request_id: z.uuid(),
   activation: serverActivationSchema,
 });
 
-export const rotatedMessageSchema = z.strictObject({
+const rotatedMessageSchema = z.strictObject({
   type: z.literal('rotated'),
   request_id: z.uuid(),
   credential: serviceCredentialSchema,
 });
 
-export const healthAckMessageSchema = z.strictObject({
+const healthAckMessageSchema = z.strictObject({
   type: z.literal('health_ack'),
   request_id: z.uuid(),
 });
 
-export const pauseMessageSchema = z.strictObject({
+const pauseMessageSchema = z.strictObject({
   type: z.literal('pause'),
   command_id: z.uuid(),
   reason: z.enum(['session_paused', 'policy_hold', 'ingestion_backpressure', 'operator_stop']),
 });
 
-export const resumeMessageSchema = z.strictObject({
+const resumeMessageSchema = z.strictObject({
   type: z.literal('resume'),
   command_id: z.uuid(),
 });
 
-export const terminateMessageSchema = z.strictObject({
+const terminateMessageSchema = z.strictObject({
   type: z.literal('terminate'),
   command_id: z.uuid(),
   reason: z.enum([
@@ -107,7 +107,7 @@ export const terminateMessageSchema = z.strictObject({
   ]),
 });
 
-export const controlErrorMessageSchema = z.strictObject({
+const controlErrorMessageSchema = z.strictObject({
   type: z.literal('error'),
   request_id: z.uuid().optional(),
   failure: serverSdkFailureSchema,

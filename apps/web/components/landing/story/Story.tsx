@@ -17,9 +17,9 @@ import "./story.css";
 /** The demo's fixed design page, fitted to the screen with CSS zoom. */
 export const PAGE = Object.freeze({ width: 1200, height: 800 });
 /** The frame inside the page: the chapter rail on the left, one browser window taking the rest. */
-export const FRAME = Object.freeze({ left: 170, top: 40, width: 1022, height: 748, bodyWidth: 1016, tabbedBodyHeight: 658, windowBodyHeight: 698 });
+const FRAME = Object.freeze({ left: 170, top: 40, width: 1022, height: 748, bodyWidth: 1016, tabbedBodyHeight: 658, windowBodyHeight: 698 });
 
-export type StoryProps = Readonly<{
+type StoryProps = Readonly<{
   /** Milliseconds into the demo's timeline; past its end it holds the finished frame. */
   elapsed: number;
   /** The rigs run while the demo plays on screen. */

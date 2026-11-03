@@ -58,7 +58,6 @@ const CREDENTIAL_ROTATION_LEAD_MILLIS = 60_000;
 
 /** What `activateServerSdk` returns to a bootstrap path. */
 export interface ServerSdkHandle {
-  /** Current lifecycle state. */
   readonly state: LifecycleState;
   /** The stream this process created, or `undefined` while dormant. */
   readonly serverStreamId: string | undefined;
@@ -214,7 +213,7 @@ class ServerSdkRuntime implements RedactedSpanSink {
       definitionsByName: this.policy.definitionsByName,
       registeredOperations: this.policy.registeredOperations,
       reportFailure: (failure): void => {
-        this.recordFailure(createFailure(failure, new Date()));
+        this.stampAndRecord(failure);
       },
       isObservationWindowActive: (): boolean =>
         this.lifecycle === 'activating' || this.lifecycle === 'ready',
@@ -243,17 +242,12 @@ class ServerSdkRuntime implements RedactedSpanSink {
     }
     const admission = queue.admit(span);
     if (admission.kind === 'exhausted') {
-      this.recordFailure(
-        createFailure(
-          {
-            code: 'buffer_exhaustion',
-            retry: 'never',
-            readiness_consequence: 'fail_stream',
-            detail: { queued_spans: admission.queuedSpans },
-          },
-          new Date(),
-        ),
-      );
+      this.stampAndRecord({
+        code: 'buffer_exhaustion',
+        retry: 'never',
+        readiness_consequence: 'fail_stream',
+        detail: { queued_spans: admission.queuedSpans },
+      });
       return;
     }
     this.probe?.observe(span, hop);
@@ -271,7 +265,7 @@ class ServerSdkRuntime implements RedactedSpanSink {
     if (failure.code === 'unauthorized_destination') {
       this.probe?.fail('unexpected_destination');
     }
-    this.recordFailure(createFailure(failure, new Date()));
+    this.stampAndRecord(failure);
   }
 
   public excluded(reason: string): void {
@@ -315,20 +309,15 @@ class ServerSdkRuntime implements RedactedSpanSink {
       && queue.lastAcknowledgedSequence === queue.lastProducedSequence
       && !queue.hasPendingSpans;
     if (!clean) {
-      this.recordFailure(
-        createFailure(
-          {
-            code: 'unclean_stream_end',
-            retry: 'never',
-            readiness_consequence: 'terminate_stream',
-            detail: {
-              last_produced_sequence: queue?.lastProducedSequence ?? 0,
-              last_acknowledged_sequence: queue?.lastAcknowledgedSequence ?? 0,
-            },
-          },
-          new Date(),
-        ),
-      );
+      this.stampAndRecord({
+        code: 'unclean_stream_end',
+        retry: 'never',
+        readiness_consequence: 'terminate_stream',
+        detail: {
+          last_produced_sequence: queue?.lastProducedSequence ?? 0,
+          last_acknowledged_sequence: queue?.lastAcknowledgedSequence ?? 0,
+        },
+      });
     }
     if (this.control?.isOpen === true && queue !== undefined) {
       this.control.sendStreamReport(
@@ -355,7 +344,6 @@ class ServerSdkRuntime implements RedactedSpanSink {
     await provider.shutdown();
   }
 
-  /** Builds the current operational health report. */
   public health(): ServerSdkHealthReport {
     return buildHealthReport({
       serviceKey: this.bootstrap.serviceName,
@@ -410,7 +398,7 @@ class ServerSdkRuntime implements RedactedSpanSink {
               this.reconsiderReadiness();
               return;
             }
-            this.recordFailure(createFailure(outcome.failure, new Date()));
+            this.stampAndRecord(outcome.failure);
           })
           .catch((error: unknown) => {
             this.inFlight -= 1;
@@ -461,7 +449,6 @@ class ServerSdkRuntime implements RedactedSpanSink {
       bufferAboveHighWater: queue?.isAboveHighWater ?? false,
       probePassed: this.probe?.hasPassed ?? false,
       openFailures: this.failures.length,
-      paused: false,
     });
     const next: LifecycleState = decision.ready
       ? 'ready'
@@ -493,17 +480,12 @@ class ServerSdkRuntime implements RedactedSpanSink {
       this.recordFailure(error.failure);
       return;
     }
-    this.recordFailure(
-      createFailure(
-        {
-          code: 'ingestion_unavailable',
-          retry: 'after_delay',
-          readiness_consequence: 'withdraw_readiness',
-          detail: { reason: error instanceof Error ? error.name : 'unknown_error' },
-        },
-        new Date(),
-      ),
-    );
+    this.stampAndRecord({
+      code: 'ingestion_unavailable',
+      retry: 'after_delay',
+      readiness_consequence: 'withdraw_readiness',
+      detail: { reason: error instanceof Error ? error.name : 'unknown_error' },
+    });
   }
 
   /**
@@ -520,6 +502,10 @@ class ServerSdkRuntime implements RedactedSpanSink {
         this.failures.splice(index, 1);
       }
     }
+  }
+
+  private stampAndRecord(input: ServerSdkFailureInput): void {
+    this.recordFailure(createFailure(input, new Date()));
   }
 
   private recordFailure(failure: ServerSdkFailure): void {
@@ -566,17 +552,12 @@ class ServerSdkRuntime implements RedactedSpanSink {
 
   private onDisconnect(code: number, reason: string): void {
     this.logger.warn('control_disconnected', { close_code: code, reason });
-    this.recordFailure(
-      createFailure(
-        {
-          code: 'control_connection_lost',
-          retry: 'after_delay',
-          readiness_consequence: 'withdraw_readiness',
-          detail: { close_code: code },
-        },
-        new Date(),
-      ),
-    );
+    this.stampAndRecord({
+      code: 'control_connection_lost',
+      retry: 'after_delay',
+      readiness_consequence: 'withdraw_readiness',
+      detail: { close_code: code },
+    });
     void this.recoverControl();
   }
 
@@ -627,17 +608,12 @@ class ServerSdkRuntime implements RedactedSpanSink {
           this.logger.warn('control_reconnect_failed', { attempt });
         }
       }
-      this.recordFailure(
-        createFailure(
-          {
-            code: 'control_connection_lost',
-            retry: 'never',
-            readiness_consequence: 'fail_stream',
-            detail: { reason: 'recovery_bound_exhausted', attempts: retry.max_attempts },
-          },
-          new Date(),
-        ),
-      );
+      this.stampAndRecord({
+        code: 'control_connection_lost',
+        retry: 'never',
+        readiness_consequence: 'fail_stream',
+        detail: { reason: 'recovery_bound_exhausted', attempts: retry.max_attempts },
+      });
     } finally {
       this.reconnecting = false;
     }

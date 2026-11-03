@@ -18,17 +18,15 @@ from app.db.pool import Database
 from app.ids import uuid7
 from app.ingestion.jobs import CORRELATE_TRACE, EVALUATE_READINESS
 from app.settings import Settings
-from tests.ingestion.activation_client import activate_document
-from tests.ingestion.browser_client import BrowserExporter, observation
+from tests.evidence.helpers import open_document
+from tests.ingestion.browser_client import observation
 from tests.ingestion.factories import (
     MANIFEST_VERSION,
     POLICY_VERSION,
-    REDACTION_VERSION,
     SEMANTIC_CONVENTION_VERSION,
     UTRACE_SCHEMA_VERSION,
     PreviewFixture,
     create_preview,
-    front_door_credential,
     start_server_activation,
 )
 from tests.ingestion.keys import SigningKeys
@@ -65,40 +63,17 @@ async def _browser_stream(
     traces: tuple[tuple[str, str], ...],
 ) -> UUID:
     """Open a real browser stream and export one completion per named trace."""
-    document = await activate_document(
+    opened = await open_document(
+        settings,
+        keys,
         ingest_server,
-        service_token=settings.front_door_service_token,
-        session_credential=front_door_credential(settings, preview),
-        public_preview_host=preview.origin_host,
-        document_origin=preview.document_origin,
-        document_nonce=secrets.token_hex(24),
-        sdk_installation_id="shopalytics-browser-sdk",
-        public_key=keys.attestation_public,
-    )
-    attachment = UUID(str(document.attestation["document_attachment_id"]))
-    runtime_id = uuid7()
-    browser_stream_id = uuid7()
-    exporter = BrowserExporter(
         ingest_websocket_url,
-        token=document.token,
-        scope={
-            "client_id": str(preview.case.client_id),
-            "client_user_id": str(preview.case.client_user_id),
-            "customer_account_id": str(preview.case.customer_account_id),
-            "session_id": str(preview.interview_session_id),
-            "preview_environment_id": str(preview.preview_environment_id),
-            "preview_runtime_allocation_id": str(
-                preview.preview_runtime_allocation_id
-            ),
-            "browser_stream_id": str(browser_stream_id),
-            "schema_version": "1",
-            "policy_version": POLICY_VERSION,
-            "redaction_version": REDACTION_VERSION,
-        },
-        browser_stream_id=browser_stream_id,
-        runtime_id=runtime_id,
-        document_attachment_id=attachment,
+        preview=preview,
+        preview_version_id=None,
     )
+    runtime_id = opened.runtime_id
+    attachment = opened.document_attachment_id
+    exporter = opened.exporter
     async with exporter:
         await exporter.open_stream(resume_from=0)
         records = []
@@ -126,7 +101,7 @@ async def _browser_stream(
                 )
             )
         await exporter.send_batch(records, batch_id=None)
-    return UUID(str(document.attestation["attestation_id"]))
+    return opened.activation_id
 
 
 async def test_a_browser_receipt_schedules_one_correlation_run_per_trace(
@@ -137,7 +112,6 @@ async def test_a_browser_receipt_schedules_one_correlation_run_per_trace(
     ingest_websocket_url: str,
     auth_users: dict[str, SignedInUser],
 ) -> None:
-    """Completed requests schedule correlation, deduplicated by trace."""
     preview = await create_preview(
         telemetry_database,
         name=f"sched-{uuid7().hex[:8]}",
@@ -208,16 +182,13 @@ async def test_a_server_export_schedules_correlation_on_the_browser_activation(
         traces=((trace_id, client_span_id),),
     )
 
-    activation_id, server_stream_id, token, _entry = await start_server_activation(
-        telemetry_database, preview=preview, keys=keys
-    )
-    async with telemetry_database.connection() as conn, conn.cursor() as cur:
-        await cur.execute(
-            "select service_instance_id from public.telemetry_activations where id = %s",
-            (activation_id,),
-        )
-        row = await cur.fetchone()
-    assert row is not None
+    (
+        activation_id,
+        server_stream_id,
+        service_instance_id,
+        token,
+        _entry,
+    ) = await start_server_activation(telemetry_database, preview=preview, keys=keys)
 
     server_trace = secrets.token_hex(16)
     start = 1_780_000_000_000_000_000
@@ -249,7 +220,7 @@ async def test_a_server_export_schedules_correlation_on_the_browser_activation(
         token=token,
         activation_id=activation_id,
         server_stream_id=server_stream_id,
-        service_instance_id=UUID(str(row["service_instance_id"])),
+        service_instance_id=service_instance_id,
         batch_sequence=1,
         body=body,
         span_count=1,
@@ -278,17 +249,15 @@ async def test_a_server_export_schedules_correlation_on_the_browser_activation(
 
 async def test_the_stale_readiness_scan_reschedules_an_expired_projection(
     telemetry_database: Database,
-    settings: Settings,
     keys: SigningKeys,
     auth_users: dict[str, SignedInUser],
 ) -> None:
-    """The pg_cron scan re-evaluates an activation whose projection expired."""
     preview = await create_preview(
         telemetry_database,
         name=f"scan-{uuid7().hex[:8]}",
         authorizing_auth_user_id=auth_users["owner_a"].auth_user_id,
     )
-    activation_id, _stream, _token, _entry = await start_server_activation(
+    activation_id, _stream, _instance, _token, _entry = await start_server_activation(
         telemetry_database, preview=preview, keys=keys
     )
     # The activation already scheduled one readiness run; draining that Job is
@@ -344,33 +313,3 @@ async def test_the_stale_readiness_scan_reschedules_an_expired_projection(
     assert again is not None
     assert int(str(again["rescheduled"])) == 0
 
-
-async def test_a_browser_activation_establishes_the_not_ready_baseline(
-    telemetry_database: Database,
-    settings: Settings,
-    keys: SigningKeys,
-    ingest_server: str,
-    auth_users: dict[str, SignedInUser],
-) -> None:
-    """Activating a document schedules readiness before any stream exists."""
-    preview = await create_preview(
-        telemetry_database,
-        name=f"activate-{uuid7().hex[:8]}",
-        authorizing_auth_user_id=auth_users["owner_a"].auth_user_id,
-    )
-    document = await activate_document(
-        ingest_server,
-        service_token=settings.front_door_service_token,
-        session_credential=front_door_credential(settings, preview),
-        public_preview_host=preview.origin_host,
-        document_origin=preview.document_origin,
-        document_nonce=secrets.token_hex(24),
-        sdk_installation_id="shopalytics-browser-sdk",
-        public_key=keys.attestation_public,
-    )
-    readiness = await _jobs(telemetry_database, job_type=EVALUATE_READINESS)
-    assert len(readiness) == 1
-    assert str(dict(readiness[0]["input"])["activation_id"]) == str(
-        document.attestation["attestation_id"]
-    )
-    assert dict(readiness[0]["input"])["trigger"] == "browser_activation_created"

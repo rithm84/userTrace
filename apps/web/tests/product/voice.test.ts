@@ -3,12 +3,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   TranscriptEventError,
-  appendTranscriptDelta,
   readBotOutput,
   readUserTranscription,
   withInterim,
   type ShownSegments,
-  type TranscriptDelta,
   type TranscriptTurn,
 } from "@/lib/session/transcript";
 import { VoiceError, connectVoice, type ConnectVoiceParameters } from "@/lib/session/voice";
@@ -242,20 +240,6 @@ describe("session transcript", () => {
     expect(withInterim(turns, "Let me open the").map((turn) => [turn.speaker, turn.text])).toEqual([
       ["agent", "What would you like help with?"],
       ["participant", "Let me open the"],
-    ]);
-  });
-
-  it("joins consecutive fragments from one speaker into a turn", () => {
-    const deltas: TranscriptDelta[] = [
-      { speaker: "agent", text: " Walk me" },
-      { speaker: "agent", text: " through Monday." },
-      { speaker: "participant", text: " Sure." },
-    ];
-    const turns = deltas.reduce<readonly TranscriptTurn[]>(appendTranscriptDelta, []);
-
-    expect(turns.map((turn) => [turn.speaker, turn.text])).toEqual([
-      ["agent", "Walk me through Monday."],
-      ["participant", "Sure."],
     ]);
   });
 });

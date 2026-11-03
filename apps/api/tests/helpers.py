@@ -1,5 +1,3 @@
-"""Shared helpers for the database-backed tests."""
-
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
@@ -11,6 +9,7 @@ from utrace_contracts import payload_digest
 from utrace_contracts.base import JsonObject
 from utrace_contracts.domain.lifecycle import ActorKind, AggregateKind
 
+from app.clients.configuration import OutreachOfferPolicy
 from app.db.pool import Database
 from app.db.rows import as_int
 from app.envelope import Actor, AuditIntent, EventAppend, JobIntent, JsonValue, StreamRef
@@ -20,6 +19,7 @@ from app.interview.readiness import (
     record_conversational_facts,
     record_observation_facts,
 )
+from app.outreach.offers import reserve_offer
 
 __all__ = [
     "SYSTEM_ACTOR",
@@ -32,6 +32,7 @@ __all__ = [
     "policy_digest",
     "read_state",
     "record_session_readiness",
+    "reserve_usd_offer",
 ]
 
 SYSTEM_ACTOR = Actor(kind=ActorKind.SYSTEM, ref="integration-test")
@@ -218,3 +219,35 @@ async def count_rows(database: Database, *, table: str, where: str, params: Sequ
         )
         row = await cur.fetchone()
     return as_int(row, "total") if row is not None else 0
+
+
+async def reserve_usd_offer(
+    database: Database,
+    *,
+    client_id: UUID,
+    product_signal_id: UUID,
+    customer_account_id: UUID,
+    amount_minor_units: int,
+    billing_customer_ref: str,
+) -> UUID:
+    """Reserve one USD offer through the reservation path outreach dispatch uses."""
+    policy = OutreachOfferPolicy(
+        enabled=True,
+        currency="USD",
+        fixed_amount_minor_units=amount_minor_units,
+        authorized_ceiling_minor_units=amount_minor_units,
+        billing_account_ref="acct_utrace_sandbox",
+        billing_use="invoice credit toward future bills",
+        completion_terms=("a completed interview",),
+    )
+    async with database.transaction() as conn:
+        reserved = await reserve_offer(
+            conn,
+            client_id=client_id,
+            product_signal_id=product_signal_id,
+            customer_account_id=customer_account_id,
+            policy=policy,
+            billing_customer_ref=billing_customer_ref,
+            billing_mapping_revision=1,
+        )
+    return reserved.outreach_offer_id

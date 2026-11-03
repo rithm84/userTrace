@@ -4,13 +4,13 @@ import type { JSX, ReactNode } from "react";
 import { Logo } from "@/components/brand/Logo";
 import { signOut } from "@/lib/auth/actions";
 
-export type ShellLink = Readonly<{ href: string; label: string; key: string }>;
+type ShellLink = Readonly<{ href: string; label: string; key: string }>;
 
 /**
  * How the page under the bar uses the screen: `contained` centres a reading
  * column, `fill` gives the page every pixel below the bar (the session tab).
  */
-export type ShellMain = "contained" | "fill";
+type ShellMain = "contained" | "fill";
 
 /**
  * The authenticated frame: the black bar with the mark at the landing navbar's

@@ -64,13 +64,3 @@ export type RedactionStep =
   | "per_value_evaluation"
   | "defensive_detection"
   | "normalization_and_limits";
-
-export const REDACTION_STEPS: readonly RedactionStep[] = [
-  "platform_exclusions",
-  "session_document_scope",
-  "signed_client_policy",
-  "structural_inheritance",
-  "per_value_evaluation",
-  "defensive_detection",
-  "normalization_and_limits",
-];

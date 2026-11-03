@@ -13,7 +13,6 @@ CREATE TABLE "public"."product_signals" (
   "cancellation_scope_id"           uuid                     NOT NULL,
   "return_deadline_at"              timestamp with time zone,
   "closure_reason"                  text,
-  "closure_detail"                  jsonb,
   "schema_version"                  smallint                 NOT NULL DEFAULT 1,
   "created_at"                      timestamp with time zone NOT NULL DEFAULT now(),
   "updated_at"                      timestamp with time zone NOT NULL DEFAULT now(),

@@ -54,7 +54,6 @@ class SandboxShell:
         self._filesystem = WorkspaceFilesystem(sandboxes, handle, root=root)
 
     async def execute(self, call: RunProcess | ReadFile) -> ToolResult:
-        """Run one command or read one file under this shell's root."""
         match call:
             case RunProcess():
                 execution = await self._sandboxes.run(

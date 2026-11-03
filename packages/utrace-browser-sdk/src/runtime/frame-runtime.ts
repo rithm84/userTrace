@@ -102,7 +102,6 @@ export class FrameObservationRuntime {
       this.view,
       this.clock,
       this.random,
-      this.#config,
       attestation,
       {
         runtime_id: this.#runtimeId,

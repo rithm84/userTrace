@@ -10,7 +10,7 @@
  * If the product removes the host once, the surface reinjects it cleanly.
  * Repeated removal withdraws readiness rather than fighting the page.
  */
-export const HOST_TAG = "utrace-agent-host";
+const HOST_TAG = "utrace-agent-host";
 const MAX_REINJECTIONS = 1;
 
 export type SurfaceLayers = Readonly<{
@@ -21,7 +21,7 @@ export type SurfaceLayers = Readonly<{
   scene: SVGSVGElement;
 }>;
 
-export type HostOptions = Readonly<{
+type HostOptions = Readonly<{
   styles: string;
   onRemovedPermanently: (reason: string) => void;
 }>;
@@ -42,13 +42,6 @@ export class SurfaceHost {
     this.layers = layers;
     this.watch();
     return layers;
-  }
-
-  current(): SurfaceLayers {
-    if (this.layers === null) {
-      throw new Error("The uTrace agent surface is not mounted.");
-    }
-    return this.layers;
   }
 
   teardown(): void {

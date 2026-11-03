@@ -19,7 +19,8 @@ from uuid import UUID
 from fastapi import APIRouter, Path, Request
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.auth.dependencies import CurrentDatabase, ParticipantOfPath
+from app.api.extension import supported_protocol_versions
+from app.auth.dependencies import CurrentDatabase, CurrentPorts, ParticipantOfPath
 from app.auth.principals import ParticipantPrincipal
 from app.connectors.failures import ConnectorFailure
 from app.db.pool import Database
@@ -34,9 +35,8 @@ from app.interview.projection import load_projection
 from app.interview.settings import get_interview_settings
 from app.interview.voice.connections import close_voice_connection, open_voice_connection
 from app.lifecycle.session_controls import ControlAction
-from app.ports import PortRegistry
 
-__all__ = ["provider_registry", "router"]
+__all__ = ["router"]
 
 router = APIRouter(prefix="/v1/sessions", tags=["participant"])
 
@@ -160,14 +160,6 @@ class BindingOfferResult(ApiModel):
     preview_runtime_allocation_id: UUID
 
 
-def provider_registry(request: Request) -> PortRegistry:
-    """Return the kernel's provider registry."""
-    registry = request.app.state.ports
-    if not isinstance(registry, PortRegistry):
-        raise TypeError("the application was assembled without a port registry")
-    return registry
-
-
 @router.post("/{session_id}/preflight", response_model=PreflightResult)
 async def preflight(
     participant: ParticipantOfPath,
@@ -192,7 +184,7 @@ async def preflight(
             host_permission_granted=body.permissions.host,
             microphone_permission_granted=body.permissions.microphone,
         ),
-        supported_protocol_versions=_supported_protocol_versions(),
+        supported_protocol_versions=supported_protocol_versions(),
         possession_audience=interview.extension_api_audience,
         possession_max_age_seconds=interview.possession_proof_lifetime_seconds,
     )
@@ -213,13 +205,13 @@ async def preflight(
 
 @router.post("/{session_id}/voice/connections", response_model=VoiceConnectionResult)
 async def open_connection(
-    request: Request,
     participant: ParticipantOfPath,
     database: CurrentDatabase,
+    ports: CurrentPorts,
     session_id: Annotated[UUID, Path()],
 ) -> VoiceConnectionResult:
     """Authorize one voice connection and return what admits the browser to its call."""
-    voice = provider_registry(request).require_voice()
+    voice = ports.require_voice()
     opened = await open_voice_connection(
         database,
         voice,
@@ -253,6 +245,7 @@ async def controls(
     request: Request,
     participant: ParticipantOfPath,
     database: CurrentDatabase,
+    ports: CurrentPorts,
     session_id: Annotated[UUID, Path()],
     body: ControlRequest,
 ) -> SessionControlAck:
@@ -263,7 +256,7 @@ async def controls(
         interview_session_id=session_id,
         action=body.action,
         return_window_seconds=RETURN_WINDOW_SECONDS,
-        observation=provider_registry(request).observation,
+        observation=ports.observation,
         control_hub=require_control_hub(request.app),
     )
     return _ack(result.projection.revision, result.projection.state, result.projection.controls)
@@ -333,19 +326,6 @@ def _ack(revision: int, state: str, controls: object) -> SessionControlAck:
             microphone=str(controls["microphone"]),
             available=[str(action) for action in controls["available"]],
         ),
-    )
-
-
-def _supported_protocol_versions() -> tuple[str, ...]:
-    """The current and previous extension protocol this control plane accepts."""
-    interview = get_interview_settings()
-    return tuple(
-        dict.fromkeys(
-            (
-                interview.extension_protocol_version,
-                interview.extension_previous_protocol_version,
-            )
-        )
     )
 
 

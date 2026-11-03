@@ -60,7 +60,6 @@ __all__ = [
     "assemble_bundle",
     "assemble_conversation_bundle",
     "current_dependencies",
-    "load_bundle",
 ]
 
 _log = get_logger(__name__)
@@ -114,7 +113,6 @@ class BundleDependencies:
 
     @classmethod
     def from_payload(cls, payload: Mapping[str, object]) -> "BundleDependencies":
-        """Read the dependencies back from a stored bundle."""
         return cls(
             product_signal_revision=_require_int(payload, "product_signal_revision"),
             interview_session_revision=_require_int(
@@ -166,7 +164,6 @@ class AssembledBundle(BaseModel):
         return tuple(item for item in self.included if item.section == section)
 
     def cited_evidence_ids(self) -> tuple[UUID, ...]:
-        """Return the evidence records this bundle cited."""
         return tuple(
             UUID(item.source_id)
             for item in self.included
@@ -311,79 +308,6 @@ async def _commit(
         dependencies=dependencies,
         included=included,
         omitted=omitted,
-    )
-
-
-async def load_bundle(database: Database, *, bundle_id: UUID) -> AssembledBundle:
-    """Read one committed bundle back, items in order."""
-    async with database.connection() as conn, conn.cursor() as cur:
-        await cur.execute(
-            """
-            select id, client_id, product_signal_id, interview_session_id, purpose,
-                   context_revision, cutoff_at, budget_items, dependencies, digest
-            from public.context_bundles
-            where id = %s
-            """,
-            (bundle_id,),
-        )
-        header = await cur.fetchone()
-        if header is None:
-            raise LookupError(f"context bundle {bundle_id} does not exist")
-        await cur.execute(
-            """
-            select section, source_kind, source_id, source_revision, included,
-                   omission_reason, weight, body
-            from public.context_bundle_items
-            where context_bundle_id = %s
-            order by ordinal
-            """,
-            (bundle_id,),
-        )
-        rows = list(await cur.fetchall())
-
-    dependency_payload = header["dependencies"]
-    if not isinstance(dependency_payload, Mapping):
-        raise TypeError("context_bundles.dependencies is not an object")
-    included: list[ContextItem] = []
-    omitted: list[OmittedSource] = []
-    for row in rows:
-        body = row["body"]
-        if not isinstance(body, Mapping):
-            raise TypeError("context_bundle_items.body is not an object")
-        if row["included"] is True:
-            included.append(
-                ContextItem(
-                    section=str(row["section"]),
-                    source_kind=str(row["source_kind"]),
-                    source_id=str(row["source_id"]),
-                    source_revision=str(row["source_revision"]),
-                    weight=as_int(row, "weight"),
-                    body=dict(body),
-                )
-            )
-        else:
-            omitted.append(
-                OmittedSource(
-                    section=str(row["section"]),
-                    source_kind=str(row["source_kind"]),
-                    source_id=str(row["source_id"]),
-                    source_revision=str(row["source_revision"]),
-                    reason=str(row["omission_reason"]),
-                )
-            )
-    session_id = header["interview_session_id"]
-    return AssembledBundle(
-        bundle_id=as_uuid(header, "id"),
-        client_id=as_uuid(header, "client_id"),
-        product_signal_id=as_uuid(header, "product_signal_id"),
-        interview_session_id=UUID(str(session_id)) if session_id is not None else None,
-        purpose=str(header["purpose"]),
-        context_revision=as_int(header, "context_revision"),
-        cutoff_at=_require_datetime(header, "cutoff_at"),
-        digest=str(header["digest"]),
-        dependencies=BundleDependencies.from_payload(dependency_payload),
-        included=tuple(included),
-        omitted=tuple(omitted),
     )
 
 
@@ -694,7 +618,6 @@ def _item_parameters(
     weight: int,
     body: Mapping[str, JsonValue],
 ) -> tuple[object, ...]:
-    """Build the parameter tuple for one bundle item row."""
     return (
         uuid7(),
         client_id,
@@ -718,10 +641,3 @@ def _require_int(payload: Mapping[str, object], key: str) -> int:
         raise TypeError(f"context bundle dependency {key!r} is not an integer")
     return value
 
-
-def _require_datetime(row: Mapping[str, object], column: str) -> datetime:
-    """Return a timestamptz column, refusing anything else."""
-    value = row[column]
-    if not isinstance(value, datetime):
-        raise TypeError(f"column {column!r} is not a datetime")
-    return value

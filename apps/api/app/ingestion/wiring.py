@@ -24,10 +24,8 @@ from app.logging import get_logger
 from app.settings import Settings
 
 __all__ = [
-    "IngestionResources",
     "close_ingestion",
     "require_artifact_store",
-    "require_ingestion",
     "require_server_rate_budget",
     "require_signer",
 ]
@@ -96,15 +94,12 @@ async def close_ingestion(application: FastAPI) -> None:
 
 
 def require_artifact_store(application: FastAPI) -> ArtifactStore:
-    """Return the process-wide artifact store."""
     return require_ingestion(application).artifacts
 
 
 def require_signer(application: FastAPI) -> Signer:
-    """Return the process-wide attestation signer."""
     return require_ingestion(application).signer
 
 
 def require_server_rate_budget(application: FastAPI) -> RateBudget:
-    """Return the server edge's process-wide rate budget."""
     return require_ingestion(application).server_rate_budget

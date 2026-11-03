@@ -165,7 +165,7 @@ function buildFastifyInstrumentation(policy: RedactionPolicy): Instrumentation {
 }
 
 /** The instrumentation set plus the adapter status the health report carries. */
-export interface InstrumentationSet {
+interface InstrumentationSet {
   readonly instrumentations: readonly Instrumentation[];
   readonly statuses: readonly AdapterStatus[];
   readonly missingRequired: readonly Adapter[];
@@ -183,8 +183,7 @@ export function buildInstrumentationSet(
   for (const adapter of requiredAdapters) {
     const moduleName = MODULE_BY_ADAPTER[adapter];
     const moduleVersion = moduleName === undefined ? process.versions.node : resolveModuleVersion(moduleName);
-    const present = moduleName === undefined || moduleVersion !== null;
-    if (!present) {
+    if (moduleVersion === null) {
       missingRequired.push(adapter);
       statuses.push({ adapter, required: true, installed: false });
       continue;
@@ -213,12 +212,7 @@ export function buildInstrumentationSet(
       default:
         break;
     }
-    statuses.push({
-      adapter,
-      required: true,
-      installed: true,
-      ...(moduleVersion === null ? {} : { module_version: moduleVersion }),
-    });
+    statuses.push({ adapter, required: true, installed: true, module_version: moduleVersion });
   }
 
   return { instrumentations, statuses, missingRequired };

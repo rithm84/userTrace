@@ -13,7 +13,7 @@ import { createHash } from 'node:crypto';
 import type { RedactionPolicy } from './policy.js';
 
 /** One repository-relative stack frame. */
-export interface SafeFrame {
+interface SafeFrame {
   readonly function_name: string;
   readonly file: string;
   readonly line: number;
@@ -21,7 +21,7 @@ export interface SafeFrame {
 }
 
 /** The redacted evidence derived from one exception. */
-export interface ErrorEvidence {
+interface ErrorEvidence {
   readonly errorType: string;
   readonly fingerprint: string;
   readonly productArea: string;

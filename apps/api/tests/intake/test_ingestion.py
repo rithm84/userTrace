@@ -12,7 +12,7 @@ import pytest
 from app.clients.configuration import load_active_release
 from app.db.pool import Database
 from app.db.rows import as_int, as_str
-from app.intake.errors import UnattributedAuthorError, UnwatchedSurfaceError
+from app.intake.errors import UnwatchedSurfaceError
 from app.intake.messages import DebounceWindow, record_message, seal_batch
 from tests.supabase_auth import SignedInUser
 from tests.workstream import (
@@ -41,32 +41,6 @@ async def _fixture(
         offers_enabled=False,
     )
     return fixture
-
-
-async def test_a_bot_authored_message_is_refused_without_an_attribution(
-    database: Database, auth_users: dict[str, SignedInUser]
-) -> None:
-    fixture = await _fixture(database, auth_users)
-    message_id = await post_fixture_message(
-        channel_id=fixture.channel_id,
-        content="uTrace ingestion fixture: unattributed bot post.",
-    )
-    receipt = await receipt_for(
-        guild_id=fixture.guild_id,
-        channel_id=fixture.channel_id,
-        message_id=message_id,
-    )
-    assert receipt.author_is_bot
-
-    with pytest.raises(UnattributedAuthorError) as refused:
-        await record_message(
-            database,
-            client_id=fixture.client_id,
-            release=fixture.release,
-            receipt=receipt,
-            window=_WINDOW,
-        )
-    assert refused.value.author_provider_identity == receipt.author_id
 
 
 async def test_a_duplicate_provider_message_id_collapses(

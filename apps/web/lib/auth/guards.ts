@@ -15,14 +15,14 @@ import {
 
 import { readViewer, type Viewer } from "./viewer";
 
-export type StaffContext = Readonly<{
+type StaffContext = Readonly<{
   viewer: Extract<Viewer, { kind: "staff" }>;
   clientId: string;
   client: Client;
   api: ControlPlaneClient;
 }>;
 
-export type ParticipantContext = Readonly<{
+type ParticipantContext = Readonly<{
   viewer: Extract<Viewer, { kind: "participant" }>;
   api: ControlPlaneClient;
 }>;

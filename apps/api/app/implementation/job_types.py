@@ -34,7 +34,6 @@ RELEASE_PREPARED_WORKSPACE: Final[str] = "implementation.release_prepared_worksp
 def investigate_code_job(
     *, product_signal_id: UUID, cancellation_scope_id: UUID, now: datetime
 ) -> JobIntent:
-    """Build the Job that investigates the code while the interview runs."""
     return _job(
         job_type=INVESTIGATE_CODE,
         product_signal_id=product_signal_id,
@@ -47,7 +46,6 @@ def investigate_code_job(
 def prepare_workspace_job(
     *, product_signal_id: UUID, cancellation_scope_id: UUID, now: datetime
 ) -> JobIntent:
-    """Build the Job that prepares the case's implementation workspace."""
     return _job(
         job_type=PREPARE_WORKSPACE,
         product_signal_id=product_signal_id,

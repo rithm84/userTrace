@@ -12,7 +12,7 @@ import { resourceFromAttributes } from '@opentelemetry/resources';
 import type { ReadableSpan, TimedEvent } from '@opentelemetry/sdk-trace-base';
 
 /** Fields a test overrides on a synthesized span. */
-export interface SpanFixture {
+interface SpanFixture {
   readonly name: string;
   readonly kind: SpanKind;
   readonly scopeName: string;
@@ -25,7 +25,6 @@ export interface SpanFixture {
 
 const RESOURCE = resourceFromAttributes({ 'service.name': 'shopalytics-api' });
 
-/** Builds one finished span. */
 export function readableSpan(fixture: SpanFixture): ReadableSpan {
   const spanContext: SpanContext = {
     traceId: fixture.traceId ?? '0123456789abcdef0123456789abcdef',

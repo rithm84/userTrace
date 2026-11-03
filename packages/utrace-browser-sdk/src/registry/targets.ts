@@ -22,7 +22,28 @@ import { isPlatformExcludedElement } from "../redaction/platform-exclusions.js";
 import { computeAccessibleName, computeRole } from "./accessible-name.js";
 import { geometryEquivalent, measureGeometry, readSemanticState, semanticStateEquivalent } from "./geometry.js";
 
-export type TargetChangeKind = "mounted" | "updated" | "unmounted" | "layout" | "rejected";
+/** The element's annotated entity reference, or `null` when absent or redacted away. */
+export const resolveSafeEntity = (
+  element: Element,
+  annotations: ElementAnnotations,
+  redaction: RedactionPipeline,
+): SafeEntityRef | null => {
+  const entity = annotations.entity;
+  if (entity === null) return null;
+  const outcome = redaction.apply({
+    kind: "annotation_attribute",
+    value: entity.instance_ref_raw,
+    element,
+    inAttestedDocument: true,
+    rawBody: false,
+    approvedRuleId: entity.instance_ref_rule_id,
+    annotatedSensitive: annotations.sensitive,
+  });
+  if (outcome.value === null) return null;
+  return { entity_definition_id: entity.entity_definition_id, instance_ref: outcome.value };
+};
+
+type TargetChangeKind = "mounted" | "updated" | "unmounted" | "layout" | "rejected";
 
 export interface TargetChange {
   readonly change: TargetChangeKind;
@@ -31,7 +52,7 @@ export interface TargetChange {
   readonly rejected_annotation: string | null;
 }
 
-export type TargetChangeListener = (change: TargetChange) => void;
+type TargetChangeListener = (change: TargetChange) => void;
 
 export interface TargetQuery {
   readonly definition_id?: string;
@@ -234,12 +255,7 @@ export class TargetRegistry {
         target.element = element;
         this.#byElement.set(element, target);
         target.target_revision += 1;
-        this.#emit({
-          change: "updated",
-          registry_revision: this.#bump(),
-          target: this.#summarize(target),
-          rejected_annotation: null,
-        });
+        this.#emitTarget("updated", target);
       },
       refresh: (): void => {
         this.#refresh(target);
@@ -268,7 +284,7 @@ export class TargetRegistry {
       layout_revision: 1,
       role: computeRole(element),
       labelSource: computeAccessibleName(element),
-      entity: this.#resolveEntity(element, annotations),
+      entity: resolveSafeEntity(element, annotations, this.#redaction),
       state: readSemanticState(element),
       geometry: measureGeometry(element, this.#view),
     };
@@ -282,12 +298,7 @@ export class TargetRegistry {
         rejected_annotation: `${rejection.attribute}:${rejection.reason}`,
       });
     }
-    this.#emit({
-      change: "mounted",
-      registry_revision: this.#bump(),
-      target: this.#summarize(target),
-      rejected_annotation: null,
-    });
+    this.#emitTarget("mounted", target);
     return target;
   }
 
@@ -309,22 +320,12 @@ export class TargetRegistry {
     if (semanticChanged || displayChanged) {
       target.target_revision += 1;
       target.layout_revision += 1;
-      this.#emit({
-        change: "updated",
-        registry_revision: this.#bump(),
-        target: this.#summarize(target),
-        rejected_annotation: null,
-      });
+      this.#emitTarget("updated", target);
       return;
     }
     if (layoutChanged) {
       target.layout_revision += 1;
-      this.#emit({
-        change: "layout",
-        registry_revision: this.#bump(),
-        target: this.#summarize(target),
-        rejected_annotation: null,
-      });
+      this.#emitTarget("layout", target);
     }
   }
 
@@ -332,28 +333,7 @@ export class TargetRegistry {
     this.#mounted.delete(target.target_id);
     this.#byElement.delete(target.element);
     this.#tombstones.add(target.target_id);
-    this.#emit({
-      change,
-      registry_revision: this.#bump(),
-      target: this.#summarize(target),
-      rejected_annotation: null,
-    });
-  }
-
-  #resolveEntity(element: Element, annotations: ElementAnnotations): SafeEntityRef | null {
-    const entity = annotations.entity;
-    if (entity === null) return null;
-    const outcome = this.#redaction.apply({
-      kind: "annotation_attribute",
-      value: entity.instance_ref_raw,
-      element,
-      inAttestedDocument: true,
-      rawBody: false,
-      approvedRuleId: entity.instance_ref_rule_id,
-      annotatedSensitive: annotations.sensitive,
-    });
-    if (outcome.value === null) return null;
-    return { entity_definition_id: entity.entity_definition_id, instance_ref: outcome.value };
+    this.#emitTarget(change, target);
   }
 
   #summarize(target: MountedTarget): TargetSummary {
@@ -389,6 +369,10 @@ export class TargetRegistry {
   #bump(): number {
     this.#registryRevision += 1;
     return this.#registryRevision;
+  }
+
+  #emitTarget(change: TargetChangeKind, target: MountedTarget): void {
+    this.#emit({ change, registry_revision: this.#bump(), target: this.#summarize(target), rejected_annotation: null });
   }
 
   #emit(change: TargetChange): void {

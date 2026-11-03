@@ -71,7 +71,6 @@ def attempt_transition(
     jobs: Sequence[JobIntent],
     commands: Sequence[CommandIntent],
 ) -> TransitionRequest:
-    """Return the request the kernel commits for one Outreach Attempt move."""
     stream = StreamRef(kind=AggregateKind.OUTREACH_ATTEMPT, id=outreach_attempt_id)
     return plan_transition(
         OUTREACH_ATTEMPT_MACHINE,

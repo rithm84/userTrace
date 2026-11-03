@@ -253,7 +253,6 @@ class Worker:
         )
 
     async def _heartbeat_until_done(self, claimed: ClaimedJob) -> None:
-        """Renew the lease while the handler runs."""
         while True:
             await asyncio.sleep(self._config.heartbeat_seconds)
             await heartbeat(

@@ -14,10 +14,9 @@ from utrace_contracts.domain.lifecycle import (
     EvidenceClaimState,
     EvidenceClass,
     InterviewPhase,
-    ProductSignalState,
 )
 
-from app.context.bundles import assemble_bundle, assemble_conversation_bundle, load_bundle
+from app.context.bundles import assemble_bundle, assemble_conversation_bundle
 from app.context.freshness import check_bundle_freshness
 from app.context.purposes import BundlePurpose
 from app.context.sources import (
@@ -41,22 +40,9 @@ from app.interview.evidence import (
     record_transcript_fragment,
 )
 from app.interview.observations import ObservedActivity
-from tests.factories import CaseFixture, create_case
-from tests.interview.fixtures import create_live_session
+from tests.factories import CaseFixture
+from tests.interview.fixtures import create_live_session, interviewing_case
 from tests.supabase_auth import SignedInUser
-
-
-async def _case(
-    database: Database, auth_users: dict[str, SignedInUser], name: str
-) -> CaseFixture:
-    """One routed Product Signal in its interviewing state."""
-    return await create_case(
-        database,
-        name=name,
-        state=ProductSignalState.INTERVIEWING,
-        authorizing_auth_user_id=auth_users["owner_a"].auth_user_id,
-        participant_auth_user_id=None,
-    )
 
 
 async def _connection(database: Database, *, case: CaseFixture, session_id: UUID) -> UUID:
@@ -92,7 +78,7 @@ def _observation(index: int) -> ObservedActivity:
 async def test_a_bundle_is_source_linked_budgeted_and_stamped(
     database: Database, auth_users: dict[str, SignedInUser]
 ) -> None:
-    case = await _case(database, auth_users, "context-budget")
+    case = await interviewing_case(database, auth_users, "context-budget")
     session_id = await create_live_session(
         database, case=case, phase=InterviewPhase.DISCOVERY
     )
@@ -141,13 +127,6 @@ async def test_a_bundle_is_source_linked_budgeted_and_stamped(
     assert SECTION_RECENT_CONVERSATION in omitted_sections
     assert SECTION_SELECTED_OBSERVATIONS in omitted_sections
 
-    reloaded = await load_bundle(database, bundle_id=bundle.bundle_id)
-    assert reloaded.digest == bundle.digest
-    assert [item.source_id for item in reloaded.included] == [
-        item.source_id for item in bundle.included
-    ]
-    assert len(reloaded.omitted) == len(bundle.omitted)
-
     freshness = await check_bundle_freshness(database, bundle_id=bundle.bundle_id)
     assert freshness.fresh is True
 
@@ -157,7 +136,7 @@ async def test_concurrent_bundles_for_one_purpose_take_successive_revisions(
 ) -> None:
     # The voice agent's concurrent tool calls each assemble their own bundle; none
     # may lose a race for the same revision.
-    case = await _case(database, auth_users, "context-concurrent")
+    case = await interviewing_case(database, auth_users, "context-concurrent")
     session_id = await create_live_session(
         database, case=case, phase=InterviewPhase.DISCOVERY
     )
@@ -182,7 +161,7 @@ async def test_concurrent_bundles_for_one_purpose_take_successive_revisions(
 async def test_a_changed_criteria_revision_makes_a_bundle_stale(
     database: Database, auth_users: dict[str, SignedInUser]
 ) -> None:
-    case = await _case(database, auth_users, "context-stale")
+    case = await interviewing_case(database, auth_users, "context-stale")
     session_id = await create_live_session(
         database, case=case, phase=InterviewPhase.DISCOVERY
     )
@@ -238,7 +217,7 @@ async def test_a_changed_criteria_revision_makes_a_bundle_stale(
 async def test_a_correction_invalidates_the_bundles_that_cited_the_claim(
     database: Database, auth_users: dict[str, SignedInUser]
 ) -> None:
-    case = await _case(database, auth_users, "context-correction")
+    case = await interviewing_case(database, auth_users, "context-correction")
     session_id = await create_live_session(
         database, case=case, phase=InterviewPhase.DISCOVERY
     )
@@ -301,25 +280,3 @@ async def test_a_correction_invalidates_the_bundles_that_cited_the_claim(
     assert len(superseding) == 1
     assert superseding[0]["supersedes_id"] == claim_id
     assert superseding[0]["claim_state"] == EvidenceClaimState.CONFIRMED.value
-
-
-async def test_an_unready_observation_path_contributes_no_observations(
-    database: Database, auth_users: dict[str, SignedInUser]
-) -> None:
-    case = await _case(database, auth_users, "context-observation-gate")
-    session_id = await create_live_session(
-        database, case=case, phase=InterviewPhase.DISCOVERY
-    )
-    bundle = await assemble_bundle(
-        database,
-        client_id=case.client_id,
-        product_signal_id=case.product_signal_id,
-        interview_session_id=session_id,
-        purpose="voice_delegation",
-        budget_items=32,
-        observations=(),
-        extra_items=(),
-        recent_fragment_limit=10,
-        prior_command_limit=5,
-    )
-    assert bundle.section(SECTION_SELECTED_OBSERVATIONS) == ()

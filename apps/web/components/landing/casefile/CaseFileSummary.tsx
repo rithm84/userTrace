@@ -11,7 +11,7 @@ import type { ComponentType, JSX, ReactNode } from "react";
 import { SHOPALYTICS } from "../story/shopalyticsFixture";
 
 export const CASE_FILE_TITLE = "Saved conversion views";
-export const CASE_FILE_EXAMPLE_NOTE = "Example Case File for the Shopalytics scenario; quotes and counts are illustrative.";
+const CASE_FILE_EXAMPLE_NOTE = "Example Case File for the Shopalytics scenario; quotes and counts are illustrative.";
 const USER = SHOPALYTICS.user.handle.charAt(0).toUpperCase() + SHOPALYTICS.user.handle.slice(1);
 const { implementation, validation } = SHOPALYTICS;
 

@@ -9,9 +9,8 @@ conversation.
 
 import json
 from pathlib import Path
-from uuid import UUID
 
-from utrace_contracts.domain.lifecycle import InterviewPhase, ProductSignalState
+from utrace_contracts.domain.lifecycle import InterviewPhase
 
 from app.connectors.typesafe_jev import JevClient
 from app.db.pool import Database
@@ -23,12 +22,12 @@ from app.interview.voice.channel import VoiceSubject
 from app.interview.voice.cues import _new_controls
 from app.interview.voice.judge import VoiceJudge
 from tests.connectors.conftest import optional_env, require_env
-from tests.factories import CaseFixture, create_case
-from tests.helpers import record_session_readiness
+from tests.factories import CaseFixture
 from tests.interview.fixtures import (
     create_binding,
     create_live_session,
     create_preview_allocation,
+    interviewing_case,
     link_installation,
     observe_document,
     observe_next_document,
@@ -36,14 +35,6 @@ from tests.interview.fixtures import (
 from tests.supabase_auth import SignedInUser
 
 _DEVICE_KEY = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEtoolstestkeyfortheinstallationrecord"
-
-_FILTERS = (
-    ("filter-date-range", 'conversion_filter_date_range showing "Last 30 days"'),
-    ("filter-channel", 'conversion_filter_channel showing "TikTok"'),
-    ("filter-segment", 'conversion_filter_segment showing "Women 25-34"'),
-    ("filter-sentiment", 'conversion_filter_sentiment showing "Negative"'),
-    ("filter-reset", 'conversion_filter_reset showing "Reset"'),
-)
 
 #: The demo's real validation pass up to the reload, then the reopen after it.
 _PASS = json.loads((Path(__file__).parent / "saved_view_validation.json").read_text())
@@ -56,59 +47,6 @@ _CHECKS = {
         "saved filter selections."
     ),
 }
-
-
-async def _case(database: Database, auth_users: dict[str, SignedInUser]) -> CaseFixture:
-    return await create_case(
-        database,
-        name="live-attention",
-        state=ProductSignalState.INTERVIEWING,
-        authorizing_auth_user_id=auth_users["owner_a"].auth_user_id,
-        participant_auth_user_id=None,
-    )
-
-
-async def _bound_session(database: Database, *, case: CaseFixture) -> UUID:
-    """A live session whose preview document registers the conversion filters."""
-    session_id = await create_live_session(database, case=case, phase=InterviewPhase.DISCOVERY)
-    allocation_id = await create_preview_allocation(
-        database, case=case, interview_session_id=session_id, state="ready"
-    )
-    installation_id = await link_installation(
-        database,
-        utrace_user_id=case.utrace_user_id,
-        device_public_key_spki_b64u=_DEVICE_KEY,
-        protocol_version="1.0",
-    )
-    _, attachment_id = await create_binding(
-        database,
-        case=case,
-        interview_session_id=session_id,
-        extension_installation_id=installation_id,
-        preview_runtime_allocation_id=allocation_id,
-    )
-    await record_session_readiness(
-        database, interview_session_id=session_id, conversational=True, observation=True
-    )
-    await observe_document(
-        database,
-        case=case,
-        interview_session_id=session_id,
-        preview_runtime_allocation_id=allocation_id,
-        document_attachment_id=attachment_id,
-        targets=tuple(
-            RegisteredTarget(
-                target_id=target_id,
-                target_revision=1,
-                description=description,
-                placement="top center of the screen",
-                role="button",
-                visible=True,
-            )
-            for target_id, description in _FILTERS
-        ),
-    )
-    return session_id
 
 
 def _judge(database: Database, jev: JevClient) -> VoiceJudge:
@@ -142,7 +80,7 @@ def _controls(names: tuple[str, ...]) -> tuple[RegisteredTarget, ...]:
 async def test_a_new_version_names_a_control_moved_only_when_its_order_changed(
     database: Database, auth_users: dict[str, SignedInUser]
 ) -> None:
-    case = await _case(database, auth_users)
+    case = await interviewing_case(database, auth_users, "live-attention")
     session_id = await create_live_session(database, case=case, phase=InterviewPhase.VALIDATION)
     allocation_id = await create_preview_allocation(
         database, case=case, interview_session_id=session_id, state="ready"
@@ -193,11 +131,13 @@ async def test_a_new_version_names_a_control_moved_only_when_its_order_changed(
             document_attachment_id=attachment,
             targets=_controls(names),
         )
-        return [
-            control.line for control in await _new_controls(database, judge=judge, subject=subject)
-        ]
+        return list(await _new_controls(database, judge=judge, subject=subject))
 
-    async with _jev() as jev:
+    # `_new_controls` reads only the registered targets, so this judge's Jev client
+    # sends no request and needs no gateway key.
+    async with JevClient(
+        api_key="unused", model_id="typesafe-ai/jev", timeout_seconds=30.0
+    ) as jev:
         judge = _judge(database, jev)
         # Filters around a new control keep their order, so only the new control is named.
         assert await load(judge, (*filters, "saved_view_save_control")) == [
@@ -213,7 +153,7 @@ async def test_a_new_version_names_a_control_moved_only_when_its_order_changed(
 async def test_agreed_checks_count_as_shown_only_once_the_new_version_showed_them(
     database: Database, auth_users: dict[str, SignedInUser]
 ) -> None:
-    case = await _case(database, auth_users)
+    case = await interviewing_case(database, auth_users, "live-attention")
     session_id = await create_live_session(database, case=case, phase=InterviewPhase.VALIDATION)
     subject = VoiceSubject(
         client_id=case.client_id,
@@ -259,7 +199,7 @@ async def test_the_agent_acknowledges_what_the_conversation_awaited_not_each_ste
 ) -> None:
     awaited = await _conversation(
         database,
-        case=await _case(database, auth_users),
+        case=await interviewing_case(database, auth_users, "live-attention"),
         turns=(
             ("agent", _GREETING),
             ("participant", "I rebuild the same filters every Monday. Let me open the dashboard and show you."),
@@ -268,7 +208,7 @@ async def test_the_agent_acknowledges_what_the_conversation_awaited_not_each_ste
     )
     walking = await _conversation(
         database,
-        case=await _case(database, auth_users),
+        case=await interviewing_case(database, auth_users, "live-attention"),
         turns=(
             ("agent", _GREETING),
             ("participant", "So every Monday I rebuild the same conversion filters, let me show you."),

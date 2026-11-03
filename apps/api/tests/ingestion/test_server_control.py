@@ -114,7 +114,6 @@ async def _new_acknowledged_command(
 async def test_a_foreign_bootstrap_credential_cannot_open_the_control_socket(
     ingest_server: str,
 ) -> None:
-    """A credential the control plane did not sign never reaches the loop."""
     control_url = f"{ingest_server.replace('http://', 'ws://')}/v1/server-sdk/control"
     with pytest.raises(WebSocketException):
         async with websockets.connect(
@@ -134,7 +133,6 @@ async def test_the_real_server_sdk_activates_exports_probes_and_obeys_control(
     auth_users: dict[str, SignedInUser],
     tmp_path_factory: pytest.TempPathFactory,
 ) -> None:
-    """One prepared service's whole control-channel journey, end to end."""
     preload = build_sdk()
     await prepare_product_schema(telemetry_database)
     preview = await create_preview(

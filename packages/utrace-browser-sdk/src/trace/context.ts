@@ -15,12 +15,12 @@
 import type { RandomSource } from "../core/ids.js";
 import { spanId as newSpanId, traceId as newTraceId } from "../core/ids.js";
 
-export interface SpanContext {
+interface SpanContext {
   readonly trace_id: string;
   readonly span_id: string;
 }
 
-export interface ClientSpan extends SpanContext {
+interface ClientSpan extends SpanContext {
   readonly parent_span_id: string | null;
   readonly traceparent: string;
   readonly tracestate: string;

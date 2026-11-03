@@ -1,5 +1,5 @@
 /**
- * The packaged extension driven in the installed Google Chrome.
+ * The packaged extension driven in Chrome for Testing.
  *
  * It proves the journey end to end against test doubles of the two contracts
  * other workstreams own: the control plane's `WS /v1/extension/control` and the

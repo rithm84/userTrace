@@ -35,7 +35,7 @@ import {
 
 import type { ActiveObservation } from '../activation.js';
 import type { AdapterStatus } from '../contracts/health.js';
-import { ServerSdkError, createFailure } from '../errors.js';
+import { failureError } from '../errors.js';
 import type { RedactionPolicy } from '../redaction/policy.js';
 import { detectStartupConflicts, globalRegistrationConflict } from './conflicts.js';
 import { buildInstrumentationSet } from './instrumentations.js';
@@ -133,10 +133,7 @@ export function installProvider(
   const conflicts = detectStartupConflicts(environment);
   const firstConflict = conflicts[0];
   if (firstConflict !== undefined) {
-    throw new ServerSdkError(
-      'Another OpenTelemetry owner is already present in this process.',
-      createFailure(firstConflict, now),
-    );
+    throw failureError('Another OpenTelemetry owner is already present in this process.', firstConflict, now);
   }
 
   const resource = resourceFromAttributes({
@@ -161,26 +158,29 @@ export function installProvider(
       new ScopeSuppressingTracerProvider(provider, policy.suppressedScopes),
     )
   ) {
-    throw new ServerSdkError(
+    throw failureError(
       'A global tracer provider is already registered.',
-      createFailure(globalRegistrationConflict('tracer_provider'), now),
+      globalRegistrationConflict('tracer_provider'),
+      now,
     );
   }
 
   const contextManager = new AsyncLocalStorageContextManager();
   contextManager.enable();
   if (!context.setGlobalContextManager(contextManager)) {
-    throw new ServerSdkError(
+    throw failureError(
       'A global context manager is already registered.',
-      createFailure(globalRegistrationConflict('context_manager'), now),
+      globalRegistrationConflict('context_manager'),
+      now,
     );
   }
 
   // W3C Trace Context only. Baggage is neither extracted nor injected.
   if (!propagation.setGlobalPropagator(new PreviewGatedTraceContextPropagator(tokens))) {
-    throw new ServerSdkError(
+    throw failureError(
       'A global propagator is already registered.',
-      createFailure(globalRegistrationConflict('propagator'), now),
+      globalRegistrationConflict('propagator'),
+      now,
     );
   }
 

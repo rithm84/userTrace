@@ -25,7 +25,7 @@ import { priorityOf } from "../observation/types.js";
 import { jsonByteLength } from "./protocol.js";
 import type { ExportRecord } from "./record.js";
 
-export interface PendingRecord {
+interface PendingRecord {
   readonly record: ExportRecord;
   readonly priority: ObservationPriority;
   readonly bytes: number;
@@ -38,7 +38,7 @@ export interface InFlightRecord {
   readonly bytes: number;
 }
 
-export interface DroppedRange {
+interface DroppedRange {
   readonly runtime_id: string;
   readonly first_source_sequence: number;
   readonly last_source_sequence: number;

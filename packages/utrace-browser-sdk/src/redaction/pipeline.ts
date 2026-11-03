@@ -34,7 +34,7 @@ const MAX_RULE_CARDINALITY = 200;
 
 const CONTROL_CHARACTERS = /[\p{Cc}\p{Cf}]/gu;
 
-export interface RedactionRequest {
+interface RedactionRequest {
   readonly kind: ValueKind;
   readonly value: string;
   /** The element the value came from, when there is one. */
@@ -49,7 +49,7 @@ export interface RedactionRequest {
   readonly annotatedSensitive: boolean;
 }
 
-export interface RedactionOutcome {
+interface RedactionOutcome {
   readonly output_class: OutputClass;
   readonly value: string | null;
   readonly length_bucket: LengthBucket;
@@ -116,10 +116,6 @@ export class RedactionPipeline {
 
   get audit(): RedactionAudit {
     return this.#audit;
-  }
-
-  get policy(): RedactionPolicy {
-    return this.#policy;
   }
 
   /** Runs all seven steps and returns the surviving representation. */

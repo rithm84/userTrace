@@ -37,9 +37,7 @@ from app.implementation.environment import (
     CODEX_VERSION,
     REGISTRY_DOMAINS,
 )
-from app.logging import configure_logging, get_logger
-
-_log = get_logger(__name__)
+from app.logging import configure_logging
 
 _BUILD_EGRESS = EgressPolicy(allowed_domains=REGISTRY_DOMAINS, injections=())
 """The build installs from the npm registry and reaches nothing else."""
@@ -122,7 +120,6 @@ async def _run() -> int:
 
 
 def main() -> int:
-    """Entry point."""
     configure_logging(INFO)
     return asyncio.run(_run())
 

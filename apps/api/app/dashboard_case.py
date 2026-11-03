@@ -1,6 +1,6 @@
 """One case's run, and the resources it is holding or has given back.
 
-[Client outputs](../../../docs/arch-components/client-outputs.md#full-client-dashboard)
+[Client outputs](../../../docs/arch-components/client-outputs.md#client-dashboard)
 gives the dashboard authorized projections, never model reasoning or raw
 telemetry. These are the per-case reads: how uTrace reached the originating
 user, the encounters it ran with them, the preview runtimes it claimed, the
@@ -572,7 +572,6 @@ async def _workspace_cleanup_state(
 
 
 def _at(row: DictRow, column: str) -> datetime | None:
-    """Return a nullable timestamp column."""
     if row[column] is None:
         return None
     return as_datetime(row, column)

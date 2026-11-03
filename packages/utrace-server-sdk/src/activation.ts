@@ -7,7 +7,7 @@
  * batch claims.
  */
 
-import { CONTRACT_MAJOR, PLATFORM_CEILINGS } from './constants.js';
+import { CONTRACT_MAJOR } from './constants.js';
 import type { ExportLimits, ServerActivation } from './contracts/activation.js';
 import type { ManifestService, ServerInstrumentationManifest } from './contracts/manifest.js';
 import { verifySignedManifest } from './contracts/signature.js';
@@ -15,7 +15,7 @@ import type { ManifestTrustAnchor } from './environment.js';
 import { failureError } from './errors.js';
 
 /** Identities every exported batch claims. */
-export interface ActivationIdentities {
+interface ActivationIdentities {
   readonly activation_id: string;
   readonly client_id: string;
   readonly client_user_id: string;
@@ -38,39 +38,17 @@ export interface ActiveObservation {
 }
 
 /** Process-created identities the activation must echo back unchanged. */
-export interface StreamIdentity {
+interface StreamIdentity {
   readonly serverStreamId: string;
   readonly serviceInstanceId: string;
   readonly serviceKey: string;
 }
 
-function assertLimitsBeneathCeilings(limits: ExportLimits, now: Date): void {
-  const checks: readonly (readonly [string, number, number])[] = [
-    ['max_batch_spans', limits.max_batch_spans, PLATFORM_CEILINGS.maxBatchSpans],
-    ['max_batch_bytes', limits.max_batch_bytes, PLATFORM_CEILINGS.maxBatchBytes],
-    ['max_queue_batches', limits.max_queue_batches, PLATFORM_CEILINGS.maxQueueBatches],
-    ['max_queue_spans', limits.max_queue_spans, PLATFORM_CEILINGS.maxQueueSpans],
-    ['max_in_flight_batches', limits.max_in_flight_batches, PLATFORM_CEILINGS.maxInFlightBatches],
-    ['export_interval_millis', limits.export_interval_millis, PLATFORM_CEILINGS.maxExportIntervalMillis],
-    [
-      'acknowledgement_lag_millis',
-      limits.acknowledgement_lag_millis,
-      PLATFORM_CEILINGS.maxAcknowledgementLagMillis,
-    ],
-    ['flush_timeout_millis', limits.flush_timeout_millis, PLATFORM_CEILINGS.maxFlushTimeoutMillis],
-    ['retry.max_backoff_millis', limits.retry.max_backoff_millis, PLATFORM_CEILINGS.maxBackoffMillis],
-    ['retry.max_attempts', limits.retry.max_attempts, PLATFORM_CEILINGS.maxRetryAttempts],
-  ];
-  for (const [name, value, ceiling] of checks) {
-    if (value > ceiling) {
-      throw failureError('An activation limit exceeds its fixed platform ceiling.', {
-        code: 'invalid_activation',
-        retry: 'never',
-        readiness_consequence: 'fail_stream',
-        detail: { limit: name, supplied: value, ceiling },
-      }, now);
-    }
-  }
+/**
+ * The schema caps every limit at its platform ceiling; the ordering of the two
+ * backoff bounds is the one limit rule it cannot express.
+ */
+function assertBackoffBoundsOrdered(limits: ExportLimits, now: Date): void {
   if (limits.retry.initial_backoff_millis > limits.retry.max_backoff_millis) {
     throw failureError('The activation retry backoff bounds are inverted.', {
       code: 'invalid_activation',
@@ -197,7 +175,7 @@ export function resolveActivation(
     }, now);
   }
 
-  assertLimitsBeneathCeilings(activation.limits, now);
+  assertBackoffBoundsOrdered(activation.limits, now);
 
   return {
     activation,

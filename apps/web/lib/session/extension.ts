@@ -32,7 +32,7 @@ declare global {
   }
 }
 
-export type ExtensionErrorCode = "unavailable" | "no_response" | "invalid_response" | "rejected";
+type ExtensionErrorCode = "unavailable" | "no_response" | "invalid_response" | "rejected";
 
 export class ExtensionError extends Error {
   readonly code: ExtensionErrorCode;
@@ -51,7 +51,7 @@ const preflightResponseSchema = z.object({
   installation_proof: z.string().min(1).nullable(),
   protocol_version: z.string().min(1),
 });
-export type ExtensionPreflight = z.infer<typeof preflightResponseSchema>;
+type ExtensionPreflight = z.infer<typeof preflightResponseSchema>;
 
 const bindingAckSchema = z.object({
   type: z.literal("utrace_binding_offer_ack"),

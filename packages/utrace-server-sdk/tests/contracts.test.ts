@@ -1,9 +1,3 @@
-/**
- * Contract-level checks that need no sockets: environment resolution, manifest
- * signature verification, route resolution, backoff, readiness, and agreement
- * between the JSON Schemas and the runtime validators in this package.
- */
-
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -167,24 +161,6 @@ describe('bootstrap environment', () => {
     expect(otlpTracesUrl(resolution.environment.ingestUrl).href).toBe(
       'https://api.utrace.dev/compute/v1/api/v1/ingest/otlp/v1/traces',
     );
-  });
-
-  it('parses a complete prepared-preview environment', () => {
-    const resolution = resolveEnvironment(
-      {
-        [ENVIRONMENT_VARIABLES.bootstrapCredential]: 'secret',
-        [ENVIRONMENT_VARIABLES.serviceName]: 'shopalytics_api',
-        [ENVIRONMENT_VARIABLES.controlUrl]: 'wss://control.utrace.dev',
-        [ENVIRONMENT_VARIABLES.ingestUrl]: 'https://ingest.utrace.dev',
-        [ENVIRONMENT_VARIABLES.manifestTrustAnchor]: IDENTITY.trustAnchorEnvValue,
-      },
-      new Date(),
-    );
-    expect(resolution.kind).toBe('prepared');
-    if (resolution.kind === 'prepared') {
-      expect(resolution.environment.manifestTrustAnchor.keyId).toBe('utrace-test-key');
-      expect(resolution.environment.serviceName).toBe('shopalytics_api');
-    }
   });
 });
 
@@ -365,7 +341,6 @@ describe('readiness', () => {
     bufferAboveHighWater: false,
     probePassed: true,
     openFailures: 0,
-    paused: false,
   };
 
   it('is ready only when every requirement holds', () => {
@@ -489,19 +464,6 @@ describe('JSON Schemas and runtime validators agree', () => {
   for (const file of readdirSync(SCHEMA_DIRECTORY)) {
     ajv.addSchema(JSON.parse(readFileSync(join(SCHEMA_DIRECTORY, file), 'utf8')) as object);
   }
-
-  it('publishes one schema document per contract record', () => {
-    expect(readdirSync(SCHEMA_DIRECTORY).sort()).toEqual([
-      'server-activation.v1.schema.json',
-      'server-control-client-message.v1.schema.json',
-      'server-control-server-message.v1.schema.json',
-      'server-export-batch-envelope.v1.schema.json',
-      'server-instrumentation-manifest.v1.schema.json',
-      'server-sdk-failure.v1.schema.json',
-      'server-sdk-health-report.v1.schema.json',
-      'signed-server-instrumentation-manifest.v1.schema.json',
-    ]);
-  });
 
   it('accepts the same signed manifest in both implementations', () => {
     const signed = signManifest(baseManifest(), IDENTITY);

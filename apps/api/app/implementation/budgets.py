@@ -37,7 +37,6 @@ class ConsumedBudgets:
 
     @classmethod
     def empty(cls) -> ConsumedBudgets:
-        """A fresh attempt that has spent nothing."""
         return cls(
             elapsed_seconds=0,
             agent_turns=0,

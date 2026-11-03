@@ -121,7 +121,6 @@ class GateBundle(BundleModel):
         return frozenset(item.finding_id for item in self.code_findings)
 
     def finding_by_id(self, finding_id: UUID) -> CodeFinding | None:
-        """Return one cited finding, or `None` when the bundle does not carry it."""
         for finding in self.code_findings:
             if finding.finding_id == finding_id:
                 return finding

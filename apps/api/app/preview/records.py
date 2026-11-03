@@ -31,7 +31,6 @@ __all__ = [
 ]
 
 ROUTE_RECORD_SCHEMA_VERSION = "utrace_preview_route_record_v1"
-DENIAL_SCHEMA_VERSION = "utrace_preview_denial_v1"
 
 
 class _Record(BaseModel):

@@ -25,7 +25,7 @@ import { visualCommandFrameSchema } from "../protocol/control";
 
 export const CONTENT_PORT_NAME = "utrace.agent-surface.v1";
 
-export const characterProjectionSchema = z.strictObject({
+const characterProjectionSchema = z.strictObject({
   revision: revisionSchema,
   state: characterStateSchema,
   gazeX: signedUnitIntervalSchema,
@@ -47,7 +47,7 @@ export const orbSettingsSchema = z.strictObject({
   diameter: z.int().min(ORB_DIAMETER.min).max(ORB_DIAMETER.max).multipleOf(ORB_DIAMETER.step),
 });
 
-export const controlsStateSchema = z.strictObject({
+const controlsStateSchema = z.strictObject({
   sessionControlRevision: revisionSchema,
   mute: z.enum(["muted", "unmuted"]),
   pause: z.enum(["running", "paused", "ended"]),
@@ -56,7 +56,7 @@ export const controlsStateSchema = z.strictObject({
   pendingAction: controlActionSchema.nullable(),
 });
 
-export const workerMessageSchema = z.discriminatedUnion("kind", [
+const workerMessageSchema = z.discriminatedUnion("kind", [
   z.strictObject({
     kind: z.literal("init"),
     nonce: uuidSchema,
@@ -79,7 +79,7 @@ export const workerMessageSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("teardown"), reason: reasonCodeSchema }),
 ]);
 
-export const surfaceMessageSchema = z.discriminatedUnion("kind", [
+const surfaceMessageSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("surface_ready"), nonce: uuidSchema }),
   z.strictObject({
     kind: z.literal("command_result"),

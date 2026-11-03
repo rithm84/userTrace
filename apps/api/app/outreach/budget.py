@@ -35,7 +35,6 @@ class ContactAllowance:
         return min(self.per_person_remaining, self.per_client_remaining)
 
     def exhausted(self) -> bool:
-        """Return whether no private contact may be sent."""
         return self.remaining <= 0
 
 

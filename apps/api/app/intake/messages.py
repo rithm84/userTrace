@@ -384,7 +384,6 @@ async def record_message(
 def _batch_opened_event(
     *, client_id: UUID, batch_id: UUID, receipt: MessageReceipt, now: datetime
 ) -> EventAppend:
-    """Build the fact that one debounce batch opened."""
     return EventAppend(
         message_id=uuid7(),
         stream=StreamRef(kind=AggregateKind.INTAKE_ITEM, id=batch_id),
@@ -403,7 +402,6 @@ def _batch_opened_event(
 
 
 def _batch_audit(*, batch_id: UUID, action: str, outcome: str) -> AuditIntent:
-    """Build the audit record for one batch lifecycle step."""
     return AuditIntent(
         audit_id=uuid7(),
         subject=StreamRef(kind=AggregateKind.INTAKE_ITEM, id=batch_id),

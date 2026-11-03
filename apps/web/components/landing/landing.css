@@ -79,16 +79,6 @@
   margin: 0;
 }
 
-.lp-h3 {
-  font-family: var(--display);
-  font-weight: 800;
-  font-stretch: 94%;
-  letter-spacing: -0.025em;
-  line-height: 1.05;
-  font-size: 26px;
-  margin: 0;
-}
-
 .lp-kicker {
   font: 500 16px/1.3 var(--body);
   color: var(--ink-2);
@@ -164,17 +154,6 @@
   outline-offset: 3px;
 }
 
-.lp-btn--lg {
-  height: 52px;
-  padding: 0 26px 1px;
-  font-size: 17px;
-  border-radius: 11px;
-}
-
-.lp-btn--secondary {
-  background: var(--paper);
-}
-
 .lp-btn--onblack {
   background: var(--ink);
   color: var(--paper);
@@ -184,13 +163,6 @@
 
 .lp-btn--onblack:hover {
   box-shadow: 0 0 0 0 var(--paper);
-}
-
-.lp-btn--sm {
-  height: 38px;
-  padding: 0 14px 1px;
-  font-size: 14px;
-  border-radius: 8px;
 }
 
 /* ---------------------------------------------------------------- nav links (on black) */
@@ -224,92 +196,6 @@ button.lp-nav-link { padding: 6px 0; border: 0; background: none; color: rgba(25
 
 .lp-nav-link:hover::after {
   transform: scaleX(1);
-}
-
-/* ---------------------------------------------------------------- panels */
-
-.lp-panel {
-  border: 2px solid var(--ink);
-  background: var(--paper);
-}
-
-.lp-panel--float {
-  box-shadow: 8px 8px 0 0 var(--ink);
-}
-
-/* ink-weight border: 1px top/right, 3px bottom/left reads as a cast shadow and
-   survives clip-path and dark grounds */
-.lp-inkw {
-  border: 1px solid var(--ink);
-  border-bottom-width: 3px;
-  border-left-width: 3px;
-  background: var(--paper);
-}
-
-.lp-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 26px;
-  padding: 0 10px;
-  font: 600 13px/1 var(--body);
-  color: var(--ink);
-  background: var(--coral-tint);
-  border: 1px solid var(--ink);
-  border-bottom-width: 2px;
-  border-left-width: 2px;
-  border-radius: 4px;
-  white-space: nowrap;
-}
-
-.lp-chip--plain {
-  background: var(--paper);
-}
-
-.lp-chip--coral {
-  background: var(--coral);
-}
-
-/* ---------------------------------------------------------------- screentone
-   A 45-degree dot lattice as two offset radial gradients (7px pitch, resolves
-   as dots on 2x and grey on 1x). Clip it with a
-   clip-path where a plate should be a wedge. */
-.lp-tone {
-  background-image:
-    radial-gradient(var(--rule-2) 1.15px, transparent 1.35px),
-    radial-gradient(var(--rule-2) 1.15px, transparent 1.35px);
-  background-size: 7px 7px;
-  background-position:
-    0 0,
-    3.5px 3.5px;
-}
-
-.lp-tone--coral {
-  background-image:
-    radial-gradient(var(--coral) 1.25px, transparent 1.45px),
-    radial-gradient(var(--coral) 1.25px, transparent 1.45px);
-}
-
-.lp-tone--fine {
-  background-image:
-    radial-gradient(var(--rule-2) 0.9px, transparent 1.1px);
-  background-size: 5px 5px;
-  background-position: 0 0;
-}
-
-/* ---------------------------------------------------------------- stamp */
-.lp-stamp {
-  display: inline-block;
-  border: 3px solid var(--coral-ink);
-  color: var(--coral-ink);
-  padding: 6px 12px 5px;
-  font: 900 20px/1 var(--display);
-  font-stretch: 90%;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  background: rgba(255, 255, 255, 0.86);
-  border-radius: 4px;
-  transform: rotate(-8deg);
 }
 
 /* ---------------------------------------------------------------- comic devices on the frame */

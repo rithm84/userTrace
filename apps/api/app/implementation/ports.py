@@ -35,8 +35,6 @@ __all__ = [
 
 
 class HandoffModel(BaseModel):
-    """Base for the handoff parts: immutable and closed to extra fields."""
-
     model_config = ConfigDict(frozen=True, extra="forbid")
 
 

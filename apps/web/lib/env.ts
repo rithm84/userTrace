@@ -8,7 +8,7 @@
  * `process.env` at call time and must never be imported into a client module.
  */
 
-export type ConfigurationErrorCode = "missing_setting" | "invalid_setting";
+type ConfigurationErrorCode = "missing_setting" | "invalid_setting";
 
 export class ConfigurationError extends Error {
   readonly code: ConfigurationErrorCode;
@@ -22,13 +22,13 @@ export class ConfigurationError extends Error {
   }
 }
 
-export type PublicEnvironment = Readonly<{
+type PublicEnvironment = Readonly<{
   supabaseUrl: string;
   supabasePublishableKey: string;
   extensionId: string;
 }>;
 
-export type ServerEnvironment = Readonly<{
+type ServerEnvironment = Readonly<{
   apiBaseUrl: string;
   clientId: string;
 }>;
@@ -80,7 +80,6 @@ export function readServerEnvironment(): ServerEnvironment {
   });
 }
 
-/** True when the control plane is replaced by the in-repository fixture client. */
 export function usesFixtureControlPlane(): boolean {
   return process.env.UTRACE_CONTROL_PLANE_FIXTURES?.trim() === "1";
 }

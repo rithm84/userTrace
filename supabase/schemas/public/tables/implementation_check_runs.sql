@@ -8,14 +8,12 @@ CREATE TABLE "public"."implementation_check_runs" (
   "command"                   text                     NOT NULL,
   "exit_code"                 integer                  NOT NULL,
   "duration_seconds"          double precision         NOT NULL,
-  "log_artifact_id"           uuid,
   "cycle_index"               integer                  NOT NULL,
   "schema_version"            smallint                 NOT NULL DEFAULT 1,
   "created_at"                timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT "implementation_check_runs_client_id_fkey" FOREIGN KEY (client_id) REFERENCES public.clients(id),
   CONSTRAINT "implementation_check_runs_environment_lease_id_fkey" FOREIGN KEY (environment_lease_id) REFERENCES public.environment_leases(id),
   CONSTRAINT "implementation_check_runs_implementation_attempt_id_fkey" FOREIGN KEY (implementation_attempt_id) REFERENCES public.implementation_attempts(id),
-  CONSTRAINT "implementation_check_runs_log_artifact_id_fkey" FOREIGN KEY (log_artifact_id) REFERENCES public.artifacts(id),
   CONSTRAINT "implementation_check_runs_phase_known" CHECK ((phase = ANY (ARRAY['baseline'::text, 'candidate'::text]))),
   CONSTRAINT "implementation_check_runs_pkey" PRIMARY KEY (id)
 );

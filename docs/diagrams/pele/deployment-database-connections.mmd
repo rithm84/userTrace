@@ -1,0 +1,25 @@
+---
+title: Database connections · direct for computes, pooled for the voice agent
+---
+flowchart LR
+  subgraph row_1 [" "]
+    direction TB
+    computes["`**api + worker computes**
+    Pool capped at 6 per compute
+    +1 listener per extension socket`"]:::runtime
+    voice["`**Voice agent · up to 10 instances**
+    Pool capped at 4 per instance
+    +1 voice_sideband listener per live session`"]:::runtime
+    tools([Workstation tools]):::people
+    computes ~~~ voice ~~~ tools
+  end
+  subgraph supa_net ["Supabase network"]
+    pooler{{"`**Session pooler**
+    Fixed client limit`"}}:::gate
+    pg[("`**Postgres**
+    Database connection limit`")]:::outcome
+    pooler --> pg
+  end
+  computes -->|"direct · db.#lt;ref#gt;.supabase.co:5432"| pg
+  voice -->|from outside Supabase's network| pooler
+  tools --> pooler

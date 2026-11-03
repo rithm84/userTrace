@@ -1,0 +1,29 @@
+---
+title: Browser SDK · one browser stream through disconnect, pause, and credential expiry
+---
+sequenceDiagram
+  autonumber
+  participant rt as Top-document runtime
+  participant ing as Browser ingestion
+  participant cp as Control plane
+
+  rt->>ing: new browser_stream_id · export_sequence from 1
+  loop while ready
+    rt->>ing: redacted batch
+    ing-->>rt: highest contiguous export_sequence
+  end
+  alt transport disconnect, credential unexpired
+    rt->>ing: reconnect with the same credential
+    Note over rt,ing: Same activation, attachment, stream, and buffer.<br/>Retransmit from the last contiguous acknowledgement.
+  else pause
+    rt->>ing: flush
+    ing-->>rt: acknowledgement
+    rt->>ing: close · terminal sequence
+    Note over rt,ing: Resume reopens this stream at that watermark.
+  else credential expired or rejected
+    rt->>cp: fresh attestation and credential
+    cp-->>rt: new activation · new document attachment
+    Note over rt: Discards the old stream's<br/>unsent and unacknowledged records.
+    rt->>ing: new browser_stream_id · export_sequence from 1 · fresh baseline
+    Note over ing: The old stream records no terminal sequence.<br/>Its acknowledged watermark ends it.
+  end

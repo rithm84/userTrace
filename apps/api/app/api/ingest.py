@@ -19,8 +19,7 @@ from uuid import UUID
 from fastapi import APIRouter, Request, WebSocket
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.auth.dependencies import CurrentDatabase, FrontDoorService
-from app.db.pool import Database
+from app.auth.dependencies import CurrentDatabase, CurrentSettings, FrontDoorService
 from app.ingestion.control_channel import ServerControlSession
 from app.ingestion.control_commands import send_control_command
 from app.ingestion.control_hub import require_control_hub
@@ -33,31 +32,16 @@ _log = get_logger(__name__)
 router = APIRouter(prefix="/v1/server-sdk", tags=["ingestion"])
 
 
-def _websocket_database(websocket: WebSocket) -> Database:
-    """Return the process-wide connector for a WebSocket route."""
-    database = websocket.app.state.database
-    if not isinstance(database, Database):
-        raise TypeError("the application was assembled without a database connector")
-    return database
-
-
-def _websocket_lane_key(websocket: WebSocket) -> str:
-    """Return the lane signing key the bootstrap credential is verified with."""
-    settings = websocket.app.state.settings
-    signing_key = getattr(settings, "lane_signing_key", None)
-    if not isinstance(signing_key, str):
-        raise TypeError("the application was assembled without settings")
-    return signing_key
-
-
 @router.websocket("/control")
-async def server_sdk_control(websocket: WebSocket) -> None:
+async def server_sdk_control(
+    websocket: WebSocket, database: CurrentDatabase, settings: CurrentSettings
+) -> None:
     """Carry the Server SDK's activation and control protocol."""
     session = ServerControlSession(
         websocket,
-        database=_websocket_database(websocket),
+        database=database,
         hub=require_control_hub(websocket.app),
-        lane_signing_key=_websocket_lane_key(websocket),
+        lane_signing_key=settings.lane_signing_key,
     )
     await session.run()
 

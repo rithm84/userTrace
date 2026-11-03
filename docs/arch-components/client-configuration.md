@@ -2,7 +2,7 @@
 
 [Back to uTrace architecture](../ARCHITECTURE.md)
 
-The following diagram shows how the demo's scripted configuration becomes the release every Product Signal pins:
+The demo's scripted configuration becomes the release every Product Signal pins:
 
 ![Configuration scripts publish an immutable release that the demo harness verifies and each Product Signal pins.](../diagrams/svg/client-configuration.svg)
 
@@ -16,30 +16,31 @@ The following diagram shows how the demo's scripted configuration becomes the re
 ## Configuration ownership
 
 uTrace configures the demo's client with scripts rather than a self-service flow.
-A client has exactly one owner and zero or more admins. They can stop a case and,
-for the owner, authorize the Outreach Offers budget; they cannot edit runtime state
-or approve individual actions. A product may use several services, but each
-implementation stays within one authorized repository.
+Client [staff authority](./identity-and-access.md#authorization-boundaries) is
+limited to stopping a case and, for the owner, authorizing the Outreach Offers
+budget. A product may use several services, but each implementation stays within
+one authorized repository.
 
 ## Immutable configuration releases
 
 Publishing a configuration atomically creates an immutable
-`ClientConfigurationRelease`. Every Product Signal pins one release for its
-lifecycle, and later configuration governs new signals only. Offboarding,
+`ClientConfigurationRelease`. Every Product Signal pins one release by identity
+for its lifecycle, so later releases govern only new signals. Offboarding,
 credential revocation, and platform security prohibitions are immediate deny-only
 overrides.
 
-A release has no lifecycle state of its own, because it never changes state.
-Releases are append-only, enforced in the database rather than by convention: a
-client's releases are numbered, the highest number is the active one, and nothing
-is retired, superseded in place, or deleted. A Product Signal pins a release by
-its identity, so the pinned contract survives any number of later releases.
+### Numbering and digest
 
-Each release carries a `sha256:` digest over the canonical serialization of its
-policy. Equal digests mean equal policy, which is what lets publication recognize
-a re-publish as a no-op and lets a dashboard or an SDK compare what it holds
-against what the case pinned. The digest is an identity for comparison, not a
-second copy of the policy.
+A release never changes, so it has no lifecycle state. The database, not
+convention, keeps releases append-only: a client's releases are numbered, the
+highest is active, and none is retired, superseded in place, or deleted.
+
+Each release carries a `sha256:` digest over its policy's canonical
+serialization, an identity for comparison rather than a second copy. Equal
+digests mean equal policy, so publication treats a re-publish as a no-op, and a
+dashboard or SDK can compare what it holds with what the case pinned.
+
+### Release contents
 
 A release pins:
 
@@ -54,21 +55,22 @@ A release pins:
 - the dashboard origin a draft PR links its Case File from
 
 The client compatibility contract explicitly declares repository, environment,
-startup, health, and seeding requirements. uTrace does not infer an arbitrary
-application stack or invent startup and health behavior from repository contents.
+startup, health, and seeding requirements; uTrace never infers an arbitrary
+application stack or invents startup and health behavior from repository
+contents.
 
-A release carries no model configuration. The GPT-6.1 Sol, Jev, and voice
+A release carries no model configuration: the GPT-6.1 Sol, Jev, and voice
 provider settings in the [model access contract](./deployment.md#model-access)
-are platform-wide uTrace integrations, not provider accounts that the client or
-the originating user must supply.
+are platform-wide uTrace integrations, not provider accounts the client or
+originating user must supply.
 
 ## SDK source integration
 
-The client adds browser/server SDK dependencies, preview entry points, product
-annotations, and build/startup configuration through its normal code-review process
-and merges them into its maintained application branch, usually `main`. This is
-client-owned setup, not a product Implementation Attempt. A permanent divergent
-uTrace branch is not part of the configuration.
+The client adds browser and server SDK dependencies, preview entry points,
+product annotations, and build and startup configuration through its normal
+code-review process, and merges them into its maintained application branch,
+usually `main`. This client-owned setup is not a product Implementation Attempt,
+and no permanent divergent uTrace branch is part of it.
 
 The same source revision supports distinct production and preview profiles:
 
@@ -78,26 +80,25 @@ The same source revision supports distinct production and preview profiles:
 - The production profile excludes active uTrace runtime code and startup hooks.
   Retained annotation helpers are inert and must not affect business behavior.
 
-Preparing the configuration checks both profiles: complete correlated observation
-in a prepared preview, and no active uTrace runtime, hooks, connections, or exports
-in a production build and startup smoke check. Dependency installation alone never
-activates collection. The [browser SDK](./browser-sdk.md#package-and-bootstrap-boundary)
-and [server SDK](./server-sdk.md#preview-only-ownership-and-startup) own their
+Preparing the configuration checks both profiles: complete correlated
+observation in a prepared preview, and no active uTrace runtime, hooks,
+connections, or exports in a production build and startup smoke check.
+Dependency installation alone never activates collection. The
+[browser SDK](./browser-sdk.md#package-and-bootstrap-boundary) and
+[server SDK](./server-sdk.md#preview-only-ownership-and-startup) own their
 loading contracts.
 
 ## Verification by the demo harness
 
 The demo harness's `demo prepare` brings a target control plane to the
 [scenario's](../SCENARIO.md#starting-state-and-fixture) starting state and
-verifies it before a run. A configuration change publishes a new release and runs
-`demo prepare` again; existing Product Signals keep the release they pinned.
+verifies it before a run; a configuration change publishes a new release and
+reruns `demo prepare`.
 
-Configuration verification covers platform compatibility; it does not
-pre-authorize a participant's session. Each encounter must satisfy the
+Configuration verification covers platform compatibility, not a participant's
+session: each encounter must satisfy the
 [conversation and observation readiness boundaries](./interview-and-voice.md#readiness-has-two-boundaries),
-including a compatible extension and the session-specific binding. Every interview
-uses the uTrace session tab for voice and controls and a separate customer product
-preview tab.
+including a compatible extension and the session-specific binding.
 
 Long-lived provider credentials live in the control plane's
 [credential custody](./deployment.md#secrets-and-credentials); release manifests

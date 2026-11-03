@@ -7,13 +7,13 @@
 
 import type { OutputClass, RedactionStep } from "./classes.js";
 
-export interface AuditKey {
+interface AuditKey {
   readonly step: RedactionStep;
   readonly rule_id: string;
   readonly output_class: OutputClass;
 }
 
-export interface AuditEntry extends AuditKey {
+interface AuditEntry extends AuditKey {
   readonly redaction_version: string;
   readonly policy_version: string;
   readonly count: number;

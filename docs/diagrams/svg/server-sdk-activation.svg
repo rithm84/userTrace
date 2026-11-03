@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="pele-doc" viewBox="0 0 1391 1153" width="1391" height="1153" style="max-width:100%;height:auto" role="img" aria-label="Server SDK · activation and the control channel"><title>Server SDK · activation and the control channel</title><style><![CDATA[
+/*
+  Shared uTrace diagram theme. docs/diagrams/render.mjs embeds this file in every
+  exported SVG, so a diagram source names roles (`:::runtime`) and edge kinds
+  (`async_1@-.->`) and never sets a color itself. Pick a role by what a node is,
+  never by how it should look. Colors follow the reader's light or dark scheme.
+*/
+
+.pele-doc {
+  --pele-bg: #ffffff;
+  --pele-fg: #24303a;
+  --pele-muted: #5c6770;
+  --pele-line: #596773;
+  --pele-surface: #f2f4f6;
+  --pele-surface-alt: #f7f8fa;
+  --pele-border: #5c6770;
+  --pele-accent: #1971c2;
+  --pele-critical: #c44d41;
+  --pele-radius: 6px;
+
+  --people-fill: #e7f5ff;      --people-stroke: #1971c2;
+  --runtime-fill: #eee8ff;     --runtime-stroke: #7048e8;
+  --reasoning-fill: #f8e7fc;   --reasoning-stroke: #9c36b5;
+  --observation-fill: #e3fafc; --observation-stroke: #0c8599;
+  --external-fill: #fff0ed;    --external-stroke: #c44d41;
+  --outcome-fill: #e5f5e8;     --outcome-stroke: #2f9e44;
+  --async-fill: #ffd8a8;       --async-stroke: #e8590c;
+  --gate-fill: #fff4d6;        --gate-stroke: #b37c00;
+  --neutral-fill: #f2f4f6;     --neutral-stroke: #5c6770;
+  --client-fill: #ffffff;      --client-stroke: #1e1e1e;
+
+  --edge-async: #e8590c;   --edge-async-text: #b3470a;
+  --edge-blocked: #c44d41; --edge-blocked-text: #a13a2f;
+  --edge-ok: #2f9e44;      --edge-ok-text: #23783a;
+}
+
+@media (prefers-color-scheme: dark) {
+  .pele-doc {
+    --pele-bg: #0d1117;
+    --pele-fg: #e6edf3;
+    --pele-muted: #9da7b3;
+    --pele-line: #9da7b3;
+    --pele-surface: #161b22;
+    --pele-surface-alt: #10151c;
+    --pele-border: #6e7781;
+    --pele-accent: #4dabf7;
+    --pele-critical: #ff8787;
+
+    --people-fill: #0c2a43;      --people-stroke: #4dabf7;
+    --runtime-fill: #241c49;     --runtime-stroke: #9775fa;
+    --reasoning-fill: #381640;   --reasoning-stroke: #da77f2;
+    --observation-fill: #0b3338; --observation-stroke: #3bc9db;
+    --external-fill: #3d1714;    --external-stroke: #ff8787;
+    --outcome-fill: #11321b;     --outcome-stroke: #51cf66;
+    --async-fill: #4a2508;       --async-stroke: #ff922b;
+    --gate-fill: #3d2e05;        --gate-stroke: #fcc419;
+    --neutral-fill: #21262d;     --neutral-stroke: #8b949e;
+    --client-fill: #161b22;      --client-stroke: #c9d1d9;
+
+    --edge-async: #ff922b;   --edge-async-text: #ffa94d;
+    --edge-blocked: #ff8787; --edge-blocked-text: #ffa8a8;
+    --edge-ok: #51cf66;      --edge-ok-text: #69db7c;
+  }
+}
+
+.pele-doc > .pele-doc-bg { fill: var(--pele-bg); }
+
+/* Roles: fill and stroke only; text stays the ink color. */
+.pele-node.people > :is(rect, path, polygon, circle, ellipse),
+.pele-node.people > g > path { fill: var(--people-fill); stroke: var(--people-stroke); }
+.pele-node.runtime > :is(rect, path, polygon, circle, ellipse),
+.pele-node.runtime > g > path { fill: var(--runtime-fill); stroke: var(--runtime-stroke); }
+.pele-node.reasoning > :is(rect, path, polygon, circle, ellipse),
+.pele-node.reasoning > g > path { fill: var(--reasoning-fill); stroke: var(--reasoning-stroke); }
+.pele-node.observation > :is(rect, path, polygon, circle, ellipse),
+.pele-node.observation > g > path { fill: var(--observation-fill); stroke: var(--observation-stroke); }
+.pele-node.external > :is(rect, path, polygon, circle, ellipse),
+.pele-node.external > g > path { fill: var(--external-fill); stroke: var(--external-stroke); }
+.pele-node.outcome > :is(rect, path, polygon, circle, ellipse),
+.pele-node.outcome > g > path { fill: var(--outcome-fill); stroke: var(--outcome-stroke); }
+.pele-node.async > :is(rect, path, polygon, circle, ellipse),
+.pele-node.async > g > path { fill: var(--async-fill); stroke: var(--async-stroke); }
+.pele-node.gate > :is(rect, path, polygon, circle, ellipse),
+.pele-node.gate > g > path { fill: var(--gate-fill); stroke: var(--gate-stroke); }
+.pele-node.neutral > :is(rect, path, polygon, circle, ellipse),
+.pele-node.neutral > g > path { fill: var(--neutral-fill); stroke: var(--neutral-stroke); }
+.pele-node.client > :is(rect, path, polygon, circle, ellipse),
+.pele-node.client > g > path { fill: var(--client-fill); stroke: var(--client-stroke); }
+
+/* Subgraphs are boundaries: a dashed outline, like a zone. Swimlanes share
+   their borders, so theirs stay solid; a sequence box is a shaded region with no
+   outline, because message labels have no background to hide a line behind. Its
+   opaque surface fill keeps the region visible on the dark background. */
+.pele-cluster > rect { stroke-dasharray: 5 4; }
+.pele-lane > rect { stroke-dasharray: none; }
+.pele-box > rect { stroke: none; fill: var(--pele-surface); fill-opacity: 1; }
+
+/* A `row_*` subgraph only arranges its nodes into a row; it draws nothing. */
+.pele-cluster[data-id^="row_"] { display: none; }
+
+/* Edge kinds, selected by the edge id prefix the source gives the edge. */
+.pele-edge[data-id^="async_"] > path { stroke: var(--edge-async); }
+.pele-edge[data-id^="async_"] > path.pele-marker { fill: var(--edge-async); stroke: none; }
+.pele-edge-label[data-id^="async_"] text { fill: var(--edge-async-text); }
+.pele-edge[data-id^="blocked_"] > path { stroke: var(--edge-blocked); }
+.pele-edge[data-id^="blocked_"] > path.pele-marker { fill: var(--edge-blocked); stroke: none; }
+.pele-edge-label[data-id^="blocked_"] text { fill: var(--edge-blocked-text); }
+.pele-edge[data-id^="ok_"] > path { stroke: var(--edge-ok); }
+.pele-edge[data-id^="ok_"] > path.pele-marker { fill: var(--edge-ok); stroke: none; }
+.pele-edge-label[data-id^="ok_"] text { fill: var(--edge-ok-text); }
+]]></style><rect class="pele-doc-bg" width="1391" height="1153" rx="8"/><svg x="0" y="0" class="pele pele-sequence" viewBox="0 0 1391 1153" width="1391" height="1153" style="--_bg:var(--pele-bg,#fff);--_fg:var(--pele-fg,#1f1f1f);--_m:var(--pele-muted,#6e6e6e);--_l:var(--pele-line,#1f1f1f);--_s:var(--pele-surface,#f3f3f3);--_a:var(--pele-surface-alt,#e6e6e6);--_b:var(--pele-border,#8a8a8a);--_c:var(--pele-accent,#5b7bd5);color:var(--_fg);--_r:var(--pele-radius,4px);--_hw:var(--pele-heading-weight,bold);--_fm:var(--pele-font-mono,monospace);font:16px sans-serif;letter-spacing:normal;word-spacing:normal;text-transform:none;direction:ltr;font-family:var(--pele-font,sans-serif)" fill="var(--_fg)" role="graphics-document document" aria-roledescription="sequence"><g transform="translate(148.48,24)"><g class="pele-lifelines" fill="none" stroke="var(--_b)"><path class="pele-lifeline" data-id="rt" d="M0,44V1061"/><path class="pele-lifeline" data-id="sdk" d="M386.07,44V1061"/><path class="pele-lifeline" data-id="cp" d="M942.97,44V1061"/><path class="pele-lifeline" data-id="ing" d="M1132.34,44V1061"/></g><g class="pele-frames" font-size="14" stroke="var(--_b)"><g class="pele-frame pele-frame-loop"><rect x="366.07" y="384" width="786.27" height="109" fill="none" style="rx:var(--_r)"/><rect x="366.07" y="384" width="39.33" height="20" fill="var(--_s)" style="rx:var(--_r)"/><text class="pele-frame-kind" x="385.74" y="398.2" text-anchor="middle" font-size="12" font-weight="var(--_hw)" fill="var(--_m)" stroke="none">loop</text><text class="pele-frame-label" fill="var(--_m)" stroke="none" x="455.02" y="399.4" text-anchor="middle">[While active]</text></g><g class="pele-frame pele-frame-loop"><rect x="366.07" y="505" width="596.9" height="109" fill="none" style="rx:var(--_r)"/><rect x="366.07" y="505" width="39.33" height="20" fill="var(--_s)" style="rx:var(--_r)"/><text class="pele-frame-kind" x="385.74" y="519.2" text-anchor="middle" font-size="12" font-weight="var(--_hw)" fill="var(--_m)" stroke="none">loop</text><text class="pele-frame-label" fill="var(--_m)" stroke="none" x="515.34" y="520.4" text-anchor="middle">[Ahead of each credential expiry]</text></g><g class="pele-frame pele-frame-loop"><rect x="366.07" y="626" width="762.14" height="115" fill="none" style="rx:var(--_r)"/><rect x="366.07" y="626" width="39.33" height="20" fill="var(--_s)" style="rx:var(--_r)"/><text class="pele-frame-kind" x="385.74" y="640.2" text-anchor="middle" font-size="12" font-weight="var(--_hw)" fill="var(--_m)" stroke="none">loop</text><text class="pele-frame-label" fill="var(--_m)" stroke="none" x="478.77" y="641.4" text-anchor="middle">[Each health interval]</text></g><g class="pele-frame pele-frame-opt"><rect x="366.07" y="753" width="596.9" height="72" fill="none" style="rx:var(--_r)"/><rect x="366.07" y="753" width="32.66" height="20" fill="var(--_s)" style="rx:var(--_r)"/><text class="pele-frame-kind" x="382.4" y="767.2" text-anchor="middle" font-size="12" font-weight="var(--_hw)" fill="var(--_m)" stroke="none">opt</text><text class="pele-frame-label" fill="var(--_m)" stroke="none" x="463.92" y="768.4" text-anchor="middle">[Pause or resume]</text></g><g class="pele-frame pele-frame-opt"><rect x="366.07" y="837" width="786.27" height="146" fill="none" style="rx:var(--_r)"/><rect x="366.07" y="837" width="32.66" height="20" fill="var(--_s)" style="rx:var(--_r)"/><text class="pele-frame-kind" x="382.4" y="851.2" text-anchor="middle" font-size="12" font-weight="var(--_hw)" fill="var(--_m)" stroke="none">opt</text><text class="pele-frame-label" fill="var(--_m)" stroke="none" x="447.58" y="852.4" text-anchor="middle">[Termination]</text></g></g><g class="pele-edges" fill="none" stroke="var(--_l)" stroke-linecap="round"><g class="pele-edge pele-message" data-id="i1"><path d="M8,87H379.07"/><path class="pele-marker" d="M386.07,87L378.07,90.36L378.07,83.64Z" fill="var(--_l)" stroke="none"/><g class="pele-sequence-number"><rect x="-8" y="79" width="16" height="16" rx="8" fill="var(--_l)" stroke="none"/><text x="0" y="91.2" text-anchor="middle" font-size="12" fill="var(--_bg)" stroke="none">1</text></g></g><g class="pele-edge pele-message" data-id="i3"><path d="M394.07,182H935.97"/><path class="pele-marker" d="M942.97,182L934.97,185.36L934.97,178.64Z" fill="var(--_l)" stroke="none"/><g class="pele-sequence-number"><rect x="378.07" y="174" width="16" height="16" rx="8" fill="var(--_l)" stroke="none"/><text x="386.07" y="186.2" text-anchor="middle" font-size="12" fill="var(--_bg)" stroke="none">2</text></g></g><g class="pele-edge pele-message" data-id="i4"><path d="M394.07,219H935.97"/><path class="pele-marker" d="M942.97,219L934.97,222.36L934.97,215.64Z" fill="var(--_l)" stroke="none"/><g class="pele-sequence-number"><rect x="378.07" y="211" width="16" height="16" rx="8" fill="var(--_l)" stroke="none"/><text x="386.07" y="223.2" text-anchor="middle" font-size="12" fill="var(--_bg)" stroke="none">3</text></g></g><g class="pele-edge pele-message" data-id="i6"><path d="M934.97,314H393.07" stroke-dasharray="4 4"/><path class="pele-marker" d="M386.07,314L394.07,310.64L394.07,317.36Z" fill="var(--_l)" stroke="none"/><g class="pele-sequence-number"><rect x="934.97" y="306" width="16" height="16" rx="8" fill="var(--_l)" stroke="none"/><text x="942.97" y="318.2" text-anchor="middle" font-size="12" fill="var(--_bg)" stroke="none">4</text></g></g><g class="pele-edge pele-message" data-id="i9"><path d="M394.07,444H1125.34"/><path class="pele-marker" d="M1132.34,444L1124.34,447.36L1124.34,440.64Z" fill="var(--_l)" stroke="none"/><g class="pele-sequence-number"><rect x="378.07" y="436" width="16" height="16" rx="8" fill="var(--_l)" stroke="none"/><text x="386.07" y="448.2" text-anchor="middle" font-size="12" fill="var(--_bg)" stroke="none">5</text></g></g><g class="pele-edge pele-message" data-id="i10"><path d="M1124.34,481H393.07" stroke-dasharray="4 4"/><path class="pele-marker" d="M386.07,481L394.07,477.64L394.07,484.36Z" fill="var(--_l)" stroke="none"/><g class="pele-sequence-number"><rect x="1124.34" y="473" width="16" height="16" rx="8" fill="var(--_l)" stroke="none"/><text x="1132.34" y="485.2" text-anchor="middle" font-size="12" fill="var(--_bg)" stroke="none">6</text></g></g><g class="pele-edge pele-message" data-id="i13"><path d="M394.07,565H935.97"/><path class="pele-marker" d="M942.97,565L934.97,568.36L934.97,561.64Z" fill="var(--_l)" stroke="none"/><g class="pele-sequence-number"><rect x="378.07" y="557" width="16" height="16" rx="8" fill="var(--_l)" stroke="none"/><text x="386.07" y="569.2" text-anchor="middle" font-size="12" fill="var(--_bg)" stroke="none">7</text></g></g><g class="pele-edge pele-message" data-id="i14"><path d="M934.97,602H393.07" stroke-dasharray="4 4"/><path class="pele-marker" d="M386.07,602L394.07,598.64L394.07,605.36Z" fill="var(--_l)" stroke="none"/><g class="pele-sequence-number"><rect x="934.97" y="594" width="16" height="16" rx="8" fill="var(--_l)" stroke="none"/><text x="942.97" y="606.2" text-anchor="middle" font-size="12" fill="var(--_bg)" stroke="none">8</text></g></g><g class="pele-edge pele-message" data-id="i17"><path d="M394.07,686H935.97"/><path class="pele-marker" d="M942.97,686L934.97,689.36L934.97,682.64Z" fill="var(--_l)" stroke="none"/><g class="pele-sequence-number"><rect x="378.07" y="678" width="16" height="16" rx="8" fill="var(--_l)" stroke="none"/><text x="386.07" y="690.2" text-anchor="middle" font-size="12" fill="var(--_bg)" stroke="none">9</text></g></g><g class="pele-edge pele-message" data-id="i21"><path d="M932.3,813H393.07"/><path class="pele-marker" d="M386.07,813L394.07,809.64L394.07,816.36Z" fill="var(--_l)" stroke="none"/><g class="pele-sequence-number"><rect x="932.3" y="805" width="21.34" height="16" rx="8" fill="var(--_l)" stroke="none"/><text x="942.97" y="817.2" text-anchor="middle" font-size="12" fill="var(--_bg)" stroke="none">10</text></g></g><g class="pele-edge pele-message" data-id="i24"><path d="M932.3,897H393.07"/><path class="pele-marker" d="M386.07,897L394.07,893.64L394.07,900.36Z" fill="var(--_l)" stroke="none"/><g class="pele-sequence-number"><rect x="932.3" y="889" width="21.34" height="16" rx="8" fill="var(--_l)" stroke="none"/><text x="942.97" y="901.2" text-anchor="middle" font-size="12" fill="var(--_bg)" stroke="none">11</text></g></g><g class="pele-edge pele-message" data-id="i25"><path d="M396.74,934H1125.34"/><path class="pele-marker" d="M1132.34,934L1124.34,937.36L1124.34,930.64Z" fill="var(--_l)" stroke="none"/><g class="pele-sequence-number"><rect x="375.4" y="926" width="21.34" height="16" rx="8" fill="var(--_l)" stroke="none"/><text x="386.07" y="938.2" text-anchor="middle" font-size="12" fill="var(--_bg)" stroke="none">12</text></g></g><g class="pele-edge pele-message" data-id="i26"><path d="M396.74,971H935.97"/><path class="pele-marker" d="M942.97,971L934.97,974.36L934.97,967.64Z" fill="var(--_l)" stroke="none"/><g class="pele-sequence-number"><rect x="375.4" y="963" width="21.34" height="16" rx="8" fill="var(--_l)" stroke="none"/><text x="386.07" y="975.2" text-anchor="middle" font-size="12" fill="var(--_bg)" stroke="none">13</text></g></g></g><g class="pele-edge-labels" font-size="14"><g class="pele-edge-label" data-id="i1"><text x="197.04" y="77.4" text-anchor="middle">claim-time restart · bootstrap credential + trust anchor</text></g><g class="pele-edge-label" data-id="i3"><text x="668.52" y="172.4" text-anchor="middle">open WS /v1/server-sdk/control · bearer bootstrap credential</text></g><g class="pele-edge-label" data-id="i4"><text x="668.52" y="209.4" text-anchor="middle">activation frame · same credential + stream identity</text></g><g class="pele-edge-label" data-id="i6"><text x="660.52" y="304.4" text-anchor="middle">activation record · signed manifest, credential, endpoint, limits, probe, entry token</text></g><g class="pele-edge-label" data-id="i9"><text x="763.21" y="434.4" text-anchor="middle">OTLP/HTTP batch · service-instance credential</text></g><g class="pele-edge-label" data-id="i10"><text x="755.21" y="471.4" text-anchor="middle">full success</text></g><g class="pele-edge-label" data-id="i13"><text x="668.52" y="555.4" text-anchor="middle">rotate</text></g><g class="pele-edge-label" data-id="i14"><text x="660.52" y="592.4" text-anchor="middle">fresh short-lived service-instance credential</text></g><g class="pele-edge-label" data-id="i17"><text x="668.52" y="676.4" text-anchor="middle">health report</text></g><g class="pele-edge-label" data-id="i21"><text x="659.18" y="803.4" text-anchor="middle">pause or resume</text></g><g class="pele-edge-label" data-id="i24"><text x="659.18" y="887.4" text-anchor="middle">terminate</text></g><g class="pele-edge-label" data-id="i25"><text x="764.54" y="924.4" text-anchor="middle">bounded flush</text></g><g class="pele-edge-label" data-id="i26"><text x="669.86" y="961.4" text-anchor="middle">terminal stream report</text></g></g><g class="pele-notes" font-size="14" fill="var(--_a)" stroke="var(--_b)"><g class="pele-note" data-id="i2"><rect x="228.24" y="97" width="315.65" height="48" style="rx:var(--_r)"/><text class="pele-label" stroke="none" fill="var(--_fg)" text-anchor="middle" xml:space="preserve"><tspan x="386.07" y="116.9">Preload, before application code.</tspan><tspan x="386.07" y="134.9">Mints server_stream_id and service.instance.id.</tspan></text></g><g class="pele-note" data-id="i5"><rect x="769.95" y="229" width="346.05" height="48" style="rx:var(--_r)"/><text class="pele-label" stroke="none" fill="var(--_fg)" text-anchor="middle" xml:space="preserve"><tspan x="942.97" y="248.9">One activation per stream.</tspan><tspan x="942.97" y="266.9">Manifest from the release the Product Signal pinned.</tspan></text></g><g class="pele-note" data-id="i7"><rect x="190.32" y="324" width="391.5" height="48" style="rx:var(--_r)"/><text class="pele-label" stroke="none" fill="var(--_fg)" text-anchor="middle" xml:space="preserve"><tspan x="386.07" y="343.9">Verifies the manifest signature, or refuses to instrument.</tspan><tspan x="386.07" y="361.9">Installs the sole provider and the manifest's instrumentation.</tspan></text></g><g class="pele-note" data-id="i18"><rect x="777.73" y="696" width="330.48" height="33" style="rx:var(--_r)"/><text class="pele-label" stroke="none" fill="var(--_fg)" x="942.97" y="717.4" text-anchor="middle">Durable record, then a fresh readiness evaluation.</text></g><g class="pele-note" data-id="i28"><rect x="370.07" y="993" width="588.9" height="48" style="rx:var(--_r)"/><text class="pele-label" stroke="none" fill="var(--_fg)" text-anchor="middle" xml:space="preserve"><tspan x="664.52" y="1012.9">A dropped control connection reconnects with the same bootstrap credential, then rotates.</tspan><tspan x="664.52" y="1030.9">A restarted process presents a new stream and becomes a new activation.</tspan></text></g></g><g class="pele-nodes"><g class="pele-node pele-actor pele-actor-participant pele-actor-footer" data-id="rt"><rect x="-124.48" y="1061" width="248.96" height="44" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="1088.6" text-anchor="middle">Prepared-environment runtime</text></g><g class="pele-node pele-actor pele-actor-participant pele-actor-footer" data-id="sdk"><rect x="327.84" y="1061" width="116.46" height="44" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="386.07" y="1088.6" text-anchor="middle">Server SDK</text></g><g class="pele-node pele-actor pele-actor-participant pele-actor-footer" data-id="cp"><rect x="879.39" y="1061" width="127.15" height="44" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="942.97" y="1088.6" text-anchor="middle">Control plane</text></g><g class="pele-node pele-actor pele-actor-participant pele-actor-footer" data-id="ing"><rect x="1046.54" y="1061" width="171.6" height="44" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="1132.34" y="1088.6" text-anchor="middle">Telemetry ingestion</text></g><g class="pele-node pele-actor pele-actor-participant" data-id="rt"><rect x="-124.48" y="0" width="248.96" height="44" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="27.6" text-anchor="middle">Prepared-environment runtime</text></g><g class="pele-node pele-actor pele-actor-participant" data-id="sdk"><rect x="327.84" y="0" width="116.46" height="44" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="386.07" y="27.6" text-anchor="middle">Server SDK</text></g><g class="pele-node pele-actor pele-actor-participant" data-id="cp"><rect x="879.39" y="0" width="127.15" height="44" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="942.97" y="27.6" text-anchor="middle">Control plane</text></g><g class="pele-node pele-actor pele-actor-participant" data-id="ing"><rect x="1046.54" y="0" width="171.6" height="44" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="1132.34" y="27.6" text-anchor="middle">Telemetry ingestion</text></g></g></g></svg></svg>

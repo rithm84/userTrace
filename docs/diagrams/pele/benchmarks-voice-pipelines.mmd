@@ -1,0 +1,30 @@
+---
+title: Measured voice pipeline shapes · where each circle comes from
+---
+flowchart TB
+  subgraph cascade ["Script-first cascade · option A"]
+    direction LR
+    text["`**Text model**
+    Words with inline gesture marks`"]:::reasoning
+    pipe["`**Speech stage**
+    A speech engine speaks the words
+    Each mark kept with its word`"]:::runtime
+    circle_a([Circle]):::observation
+    text -->|words + marks| pipe -->|mark fires as its word plays| circle_a
+  end
+  subgraph judged ["GPT-Live · speech-to-speech with a clause judge"]
+    direction LR
+    live["`**GPT-Live**
+    Hears and speaks`"]:::reasoning
+    jev[Jev clause judge]:::reasoning
+    circle_b([Circle]):::observation
+    live -->|transcript of its speech| jev -->|judged clause| circle_b
+  end
+  subgraph tooled ["Speech-to-speech with pointing tools"]
+    direction LR
+    s2s["`**Speech-to-speech model**
+    gpt-realtime-2 · Gemini 3.8 Live`"]:::reasoning
+    circle_c([Circle]):::observation
+    s2s -->|pointing tool call| circle_c
+  end
+  cascade ~~~ judged ~~~ tooled

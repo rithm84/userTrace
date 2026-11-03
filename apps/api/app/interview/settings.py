@@ -5,9 +5,8 @@ module adds only what the interview runtime, context assembly, and extension
 control need, and it is read where it is used rather than at import, so a tool
 that only needs the route shapes still starts without provider credentials.
 
-Every value is required. `InterviewConfigurationError` names the missing
-variables and nothing else: a validation error carries submitted values, and
-those values are credentials.
+`InterviewConfigurationError` names the offending variables and nothing else: a
+validation error carries submitted values, and those values are credentials.
 """
 
 from enum import StrEnum
@@ -17,6 +16,7 @@ from pydantic import Field, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.connectors.openai_models import GPT_6_1_SOL, OpenAIEffort, OpenAIServiceTier
+from app.settings import _offending_variables
 
 __all__ = [
     "AgentCharacter",
@@ -79,8 +79,6 @@ class UnknownAgentCharacterError(RuntimeError):
 
 
 class _EnvSettings(BaseSettings):
-    """Base for every environment-read settings group in this package."""
-
     model_config = SettingsConfigDict(extra="ignore", case_sensitive=False)
 
 
@@ -120,9 +118,6 @@ class InterviewSettings(_EnvSettings):
     )
     selected_observation_limit: int = Field(
         default=20, validation_alias="UTRACE_CONTEXT_OBSERVATION_LIMIT"
-    )
-    tool_deadline_seconds: int = Field(
-        default=45, validation_alias="UTRACE_VOICE_TOOL_DEADLINE_SECONDS"
     )
     agent_display_name: str = Field(
         default="Wren", validation_alias="UTRACE_AGENT_DISPLAY_NAME"
@@ -196,19 +191,8 @@ class JevSettings(_EnvSettings):
     timeout_seconds: float = Field(validation_alias="UTRACE_JEV_TIMEOUT_SECONDS", gt=0)
 
 
-def _offending_variables(error: ValidationError) -> tuple[str, ...]:
-    """Return the environment variable names a validation error complained about."""
-    names: list[str] = []
-    for item in error.errors():
-        location = item["loc"]
-        if location:
-            names.append(str(location[0]))
-    return tuple(dict.fromkeys(names))
-
-
 @lru_cache(maxsize=1)
 def get_interview_settings() -> InterviewSettings:
-    """Return the process-wide interview tuning, read once."""
     try:
         return InterviewSettings()
     except ValidationError as error:
@@ -220,7 +204,6 @@ def get_interview_settings() -> InterviewSettings:
 
 @lru_cache(maxsize=1)
 def get_voice_settings() -> VoiceSettings:
-    """Return the voice providers' credentials and pinned configuration, read once."""
     try:
         return VoiceSettings()  # type: ignore[call-arg]
     except ValidationError as error:
@@ -229,7 +212,6 @@ def get_voice_settings() -> VoiceSettings:
 
 @lru_cache(maxsize=1)
 def get_pipecat_cloud_settings() -> PipecatCloudSettings:
-    """Return the Pipecat Cloud agent and its public API key, read once."""
     try:
         return PipecatCloudSettings()  # type: ignore[call-arg]
     except ValidationError as error:
@@ -238,7 +220,6 @@ def get_pipecat_cloud_settings() -> PipecatCloudSettings:
 
 @lru_cache(maxsize=1)
 def get_jev_settings() -> JevSettings:
-    """Return the pinned Jev configuration, read once."""
     try:
         return JevSettings()  # type: ignore[call-arg]
     except ValidationError as error:

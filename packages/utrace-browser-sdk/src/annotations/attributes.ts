@@ -9,7 +9,7 @@
 
 import type { ManifestIndex } from "./manifest.js";
 
-export const ANNOTATION_ATTRIBUTES = [
+const ANNOTATION_ATTRIBUTES = [
   "data-utrace-surface",
   "data-utrace-entity",
   "data-utrace-target",
@@ -21,11 +21,11 @@ export const ANNOTATION_ATTRIBUTES = [
   "data-utrace-priority",
 ] as const;
 
-export type AnnotationAttribute = (typeof ANNOTATION_ATTRIBUTES)[number];
+type AnnotationAttribute = (typeof ANNOTATION_ATTRIBUTES)[number];
 
 const ATTRIBUTE_PREFIX = "data-utrace-";
 
-export type AnnotationRejectionReason =
+type AnnotationRejectionReason =
   | "unknown_attribute"
   | "unknown_definition"
   | "malformed_value"
@@ -37,7 +37,7 @@ export interface AnnotationRejection {
   readonly reason: AnnotationRejectionReason;
 }
 
-export interface EntityAnnotation {
+interface EntityAnnotation {
   readonly entity_definition_id: string;
   readonly instance_ref_raw: string;
   readonly instance_ref_rule_id: string;

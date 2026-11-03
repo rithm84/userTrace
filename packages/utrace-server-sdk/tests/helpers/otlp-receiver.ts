@@ -32,7 +32,6 @@ export type ReceiverBehaviour =
   | { readonly kind: 'permanent'; readonly status: number }
   | { readonly kind: 'partial'; readonly rejectedSpans: number };
 
-/** In-process ingestion edge for tests. */
 export class TestOtlpReceiver {
   private readonly server: Server;
   private readonly received: ReceivedBatch[] = [];

@@ -44,7 +44,6 @@ RESOURCE_STRIPE_CUSTOMER = "stripe_customer"
 RESOURCE_SIGN_IN_IDENTITY = "sign_in_identity"
 """The authentication identity an invitation binds to, whatever provider issues it."""
 
-_OWNER_CLIENT = "client"
 _OWNER_CLIENT_USER = "client_user"
 
 

@@ -1,14 +1,8 @@
-"""Withdrawing a session route, recovering it, and confirming observation.
+"""Withdrawing a session route and recovering it, without provisioning anything.
 
-Three things happen to an already-prepared session, and none of them provision
-anything. A runtime restart withdraws readiness first, and a new revision is
-committed only once recovery has re-proved the complete path; the withdrawn
-revision is superseded rather than restored.
-
-Observation confirmation is the third. The preview stream commits a route
-before any browser can reach it, so the browser and correlation answers at
-commit time are necessarily "not yet"; they are asked again here, once the
-session is live and the participant's own traffic exists.
+A runtime restart withdraws readiness first, and a new revision is committed only
+once recovery has re-proved the complete path; the withdrawn revision is
+superseded rather than restored.
 """
 
 from __future__ import annotations
@@ -21,7 +15,7 @@ from app.db.pool import Database
 from app.errors import GuardRejectedError
 from app.logging import get_logger
 from app.preview.config import PreviewSettings
-from app.preview.pool import load_pins
+from app.preview.pool import load_pins, load_runtime_secrets
 from app.preview.ports import ObservationReadinessPort
 from app.preview.provisioning import (
     PreparedSessionPreview,
@@ -31,12 +25,10 @@ from app.preview.provisioning import (
 from app.preview.readiness import (
     front_door_claim,
     record_readiness,
-    run_session_observation,
     run_session_readiness,
 )
 from app.preview.records import (
     PreviewRouteRecord,
-    ReadinessReport,
     RouteReadinessState,
     RuntimeTemplate,
     SeedTarget,
@@ -50,7 +42,6 @@ from app.preview.runtime import PreviewRuntimeProvider
 from app.preview.template import load_recipe
 
 __all__ = [
-    "confirm_session_observation",
     "recover_route_after_restart",
     "withdraw_readiness_for_restart",
 ]
@@ -112,23 +103,9 @@ async def recover_route_after_restart(
     pins = await load_pins(
         database, allocation_id=withdrawn.preview_runtime_allocation_id
     )
-    async with database.connection() as conn, conn.cursor() as cur:
-        await cur.execute(
-            """
-            select handoff_secret, route_context_signing_secret
-            from public.preview_runtime_allocations where id = %s
-            """,
-            (pins.preview_runtime_allocation_id,),
-        )
-        secrets_row = await cur.fetchone()
-    if secrets_row is None:
-        raise GuardRejectedError(
-            machine="preview_runtime_allocation",
-            trigger="recover",
-            reason="the allocation carries no injected runtime secrets",
-        )
-    handoff_secret = str(secrets_row["handoff_secret"])
-    route_secret = str(secrets_row["route_context_signing_secret"])
+    runtime_secrets = await load_runtime_secrets(
+        database, allocation_id=pins.preview_runtime_allocation_id
+    )
 
     handle = await provider.attach(
         runtime_ref=pins.runtime_ref, application_port=pins.application_port
@@ -151,7 +128,7 @@ async def recover_route_after_restart(
         public_preview_host=withdrawn.public_preview_host,
         upstream_port_url=upstream_url,
         application_port=pins.application_port,
-        route_context_signing_secret=route_secret,
+        route_context_signing_secret=runtime_secrets.route_context_signing_secret,
         ttl_seconds=settings.route_ttl_seconds,
     )
     report = await run_session_readiness(
@@ -160,7 +137,7 @@ async def recover_route_after_restart(
         recipe=recipe,
         pins=pins,
         seed_target=SeedTarget.BASE,
-        handoff_secret=handoff_secret,
+        handoff_secret=runtime_secrets.handoff_secret,
         gating_probes=template.gating_probes,
         observation_port=observation_port,
         door_claim=(
@@ -190,37 +167,3 @@ async def recover_route_after_restart(
     )
     return PreparedSessionPreview(pins=pins, route=route, report=report)
 
-
-async def confirm_session_observation(
-    database: Database,
-    *,
-    interview_session_id: UUID,
-    observation_port: ObservationReadinessPort,
-) -> ReadinessReport:
-    """Re-answer the observation probes for a session whose route already carries traffic.
-
-    The preview stream commits a route before any browser can reach it, so the
-    browser and correlation answers at commit time are necessarily "not yet".
-    This is how the Interview Session's observation readiness becomes a recorded
-    fact: the probes are run again against the live route and appended to the
-    same durable readiness record.
-    """
-    route = await route_for_session(
-        database, interview_session_id=interview_session_id
-    )
-    if route is None:
-        raise GuardRejectedError(
-            machine="preview_route",
-            trigger="confirm_observation",
-            reason="the Interview Session has no committed route to observe",
-        )
-    report = await run_session_observation(
-        record=route, observation_port=observation_port
-    )
-    await record_readiness(
-        database,
-        client_id=route.client_id,
-        report=report,
-        preview_route_id=route.preview_route_id,
-    )
-    return report

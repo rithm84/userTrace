@@ -141,7 +141,7 @@ function DashboardScreen(props: Readonly<{ face: Face; seed: number }>): JSX.Ele
 }
 
 /** A deterministic 0..1 sequence, so every render of the city is identical. */
-export function seeded(seed: number): () => number {
+function seeded(seed: number): () => number {
   let state = (seed * 2654435761) >>> 0 || 1;
   return () => {
     state ^= state << 13;

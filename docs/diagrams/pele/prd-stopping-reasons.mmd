@@ -1,0 +1,31 @@
+---
+title: Stopping during live work · each reason has its own outcome
+---
+flowchart LR
+  subgraph reasons [Why work stopped]
+    pause([Pause control]):::people
+    loss([Temporary connection or voice loss]):::people
+    away([Finish later or departure]):::people
+    blocker[Technical blocker]:::runtime
+    cancel([Cancellation]):::people
+    client_stop[Client stop]:::client
+    no_fit[Work no longer fits the live session or its budgets]:::gate
+    unsuccessful{{Unsuccessful validation}}:::gate
+  end
+  continues["`**Same case continues**
+  Budgets never reset`"]:::async
+  blocker_case@{ shape: doc, label: "**Blocker Case File**<br/>No PR" }
+  no_output(["No Case File or PR"]):::external
+
+  pause async_1@-.->|resume with fresh readiness| continues
+  loss async_2@-.->|reconnect within the window| continues
+  away async_3@-.->|return within the return window| continues
+  away blocked_1@-->|return window expires| blocker_case
+  blocker async_4@-.->|bounded recovery succeeds| continues
+  blocker blocked_2@-->|unrecoverable or recovery expires| blocker_case
+  client_stop blocked_3@-->|after participation| blocker_case
+  client_stop blocked_4@-->|before participation| no_output
+  no_fit blocked_5@-->|checkpoint| blocker_case
+  unsuccessful blocked_6@-->|unmet criteria as the blocker| blocker_case
+  cancel blocked_7@-->|revoke and clean up| no_output
+  class blocker_case external

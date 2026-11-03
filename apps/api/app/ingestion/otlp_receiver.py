@@ -4,10 +4,7 @@ The request is decompressed within bounds, authenticated, validated, checked
 against the non-overridable platform exclusions in memory, and only then written.
 The receipt, the raw batch artifact, the canonical spans, and the stream
 watermark all commit in one transaction, so a full-success response can never
-outrun durability.
-
-uTrace never emits partial success. If any span makes the batch invalid, the
-whole request fails so the server SDK can fail the stream explicitly.
+outrun durability. One invalid span refuses the whole batch (see ``otlp``).
 
 Contract: docs/arch-components/telemetry-and-evidence.md#durable-receipt-and-acknowledgement
 """
@@ -71,11 +68,8 @@ class AcceptedExport:
 
     ingestion_receipt_id: UUID
     activation_id: UUID
-    interview_session_id: UUID
-    accepted_through_batch_sequence: int
     stored_spans: int
     duplicate_spans: int
-    trace_ids: tuple[str, ...]
     replayed: bool
 
 
@@ -219,7 +213,7 @@ async def _accept_authenticated(
                     conflicting_content_sha256=content_sha256,
                     first_ingestion_receipt_id=existing.ingestion_receipt_id,
                 )
-            accepted_through = await advance_batch_sequence(
+            await advance_batch_sequence(
                 conn,
                 server_stream_id=activation.server_stream_id,
                 batch_sequence=envelope.batch_sequence,
@@ -233,11 +227,8 @@ async def _accept_authenticated(
             return AcceptedExport(
                 ingestion_receipt_id=existing.ingestion_receipt_id,
                 activation_id=activation.activation_id,
-                interview_session_id=activation.interview_session_id,
-                accepted_through_batch_sequence=accepted_through,
                 stored_spans=0,
                 duplicate_spans=len(spans),
-                trace_ids=tuple(sorted({span.trace_id for span in spans})),
                 replayed=True,
             )
 
@@ -307,7 +298,7 @@ async def _accept_authenticated(
                 stage=stage,
                 normalization_run_id=normalization_run_id,
             )
-        accepted_through = await advance_batch_sequence(
+        await advance_batch_sequence(
             conn,
             server_stream_id=activation.server_stream_id,
             batch_sequence=envelope.batch_sequence,
@@ -327,11 +318,8 @@ async def _accept_authenticated(
     return AcceptedExport(
         ingestion_receipt_id=receipt.ingestion_receipt_id,
         activation_id=activation.activation_id,
-        interview_session_id=activation.interview_session_id,
-        accepted_through_batch_sequence=accepted_through,
         stored_spans=stored,
         duplicate_spans=len(spans) - stored,
-        trace_ids=tuple(sorted({span.trace_id for span in spans})),
         replayed=False,
     )
 

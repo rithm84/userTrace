@@ -19,19 +19,12 @@ describe("createAgentCharacterResources", () => {
     vi.resetModules();
   });
 
-  it.each([
-    ["root-relative paths", "/agent/character.riv", "/agent/rive.wasm"],
-    [
-      "packaged extension URLs",
-      "chrome-extension://abcdefghijklmnop/agent/character.riv",
-      "chrome-extension://abcdefghijklmnop/agent/rive.wasm",
-    ],
-  ])("accepts %s without rewriting them", async (_description, assetUrl, wasmUrl) => {
+  it("accepts root-relative paths without rewriting them", async () => {
     const { createAgentCharacterResources } = await import("../src/resources");
 
-    const resources = createAgentCharacterResources(assetUrl, wasmUrl);
+    const resources = createAgentCharacterResources("/agent/character.riv", "/agent/rive.wasm");
 
-    expect(resources).toEqual({ assetUrl, wasmUrl });
+    expect(resources).toEqual({ assetUrl: "/agent/character.riv", wasmUrl: "/agent/rive.wasm" });
     expect(Object.isFrozen(resources)).toBe(true);
   });
 
@@ -41,6 +34,7 @@ describe("createAgentCharacterResources", () => {
     "//example.test/agent/character.riv",
     "data:application/octet-stream;base64,AAAA",
     "blob:https://example.test/id",
+    "chrome-extension://abcdefghijklmnop/agent/rive.wasm",
   ])("rejects the unpackaged URL %s", async (invalidUrl) => {
     const { AgentCharacterResourceError, createAgentCharacterResources } = await import(
       "../src/resources"
@@ -52,14 +46,6 @@ describe("createAgentCharacterResources", () => {
     expect(() => createAgentCharacterResources("/agent/character.riv", invalidUrl)).toThrowError(
       expect.objectContaining({ code: "invalid_resource_url" }),
     );
-  });
-
-  it("rejects malformed extension URLs", async () => {
-    const { createAgentCharacterResources } = await import("../src/resources");
-
-    expect(() =>
-      createAgentCharacterResources("chrome-extension:not-packaged", "/agent/rive.wasm"),
-    ).toThrowError(expect.objectContaining({ code: "invalid_resource_url" }));
   });
 
   it.each([

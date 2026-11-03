@@ -15,9 +15,9 @@ adopts anything but an exact marker, branch, and head match.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Protocol, runtime_checkable
+from typing import Protocol
 from uuid import UUID
 
 from psycopg import AsyncConnection
@@ -142,7 +142,6 @@ DELIVERY_MACHINE: Machine[DeliveryFacts] = Machine(
 )
 
 
-@runtime_checkable
 class DeliveryRepositoryPort(Protocol):
     """The exact repository operations the delivery protocol performs.
 
@@ -322,7 +321,6 @@ async def reserve_delivery(
 async def load_delivery(
     conn: AsyncConnection[DictRow], *, delivery_id: UUID
 ) -> DeliveryRow:
-    """Return one delivery record."""
     async with conn.cursor() as cur:
         await cur.execute(
             """
@@ -361,15 +359,3 @@ async def load_delivery(
         verified_head_sha=as_optional_str(row, "verified_head_sha"),
         blocker_reason=as_optional_str(row, "blocker_reason"),
     )
-
-
-def delivered_identities(delivered: DeliveredPullRequest) -> Mapping[str, object]:
-    """Return the verified identities a delivered row records."""
-    return {
-        "pull_request_ref": delivered.html_url,
-        "pull_request_number": delivered.number,
-        "pull_request_node_id": delivered.node_id,
-        "verified_head_sha": delivered.head_sha,
-        "branch_ref": delivered.head_branch,
-        "base_branch": delivered.base_branch,
-    }

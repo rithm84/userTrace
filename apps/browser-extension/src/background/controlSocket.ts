@@ -39,7 +39,7 @@ const INSTALLATION_NOT_LINKED_CLOSE_CODE = 4003;
 
 export type ConnectionStatus = "idle" | "connecting" | "open" | "reconnecting" | "failed";
 
-export type ControlSocketOptions = Readonly<{
+type ControlSocketOptions = Readonly<{
   installationId: string;
   acknowledgedSequence: number;
   pendingCommandIds: () => readonly string[];
@@ -50,7 +50,7 @@ export type ControlSocketOptions = Readonly<{
   onInstallationRefused: (reason: string) => void;
 }>;
 
-export class ControlSocketError extends Error {
+class ControlSocketError extends Error {
   readonly reason: string;
 
   constructor(reason: string, message: string) {
@@ -75,14 +75,6 @@ export class ControlSocket {
   constructor(options: ControlSocketOptions) {
     this.options = options;
     this.acknowledged = options.acknowledgedSequence;
-  }
-
-  get status(): ConnectionStatus {
-    return this.statusValue;
-  }
-
-  get acknowledgedSequence(): number {
-    return this.acknowledged;
   }
 
   /** Opens the connection unless it is open or already opening. */

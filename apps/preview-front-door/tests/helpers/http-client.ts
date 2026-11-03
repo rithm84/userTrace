@@ -8,7 +8,7 @@ import { request as httpRequest } from "node:http";
  * session origin in the Host header, exactly as Vercel's edge presents it.
  */
 
-export interface DoorResponse {
+interface DoorResponse {
   readonly status: number;
   readonly headers: Readonly<Record<string, string | string[]>>;
   readonly setCookies: readonly string[];

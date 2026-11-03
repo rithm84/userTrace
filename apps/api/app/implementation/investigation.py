@@ -33,7 +33,6 @@ from app.db.pool import Database
 from app.errors import GuardRejectedError
 from app.ids import uuid7
 from app.implementation.agent_author import (
-    CodexSandboxMode,
     CodexTask,
     completed_report,
     run_codex,
@@ -57,7 +56,6 @@ __all__ = [
     "RecordedFinding",
     "excerpt_digest",
     "investigate_repository",
-    "numbered_lines",
 ]
 
 _logger = structlog.get_logger(__name__)
@@ -122,15 +120,6 @@ class _InvestigationReport(BaseModel):
     findings: list[_ReportedFinding]
 
 
-def numbered_lines(body: str) -> list[str]:
-    """Split a file into numbered lines, counting the empty line after a trailing newline.
-
-    A reported range may end one past what `str.splitlines` counts, as a reader that
-    numbers that last empty line does.
-    """
-    return body.split("\n")
-
-
 def excerpt_digest(excerpt: str) -> str:
     """The digest that proves a finding's excerpt was not rewritten afterwards."""
     return f"sha256:{hashlib.sha256(excerpt.encode('utf-8')).hexdigest()}"
@@ -184,7 +173,6 @@ async def investigate_repository(
                 f"Find the code that bears on this concern:\n{request.concern}\n\n"
                 f"The repository's tracked files:\n{tracked}"
             ),
-            sandbox_mode=CodexSandboxMode.FULL_ACCESS,
             report_schema=_InvestigationReport.model_json_schema(),
         )
         run = await run_codex(
@@ -265,7 +253,9 @@ async def _verify_findings(
     files = dict(zip(paths, bodies, strict=True))
     findings: list[RecordedFinding] = []
     for item in reported:
-        lines = numbered_lines(files[item.path])
+        # Not `splitlines`: a reported range may end on the empty line after a
+        # trailing newline, as a reader that numbers that line does.
+        lines = files[item.path].split("\n")
         if not 1 <= item.first_line <= item.last_line <= len(lines):
             raise GuardRejectedError(
                 machine="code_investigation",

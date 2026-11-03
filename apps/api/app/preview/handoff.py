@@ -23,6 +23,7 @@ import hashlib
 import hmac
 import json
 import secrets
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
@@ -35,7 +36,6 @@ from app.ids import uuid7
 from app.logging import get_logger
 
 __all__ = [
-    "PRODUCT_HANDOFF_MAX_LIFETIME_SECONDS",
     "ExchangedHandoff",
     "FrontDoorClaim",
     "ProductHandoffToken",
@@ -43,13 +43,13 @@ __all__ = [
     "consume_front_door_code",
     "mint_front_door_claim",
     "mint_product_handoff",
+    "sign_v1_envelope",
     "verify_session_credential",
 ]
 
 _log = get_logger(__name__)
 
 PRODUCT_HANDOFF_SCHEMA_VERSION = "shopalytics-preview-handoff-v1"
-PRODUCT_HANDOFF_TOKEN_VERSION = "v1"
 PRODUCT_HANDOFF_MAX_LIFETIME_SECONDS = 120
 
 # 32 random bytes render as 43 base64url characters, inside the front door's
@@ -93,6 +93,19 @@ def _base64url(raw: bytes) -> str:
     return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
 
 
+def sign_v1_envelope(*, claims: Mapping[str, str | int], secret: str) -> str:
+    """Sign ``v1.<base64url(claims)>.<base64url(HMAC-SHA256(payload))>``.
+
+    The signature covers the encoded payload bytes exactly as transmitted, so
+    verification never re-serializes JSON.
+    """
+    payload = _base64url(json.dumps(claims, separators=(",", ":")).encode("utf-8"))
+    signature = _base64url(
+        hmac.new(secret.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).digest()
+    )
+    return f"v1.{payload}.{signature}"
+
+
 def mint_product_handoff(
     *,
     handoff_secret: str,
@@ -102,11 +115,8 @@ def mint_product_handoff(
 ) -> ProductHandoffToken:
     """Mint the token the preview runtime exchanges for a product session.
 
-    The envelope is ``v1.<base64url(claims)>.<base64url(HMAC-SHA256(payload))>``
-    and the signature covers the encoded payload bytes exactly as transmitted, so
-    verification never re-serializes JSON. The runtime refuses a lifetime longer
-    than two minutes, so this refuses it first rather than minting authority the
-    product will reject.
+    The runtime refuses a lifetime longer than two minutes, so this refuses it
+    first rather than minting authority the product will reject.
     """
     if lifetime_seconds <= 0 or lifetime_seconds > PRODUCT_HANDOFF_MAX_LIFETIME_SECONDS:
         raise ValueError(
@@ -124,14 +134,8 @@ def mint_product_handoff(
         "issued_at": issued_at.isoformat(timespec="milliseconds"),
         "expires_at": expires_at.isoformat(timespec="milliseconds"),
     }
-    payload = _base64url(json.dumps(claims, separators=(",", ":")).encode("utf-8"))
-    signature = _base64url(
-        hmac.new(
-            handoff_secret.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256
-        ).digest()
-    )
     return ProductHandoffToken(
-        token=f"{PRODUCT_HANDOFF_TOKEN_VERSION}.{payload}.{signature}",
+        token=sign_v1_envelope(claims=claims, secret=handoff_secret),
         token_id=token_id,
         audience=audience_host,
         subject=subject_email,
@@ -140,7 +144,6 @@ def mint_product_handoff(
 
 
 def claim_url(*, public_preview_host: str, code: str) -> str:
-    """Return the front-door claim URL for one one-time code."""
     return f"https://{public_preview_host}/__utrace/claim?code={code}"
 
 

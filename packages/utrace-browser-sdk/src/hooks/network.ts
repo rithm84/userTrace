@@ -96,34 +96,19 @@ const prepare = (context: RuntimeContext, url: string, method: string): Prepared
     requestOrigin !== null && context.manifest.traceInjectionAllowed(requestOrigin, documentOrigin);
   const absolute = new URL(url, documentOrigin);
   const route = context.routes.resolve(absolute, context.redaction);
-  if (!injectAllowed) {
-    return {
-      identity: {
-        browser_request_id: uuidv7(context.clock.wallNowMs(), context.random),
-        method: normalizeMethod(method),
-        route,
-        same_origin: sameOrigin,
-        injected: false,
-        trace_id: null,
-        span_id: null,
-        started_at: context.clock.monotonicNowMs(),
-      },
-      headers: null,
-    };
-  }
-  const span = context.trace.createClientSpan();
+  const span = injectAllowed ? context.trace.createClientSpan() : null;
   return {
     identity: {
       browser_request_id: uuidv7(context.clock.wallNowMs(), context.random),
       method: normalizeMethod(method),
       route,
       same_origin: sameOrigin,
-      injected: true,
-      trace_id: span.trace_id,
-      span_id: span.span_id,
+      injected: span !== null,
+      trace_id: span?.trace_id ?? null,
+      span_id: span?.span_id ?? null,
       started_at: context.clock.monotonicNowMs(),
     },
-    headers: { traceparent: span.traceparent, tracestate: span.tracestate },
+    headers: span === null ? null : { traceparent: span.traceparent, tracestate: span.tracestate },
   };
 };
 

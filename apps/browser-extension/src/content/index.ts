@@ -12,7 +12,7 @@ import { OrbCharacter } from "./character";
 import { BridgeError, PageBridge } from "./bridgeClient";
 import { SceneRunner, type CommandExecution } from "./scene";
 import { SURFACE_STYLES } from "./styles";
-import { SurfaceHost, type SurfaceLayers } from "./host";
+import { SurfaceHost } from "./host";
 import { failureFields, logError } from "../shared/log";
 import {
   CONTENT_PORT_NAME,
@@ -28,7 +28,6 @@ const MAX_PORT_RECONNECTS = 5;
 
 type Mounted = Readonly<{
   host: SurfaceHost;
-  layers: SurfaceLayers;
   orb: AgentOrb;
   character: OrbCharacter;
   cursor: AgentCursor;
@@ -181,7 +180,6 @@ class AgentSurface {
     const cursor = new AgentCursor(layers.cursor);
     this.mounted = {
       host,
-      layers,
       orb,
       character,
       cursor,

@@ -1,31 +1,31 @@
 ---
-title: Preview front door · stable session origin, exact candidate route
+title: Preview front door · one committed route revision per request
 ---
 sequenceDiagram
   autonumber
   participant page as Preview tab
-  participant sdk as Embedded SDK
   participant door as Vercel front door
-  participant cp as Control plane · route record
-  participant port as Sandbox product port
+  participant cp as Control plane
+  participant proxy as Sandbox port proxy
+  participant mw as Runtime middleware
 
-  Note over page,sdk: Own session origin under<br/>preview.utrace.dev.
-  cp->>cp: atomically commit ready revision
-  Note over cp: Candidate readiness: exact build + dataset,<br/>every gating readiness probe passed.
-  loop Each request
-    page->>door: HTTPS · uTrace-issued session access
-    door->>cp: authorize route for host
-    cp-->>door: current allocation / version · revision + expiry
-    alt Valid identity and current route
-      door->>port: scoped upstream · signed route claim + entry token
-      Note over port: Middleware checks claim + token.<br/>Public port URL, never shown.
-      port-->>door: product response
+  loop Each HTTP request
+    page->>door: HTTPS · session cookie
+    door->>cp: GET /v1/preview/routes/{host}<br/>lane session credential
+    cp-->>door: route record · revision, expiry, port URL
+    alt Valid cookie and current route
+      door->>proxy: caller headers stripped<br/>signed route claim + entry token
+      Note over proxy: Replaces x-forwarded-host,<br/>passes custom headers.
+      proxy->>mw: forwarded request
+      Note over mw: Checks claim + token<br/>on every path.
+      mw-->>door: product response
       door-->>page: response · no-store
     else Bare URL or stale route
       door-->>page: neutral interstitial · fail closed
     end
   end
-  sdk->>door: same-origin activation
+  page->>door: SDK activation · same origin
   door->>cp: relay
-  cp-->>door: signed attestation · session + runtime + revision
-  door-->>sdk: signed document proof
+  cp-->>door: signed attestation · session, runtime,<br/>revision · ingestion URL
+  door-->>page: signed document proof · URL untouched
+  page->>cp: SDK telemetry stream · direct wss

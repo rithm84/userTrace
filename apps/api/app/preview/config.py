@@ -113,7 +113,6 @@ def get_preview_settings() -> PreviewSettings:
 
 @lru_cache(maxsize=1)
 def get_template_build_settings() -> TemplateBuildSettings:
-    """Return the template build's settings, read once."""
     try:
         return TemplateBuildSettings()  # type: ignore[call-arg]
     except ValidationError as error:

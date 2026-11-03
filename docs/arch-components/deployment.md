@@ -2,9 +2,10 @@
 
 [Back to uTrace architecture](../ARCHITECTURE.md)
 
-The following diagram shows where uTrace services run and how requests cross provider boundaries:
+Each uTrace workload runs in the region shown, with persistent coordination
+outside the sandboxes:
 
-![Vercel, Supabase Compute, and the voice agent on Pipecat Cloud coordinate Supabase and isolated Vercel Sandbox compute, with credentials held as Compute project secrets and the voice agent's secret set.](../diagrams/svg/deployment.svg)
+![Web surfaces run on Vercel in pdx1 and the preview front door with Vercel Sandbox in iad1; the api and worker computes and Supabase run in one Supabase project in AWS us-west-2, and the voice agent runs on Pipecat Cloud in us-west.](../diagrams/svg/deployment.svg)
 
 <details><summary>Diagram key</summary>
 
@@ -18,193 +19,232 @@ The following diagram shows where uTrace services run and how requests cross pro
 The demo deploys the B2B Discord loop with live implementation in one primary
 application region.
 
-One Supabase project holds the demo database. The deployed control plane, its API
-and worker on Supabase Compute and its voice agent on Pipecat Cloud, is the
-database's only writer. Development and test runs use throwaway projects of their own, so a
-deployed worker and a local suite never share a database: a worker that can see a
-test's Jobs claims them, and a suite that can truncate the demo's tables will.
-Both sides resolve the database from one connection setting, which makes the
-separation an operational rule rather than something the code can infer.
+One Supabase project holds the demo database, and the deployed control plane
+(API and worker on Supabase Compute, voice agent on Pipecat Cloud) is its only
+writer. Development and test runs use throwaway projects, so a deployed worker
+and a local suite never share a database: a worker that sees a test's Jobs claims
+them, and a suite that can truncate the demo's tables will. Both resolve the
+database from one connection setting, so the separation is an operational rule
+the code cannot infer.
 
-The control plane's computes reach Postgres directly inside Supabase's network
-(`db.<ref>.supabase.co:5432`), not through the session pooler that workstation
-tools use, so the pooler's fixed client limit does not apply to them. Each
-compute caps its connection pool at six, and every extension socket holds one more
-dedicated listener connection. Pipecat Cloud is outside Supabase's network, so the
-voice agent reaches Postgres through the session pooler and counts against its
-client limit: each of up to ten Pipecat Cloud instances caps its pool at four, and
-each live voice session holds one more `voice_sideband` listener connection. Together they must stay within the pooler's client limit and
-the database's own connection limit: a listener that cannot connect stalls that
-session's cues.
+### Database connections
+
+The computes and the voice agent reach Postgres by different routes, each with
+its own connection caps:
+
+![The api and worker computes connect directly to Postgres inside Supabase's network, while the voice agent's instances and workstation tools connect through the session pooler.](../diagrams/svg/deployment-database-connections.svg)
+
+<details><summary>Diagram key</summary>
+
+![Diagram key of the ten node roles: people and customer surfaces, uTrace control plane, reasoning models, SDKs and previews, external or blocked, validated or durable, async path, gates and checks, neutral or closed, and client product.](../diagrams/svg/_key.svg)
+
+</details>
+<p></p>
+
+Together they must stay within the pooler's client limit, which only the voice
+agent counts against, and the database's own connection limit: a listener that
+cannot connect stalls that session's cues.
 
 ## Provider and runtime placement
 
-Vercel hosts `utrace.dev`, the normal client dashboard, session UI, and the preview
-front door at `preview.utrace.dev`, and Vercel Sandbox supplies isolated compute.
-Supabase supplies Postgres, Auth, Storage, Realtime, Queues, and Cron. The
-control plane's API and worker run on Supabase Compute, which is in private alpha,
-as two computes in the same Supabase project, both built from
-`apps/api/Dockerfile`. The public `api` compute serves the HTTP API, the
-extension's control sockets, and telemetry ingestion. The private `worker` compute
-has no URL and runs durable Jobs and the Discord gateway. Together they cover
+The control plane's API and worker run as two computes in the same Supabase
+project on Supabase Compute, which is in private alpha. Together they cover
 Discord ingestion, telemetry ingestion, session coordination, Jobs, and provider
-adapters. The voice agent runs on Pipecat Cloud, built from the same `apps/api/app`
-package. Compute project secrets and the voice agent's Pipecat Cloud secret set
-hold long-lived credentials.
+adapters. The voice agent is a Pipecat pipeline deployed as a Pipecat Cloud agent.
+Supabase supplies Postgres, Auth, Storage, Realtime, Queues, and Cron. Vercel
+hosts the web surfaces and the preview front door; Vercel Sandbox supplies every
+isolated implementation workspace and every full base or candidate preview
+runtime, kept separate as the
+[PRD](../PRD.md#preview-runtime-allocations-implementation-workspaces-and-session-data)
+defines.
 
-The application region is AWS `us-west-2`. Supabase Compute's private alpha runs
-computes there, so the Supabase project, with its Postgres, Auth, Storage, and
-Realtime, is in `us-west-2` too, and each control-plane query is a same-region
-round trip of a few milliseconds. The web surfaces' Vercel functions run in
-`pdx1`, beside the API they call on every request. The preview front door's
-functions run in `iad1`, beside the Vercel Sandbox preview runtimes it proxies
-every preview request to.
+### Regions
 
-Daily carries each voice call in a private room. The voice agent, a Pipecat
-pipeline deployed as the Pipecat Cloud agent `utrace-voice-agent` in `us-west`
-beside the Supabase project, uses Deepgram Flux for speech recognition, GPT-6.1
-Sol at the Ultrafast tier through the OpenAI API for its words and tool calls, and
-ElevenLabs for speech. The OpenAI API supplies GPT-6.1 Sol for Implementation Gate
-proposals; Codex in each
-workspace calls GPT-6.1 Sol for code investigation and implementation, and GPT-6.1
-Sol also assists intake and drafts Case Files. The
-[voice contract](./interview-and-voice.md#call-setup) defines backend-authenticated
-call setup.
-Jev, reached through Vercel AI Gateway by the worker and the voice agent, supplies
-default intake decisions and concurrent interview attention.
-The [intake contract](./signal-and-outreach.md#routing-context-and-cognition)
-limits additional model calls to work that needs them.
+The application region is AWS `us-west-2`, where Supabase Compute's private alpha
+runs computes, so the Supabase project, with its Postgres, Auth, Storage, and
+Realtime, is there too and each control-plane query is a same-region round trip of
+a few milliseconds. The web surfaces' Vercel functions run beside the API they
+call on every request, the front door's beside the Vercel Sandbox preview runtimes
+it proxies every preview request to, and the voice agent beside the Supabase
+project.
 
-Product knowledge is the client's Product Overview, a versioned, source-linked record in Supabase that travels whole with the contexts that need it; no search index is deployed. Code investigation happens through filesystem search and exact-file reads at the pinned repository revision inside Vercel Sandbox; there is no separate code index dependency.
+### Supporting services
 
-Vercel Sandbox supplies every isolated implementation workspace and every full base or candidate preview runtime. A preview allocation grants product access only. An attempt-scoped fenced workspace lease grants bounded code access only. Client data and production credentials never enter the implementation workspace.
-
-Structured logs and uTrace's durable events and evidence supply the control plane's operational tracing; Vercel Observability, through `@vercel/otel`, traces the web surfaces. GitHub holds branches, diffs, checks, and validated draft PRs; humans own production merge.
-
-Stripe stores customer invoice credits in the uTrace-controlled Stripe sandbox that
-stands in for the client's billing account. The control plane's computes issue
-and verify credits. See the [Outreach Offers contract](./outreach-offers.md).
+- **Voice and models:** Daily carries each voice call in a private room. The
+  voice agent calls Deepgram Flux, GPT-6.1 Sol through the OpenAI API, and
+  ElevenLabs. GPT-6.1 Sol also serves Implementation Gate proposals, intake
+  assistance, Case File drafting, and, through Codex, code investigation and
+  implementation. The worker and the voice agent reach Jev through Vercel AI
+  Gateway. The [system overview](../ARCHITECTURE.md#system) assigns these roles,
+  [Model access](#model-access) pins them, and the
+  [intake contract](./signal-and-outreach.md#routing-context-and-cognition) limits
+  additional model calls to work that needs them.
+- **Product and code knowledge:** no search or code index is deployed. The
+  client's Product Overview, a versioned, source-linked record in Supabase,
+  travels whole with the contexts that need it; code investigation reads exact
+  files at the pinned repository revision inside Vercel Sandbox.
+- **Tracing:** structured logs and uTrace's durable events and evidence trace the
+  control plane; Vercel Observability, through `@vercel/otel`, traces the web
+  surfaces.
+- **GitHub:** holds branches, diffs, checks, and validated draft PRs; humans own
+  production merge.
+- **Stripe:** stores customer invoice credits in the uTrace-controlled Stripe
+  sandbox standing in for the client's billing account; the control plane's
+  computes issue and verify credits under the
+  [Outreach Offers contract](./outreach-offers.md).
 
 ## Model access
 
-The control plane's API, worker, and voice agent retain orchestration, tool
-execution, and lifecycle authority over every model call. Jobs and voice runs pin
-the configuration revision they ran under.
+The API, worker, and voice agent keep orchestration, tool execution, and
+lifecycle authority over every model call; Jobs and voice runs pin the
+configuration revision they ran under.
 
 The workers request Implementation Gate proposals from GPT-6.1 Sol through the
-OpenAI Responses API with the official OpenAI Python SDK, as one structured-output
-request that stores nothing at OpenAI. Each OpenAI role pins the model ID
-(`gpt-6.1-sol`), the reasoning effort, the service tier, and the credential
-reference. The gate proposal and implementation run on the Ultrafast tier and
-every other role on the Fast tier, at low effort except intake assistance and Case File synthesis, which
-interpret or write for a reader and run at medium.
+OpenAI Responses API with the official OpenAI Python SDK, as one
+structured-output request that stores nothing at OpenAI. Each OpenAI role pins
+the model ID (`gpt-6.1-sol`), reasoning effort, service tier, and credential
+reference. The gate proposal and implementation run on the Ultrafast tier, every
+other role on the Fast tier, all at low effort except intake assistance and Case
+File synthesis, which interpret or write for a reader and run at medium.
 
 No model is ever substituted for another. A rate-limited request fails its Job
-run, and the Job retries on its own exponential backoff within its run budget.
+run, which retries on the Job's own exponential backoff within its run budget.
 
 The voice agent pins its providers in its voice settings: Deepgram
 `flux-general-en`, `gpt-6.1-sol` at the `ultrafast` service tier with reasoning
-effort `low`, and ElevenLabs `eleven_v4_turbo` in the premade Jessica voice. The backend
-creates each Daily room and the voice agent joins it; the
-[voice contract](./interview-and-voice.md#call-setup) owns that flow. Codex in each
-workspace sandbox calls the OpenAI API with the
-attempt's pinned model; its credential is added at egress, as the
-[harness contract](./implementation.md#agent-harness) describes. The worker and the
-voice agent call Jev through Vercel AI Gateway's evaluation endpoint as
-`typesafe-ai/jev`, each with the gateway API key from its own secrets, and restrict
-every request to the `typesafe-ai` provider. Neither an outage nor a configuration
-omission redirects requests to another provider.
+effort `low`, and ElevenLabs `eleven_v4_turbo` in the premade Jessica voice. The
+backend creates each Daily room and the voice agent joins it, as the
+[voice contract](./interview-and-voice.md#call-setup) defines.
+
+Codex in each workspace sandbox calls the OpenAI API with the attempt's pinned
+model, its credential added at egress per the
+[harness contract](./implementation.md#agent-harness). The worker and the voice
+agent call Jev through Vercel AI Gateway's evaluation endpoint as
+`typesafe-ai/jev`, each with the gateway API key from its own secrets, and
+restrict every request to the `typesafe-ai` provider. Neither an outage nor a
+configuration omission redirects requests to another provider.
 
 ## Network and public boundaries
 
 Public endpoints are limited to the Vercel web/session surfaces, preview front
 door, authenticated telemetry ingestion, and the authenticated voice connection
-route; Daily hosts the call's media. Vercel Sandbox port URLs are public, so runtime
-middleware verifies uTrace route context and the runtime's entry token on every
-request; the [front-door contract](./preview-front-door.md#vercel-to-sandbox-request-path)
-owns that hop. Supabase client access uses publishable credentials plus RLS; secret
-and service-role credentials stay server-side.
+route; Daily hosts the call's media. Because Vercel Sandbox port URLs are public,
+runtime middleware verifies uTrace route context and the runtime's entry token on
+every request, as the
+[front-door contract](./preview-front-door.md#vercel-to-sandbox-request-path)
+defines. Supabase client access uses publishable credentials plus RLS; secret and
+service-role credentials stay server-side.
 
-The `api` compute's public base URL is `https://api.utrace.dev/compute/v1/api`, and
-its WebSockets use `wss://api.utrace.dev/compute/v1/api`. `api.utrace.dev` is the
-Supabase project's custom domain, so it also serves the project's Auth, Storage,
-and REST APIs. Compute strips the `/compute/v1/api` prefix before a request reaches
-the API, so the API's own routes carry no prefix. Every client of the control
-plane (the extension, the browser and server SDKs, the preview front door, and the
-web surfaces) therefore takes a base URL that may include a path. Signed extension
-proofs keep the bare origins `https://api.utrace.dev` and `wss://api.utrace.dev`
-as their audiences.
+### API base URL
+
+The `api` compute's public base URL is `https://api.utrace.dev/compute/v1/api`,
+and its WebSockets use `wss://api.utrace.dev/compute/v1/api`. `api.utrace.dev` is
+the Supabase project's custom domain, so it also serves the project's Auth,
+Storage, and REST APIs. Compute strips the `/compute/v1/api` prefix, so the API's
+own routes carry none and every client of the control plane (the extension, the
+browser and server SDKs, the preview front door, and the web surfaces) takes a
+base URL that may include a path. Signed extension proofs keep the bare origins
+`https://api.utrace.dev` and `wss://api.utrace.dev` as their audiences.
+
+### Voice connections
 
 The control plane's model adapters and the voice agent call OpenAI, Daily,
 Deepgram, ElevenLabs, and Vercel AI Gateway over authenticated TLS. The voice
 connection route takes no body and returns a room URL and meeting token; the API
 creates the room and starts the connection's voice agent session through Pipecat
-Cloud's public API. The session tab reaches Daily over WebRTC, and its
-Content-Security-Policy admits Daily's domains for scripts and connections. The
-voice agent on Pipecat Cloud joins the same room and streams to Deepgram, OpenAI,
-and ElevenLabs. Browser and agent connectivity to Daily are independent, and both
-belong in voice health checks.
+Cloud's public API. The session tab reaches Daily over WebRTC, its
+Content-Security-Policy admitting Daily's domains for scripts and connections,
+and the voice agent joins the same room and streams to Deepgram, OpenAI, and
+ElevenLabs. Browser and agent connectivity to Daily are independent, and voice
+health checks cover both.
+
+### Preview origins and egress
 
 Each session origin `<opaque>.preview.utrace.dev` shares the `utrace.dev` site in
-the demo; the [front-door origin contract](./preview-front-door.md#one-origin-per-session)
-owns that boundary. All service egress is allowlisted by role where supported. The
-sandbox network policy gives implementation workspaces only the repository,
-package, test, and OpenAI API access the pinned policy requires, and it gives
-preview runtimes only the dependencies required to run the prepared product;
-outbound side effects are neutered.
+the demo, as the
+[front-door origin contract](./preview-front-door.md#one-origin-per-session)
+defines. All service egress is allowlisted by role where supported. The sandbox
+network policy gives implementation workspaces only the repository, package,
+test, and OpenAI API access the pinned policy requires, and preview runtimes only
+the dependencies needed to run the prepared product; outbound side effects are
+neutered.
 
 ## Secrets and credentials
 
-Supabase Compute project secrets are the custody boundary for Discord, GitHub, Stripe, OpenAI, Daily, Pipecat Cloud, Deepgram, ElevenLabs, Vercel, and other server-side grants. The voice agent reads its own copies of the credentials it needs from a Pipecat Cloud secret set, `utrace-voice-agent-secrets`, which `deploy/pipecat-cloud/deploy.py secrets` writes from the same local environment; the [security contract](./security.md#data-classification-and-secrets) lists what that set holds. Secrets never enter prompts, telemetry, logs, Storage artifacts, build outputs, browser bundles, or Case Files. uTrace-issued session and provider-hop credentials are short-lived and audience-bound.
+Supabase Compute project secrets are the custody boundary for Discord, GitHub,
+Stripe, OpenAI, Daily, Pipecat Cloud, Deepgram, ElevenLabs, Vercel, and other
+server-side grants. The voice agent reads its own copies from its Pipecat Cloud
+secret set, which `deploy/pipecat-cloud/deploy.py secrets` writes from the same
+local environment; the
+[security contract](./security.md#data-classification-and-secrets) lists its
+contents.
 
-Compute injects every project secret into every compute as an environment
-variable, so custody is scoped to the project: the `api` and `worker` computes
-receive the same set, and no per-compute identity narrows which credentials a
-compute can read. Compute reserves the `SUPABASE_` prefix for the values it
-injects itself, so the control plane reads its Supabase keys as
+![The operator's local environment syncs the Compute project secrets, injected into every compute, and the voice agent's Pipecat Cloud secret set; the workspace sandbox holds no key, and the sandbox firewall adds the OpenAI credential at egress.](../diagrams/svg/deployment-credential-custody.svg)
+
+<details><summary>Diagram key</summary>
+
+![Diagram key of the ten node roles: people and customer surfaces, uTrace control plane, reasoning models, SDKs and previews, external or blocked, validated or durable, async path, gates and checks, neutral or closed, and client product.](../diagrams/svg/_key.svg)
+
+</details>
+<p></p>
+
+Secrets never enter prompts, telemetry, logs, Storage artifacts, build outputs,
+browser bundles, or Case Files. uTrace-issued session and provider-hop
+credentials are short-lived and audience-bound, and authentication failure never
+implicitly selects another credential.
+
+Custody is scoped to the project: no per-compute identity narrows which
+credentials a compute can read. Compute reserves the `SUPABASE_` prefix for values
+it injects itself, so the control plane reads its Supabase keys as
 `UTRACE_SUPABASE_SECRET_KEY` and `UTRACE_SUPABASE_PUBLISHABLE_KEY`. A deployment
-syncs the project secrets from the operator's local environment, verifies each by
-digest, and removes any secret the control plane no longer names; the
-[deployment runbook](../../deploy/README.md) owns that procedure.
+also removes any secret the control plane no longer names, as the
+[deployment runbook](../../deploy/README.md) describes.
 
-Model and voice provider keys stay server-side. The browser receives no provider
-key, only a meeting token for its own connection's room; the voice contract owns
-call authorization. The workspace sandbox receives no key
-either, because the sandbox firewall adds it at egress. Authentication failure never selects another credential implicitly.
+Model and voice provider keys stay server-side; the browser receives only a
+meeting token for its own connection's room, under the voice contract's call
+authorization.
 
 ## Scaling and availability
 
 The persistent API scales horizontally with request volume, active sessions, and
-telemetry load by running more `api` instances. The worker does not. It hosts the
-Customer Surface consumers beside its Job loop, so it holds the client's single
-Discord gateway session, and a second instance would deliver every watched-channel
-message twice. The `worker` compute therefore runs exactly one instance. That is a
-correctness constraint on the intake path, not a cost decision, and it caps
-worker throughput for as long as the gateway lives in the worker process.
+telemetry load by adding `api` instances. The `worker` compute runs exactly one
+instance: it hosts the Customer Surface consumers beside its Job loop, so it holds
+the client's single Discord gateway session, and a second instance would deliver
+every watched-channel message twice. That correctness constraint on the intake
+path, not a cost decision, caps worker throughput while the gateway lives in the
+worker process.
 
-The voice agent scales on Pipecat Cloud. One warm instance stays ready, so no call
-waits for a cold start, and Pipecat Cloud adds instances up to ten. Each instance
-serves one voice session at a time, so ten concurrent calls is the ceiling.
+The voice agent scales on Pipecat Cloud: one warm instance stays ready so no call
+waits for a cold start, and Pipecat Cloud adds instances up to ten. Each serves
+one voice session at a time, so ten concurrent calls is the ceiling.
 
-Ordering that matters is serialized per client or aggregate in Postgres; unrelated clients remain concurrent. Supabase Realtime may disconnect without losing truth because clients resynchronize from committed rows.
+Ordering that matters is serialized per client or aggregate in Postgres;
+unrelated clients remain concurrent. Supabase Realtime may disconnect without
+losing truth because clients resynchronize from committed rows.
 
-Temporary voice or network loss enters bounded reconnect. Already-authorized implementation and checks may continue, but new scope and validation cannot. Provider outages create typed blocked work; an outage never changes the kind of work, weakens evidence requirements, or hands workflow authority to a provider.
+Temporary voice or network loss enters
+[bounded reconnect](./failure-recovery.md#voice-cognition-and-observation-failure).
+Provider outages create typed blocked work; an outage never changes the kind of
+work, weakens evidence requirements, or hands workflow authority to a provider.
 
 ## Client application profiles
 
 Client production and preview builds use the maintained SDK integration and
-separate [build/startup profiles](./client-configuration.md#sdk-source-integration).
-Vercel Sandbox base and candidate runtimes use the preview profile. Client production
-builds exclude active uTrace instrumentation; runtime credentials are injected only
-into authorized previews. No long-lived uTrace branch supplies a different product.
+separate [build/startup profiles](./client-configuration.md#sdk-source-integration);
+Vercel Sandbox base and candidate runtimes use the preview profile. Production
+builds exclude active uTrace instrumentation, runtime credentials reach only
+authorized previews, and no long-lived uTrace branch supplies a different product.
 
 ## Deployment and rollback
 
 Platform releases are immutable and identify web, API, worker, voice agent,
 database, prompt, tool-schema, and policy versions. Database changes use
 expand-and-contract sequencing. Deploy between Interview Sessions; an active
-session keeps its pinned compatible package. Rollback cannot reinterpret committed
-evidence or revert an irreversible provider effect. The
-[deployment runbook](../../deploy/README.md) gives the release order: database
-migrations, then the Compute project secrets and the voice agent's secret set,
-then the computes and the voice agent.
+session keeps its pinned compatible package. Rollback cannot reinterpret
+committed evidence or revert an irreversible provider effect.
+
+The [deployment runbook](../../deploy/README.md) gives the release order:
+
+1. Database migrations.
+2. The Compute project secrets and the voice agent's secret set.
+3. The computes and the voice agent.

@@ -15,9 +15,9 @@ import { sessionPath } from "@/lib/routes";
  * record. Authority is the session's own participant dependency, which is what
  * proves the reader may be here.
  */
-export type ProjectionReadFailure = "missing" | "rejected";
+type ProjectionReadFailure = "missing" | "rejected";
 
-export type ProjectionRead =
+type ProjectionRead =
   | Readonly<{ ok: true; projection: SessionProjection }>
   | Readonly<{ ok: false; reason: ProjectionReadFailure; detail: string }>;
 

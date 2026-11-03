@@ -1,5 +1,5 @@
 ---
-title: Voice call · backend setup, one private Daily room
+title: Voice call · rejoin the running call or set up a new private Daily room
 ---
 sequenceDiagram
   autonumber
@@ -8,13 +8,21 @@ sequenceDiagram
   participant daily as Daily
   participant agent as Pipecat Cloud · voice agent
 
-  tab->>api: open connection
-  Note over api: Authorize the originating user.<br/>Rejoin the running call, or replace an ended one.<br/>Provider keys stay server-side.
-  api->>daily: create room, or eject the stale tab
-  daily-->>api: room URL + meeting tokens
-  api->>agent: queue the voice agent Job + start the session
-  Note over agent: Claims the interview.voice_agent Job.<br/>Flux · Sol Ultrafast · ElevenLabs
-  api-->>tab: room URL + meeting token
+  tab->>api: POST /v1/sessions/{session_id}/voice/connections
+  Note over api: Authorize the originating user<br/>and the current Interview Session.
+  alt call's agent still running and its room has 15+ minutes left
+    api->>daily: eject the participant's browser still in the room
+    api-->>tab: new participant token · same room, connection ID, voice_run_id
+  else no call to rejoin
+    Note over api: Supersede any open connection.<br/>Commit the new connection row.
+    api->>daily: create a private room for the connection
+    daily-->>api: room URL + meeting tokens
+    Note over api: Bind the room · queue the interview.voice_agent Job
+    api->>agent: start a session for the Job
+    opt the session cannot start
+      Note over api: Close the connection, so a retry opens a new call<br/>rather than rejoining one no agent is coming to.
+    end
+    api-->>tab: room URL, participant token, connection ID, voice_run_id
+    agent->>daily: claim the Job · join with the owner token
+  end
   tab->>daily: join · WebRTC audio + RTVI events
-  agent->>daily: join with the owner token
-  Note over daily: One private room per connection.<br/>It expires and ejects everyone.

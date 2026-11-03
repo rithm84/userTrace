@@ -39,7 +39,6 @@ export type BindingSnapshot =
       status: "bound";
       offer: BindingOffer;
       tabId: number;
-      clientId: string;
       extensionBindingId: string;
       documentAttachmentId: string;
       bindingRevision: number;
@@ -79,7 +78,7 @@ export type BindingEffect =
   | Readonly<{ type: "detach_surface"; tabId: number; reason: string }>
   | Readonly<{ type: "reload_tab"; tabId: number }>;
 
-export type BindingTransition = Readonly<{
+type BindingTransition = Readonly<{
   state: BindingSnapshot;
   effects: readonly BindingEffect[];
 }>;
@@ -256,11 +255,10 @@ function applyBindingState(
     return { state, effects: [] };
   }
 
-  const clientId = payload.client_id;
   const extensionBindingId = payload.extension_binding_id;
   const documentAttachmentId = payload.document_attachment_id;
   if (
-    clientId === undefined ||
+    payload.client_id === undefined ||
     extensionBindingId === undefined ||
     documentAttachmentId === undefined
   ) {
@@ -297,7 +295,6 @@ function applyBindingState(
       status: "bound",
       offer: state.offer,
       tabId: state.tabId,
-      clientId,
       extensionBindingId,
       documentAttachmentId,
       bindingRevision: payload.binding_revision,

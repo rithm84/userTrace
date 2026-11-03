@@ -242,7 +242,6 @@ async def _run(arguments: argparse.Namespace) -> int:
 
 
 def main() -> int:
-    """Entry point."""
     configure_logging(INFO)
     return asyncio.run(_run(_parse_arguments(sys.argv[1:])))
 

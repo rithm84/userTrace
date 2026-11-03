@@ -17,7 +17,7 @@ import type { TraceCoordinator } from "../trace/context.js";
 
 const TRACEPARENT = /^00-([0-9a-f]{32})-([0-9a-f]{16})-0[0-9a-f]$/;
 
-export interface ProbeResult {
+interface ProbeResult {
   readonly trace_id: string;
   readonly span_id: string;
 }

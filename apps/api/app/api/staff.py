@@ -49,6 +49,7 @@ from app.dashboard_case import (
 from app.errors import AuthorizationError
 from app.lifecycle.case_stop import stop_case
 from app.lifecycle.product_signal import NONTERMINAL_STATES
+from app.offers.budget import read_allowance
 from app.offers.read_model import load_offers_view
 from app.outputs.sections import CaseFileCore
 from app.queries import (
@@ -61,7 +62,6 @@ from app.queries import (
     load_client,
     load_gate_decisions,
     load_members,
-    load_offer_allowance,
     load_offers,
     load_validation_attempts,
 )
@@ -347,12 +347,12 @@ def _member_view(member: ClientMemberRecord, email: str | None) -> ClientMemberV
 async def list_offers(staff: StaffOfPath, database: CurrentDatabase) -> OfferListResponse:
     """Return Outreach Offers and the client's remaining issuance allowance."""
     offers = await load_offers(database, client_id=staff.client_id)
-    allowance = await load_offer_allowance(database, client_id=staff.client_id)
+    allowance = await read_allowance(database, client_id=staff.client_id, currency=None)
     return OfferListResponse(
         offers=offers,
         currency=allowance.currency,
-        authorized_minor_units=allowance.authorized,
-        reserved_minor_units=allowance.reserved,
-        earned_minor_units=allowance.earned,
-        remaining_minor_units=allowance.remaining,
+        authorized_minor_units=allowance.authorized_minor_units,
+        reserved_minor_units=allowance.reserved_minor_units,
+        earned_minor_units=allowance.earned_minor_units,
+        remaining_minor_units=allowance.remaining_minor_units,
     )

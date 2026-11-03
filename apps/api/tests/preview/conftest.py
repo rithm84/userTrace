@@ -68,6 +68,7 @@ from tests.preview.live_harness import (
     front_door,
     preview_tls,
     public_tunnel,
+    require_free_port,
 )
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
@@ -117,7 +118,7 @@ def control_plane(settings: Settings) -> Iterator[str]:
     signed.
     """
     require_env("UTRACE_SUPABASE_SECRET_KEY")
-    _require_free_port(CONTROL_PLANE_PORT)
+    require_free_port(CONTROL_PLANE_PORT, what="this suite's control plane")
     application = create_app(
         settings, PortRegistry(voice=None, observation=None, evidence=None)
     )
@@ -140,19 +141,6 @@ def control_plane(settings: Settings) -> Iterator[str]:
         thread.join(timeout=30)
 
 
-def _require_free_port(port: int) -> None:
-    """Refuse to run when something else already serves this workstream's port."""
-    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as probe:
-        probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        try:
-            probe.bind(("127.0.0.1", port))
-        except OSError as error:
-            raise RuntimeError(
-                f"127.0.0.1:{port} is already serving something; this suite's "
-                "control plane cannot share a port with another checkout's"
-            ) from error
-
-
 def _wait_for_port(port: int) -> None:
     """Wait until the control plane accepts connections, or fail saying so."""
     deadline = time.monotonic() + 30.0
@@ -166,7 +154,6 @@ def _wait_for_port(port: int) -> None:
 
 @pytest.fixture(scope="session")
 def preview_settings() -> PreviewSettings:
-    """Preview policy for the run."""
     return get_preview_settings()
 
 
@@ -179,7 +166,6 @@ def build_settings() -> TemplateBuildSettings:
 
 @pytest.fixture(scope="session")
 def recipe(build_settings: TemplateBuildSettings) -> TemplateRecipe:
-    """The committed Shopalytics template recipe."""
     return TemplateRecipe.load(build_settings.template_recipe_path)
 
 
@@ -230,7 +216,6 @@ class _CleaningProvider(PreviewRuntimeProvider):
         return handle
 
     async def delete_leftovers(self) -> None:
-        """Delete each runtime this provider created that still exists."""
         for runtime_ref, application_port in self._created:
             try:
                 handle = await self.attach(

@@ -1,0 +1,27 @@
+---
+title: Preview handoffs · front-door claim, then product sign-in
+---
+sequenceDiagram
+  autonumber
+  participant tab as Session tab
+  participant page as Preview tab
+  participant door as Vercel front door
+  participant cp as Control plane
+  participant app as Client product
+
+  Note over tab,cp: Front-door claim · admits the browser to the session origin
+  tab->>cp: POST /v1/sessions/{session_id}/preview-handoff
+  Note over cp: Refuses unless a committed<br/>route for the session is ready.
+  cp-->>tab: claim URL on the session origin
+  tab->>page: open the claim URL
+  page->>door: claim URL · one-time code
+  door->>cp: POST /v1/preview/handoffs/{code}/exchange
+  cp-->>door: origin-bound session credential
+  door-->>page: session cookie · redirect to /__utrace/sign-in
+  Note over page,app: Product handoff · signs the participant into the client application
+  page->>door: GET /__utrace/sign-in
+  door->>cp: POST /v1/preview/routes/{host}/product-sign-in
+  cp-->>door: short-lived signed token
+  door->>app: post the token to the template's sign-in endpoint
+  app-->>door: product session cookie + landing location
+  door-->>page: product cookie + allocation cookie · redirect

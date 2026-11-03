@@ -1,11 +1,6 @@
-/**
- * Attestation binding checks and the write-only telemetry credential.
- */
-
 import { describe, expect, it } from "vitest";
 import { assertAttestationBinding, assertManifestPinned, decodeAttestation } from "../../src/activation/attestation.js";
 import { decodeCredential, INGEST_PATH, TelemetryCredential } from "../../src/activation/credential.js";
-import { ACTIVATION_REQUEST_TIMEOUT_MS } from "../../src/activation/gate.js";
 import { PACKAGED_SIGNING_KEYS, findPackagedKey } from "../../src/activation/signing-keys.js";
 import type { JsonObject } from "../../src/core/json.js";
 import { rfc3339 } from "../../src/core/time.js";
@@ -128,11 +123,6 @@ describe("telemetry credential", () => {
     acknowledgement_lag_limit_ms: 5000,
   };
 
-  it("bounds the activation gate so a hung front door cannot hold hydration", () => {
-    expect(ACTIVATION_REQUEST_TIMEOUT_MS).toBeGreaterThan(0);
-    expect(ACTIVATION_REQUEST_TIMEOUT_MS).toBeLessThanOrEqual(30_000);
-  });
-
   it("accepts only the documented browser ingestion endpoint", () => {
     expect(INGEST_PATH).toBe("/v1/ingest/browser");
     expect(
@@ -178,16 +168,20 @@ describe("telemetry credential", () => {
     expect(credential.expired(NOW + 120_000)).toBe(true);
   });
 
-  it("clamps a negotiated limit that exceeds a platform ceiling", () => {
-    const credential = decodeCredential({
-      credential: {
-        token: "token123",
-        expires_at: rfc3339(NOW + 60_000),
-        ingest_url: `wss://ingest.utrace.dev${INGEST_PATH}`,
-      },
-      limits: { ...limits, max_observation_bytes: 99_999_999, max_batch_bytes: 99_999_999 },
+  it("lets a negotiated limit tighten but never raise or unset a platform ceiling", () => {
+    const negotiate = (maxObservationBytes: number, maxBatchBytes: number): TelemetryCredential =>
+      decodeCredential({
+        credential: {
+          token: "token123",
+          expires_at: rfc3339(NOW + 60_000),
+          ingest_url: `wss://ingest.utrace.dev${INGEST_PATH}`,
+        },
+        limits: { ...limits, max_observation_bytes: maxObservationBytes, max_batch_bytes: maxBatchBytes },
+      });
+    expect(negotiate(99_999_999, 99_999_999).limits).toMatchObject({
+      max_observation_bytes: 262144,
+      max_batch_bytes: 1048576,
     });
-    expect(credential.limits.max_observation_bytes).toBe(262144);
-    expect(credential.limits.max_batch_bytes).toBe(1048576);
+    expect(negotiate(64 * 1024, 0).limits).toMatchObject({ max_observation_bytes: 64 * 1024, max_batch_bytes: 1048576 });
   });
 });

@@ -34,13 +34,13 @@ import { withRetries } from "../shared/retry";
 const LINK_PATH = "/extension/link";
 const LINK_CODE_PARAMETER = "link_code";
 
-export type AccountLinkErrorCode =
+type AccountLinkErrorCode =
   | "link_flow_failed"
   | "link_code_missing"
   | "registration_rejected"
   | "protocol_unsupported";
 
-export class AccountLinkError extends Error {
+class AccountLinkError extends Error {
   readonly code: AccountLinkErrorCode;
 
   constructor(code: AccountLinkErrorCode, message: string) {
@@ -50,7 +50,6 @@ export class AccountLinkError extends Error {
   }
 }
 
-/** Runs the one-time account link and registers this installation. */
 export async function linkAccount(): Promise<InstallationRecord> {
   const redirectUri = chrome.identity.getRedirectURL("extension-link");
   const linkUrl = new URL(LINK_PATH, BUILD_ORIGINS.accountLinkOrigin);
@@ -137,10 +136,7 @@ async function registerInstallation(linkCode: string): Promise<InstallationRecor
   return record;
 }
 
-/**
- * Revokes this installation at the control plane and locally. A reinstall or a
- * new link gets a new installation identity and a new device key.
- */
+/** Revokes this installation at the control plane and locally. */
 export async function revokeInstallation(): Promise<void> {
   const record = await readInstallation();
   if (record !== null) {

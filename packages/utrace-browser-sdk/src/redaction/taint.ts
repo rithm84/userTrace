@@ -18,10 +18,6 @@ export class TaintRegistry {
     }
   }
 
-  taintNode(node: Node): void {
-    this.#tainted.add(node);
-  }
-
   /** True when the node itself carries taint or inherits it from a live ancestor. */
   isTainted(node: Node): boolean {
     let current: Node | null = node;

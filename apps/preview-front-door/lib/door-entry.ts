@@ -24,7 +24,7 @@ import { readSessionOrigin, type SessionOrigin } from "./session-origin";
 
 const reconnectRetryAfterSeconds = 5;
 
-export interface SurfaceDecision {
+interface SurfaceDecision {
   readonly kind: "neutral" | "ended" | "reconnecting";
   readonly status: number;
 }
@@ -156,7 +156,7 @@ export interface DoorEntry {
   readonly origin: SessionOrigin;
 }
 
-export type DoorEntryResult =
+type DoorEntryResult =
   | { readonly kind: "entered"; readonly entry: DoorEntry }
   | { readonly kind: "refused"; readonly response: Response };
 
@@ -217,7 +217,7 @@ export function enterDoor(params: {
 }
 
 /** A same-origin POST from the preview document, carrying the session cookie. */
-export function isSameOriginPost(request: Request): boolean {
+function isSameOriginPost(request: Request): boolean {
   const origin = request.headers.get("origin");
   const host = request.headers.get("host");
   if (origin === null || host === null) {
@@ -230,7 +230,7 @@ export function isSameOriginPost(request: Request): boolean {
   }
 }
 
-export type RelayBodyResult<T> =
+type RelayBodyResult<T> =
   | { readonly kind: "parsed"; readonly value: T }
   | { readonly kind: "refused"; readonly response: Response };
 

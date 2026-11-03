@@ -1,47 +1,50 @@
 ---
-title: Runtime placement · keep persistent coordination outside sandboxes
+title: Runtime placement · persistent coordination outside sandboxes, by region
 ---
 flowchart TB
   subgraph row_1 [" "]
     direction LR
-    subgraph vercel ["Vercel"]
-      direction LR
-      web(["`**Vercel web**
-      Landing + dashboard
-      Session UI + auth routes`"]):::people
-      door["`**Preview front door**
-      Separate origin per session
-      Authenticated route revision`"]:::people
-      sandbox["`**Vercel Sandbox**
-      Isolated workspace + coding agent
-      Separate product runtimes`"]:::observation
-      web -->|preview handoff| door -->|product port| sandbox
+    subgraph vercel_pdx ["Vercel · pdx1"]
+      web(["`**Web surfaces · utrace.dev**
+      Client dashboard + session UI`"]):::people
     end
+    subgraph vercel_iad ["Vercel · iad1"]
+      direction LR
+      door["`**Preview front door**
+      preview.utrace.dev`"]:::people
+      sandbox["`**Vercel Sandbox**
+      Implementation workspaces
+      Base + candidate preview runtimes`"]:::observation
+      door -->|proxies each preview request| sandbox
+    end
+    web ~~~ door
   end
   subgraph row_2 [" "]
     direction LR
-    subgraph supa ["Supabase project"]
+    subgraph supa ["Supabase project · AWS us-west-2"]
       direction TB
-      secrets[("`**Compute project secrets**
-      Injected into every compute`")]:::gate
-      compute["`**Supabase Compute**
-      Persistent API + worker
-      Discord, ingestion, Jobs`"]:::runtime
+      subgraph compute ["Supabase Compute · apps/api/Dockerfile"]
+        direction LR
+        api["`**api** · public
+        HTTP API + extension sockets
+        Telemetry ingestion`"]:::runtime
+        worker["`**worker** · no URL
+        Durable Jobs
+        Discord gateway`"]:::runtime
+        api ~~~ worker
+      end
       data[("`**Supabase**
       Auth · Postgres · Storage
       Realtime · Queues · Cron`")]:::outcome
-      secrets -->|injected secrets| compute -->|durable records| data
+      compute -->|durable records| data
     end
-    subgraph pcc ["Pipecat Cloud"]
-      direction TB
-      vsecrets[("Pipecat Cloud secret set")]:::gate
-      voice["`**Voice agent**
-      One warm instance
-      Runs each call's voice agent Job`"]:::runtime
-      vsecrets -->|secret set| voice
+    subgraph pcc ["Pipecat Cloud · us-west"]
+      voice["`**utrace-voice-agent**
+      Built from apps/api/app`"]:::runtime
     end
   end
-  web -->|API| compute
+  web -->|API| api
+  door -->|route lookup| api
   compute -->|authorized lease| sandbox
-  compute -->|start session| voice
+  api -->|start session| voice
   voice -->|Job + call record| data

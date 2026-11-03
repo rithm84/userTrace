@@ -24,17 +24,17 @@ import type { RedactionPolicy, SafeValueRule } from "../redaction/policy.js";
 
 export type TargetEffect = "observe" | "visual_guidance";
 
-export interface SurfaceDefinition {
+interface SurfaceDefinition {
   readonly surface_id: string;
   readonly sensitive: boolean;
 }
 
-export interface EntityDefinition {
+interface EntityDefinition {
   readonly entity_definition_id: string;
   readonly instance_ref_rule_id: string;
 }
 
-export interface TargetDefinition {
+interface TargetDefinition {
   readonly definition_id: string;
   readonly effects: readonly TargetEffect[];
   readonly detail_fields: readonly string[];
@@ -42,7 +42,7 @@ export interface TargetDefinition {
   readonly visual_only: boolean;
 }
 
-export interface MilestoneDefinition {
+interface MilestoneDefinition {
   readonly milestone_id: string;
   readonly attribute_rule_ids: readonly string[];
 }

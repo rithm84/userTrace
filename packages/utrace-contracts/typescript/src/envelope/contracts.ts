@@ -53,7 +53,6 @@ export function parseResultBody(value: unknown): ResultBody {
   return resultBodySchema.parse(value);
 }
 
-/** Validate an actor of any kind. */
 export function parseActor(value: unknown): Actor {
   return actorSchema.parse(value);
 }

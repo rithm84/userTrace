@@ -42,7 +42,6 @@ def invitation_text(
     terms: OfferTerms | None,
     expires_in_hours: int,
 ) -> str:
-    """Compose the private initial invitation."""
     lines = [
         f"Hi — I am a uTrace product agent working with the {client_name} team.",
         "",

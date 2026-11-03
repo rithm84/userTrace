@@ -50,9 +50,11 @@ area they prove that the JSON Schema and the fixtures agree, in both languages,
 over the same files. For an area whose bindings ship here they also prove that
 the binding accepts and rejects exactly what its schema does. An area whose
 bindings live with its consumer proves that in the consumer's own suite against
-these same fixtures, which is what the browser SDK, the browser extension, and
-the preview front door each do. `server-activation` has no fixtures; the server
-SDK checks its validators against those schemas with instances it builds.
+these same fixtures, which is what the browser extension and the preview front
+door each do. For `browser-observation`, the API's ingestion suite runs the
+`ingest-client-frame` and `observation-envelope` fixtures against its frame
+models, and the browser SDK's suite only compiles the schemas. `server-activation` has no fixtures; the server SDK checks its
+validators against those schemas with instances it builds.
 
 ## Commands
 

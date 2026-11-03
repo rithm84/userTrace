@@ -49,16 +49,13 @@ from app.preview.config import PreviewSettings
 from app.preview.runtime import PreviewRuntimeHandle, PreviewRuntimeProvider
 
 __all__ = [
-    "ACTIVATION_FILE_NAME",
     "STREAM_END_SECONDS",
     "ControlPlaneCommands",
     "ServerActivationContext",
     "ServerActivationEndpoints",
     "ServerTermination",
-    "active_server_activation_id",
     "await_stream_end",
     "install_server_activation",
-    "manifest_trust_anchor_value",
     "observation_hosts",
     "restart_observed_runtime",
     "terminate_server_activation",
@@ -107,7 +104,6 @@ class ServerActivationEndpoints(BaseModel):
     def from_settings(
         settings: PreviewSettings, *, trust_anchor: str
     ) -> ServerActivationEndpoints:
-        """Read the endpoints from preview policy and the control plane's key."""
         return ServerActivationEndpoints(
             control_url=settings.server_control_url,
             ingest_url=settings.server_ingest_url,

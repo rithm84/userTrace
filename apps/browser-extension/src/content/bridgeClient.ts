@@ -22,7 +22,7 @@ const ATTACH_ATTEMPTS = 3;
 const ATTACH_TIMEOUT_MS = 400;
 const EXCHANGE_TIMEOUT_MS = 1_200;
 
-export type BridgeErrorCode = "page_bridge_unavailable" | "bridge_exchange_timeout";
+type BridgeErrorCode = "page_bridge_unavailable" | "bridge_exchange_timeout";
 
 export class BridgeError extends Error {
   readonly code: BridgeErrorCode;
@@ -55,10 +55,6 @@ export class PageBridge {
 
   get documentAttachmentId(): string {
     return this.attachment.document_attachment_id;
-  }
-
-  get registryRevision(): number {
-    return this.attachment.registry_revision;
   }
 
   /** Attaches to the injected bridge, retrying the handshake a bounded number of times. */

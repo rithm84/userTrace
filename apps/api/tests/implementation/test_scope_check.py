@@ -51,10 +51,6 @@ index 6666666..7777777 100644
 """
 
 
-def _scope(**overrides: int) -> object:
-    return saved_views_scope(checks=shopalytics_checks(), **overrides)
-
-
 def test_the_parser_counts_added_and_removed_lines_per_file() -> None:
     """A diff header starts a file; the hunk lines are what count."""
     files = parse_unified_diff(PERMITTED_DIFF)

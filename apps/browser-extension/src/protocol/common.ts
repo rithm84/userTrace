@@ -70,7 +70,7 @@ export const pageProofSchema = z.strictObject({
 });
 
 /** The claim set carried inside `page_proof.payload_b64url`. */
-export const pageProofClaimsSchema = z.strictObject({
+const pageProofClaimsSchema = z.strictObject({
   client_id: uuidSchema,
   session_id: uuidSchema,
   preview_environment_id: uuidSchema,
@@ -111,7 +111,7 @@ export function readPageProofClaims(proof: PageProof): PageProofClaims {
  * of the rig's fourteen-value `state` enum; the extension never projects the
  * states that belong to the session tab's longer story.
  */
-export const EXTENSION_CHARACTER_STATES = [
+const EXTENSION_CHARACTER_STATES = [
   "idle",
   "listening",
   "thinking",
@@ -125,7 +125,7 @@ export const EXTENSION_CHARACTER_STATES = [
 
 export const characterStateSchema = z.enum(EXTENSION_CHARACTER_STATES);
 
-export const COMMAND_OUTCOMES = [
+const COMMAND_OUTCOMES = [
   "applied",
   "rejected",
   "failed",
@@ -136,7 +136,7 @@ export const COMMAND_OUTCOMES = [
 
 export const commandOutcomeSchema = z.enum(COMMAND_OUTCOMES);
 
-export const CONTROL_ACTIONS = ["mute", "unmute", "pause", "resume", "end"] as const;
+const CONTROL_ACTIONS = ["mute", "unmute", "pause", "resume", "end"] as const;
 export const controlActionSchema = z.enum(CONTROL_ACTIONS);
 
 export type PageProof = z.infer<typeof pageProofSchema>;
@@ -146,7 +146,7 @@ export type ViewportRect = z.infer<typeof viewportRectSchema>;
 export type CommandOutcome = (typeof COMMAND_OUTCOMES)[number];
 export type ControlAction = (typeof CONTROL_ACTIONS)[number];
 
-export type ProtocolErrorCode =
+type ProtocolErrorCode =
   | "invalid_inbound_frame"
   | "invalid_outbound_frame"
   | "invalid_bridge_frame"

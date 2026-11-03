@@ -23,11 +23,13 @@ from psycopg.rows import DictRow
 from app.envelope import JsonValue
 from app.errors import AggregateNotFoundError
 from app.ingestion.errors import SourceValidationError
-from app.logging import get_logger
 
-__all__ = ["ManifestService", "PinnedServerManifest", "load_signed_server_manifest"]
-
-_log = get_logger(__name__)
+__all__ = [
+    "ManifestService",
+    "PinnedServerManifest",
+    "load_pinned_policy_object",
+    "load_signed_server_manifest",
+]
 
 _POLICY_KEY = "server_instrumentation_manifest"
 
@@ -48,9 +50,8 @@ class ManifestService:
 
 @dataclass(frozen=True, slots=True)
 class PinnedServerManifest:
-    """The signed manifest envelope and the release that pinned it."""
+    """The signed manifest envelope the release pinned."""
 
-    configuration_release_id: UUID
     signed: Mapping[str, JsonValue]
 
     def manifest(self) -> Mapping[str, JsonValue]:
@@ -142,14 +143,17 @@ def _service_from(
     )
 
 
-async def load_signed_server_manifest(
-    conn: AsyncConnection[DictRow], *, configuration_release_id: UUID
-) -> PinnedServerManifest:
-    """Read the signed server manifest the pinned release carries.
+async def load_pinned_policy_object(
+    conn: AsyncConnection[DictRow],
+    *,
+    configuration_release_id: UUID,
+    key: str,
+    missing_reason: str,
+) -> dict[str, JsonValue]:
+    """Read one object onboarding pinned to a configuration release's policy.
 
-    A release with no server manifest cannot prepare an observed preview, so this
-    refuses rather than activating a service against an empty declaration that
-    would authorize nothing and still look healthy.
+    A release that carries none is refused with ``missing_reason`` rather than read
+    as an empty declaration, which would authorize nothing and still look healthy.
     """
     async with conn.cursor() as cur:
         await cur.execute(
@@ -166,16 +170,26 @@ async def load_signed_server_manifest(
         raise SourceValidationError(
             field="configuration_releases.policy", reason="is not an object"
         )
-    signed = policy.get(_POLICY_KEY)
-    if not isinstance(signed, dict):
+    value = policy.get(key)
+    if not isinstance(value, dict):
         raise SourceValidationError(
-            field=f"configuration_releases.policy.{_POLICY_KEY}",
-            reason=(
-                "the pinned configuration release carries no signed server "
-                "instrumentation manifest; onboarding must publish one before a "
-                "service can activate"
-            ),
+            field=f"configuration_releases.policy.{key}", reason=missing_reason
         )
-    return PinnedServerManifest(
-        configuration_release_id=configuration_release_id, signed=signed
+    return dict(value)
+
+
+async def load_signed_server_manifest(
+    conn: AsyncConnection[DictRow], *, configuration_release_id: UUID
+) -> PinnedServerManifest:
+    """Read the signed server manifest the pinned release carries."""
+    signed = await load_pinned_policy_object(
+        conn,
+        configuration_release_id=configuration_release_id,
+        key=_POLICY_KEY,
+        missing_reason=(
+            "the pinned configuration release carries no signed server "
+            "instrumentation manifest; onboarding must publish one before a "
+            "service can activate"
+        ),
     )
+    return PinnedServerManifest(signed=signed)

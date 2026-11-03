@@ -16,7 +16,7 @@ export const W = Object.freeze({ heavy: 2.4, line: 1.8, fine: 1.2, hair: 0.9 });
 const TINT_NAMES = ['white', 'coral', 'mint', 'sky', 'lilac', 'peach', 'aqua', 'grey'] as const;
 export type Tint = (typeof TINT_NAMES)[number];
 
-export type TintSet = Readonly<{ base: string; left: string; right: string; top: string }>;
+type TintSet = Readonly<{ base: string; left: string; right: string; top: string }>;
 
 const BASE: Readonly<Record<Tint, string>> = {
   white: '#ffffff',

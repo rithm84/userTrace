@@ -27,10 +27,9 @@ from app.errors import GuardRejectedError
 __all__ = [
     "Recipient",
     "billing_customer_ref",
-    "client_name",
+    "client_and_product_names",
     "concern_excerpt",
     "load_recipient",
-    "product_name",
 ]
 
 
@@ -45,28 +44,6 @@ class Recipient:
     provider_user_id: str
     sign_in_provider: str
     sign_in_identity: str
-
-
-@dataclass(frozen=True, slots=True)
-class _Prepared:
-    """What the first transaction committed, carried into the provider send."""
-
-    outreach_attempt_id: UUID
-    command_id: UUID
-    invitation_id: UUID
-    recipient_provider_identity: str
-    content: str
-
-
-@dataclass(frozen=True, slots=True)
-class DispatchOutcome:
-    """The committed result of one private outreach dispatch."""
-
-    outreach_attempt_id: UUID | None
-    invitation_id: UUID | None
-    state: str
-    delivered: bool
-    reason: str
 
 
 async def load_recipient(
@@ -135,30 +112,20 @@ async def concern_excerpt(
     return as_str(row, "source_excerpt")
 
 
-async def client_name(conn: AsyncConnection[DictRow], *, client_id: UUID) -> str:
-    """Return the client organization's name for the invitation text."""
-    async with conn.cursor() as cur:
-        await cur.execute("select name from public.clients where id = %s", (client_id,))
-        row = await cur.fetchone()
-    if row is None:
-        raise GuardRejectedError(
-            machine="outreach_attempt", trigger="dispatch", reason="unknown client"
-        )
-    return as_str(row, "name")
-
-
-async def product_name(conn: AsyncConnection[DictRow], *, client_id: UUID) -> str:
-    """Return the client's product name for the invitation text."""
+async def client_and_product_names(
+    conn: AsyncConnection[DictRow], *, client_id: UUID
+) -> tuple[str, str]:
+    """Return the client organization's name and its product name, for outreach text."""
     async with conn.cursor() as cur:
         await cur.execute(
-            "select product_name from public.clients where id = %s", (client_id,)
+            "select name, product_name from public.clients where id = %s", (client_id,)
         )
         row = await cur.fetchone()
     if row is None:
         raise GuardRejectedError(
             machine="outreach_attempt", trigger="dispatch", reason="unknown client"
         )
-    return as_str(row, "product_name")
+    return as_str(row, "name"), as_str(row, "product_name")
 
 
 async def billing_customer_ref(

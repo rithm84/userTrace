@@ -50,5 +50,4 @@ class TargetRegistryPort(Protocol):
         document_attachment_id: UUID,
         limit: int,
     ) -> Sequence[RegisteredTarget]:
-        """Return the targets currently registered in the bound document."""
         ...

@@ -5,7 +5,7 @@
  * agree on the exact bytes without depending on key order or JSON formatting.
  */
 
-import { ServerSdkError, createFailure } from '../errors.js';
+import { failureError } from '../errors.js';
 
 function canonicalizeString(value: string): string {
   return JSON.stringify(value);
@@ -13,18 +13,12 @@ function canonicalizeString(value: string): string {
 
 function canonicalizeNumber(value: number, now: Date): string {
   if (!Number.isFinite(value)) {
-    throw new ServerSdkError(
-      'Canonical JSON cannot represent a non-finite number.',
-      createFailure(
-        {
-          code: 'manifest_signature_invalid',
-          retry: 'never',
-          readiness_consequence: 'fail_stream',
-          detail: { reason: 'non_finite_number' },
-        },
-        now,
-      ),
-    );
+    throw failureError('Canonical JSON cannot represent a non-finite number.', {
+      code: 'manifest_signature_invalid',
+      retry: 'never',
+      readiness_consequence: 'fail_stream',
+      detail: { reason: 'non_finite_number' },
+    }, now);
   }
   // JCS mandates ECMAScript `Number::toString`, which `JSON.stringify` uses.
   return JSON.stringify(value);
@@ -60,16 +54,10 @@ export function canonicalJson(value: unknown, now: Date): string {
       .map((key) => `${canonicalizeString(key)}:${canonicalJson(record[key], now)}`);
     return `{${members.join(',')}}`;
   }
-  throw new ServerSdkError(
-    'Canonical JSON cannot represent this value type.',
-    createFailure(
-      {
-        code: 'manifest_signature_invalid',
-        retry: 'never',
-        readiness_consequence: 'fail_stream',
-        detail: { reason: 'unsupported_type', value_type: typeof value },
-      },
-      now,
-    ),
-  );
+  throw failureError('Canonical JSON cannot represent this value type.', {
+    code: 'manifest_signature_invalid',
+    retry: 'never',
+    readiness_consequence: 'fail_stream',
+    detail: { reason: 'unsupported_type', value_type: typeof value },
+  }, now);
 }

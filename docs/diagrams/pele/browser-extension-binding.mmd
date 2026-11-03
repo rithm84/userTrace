@@ -1,0 +1,36 @@
+---
+title: Browser extension · binding a preview tab to the live session
+---
+sequenceDiagram
+  autonumber
+  participant tab as Session tab
+  participant worker as Service worker
+  participant page as Preview tab
+  participant sdk as Embedded SDK
+  participant cp as Control plane
+
+  Note over sdk: Holds the page proof telemetry<br/>ingestion issued at activation.
+  tab->>cp: request a binding offer
+  cp-->>tab: single-use, short-lived offer
+  tab->>worker: offer · externally connectable messaging
+  Note over worker,sdk: The participant focuses a product or preview tab.
+  worker->>sdk: page-proof probe · its own channel
+  sdk-->>worker: page proof, forwarded verbatim
+  alt exact valid proof
+    worker->>cp: binding_offer + page proof · control connection
+    Note over cp: Validates the offer, the<br/>installation's proof of<br/>possession, and the signature<br/>over the exact forwarded bytes.
+    cp-->>worker: extension_binding_id · adopts the proof's document_attachment_id
+    worker->>page: render the character and controls
+  else no matching proof
+    Note over worker,page: The tab is left untouched.
+  end
+  opt the session origin advances to a candidate
+    tab->>cp: request a fresh offer
+    cp-->>tab: offer naming the candidate's allocation
+    tab->>worker: fresh offer
+    worker->>page: keep the binding · reload the bound tab
+    worker->>sdk: page-proof probe
+    sdk-->>worker: new page proof naming the candidate
+    worker->>cp: rebind
+    cp-->>worker: binding on the candidate's allocation
+  end

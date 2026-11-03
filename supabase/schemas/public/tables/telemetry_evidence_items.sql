@@ -3,7 +3,6 @@ CREATE TABLE "public"."telemetry_evidence_items" (
   "client_id"             uuid                     NOT NULL,
   "evidence_window_id"    uuid                     NOT NULL,
   "source_record_id"      uuid                     NOT NULL,
-  "source_observation_id" uuid,
   "trace_id"              text,
   "span_id"               text,
   "target_id"             text,

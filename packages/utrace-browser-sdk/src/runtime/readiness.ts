@@ -81,14 +81,11 @@ const ALL_FALSE: ReadinessComponents = {
   registry_consistent: false,
 };
 
-export type ReadinessListener = (state: ReadinessState, failure: RuntimeFailureCode | null) => void;
-
 export class ReadinessController {
   #state: ReadinessState = "dormant";
   #components: ReadinessComponents = ALL_FALSE;
   #failureCode: RuntimeFailureCode | null = null;
   #failureDetail: string | null = null;
-  readonly #listeners: ReadinessListener[] = [];
 
   get state(): ReadinessState {
     return this.#state;
@@ -104,10 +101,6 @@ export class ReadinessController {
 
   get failureDetail(): string | null {
     return this.#failureDetail;
-  }
-
-  onChange(listener: ReadinessListener): void {
-    this.#listeners.push(listener);
   }
 
   /** True only when every listed component currently holds. */
@@ -149,7 +142,6 @@ export class ReadinessController {
       this.#failureCode = null;
       this.#failureDetail = null;
     }
-    for (const listener of this.#listeners) listener(next, this.#failureCode);
   }
 
   /** Records a typed failure and withdraws readiness. */
@@ -159,6 +151,5 @@ export class ReadinessController {
     this.resetComponents();
     if (this.#state === "terminated" || this.#state === "failed") return;
     this.#state = "failed";
-    for (const listener of this.#listeners) listener("failed", code);
   }
 }

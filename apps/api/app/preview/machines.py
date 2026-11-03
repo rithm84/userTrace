@@ -1,4 +1,4 @@
-"""Preview Runtime Allocation and Preview Version machines.
+"""The Preview Runtime Allocation machine.
 
 A warm runtime provisions, seeds, and waits unclaimed. A claim binds it to one
 Interview Session and nothing else may use it. When it is no longer needed it is
@@ -6,10 +6,6 @@ released — routes and credentials revoked, minimized evidence extracted — an
 only then terminated, which destroys the sandbox. A data-bearing runtime is never
 reset back into the pool, so there is no transition from ``released`` to
 ``ready``.
-
-A Preview Version is immutable. It builds, becomes ready once its candidate
-runtime passes every gating probe, and is retired when a newer revision replaces
-it. A correction is a new Preview Version, never a patch of this one.
 """
 
 from dataclasses import dataclass
@@ -21,7 +17,6 @@ from utrace_contracts.domain.lifecycle import (
 from app.lifecycle.machine import Machine, Transition
 
 __all__ = [
-    "ALLOCATION_MACHINE_VERSION",
     "PREVIEW_RUNTIME_ALLOCATION_MACHINE",
     "PreviewRuntimeAllocationFacts",
 ]

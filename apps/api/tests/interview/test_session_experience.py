@@ -9,10 +9,8 @@ import pytest
 from utrace_contracts.domain.lifecycle import (
     InterviewPhase,
     InterviewSessionState,
-    ProductSignalState,
 )
 
-from app.auth.principals import ParticipantPrincipal
 from app.db.pool import Database
 from app.errors import GuardRejectedError
 from app.ids import uuid7
@@ -35,7 +33,7 @@ from app.offers.job_types import EVALUATE_ENTITLEMENT
 from app.preview.routing import commit_route
 from app.validation.controller import EXPIRE_VALIDATION_RETURN
 from tests.extension.keys import DeviceKey
-from tests.factories import CaseFixture, create_case, create_interview_session
+from tests.factories import create_interview_session
 from tests.helpers import count_rows, record_session_readiness
 from tests.interview.fixtures import (
     RecordingObservationReadiness,
@@ -43,35 +41,14 @@ from tests.interview.fixtures import (
     create_binding,
     create_live_session,
     create_preview_allocation,
+    interviewing_case,
     link_installation,
+    participant_of,
 )
 from tests.supabase_auth import SignedInUser
 
 _SUPPORTED = ("1.0",)
 _DEVICE_KEY = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEtestkeyfortheinstallationrecordonly"
-
-
-async def _case(
-    database: Database, auth_users: dict[str, SignedInUser], name: str
-) -> CaseFixture:
-    """One routed Product Signal with its originating participant."""
-    return await create_case(
-        database,
-        name=name,
-        state=ProductSignalState.INTERVIEWING,
-        authorizing_auth_user_id=auth_users["owner_a"].auth_user_id,
-        participant_auth_user_id=None,
-    )
-
-
-def _participant(case: CaseFixture) -> ParticipantPrincipal:
-    """The originating user's resolved participation identity."""
-    return ParticipantPrincipal(
-        auth_user_id=uuid7(),
-        utrace_user_id=case.utrace_user_id,
-        client_user_id=case.client_user_id,
-        client_id=case.client_id,
-    )
 
 
 def _environment(**overrides: object) -> ParticipantEnvironment:
@@ -92,7 +69,7 @@ def _environment(**overrides: object) -> ParticipantEnvironment:
 async def test_preflight_admits_the_session_and_records_every_fact(
     database: Database, auth_users: dict[str, SignedInUser]
 ) -> None:
-    case = await _case(database, auth_users, "preflight-pass")
+    case = await interviewing_case(database, auth_users, "preflight-pass")
     session_id = await create_interview_session(
         database,
         case=case,
@@ -109,7 +86,7 @@ async def test_preflight_admits_the_session_and_records_every_fact(
     interview = get_interview_settings()
     outcome = await run_participant_preflight(
         database,
-        participant=_participant(case),
+        participant=participant_of(case),
         interview_session_id=session_id,
         environment=_environment(
             browser_name="Google Chrome",
@@ -123,7 +100,6 @@ async def test_preflight_admits_the_session_and_records_every_fact(
     )
 
     assert outcome.passed is True
-    assert outcome.failed_checks == ()
     assert outcome.projection is not None
     # Setup passed, so the tab shows the call and opens voice; the session is not
     # live yet, so only the ways to leave it are offered.
@@ -169,7 +145,7 @@ async def test_preflight_admits_the_session_and_records_every_fact(
 async def test_preflight_failure_records_guidance_without_admitting(
     database: Database, auth_users: dict[str, SignedInUser]
 ) -> None:
-    case = await _case(database, auth_users, "preflight-fail")
+    case = await interviewing_case(database, auth_users, "preflight-fail")
     session_id = await create_interview_session(
         database,
         case=case,
@@ -178,7 +154,7 @@ async def test_preflight_failure_records_guidance_without_admitting(
     )
     outcome = await run_participant_preflight(
         database,
-        participant=_participant(case),
+        participant=participant_of(case),
         interview_session_id=session_id,
         environment=_environment(
             browser_name="Safari",
@@ -191,11 +167,6 @@ async def test_preflight_failure_records_guidance_without_admitting(
     )
 
     assert outcome.passed is False
-    assert set(outcome.failed_checks) == {
-        "supported_browser",
-        "extension_account_linked",
-        "extension_host_permission",
-    }
     detail = {check.check_id: check.detail for check in outcome.checks}
     assert str(MINIMUM_CHROME_VERSION) in detail["supported_browser"]
 
@@ -214,13 +185,17 @@ async def test_preflight_failure_records_guidance_without_admitting(
     assert session["state"] == InterviewSessionState.CLAIMED.value
     assert record is not None
     assert record["passed"] is False
-    assert sorted(record["failed_checks"]) == sorted(outcome.failed_checks)
+    assert set(record["failed_checks"]) == {
+        "supported_browser",
+        "extension_account_linked",
+        "extension_host_permission",
+    }
 
 
 async def test_pause_withdraws_observation_and_resume_rechecks_it(
     database: Database, auth_users: dict[str, SignedInUser]
 ) -> None:
-    case = await _case(database, auth_users, "controls-pause")
+    case = await interviewing_case(database, auth_users, "controls-pause")
     session_id = await create_live_session(
         database, case=case, phase=InterviewPhase.DISCOVERY
     )
@@ -251,7 +226,7 @@ async def test_pause_withdraws_observation_and_resume_rechecks_it(
     observation = RecordingObservationReadiness(readiness=complete_readiness())
     paused = await apply_participant_control(
         database,
-        participant=_participant(case),
+        participant=participant_of(case),
         interview_session_id=session_id,
         action=ControlAction.PAUSE,
         return_window_seconds=3600,
@@ -292,7 +267,7 @@ async def test_pause_withdraws_observation_and_resume_rechecks_it(
 
     resumed = await apply_participant_control(
         database,
-        participant=_participant(case),
+        participant=participant_of(case),
         interview_session_id=session_id,
         action=ControlAction.RESUME,
         return_window_seconds=3600,
@@ -310,7 +285,7 @@ async def test_pause_withdraws_observation_and_resume_rechecks_it(
 async def test_muting_leaves_the_character_the_voice_agent_shows(
     database: Database, auth_users: dict[str, SignedInUser]
 ) -> None:
-    case = await _case(database, auth_users, "controls-mute-character")
+    case = await interviewing_case(database, auth_users, "controls-mute-character")
     session_id = await create_live_session(
         database, case=case, phase=InterviewPhase.DISCOVERY
     )
@@ -321,7 +296,7 @@ async def test_muting_leaves_the_character_the_voice_agent_shows(
     for action in (ControlAction.MUTE, ControlAction.UNMUTE):
         result = await apply_participant_control(
             database,
-            participant=_participant(case),
+            participant=participant_of(case),
             interview_session_id=session_id,
             action=action,
             return_window_seconds=3600,
@@ -334,13 +309,13 @@ async def test_muting_leaves_the_character_the_voice_agent_shows(
 async def test_finish_later_starts_the_case_return_deadline_once(
     database: Database, auth_users: dict[str, SignedInUser]
 ) -> None:
-    case = await _case(database, auth_users, "controls-finish-later")
+    case = await interviewing_case(database, auth_users, "controls-finish-later")
     session_id = await create_live_session(
         database, case=case, phase=InterviewPhase.DISCOVERY
     )
     result = await apply_participant_control(
         database,
-        participant=_participant(case),
+        participant=participant_of(case),
         interview_session_id=session_id,
         action=ControlAction.FINISH_LATER,
         return_window_seconds=3600,
@@ -375,7 +350,7 @@ async def test_finish_later_starts_the_case_return_deadline_once(
 async def test_end_confirmation_cancels_the_signal_scope(
     database: Database, auth_users: dict[str, SignedInUser]
 ) -> None:
-    case = await _case(database, auth_users, "controls-end")
+    case = await interviewing_case(database, auth_users, "controls-end")
     session_id = await create_live_session(
         database, case=case, phase=InterviewPhase.DISCOVERY
     )
@@ -395,7 +370,7 @@ async def test_end_confirmation_cancels_the_signal_scope(
 
     result = await apply_participant_control(
         database,
-        participant=_participant(case),
+        participant=participant_of(case),
         interview_session_id=session_id,
         action=ControlAction.END_CONFIRM,
         return_window_seconds=3600,
@@ -441,7 +416,7 @@ async def test_end_confirmation_cancels_the_signal_scope(
 async def test_the_projection_splits_discovery_by_the_observation_boundary(
     database: Database, auth_users: dict[str, SignedInUser]
 ) -> None:
-    case = await _case(database, auth_users, "projection-phase")
+    case = await interviewing_case(database, auth_users, "projection-phase")
     session_id = await create_live_session(
         database, case=case, phase=InterviewPhase.DISCOVERY
     )
@@ -493,7 +468,7 @@ async def test_the_projection_splits_discovery_by_the_observation_boundary(
 async def test_controls_apply_only_to_a_live_session(
     database: Database, auth_users: dict[str, SignedInUser]
 ) -> None:
-    case = await _case(database, auth_users, "controls-guard")
+    case = await interviewing_case(database, auth_users, "controls-guard")
     session_id = await create_interview_session(
         database,
         case=case,
@@ -503,7 +478,7 @@ async def test_controls_apply_only_to_a_live_session(
     with pytest.raises(GuardRejectedError) as refusal:
         await apply_participant_control(
             database,
-            participant=_participant(case),
+            participant=participant_of(case),
             interview_session_id=session_id,
             action=ControlAction.MUTE,
             return_window_seconds=3600,

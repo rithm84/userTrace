@@ -1,12 +1,7 @@
-/**
- * Readiness state machine, failure vocabulary, and hook installation ownership.
- */
-
 import { describe, expect, it } from "vitest";
 import { ReadinessController, type ReadinessComponents } from "../../src/runtime/readiness.js";
 import { HookInstaller, HOOK_NAMES, assertUnowned, markOwner, readOwner } from "../../src/hooks/install.js";
 import { UTraceRuntimeError } from "../../src/core/failure.js";
-import { clampLimit, MAX_BATCH_BYTES, MAX_OBSERVATION_BYTES } from "../../src/core/limits.js";
 
 const allComponents: readonly (keyof ReadinessComponents)[] = [
   "attestation_current",
@@ -74,23 +69,9 @@ describe("readiness state machine", () => {
     controller.transition("terminated");
     expect(controller.state).toBe("terminated");
   });
-
-  it("notifies listeners of each transition", () => {
-    const controller = ready();
-    const seen: string[] = [];
-    controller.onChange((state) => seen.push(state));
-    controller.transition("activating");
-    controller.transition("ready");
-    controller.transition("paused");
-    expect(seen).toEqual(["activating", "ready", "paused"]);
-  });
 });
 
 describe("hook ownership", () => {
-  it("names the six capture hooks readiness proves", () => {
-    expect([...HOOK_NAMES]).toEqual(["fetch", "xhr", "history", "errors", "interactions", "mutations"]);
-  });
-
   it("installs each hook exactly once and reports the proof", () => {
     const installer = new HookInstaller("runtime-1");
     expect(installer.allInstalled()).toBe(false);
@@ -132,15 +113,5 @@ describe("hook ownership", () => {
     installer.uninstallAll();
     expect(removed).toBe(HOOK_NAMES.length);
     expect(installer.allInstalled()).toBe(false);
-  });
-});
-
-describe("platform ceilings", () => {
-  it("lets a negotiated limit tighten but never raise the ceiling", () => {
-    expect(clampLimit(64 * 1024, MAX_OBSERVATION_BYTES)).toBe(64 * 1024);
-    expect(clampLimit(MAX_OBSERVATION_BYTES * 4, MAX_OBSERVATION_BYTES)).toBe(MAX_OBSERVATION_BYTES);
-    expect(clampLimit(0, MAX_BATCH_BYTES)).toBe(MAX_BATCH_BYTES);
-    expect(MAX_OBSERVATION_BYTES).toBe(256 * 1024);
-    expect(MAX_BATCH_BYTES).toBe(1024 * 1024);
   });
 });

@@ -1,0 +1,37 @@
+---
+title: Voice pipeline · audio in, words and gestures out
+---
+flowchart LR
+  subgraph row_hear [" "]
+    direction TB
+    daily_in[/Daily input/]:::external
+    mic{{Microphone gate}}:::gate
+    flux[Deepgram Flux]:::reasoning
+    turns[User turn aggregation]:::runtime
+    daily_in -->|participant audio| mic -->|unmuted audio| flux -->|turn start + end| turns
+  end
+
+  subgraph row_answer [" "]
+    direction BT
+    screen[Screen state]:::runtime
+    sol[GPT-6.1 Sol]:::reasoning
+    follower[Answer follower]:::runtime
+    words[Words and gestures]:::runtime
+    screen -->|turn + application block| sol -->|text + tool calls| follower -->|answer to speak| words
+  end
+
+  subgraph row_speak [" "]
+    direction TB
+    eleven[ElevenLabs]:::reasoning
+    daily_out[/Daily output/]:::external
+    tap[Playback tap]:::runtime
+    preview([Preview tab]):::observation
+    eleven -->|agent audio| daily_out -->|played words| tap -->|circle at the marked word| preview
+  end
+
+  cues([Application messages]):::runtime
+
+  turns -->|participant turn| screen
+  words -->|whole words| eleven
+  cues -->|say or note| sol
+  tap async_1@-.->|recent agent words for the echo guard| turns

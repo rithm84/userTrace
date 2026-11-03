@@ -15,12 +15,10 @@ import jwt
 from jwt import PyJWKClient
 
 from app.errors import AuthorizationError
-from app.logging import get_logger
 from app.settings import Settings
 
 __all__ = ["SupabaseJwtVerifier", "VerifiedIdentity"]
 
-_log = get_logger(__name__)
 
 _ASYMMETRIC_ALGORITHMS = frozenset({"ES256", "ES384", "ES512", "RS256", "RS384", "RS512", "EdDSA"})
 _REQUIRED_CLAIMS = ("exp", "iat", "sub", "aud", "iss")
@@ -49,7 +47,6 @@ class SupabaseJwtVerifier:
         )
 
     async def verify(self, token: str) -> VerifiedIdentity:
-        """Verify one access token and return the proven identity."""
         signing_key = await asyncio.to_thread(self._signing_key, token)
         algorithm = signing_key.algorithm_name
         if algorithm is None or algorithm not in _ASYMMETRIC_ALGORITHMS:

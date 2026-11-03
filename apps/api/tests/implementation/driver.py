@@ -78,7 +78,6 @@ MODIFIED_PATHS: tuple[str, ...] = (
 
 
 def load_patch(files: Mapping[str, str]) -> dict[str, str]:
-    """Read the fixture bodies for one patch."""
     return {path: (FIXTURES / name).read_text(encoding="utf-8") for path, name in files.items()}
 
 
@@ -176,7 +175,6 @@ class RecordingPreviewRuntime:
         return prebuilt
 
     async def discard_prebuilt(self, prebuilt: PrebuiltCandidate) -> None:
-        """Record that a prebuild was destroyed."""
         self.discarded.append(prebuilt)
 
     async def deploy_candidate(
@@ -210,7 +208,6 @@ class RecordingPreviewRuntime:
         )
 
     def only_handoff(self) -> CandidateHandoff:
-        """The single handoff this runtime was given."""
         if len(self.handoffs) != 1:
             raise AssertionError(f"expected exactly one handoff, recorded {len(self.handoffs)}")
         return self.handoffs[0]

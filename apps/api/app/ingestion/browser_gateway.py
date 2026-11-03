@@ -36,7 +36,6 @@ from app.ingestion.browser_records import (
     end_stream,
     fail_stream,
     open_stream,
-    record_identity_conflict,
     store_gap,
     store_observation,
 )
@@ -65,6 +64,7 @@ from app.ingestion.journal import (
     advance_stage,
     find_receipt,
     record_failure,
+    record_identity_conflict,
     write_receipt,
 )
 from app.ingestion.limits import (
@@ -84,7 +84,7 @@ from app.ingestion.rate_budget import RateBudget
 from app.ingestion.scheduling import schedule_correlation, schedule_readiness
 from app.logging import get_logger
 
-__all__ = ["INGEST_SUBPROTOCOL", "BrowserIngestSession", "credential_from_subprotocols"]
+__all__ = ["BrowserIngestSession"]
 
 _log = get_logger(__name__)
 
@@ -134,7 +134,6 @@ class _StreamCursor:
 
     browser_stream_id: UUID
     accepted_through: int
-    highest_received: int
 
 
 class BrowserIngestSession:
@@ -226,7 +225,6 @@ class BrowserIngestSession:
                 return
 
     def _require_activation(self) -> BrowserActivation:
-        """Return the authenticated activation, or refuse."""
         if self._activation is None:
             raise TelemetryAuthenticationError("the stream was never authenticated")
         return self._activation
@@ -242,13 +240,11 @@ class BrowserIngestSession:
         return self._cursor
 
     def _require_budget(self) -> RateBudget:
-        """Return this connection's rate budget, or refuse."""
         if self._budget is None:
             raise TelemetryAuthenticationError("the stream was never authenticated")
         return self._budget
 
     def _require_credential(self) -> UUID:
-        """Return the credential this connection authenticated with, or refuse."""
         if self._credential_id is None:
             raise TelemetryAuthenticationError("the stream was never authenticated")
         return self._credential_id
@@ -270,7 +266,7 @@ class BrowserIngestSession:
                 reason="is not the document this activation attested",
             )
         async with self._database.transaction() as conn:
-            state = await open_stream(
+            accepted_through = await open_stream(
                 conn,
                 activation=activation,
                 browser_stream_id=frame.browser_stream_id,
@@ -284,24 +280,22 @@ class BrowserIngestSession:
                 interview_session_id=activation.interview_session_id,
                 trigger="browser_stream_opened",
             )
-        if frame.resume_from_export_sequence > state.accepted_through_export_sequence:
+        if frame.resume_from_export_sequence > accepted_through:
             raise IntegrityViolationError(
                 identity_kind="resume_from_export_sequence",
                 identity_value=str(frame.resume_from_export_sequence),
                 reason=(
                     "claims an acknowledgement beyond the durable watermark of "
-                    f"{state.accepted_through_export_sequence}"
+                    f"{accepted_through}"
                 ),
             )
         self._cursor = _StreamCursor(
-            browser_stream_id=frame.browser_stream_id,
-            accepted_through=state.accepted_through_export_sequence,
-            highest_received=state.highest_received_export_sequence,
+            browser_stream_id=frame.browser_stream_id, accepted_through=accepted_through
         )
         await self._send(
             StreamAcceptedFrame(
                 browser_stream_id=frame.browser_stream_id,
-                accepted_through_export_sequence=state.accepted_through_export_sequence,
+                accepted_through_export_sequence=accepted_through,
             )
         )
 
@@ -353,7 +347,6 @@ class BrowserIngestSession:
                     conn, existing=existing, frame=frame, content_sha256=content_sha256
                 )
         cursor.accepted_through = accepted_through
-        cursor.highest_received = max(cursor.highest_received, frame.last_export_sequence)
         await self._send(
             AckFrame(
                 browser_stream_id=frame.browser_stream_id,
@@ -631,7 +624,6 @@ class BrowserIngestSession:
             )
 
     async def _send(self, frame: ServerFrame) -> None:
-        """Send one server frame as text."""
         await self._websocket.send_text(frame.model_dump_json(exclude_none=True))
 
     async def _refuse(self, error: IngestionError, *, batch_id: UUID | None) -> None:

@@ -131,7 +131,6 @@ class TelemetryEvidenceQuery:
         allowed_source_classes: frozenset[EvidenceClass],
         limit: int,
     ) -> tuple[CriterionEvidenceItem, ...]:
-        """Return the promoted items citing one criterion inside the window."""
         return await self._ledger.criterion_evidence(
             client_id=client_id,
             evidence_window_id=evidence_window_id,
@@ -149,7 +148,6 @@ class TelemetryEvidenceQuery:
         base_preview_version_id: UUID | None,
         candidate_preview_version_id: UUID,
     ) -> BeforeAfterComparison:
-        """Return the workflow's base and candidate observations."""
         return await self._ledger.before_after_comparison(
             client_id=client_id,
             evidence_window_id=evidence_window_id,

@@ -30,7 +30,6 @@ from app.logging import get_logger
 
 __all__ = [
     "EXPIRE_RECONNECT_WINDOW",
-    "RECONNECT_WINDOW_EXPIRED",
     "expire_reconnect_window",
     "reconnect_window_job",
 ]
@@ -39,7 +38,7 @@ _log = get_logger(__name__)
 
 EXPIRE_RECONNECT_WINDOW: Final[str] = "interview.expire_reconnect_window"
 #: The session's closure reason when its lost connection was never replaced.
-RECONNECT_WINDOW_EXPIRED: Final[str] = "reconnect_window_expired"
+_RECONNECT_WINDOW_EXPIRED: Final[str] = "reconnect_window_expired"
 #: How long a lost connection may stay unreplaced. The session tab reconnects within
 #: seconds on its own, so this only runs out when the person has actually gone.
 _RECONNECT_WINDOW_SECONDS: Final[int] = 120
@@ -112,7 +111,7 @@ async def expire_reconnect_window(database: Database, claimed: ClaimedJob) -> No
             client_id=claimed.client_id,
             session=session,
             session_id=interview_session_id,
-            closure_reason=RECONNECT_WINDOW_EXPIRED,
+            closure_reason=_RECONNECT_WINDOW_EXPIRED,
             actor=_ACTOR,
             now=datetime.now(tz=UTC),
             departure=True,
@@ -125,7 +124,7 @@ async def expire_reconnect_window(database: Database, claimed: ClaimedJob) -> No
         database,
         client_id=claimed.client_id,
         interview_session_id=interview_session_id,
-        reason=RECONNECT_WINDOW_EXPIRED,
+        reason=_RECONNECT_WINDOW_EXPIRED,
     )
     await publish_projection(database, interview_session_id=interview_session_id)
     _log.info(

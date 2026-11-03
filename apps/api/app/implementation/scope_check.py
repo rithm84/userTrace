@@ -50,8 +50,6 @@ class ViolationKind(StrEnum):
 
 
 class ScopeModelBase(BaseModel):
-    """Base for the scope-check records: immutable and closed to extra fields."""
-
     model_config = ConfigDict(frozen=True, extra="forbid")
 
 
@@ -233,7 +231,6 @@ def _dependency_violations(
 
 
 def added_manifest_lines(diff: str, scope: ApprovedScope) -> tuple[str, ...]:
-    """Return the lines the diff adds to the scope's dependency manifests."""
     lines: list[str] = []
     active = False
     for line in diff.splitlines():

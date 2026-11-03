@@ -16,7 +16,7 @@ export const HOOK_NAMES: readonly HookName[] = ["fetch", "xhr", "history", "erro
 export type HookStatus = Readonly<Record<HookName, boolean>>;
 
 /** Cross-realm marker so a second bundle copy is detected, not silently layered. */
-export const HOOK_OWNER_MARKER = Symbol.for("utrace.hook.owner");
+const HOOK_OWNER_MARKER = Symbol.for("utrace.hook.owner");
 
 interface Markable {
   [HOOK_OWNER_MARKER]?: string;
@@ -52,10 +52,6 @@ export class HookInstaller {
 
   constructor(runtimeId: string) {
     this.#runtimeId = runtimeId;
-  }
-
-  get runtimeId(): string {
-    return this.#runtimeId;
   }
 
   install(name: HookName, installer: (runtimeId: string) => HookUninstall): void {

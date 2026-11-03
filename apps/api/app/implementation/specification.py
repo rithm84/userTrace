@@ -24,8 +24,6 @@ __all__ = ["AttemptSpecification", "CodeFindingHint", "LeaseBinding", "Repositor
 
 
 class SpecificationModel(BaseModel):
-    """Base for the specification parts: immutable and closed to extra fields."""
-
     model_config = ConfigDict(frozen=True, extra="forbid")
 
 

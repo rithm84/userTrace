@@ -6,6 +6,9 @@ export const SDK_VERSION = '0.1.0';
 /** Contract major this build speaks on the control and ingestion edges. */
 export const CONTRACT_MAJOR = 1;
 
+/** `user-agent` sent on the control connection and every export request. */
+export const SDK_USER_AGENT = `utrace-server-sdk/${SDK_VERSION} contract/${String(CONTRACT_MAJOR)}`;
+
 /** Capabilities advertised during the activation handshake. */
 export const SDK_CAPABILITIES = [
   'otlp_http_protobuf_gzip',

@@ -1,0 +1,30 @@
+---
+title: Prepared workspace · built during the interview, claimed by an approved attempt
+---
+stateDiagram-v2
+  [*] --> preparing: participant claims the invitation
+  state "Preparing" as preparing
+  preparing : Sandbox from pinned template
+  preparing : Base revision checked out
+  preparing : Client recipe's dependencies
+  preparing : Checks run on the clean base
+  state "Prepared" as prepared
+  prepared : No lease, data, or authority
+  prepared : Package registry only
+  state "Claimed" as claimed
+  claimed : Bound to the attempt
+  claimed : and its fencing token
+  claimed : Egress opened to the model
+  claimed : Limit extended to the budget
+  state "Released" as released
+  released : Sandbox destroyed
+
+  preparing --> prepared: baseline recorded
+  prepared --> claimed: approved attempt with matching pins
+  prepared --> released: case ends or one-hour window passes
+  claimed --> [*]: first cycle starts at once
+  released --> [*]
+
+  class preparing,prepared async
+  class claimed runtime
+  class released neutral

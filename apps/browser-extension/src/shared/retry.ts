@@ -6,7 +6,7 @@
  */
 import { logWarning } from "./log";
 
-export type RetryPolicy = Readonly<{
+type RetryPolicy = Readonly<{
   attempts: number;
   initialDelayMs: number;
   operation: string;

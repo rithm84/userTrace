@@ -7,7 +7,7 @@
  * session is stale, while a frame for another session starts that session's
  * revisions afresh.
  */
-export type SessionRevision = Readonly<{ sessionId: string; revision: number }>;
+type SessionRevision = Readonly<{ sessionId: string; revision: number }>;
 
 export function supersedes(held: SessionRevision | null, incoming: SessionRevision): boolean {
   return (

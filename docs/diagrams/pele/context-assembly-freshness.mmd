@@ -1,0 +1,25 @@
+---
+title: Context bundle · pinned revisions and the freshness check
+---
+sequenceDiagram
+  autonumber
+  participant ctl as Controller
+  participant asm as Context assembler
+  participant role as Model role · Jev, Sol, or voice tool
+  participant signal as Product Signal
+
+  ctl->>asm: assemble for a purpose
+  asm->>signal: read current revisions + sources
+  asm-->>ctl: immutable bundle · pins every revision
+  ctl->>role: bundle
+  Note over signal: A correction or changed observation<br/>may advance a revision meanwhile.
+  role-->>ctl: result + bundle identity + dependencies
+  ctl->>signal: lock · compare the revisions the purpose depends on
+  alt dependencies current
+    ctl->>signal: apply the result
+  else stale
+    Note over ctl: Keep as diagnostic evidence.<br/>No scope update, no effect.
+    opt Implementation Gate classification or proposal
+      ctl->>asm: decide again on fresh context · at most three times per step
+    end
+  end

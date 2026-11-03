@@ -14,7 +14,7 @@ import { asObject, parseJson, requireBoolean, requireEnum, requireInteger, requi
 import type { ObservationScope } from "../observation/types.js";
 import type { ExportRecord } from "./record.js";
 
-export interface StreamOpenFrame {
+interface StreamOpenFrame {
   readonly kind: "stream.open";
   readonly schema_version: string;
   readonly protocol_version: string;
@@ -26,7 +26,7 @@ export interface StreamOpenFrame {
   readonly resume_from_export_sequence: number;
 }
 
-export interface ObservationBatchFrame {
+interface ObservationBatchFrame {
   readonly kind: "observation.batch";
   readonly batch_id: string;
   readonly browser_stream_id: string;
@@ -42,7 +42,7 @@ export interface StreamEndFrame {
   readonly reason: "pagehide" | "terminated" | "paused";
 }
 
-export type ClientFrame = StreamOpenFrame | ObservationBatchFrame | StreamEndFrame;
+type ClientFrame = StreamOpenFrame | ObservationBatchFrame | StreamEndFrame;
 
 export interface StreamAcceptedFrame {
   readonly kind: "stream.accepted";
@@ -72,7 +72,6 @@ export interface ErrorFrame {
 
 export type ServerFrame = StreamAcceptedFrame | AckFrame | FlowControlFrame | ErrorFrame;
 
-/** Serializes one export record into its wire object. */
 export const encodeObservation = (record: ExportRecord): JsonObject => {
   const envelope = record.envelope;
   const wire: Record<string, JsonValue> = {

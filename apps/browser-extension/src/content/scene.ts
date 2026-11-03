@@ -29,6 +29,7 @@ import type { SurfaceLayers } from "./host";
 import type { ResolvedTarget } from "../protocol/bridge";
 import type { CommandOutcome, TargetReference } from "../protocol/common";
 import type { Scene, SceneStep, VisualCommandFrame } from "../protocol/control";
+import { delay } from "../shared/retry";
 
 const SCROLL_SETTLE_MS = 320;
 /**
@@ -185,7 +186,10 @@ export class SceneRunner {
     }
   }
 
-  private async perform(step: SceneStep, target: ResolvedTarget): Promise<void> {
+  private async perform(
+    step: Exclude<SceneStep, { step: "clear" }>,
+    target: ResolvedTarget,
+  ): Promise<void> {
     const centre = centreOf(target.rect);
     switch (step.step) {
       case "move":
@@ -193,7 +197,7 @@ export class SceneRunner {
         return;
       case "point":
         await this.cursor.glideTo(centre);
-        await wait(step.dwell_ms);
+        await delay(step.dwell_ms);
         return;
       case "circle":
         await this.drawPath(circlePath(target.rect, MARK_PADDING_PX), step.retain);
@@ -207,9 +211,6 @@ export class SceneRunner {
       case "label":
         await this.cursor.glideTo(centre);
         this.drawLabel(step.text, step.placement, target, step.retain);
-        return;
-      case "clear":
-        this.clear();
         return;
     }
   }
@@ -306,7 +307,7 @@ export class SceneRunner {
       left: 0,
       behavior: "smooth",
     });
-    await wait(SCROLL_SETTLE_MS);
+    await delay(SCROLL_SETTLE_MS);
 
     const settled = await this.refresh(targetId, targetRevision, { requireVisible: true });
     const observed: TargetReference[] = [
@@ -413,11 +414,5 @@ function becomesVisible(milliseconds: number): Promise<boolean> {
       resolve(false);
     }, milliseconds);
     document.addEventListener("visibilitychange", settle);
-  });
-}
-
-function wait(milliseconds: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, milliseconds);
   });
 }

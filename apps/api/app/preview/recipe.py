@@ -76,7 +76,6 @@ class TemplateRecipe(BaseModel):
 
     @staticmethod
     def load(path: Path) -> TemplateRecipe:
-        """Read and validate one committed recipe file."""
         return TemplateRecipe.model_validate_json(path.read_text(encoding="utf-8"))
 
 
@@ -95,7 +94,6 @@ class StagedBuildContext:
     _temporary: TemporaryDirectory[str]
 
     def __enter__(self) -> Self:
-        """Enter the staged context's scope."""
         return self
 
     def __exit__(

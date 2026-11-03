@@ -15,7 +15,6 @@ Contract: docs/arch-components/telemetry-and-evidence.md#ingress-topology-and-ow
 from fastapi import APIRouter, Request, Response, WebSocket
 
 from app.auth.dependencies import CurrentDatabase
-from app.db.pool import Database
 from app.ingestion.browser_gateway import BrowserIngestSession
 from app.ingestion.errors import (
     BackpressureError,
@@ -48,24 +47,12 @@ _STATUS_BY_CODE = {
 _BEARER = "bearer"
 
 
-def _websocket_database(websocket: WebSocket) -> Database:
-    """Return the process-wide connector for a WebSocket route.
-
-    The HTTP dependency takes a ``Request``; a WebSocket route reads the same
-    application state directly.
-    """
-    database = websocket.app.state.database
-    if not isinstance(database, Database):
-        raise TypeError("the application was assembled without a database connector")
-    return database
-
-
 @router.websocket("/browser")
-async def ingest_browser(websocket: WebSocket) -> None:
+async def ingest_browser(websocket: WebSocket, database: CurrentDatabase) -> None:
     """Carry structured browser observations from the shared browser runtime."""
     session = BrowserIngestSession(
         websocket,
-        database=_websocket_database(websocket),
+        database=database,
         artifacts=require_artifact_store(websocket.app),
     )
     await session.run()

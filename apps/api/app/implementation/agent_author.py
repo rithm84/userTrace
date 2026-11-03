@@ -28,7 +28,6 @@ import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from enum import StrEnum
 from typing import Final, Protocol
 
 import structlog
@@ -55,13 +54,11 @@ from app.implementation.specification import AttemptSpecification
 from app.implementation.tools import ReadFile, ToolExecutor, ToolName, WorkspaceAccess
 
 __all__ = [
-    "CODEX_DIRECTORY",
     "AgentAuthor",
     "AgentToolUse",
     "AuthoredCycle",
     "ChangeAuthor",
     "CodexRun",
-    "CodexSandboxMode",
     "CodexTask",
     "CycleFeedback",
     "completed_report",
@@ -76,18 +73,14 @@ CODEX_DIRECTORY: Final[str] = "/tmp/utrace-codex"
 
 _CODEX_TIMEOUT_CAP_SECONDS: Final[int] = 3600
 _PROVIDER_ID: Final[str] = "openai-http"
+_SANDBOX_MODE: Final[str] = "danger-full-access"
+"""What Codex itself lets the agent's commands touch inside the workspace.
 
-
-class CodexSandboxMode(StrEnum):
-    """What Codex itself lets the agent's commands touch inside the workspace.
-
-    Codex's read-only and workspace-write modes run commands under bubblewrap, which
-    a Vercel Sandbox cannot start, so the workspace sandbox is the isolation boundary
-    and Codex adds none inside it. A read-only run is held read-only by the caller,
-    which refuses any change to the checkout afterwards.
-    """
-
-    FULL_ACCESS = "danger-full-access"
+Codex's read-only and workspace-write modes run commands under bubblewrap, which a
+Vercel Sandbox cannot start, so the workspace sandbox is the isolation boundary and
+Codex adds none inside it. A read-only run is held read-only by the caller, which
+refuses any change to the checkout afterwards.
+"""
 
 
 class _Frozen(BaseModel):
@@ -101,7 +94,6 @@ class CodexTask(_Frozen):
     cwd: str
     developer_instructions: str
     prompt: str
-    sandbox_mode: CodexSandboxMode
     report_schema: Mapping[str, object]
 
 
@@ -207,7 +199,7 @@ async def run_codex(
         script=(
             f"rm -f {CODEX_DIRECTORY}/last.json && "
             f"CODEX_HOME={CODEX_DIRECTORY}/home {CODEX_BINARY} exec --json --ephemeral "
-            f"--skip-git-repo-check --sandbox {task.sandbox_mode.value} "
+            f"--skip-git-repo-check --sandbox {_SANDBOX_MODE} "
             f"--output-schema {CODEX_DIRECTORY}/schema.json -o {CODEX_DIRECTORY}/last.json - "
             f"< {CODEX_DIRECTORY}/prompt.md > {CODEX_DIRECTORY}/events.jsonl "
             f"2> {CODEX_DIRECTORY}/stderr.log; echo \"exit=$?\"; "
@@ -253,7 +245,7 @@ async def run_codex(
         model=configuration.model_id,
         effort=configuration.effort.value,
         service_tier=configuration.service_tier.value,
-        sandbox_mode=task.sandbox_mode.value,
+        sandbox_mode=_SANDBOX_MODE,
         duration_seconds=round(duration, 1),
         actions=parsed.actions,
         input_tokens=usage.input_tokens,
@@ -321,7 +313,6 @@ class AgentAuthor:
             cwd=specification.checkout.workspace_root,
             developer_instructions=_implementation_instructions(specification),
             prompt=_cycle_prompt(specification, feedback, cited_files),
-            sandbox_mode=CodexSandboxMode.FULL_ACCESS,
             report_schema=_CycleReport.model_json_schema(),
         )
         await executor.require_current_lease()

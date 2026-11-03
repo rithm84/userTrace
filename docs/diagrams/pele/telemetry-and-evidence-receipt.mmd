@@ -1,0 +1,36 @@
+---
+title: Telemetry receipt · acknowledged only after a durable commit
+---
+sequenceDiagram
+  autonumber
+  participant browser as Browser SDK
+  participant server as Server SDK
+  participant edge as Ingestion edge
+  participant journal as Durable ingress journal
+  participant jobs as Durable Jobs
+
+  par Browser edge
+    browser->>edge: WebSocket batch · original IDs
+  and Server edge
+    server->>edge: OTLP/HTTP request · original IDs
+  end
+  Note over edge: In memory, before any write:<br/>bounded decompression, authentication,<br/>outer-envelope validation,<br/>non-overridable never-collect checks
+  alt Forbidden material
+    edge-->>browser: close 1008 · unsafe_data_detected
+    edge-->>server: refuse the request · unsafe_data_detected
+    Note over edge: Keeps only a safe typed failure record.
+  else Permanent schema or payload-limit violation
+    edge-->>browser: exact non-retryable failure
+    edge-->>server: exact non-retryable failure
+  else Transient quota or capacity limit
+    edge-->>browser: flow control · acknowledgement held
+    edge-->>server: retryable OTLP status + Retry-After
+  else Journal unavailable
+    Note over edge,journal: No acknowledgement. Producers retry under<br/>their source contract, with their original IDs.
+  else Accepted
+    edge->>journal: one transaction · receipt + normalized records + indexes
+    journal-->>edge: committed
+    edge-->>browser: ack · highest contiguous export_sequence
+    edge-->>server: OTLP full success
+    journal-)jobs: correlation + readiness evaluation
+  end

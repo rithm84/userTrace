@@ -453,12 +453,7 @@ def _combine(
         blockers.append(_EXTENSION_BLOCKER)
     if extra_blocker is not None and extra_blocker not in blockers:
         blockers.append(extra_blocker)
-    conversational = all(components[column] for column in _CONVERSATIONAL_COLUMNS)
-    observation = (
-        conversational
-        and extension_readiness is ExtensionReadiness.READY
-        and all(components[column] for column in _OBSERVATION_COLUMNS)
-    )
+    conversational, observation = _boundaries(components, extension_readiness)
     return ReadinessRecord(
         interview_session_id=interview_session_id,
         client_id=client_id,
@@ -471,6 +466,19 @@ def _combine(
     )
 
 
+def _boundaries(
+    components: Mapping[str, bool], extension_readiness: ExtensionReadiness
+) -> tuple[bool, bool]:
+    """Whether conversational, then observation, readiness hold for these facts."""
+    conversational = all(components[column] for column in _CONVERSATIONAL_COLUMNS)
+    observation = (
+        conversational
+        and extension_readiness is ExtensionReadiness.READY
+        and all(components[column] for column in _OBSERVATION_COLUMNS)
+    )
+    return conversational, observation
+
+
 def _same(current: ReadinessRecord, candidate: ReadinessRecord) -> bool:
     """True when nothing observable changed, so the revision must not advance."""
     return (
@@ -481,7 +489,6 @@ def _same(current: ReadinessRecord, candidate: ReadinessRecord) -> bool:
 
 
 async def _write(conn: AsyncConnection[DictRow], record: ReadinessRecord) -> None:
-    """Persist the combined record at its advanced revision."""
     assignments = ", ".join(f"{column} = %s" for column in _ALL_COLUMNS)
     parameters: list[object] = [record.components[column] for column in _ALL_COLUMNS]
     async with conn.cursor() as cur:
@@ -522,18 +529,12 @@ _SELECT_READINESS = _READINESS_QUERY + "    for update\n"
 
 
 def _to_record(interview_session_id: UUID, row: DictRow) -> ReadinessRecord:
-    """Project one readiness row into its record."""
     components = {column: as_bool(row, column) for column in _ALL_COLUMNS}
     blockers = row["blockers"]
     if not isinstance(blockers, Sequence) or isinstance(blockers, str):
         raise TypeError("session_readiness.blockers is not an array")
     extension_readiness = ExtensionReadiness(as_str(row, "extension_readiness"))
-    conversational = all(components[column] for column in _CONVERSATIONAL_COLUMNS)
-    observation = (
-        conversational
-        and extension_readiness is ExtensionReadiness.READY
-        and all(components[column] for column in _OBSERVATION_COLUMNS)
-    )
+    conversational, observation = _boundaries(components, extension_readiness)
     return ReadinessRecord(
         interview_session_id=interview_session_id,
         client_id=row["client_id"],
