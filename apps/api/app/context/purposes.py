@@ -49,14 +49,15 @@ class BundlePurpose(StrEnum):
     FLOW_CLASSIFICATION = "flow_classification"
     """The interview-established flow classification the gate screens against."""
     JEV_ATTENTION = "jev_attention"
-    """Which agreed checks the person's activity in a new version showed."""
+    """Whether what the person just did in the preview is worth acknowledging out loud."""
 
     @property
     def dependencies(self) -> frozenset[BundleDependency]:
         """The revisions a result of this purpose depends on.
 
-        An agreement or a classification rests on the case itself. A shown-checks
-        verdict rests on the criteria it judged. No result rests on telemetry
+        An agreement or a classification rests on the case itself. An acknowledgement
+        rests only on the conversation it read, so no revision can make it stale; an
+        accepted correction still invalidates it. No result rests on telemetry
         readiness or on the session's own revision, which moves with Mute, Pause,
         phase, and implementation progress.
         """
@@ -64,4 +65,4 @@ class BundlePurpose(StrEnum):
             case BundlePurpose.VOICE_TOOLS | BundlePurpose.FLOW_CLASSIFICATION:
                 return _CASE
             case BundlePurpose.JEV_ATTENTION:
-                return frozenset({BundleDependency.ACCEPTANCE_CRITERIA_REVISION})
+                return frozenset()

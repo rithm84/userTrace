@@ -1,14 +1,9 @@
-"""Which controls a new version changed, which checks it showed, and which of the
-participant's moments the agent acknowledges.
+"""Which controls a new version changed, and which of the participant's moments the
+agent acknowledges.
 
 The controls test reads the targets ingestion recorded for each bound document. The
-other judgements run against the real Jev model: the checks test over the activity
-lines a validation pass produces, the acknowledgement test over a recorded
-conversation.
+acknowledgement test runs against the real Jev model over a recorded conversation.
 """
-
-import json
-from pathlib import Path
 
 from utrace_contracts.domain.lifecycle import InterviewPhase
 
@@ -35,19 +30,6 @@ from tests.interview.fixtures import (
 from tests.supabase_auth import SignedInUser
 
 _DEVICE_KEY = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEtoolstestkeyfortheinstallationrecord"
-
-#: The demo's real validation pass up to the reload, then the reopen after it.
-_PASS = json.loads((Path(__file__).parent / "saved_view_validation.json").read_text())
-_SAVED_THEN_RELOADED: tuple[str, ...] = tuple(_PASS["before_reopen"])
-_REOPENED: tuple[str, ...] = (*_SAVED_THEN_RELOADED, *_PASS["reopened"])
-_CHECKS = {
-    "save": "The person can save the complete current filter set under a name.",
-    "reopen": (
-        "After refreshing, the person can reopen the named saved view and restore all "
-        "saved filter selections."
-    ),
-}
-
 
 def _judge(database: Database, jev: JevClient) -> VoiceJudge:
     return VoiceJudge(database=database, jev=jev, targets=IngestionTargetRegistry(database))
@@ -148,30 +130,6 @@ async def test_a_new_version_names_a_control_moved_only_when_its_order_changed(
             judge,
             ("filter_review_topic", "filter_channel", "filter_segment", "saved_view_save_control"),
         ) == ["moved: filter review topic, now top left of the screen"]
-
-
-async def test_agreed_checks_count_as_shown_only_once_the_new_version_showed_them(
-    database: Database, auth_users: dict[str, SignedInUser]
-) -> None:
-    case = await interviewing_case(database, auth_users, "live-attention")
-    session_id = await create_live_session(database, case=case, phase=InterviewPhase.VALIDATION)
-    subject = VoiceSubject(
-        client_id=case.client_id,
-        product_signal_id=case.product_signal_id,
-        interview_session_id=session_id,
-        voice_connection_id=uuid7(),
-    )
-    async with _jev() as jev:
-        judge = _judge(database, jev)
-        before_reopen = await judge.checks_shown(
-            subject=subject, checks=_CHECKS, activity=_SAVED_THEN_RELOADED
-        )
-        after_reopen = await judge.checks_shown(subject=subject, checks=_CHECKS, activity=_REOPENED)
-
-    assert before_reopen is not None
-    assert before_reopen.shown == frozenset({"save"})
-    assert after_reopen is not None
-    assert after_reopen.shown == frozenset({"save", "reopen"})
 
 
 #: The conversation's dashboard coming up, and one step of a walkthrough, as the

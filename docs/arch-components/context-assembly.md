@@ -124,9 +124,9 @@ Overview excerpt.
 ### Jev judgements
 
 Jev receives question-specific subsets of these bundles: the relevant source
-statement with necessary conversational context, named claims or criteria,
-selected observations, and supplied alternatives. Its in-call acknowledgement
-and shown-checks judgements get only the recent conversation, for speed. Code
+statement with necessary conversational context, named criteria, selected
+observations, and supplied alternatives. Its in-call acknowledgement judgement
+gets only the recent conversation, for speed. Code
 pre-filters by scope and exact metadata before semantic selection. Preserve
 negations, corrections, and uncertainty; never send the full transcript, DOM, or
 telemetry history to every judgement.
@@ -165,7 +165,8 @@ declares as dependencies can make it stale:
 - `voice_delegation`, a voice agent tool call's context, and
   `flow_classification`: the Product Signal's revision, classification, acceptance
   criteria, concern, and pinned configuration release.
-- `jev_attention`: the acceptance criteria the shown checks were judged against.
+- `jev_attention`, an in-call acknowledgement's context: none, since it rests only
+  on the conversation it read.
 
 No purpose depends on telemetry readiness or the Interview Session's own revision.
 A correction that supersedes cited evidence invalidates the bundle whatever its

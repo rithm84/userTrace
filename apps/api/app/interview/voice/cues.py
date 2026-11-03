@@ -136,8 +136,9 @@ _DEBRIEF_CUE: Final[str] = (
     'at the top right downloads this report."; circle each one as you name it. Mention a moved control only if it matters to what '
     "you agreed. {changes} What you agreed: {outcome} Then ask them to try it and go "
     "through the agreed checks one at a time, waiting for their answer to each "
-    "before the next. If they try several at once, the application tells you which "
-    "checks the new version showed; ask them to confirm those rather than repeat "
+    "before the next. If they try several at once, judge from what the application "
+    "tells you they did which checks the new version showed; ask them to confirm "
+    "those rather than repeat "
     "them. The agreed checks, in order: {checks}"
 )
 

@@ -1,9 +1,9 @@
-"""Flow classification, acceptance-criteria agreements, and live Jev attention.
+"""Flow classification and acceptance-criteria agreements.
 
 The classification and agreement records are checked against the real schema.
-The attention tests call the real Jev model through Vercel AI Gateway with the
-pinned model id and check the recorded judgement, because a mocked classifier
-would only prove the mock matched the guess. They skip with the missing variable
+The classification test calls the real Jev model through Vercel AI Gateway with the
+pinned model id and checks the recorded judgement, because a mocked classifier
+would only prove the mock matched the guess. It skips with the missing variable
 named.
 """
 
@@ -25,12 +25,7 @@ from app.interview.agreements import (
     record_acceptance_criteria_agreement,
     record_flow_classification,
 )
-from app.interview.attention import (
-    assess_evidence_coverage,
-    propose_flow_classification,
-    relate_claim,
-    route_attention,
-)
+from app.interview.attention import propose_flow_classification
 from app.interview.readiness import ExtensionReadiness, record_observation_facts
 from tests.connectors.conftest import optional_env, require_env
 from tests.factories import CaseFixture, create_gate_decision
@@ -275,105 +270,6 @@ async def test_only_what_a_classification_rests_on_can_make_it_stale(
         )
     assert "acceptance_criteria_revision" in refusal.value.reason
     assert "readiness_revision" not in refusal.value.reason
-
-
-async def test_jev_assesses_criterion_coverage_over_a_real_bundle(
-    database: Database, auth_users: dict[str, SignedInUser]
-) -> None:
-    values = require_env("VERCEL_AI_GATEWAY_API_KEY")
-    model_id = optional_env("UTRACE_JEV_MODEL_ID") or "typesafe-ai/jev"
-    case = await interviewing_case(database, auth_users, "attention-coverage")
-    session_id = await create_live_session(
-        database, case=case, phase=InterviewPhase.DISCOVERY
-    )
-    async with database.transaction() as conn, conn.cursor() as cur:
-        await cur.execute(
-            """
-            insert into public.evidence_records (
-                id, client_id, product_signal_id, interview_session_id,
-                evidence_class, claim_state, source_ref, context_revision, body
-            )
-            values (gen_random_uuid(), %s, %s, %s, 'transcript_fragment', 'proposed',
-                    'transcript:test:0-400', 0, %s::jsonb)
-            """,
-            (
-                case.client_id,
-                case.product_signal_id,
-                session_id,
-                '{"kind": "open_question", "question": "'
-                + _CANONICAL_REQUEST.replace('"', "'")
-                + '", "criterion_id": null}',
-            ),
-        )
-    bundle = await _bundle(
-        database, case=case, session_id=session_id, purpose="jev_attention"
-    )
-
-    async with JevClient(
-        api_key=values["VERCEL_AI_GATEWAY_API_KEY"], model_id=model_id, timeout_seconds=30.0
-    ) as jev:
-        coverage = await assess_evidence_coverage(
-            database,
-            jev,
-            bundle=bundle,
-            criteria={
-                "saved-view": "the complete filter stack can be saved under a name",
-                "restores": "reopening the view restores every saved filter",
-            },
-        )
-        relation = await relate_claim(
-            database,
-            jev,
-            bundle=bundle,
-            statement="I rebuild the same filters every Monday.",
-            claims={"weekly": "The participant rebuilds the filter stack weekly."},
-        )
-        routing = await route_attention(
-            database,
-            jev,
-            bundle=bundle,
-            tasks={
-                "look_up_saved_views": "Search the product docs for saved views.",
-                "ask_about_frequency": "Ask how often the workflow repeats.",
-            },
-        )
-
-    assert set(coverage.selections) == {"coverage::saved-view", "coverage::restores"}
-    assert all(
-        choice in {"addressed", "unanswered", "contradicted", "unclear"}
-        for choice in coverage.selections.values()
-    )
-    assert relation.selections["relation::weekly"] in {
-        "supports",
-        "contradicts",
-        "unrelated",
-        "unclear",
-    }
-    assert routing.selections["attention::next_task"] in {
-        "look_up_saved_views",
-        "ask_about_frequency",
-        "no_task",
-    }
-
-    async with database.connection() as conn, conn.cursor() as cur:
-        await cur.execute(
-            """
-            select purpose, model_id, accepted, rejections, answers, context_bundle_id
-            from public.semantic_judgements
-            where product_signal_id = %s
-            order by created_at
-            """,
-            (case.product_signal_id,),
-        )
-        judgements = [dict(row) for row in await cur.fetchall()]
-    assert [row["purpose"] for row in judgements] == [
-        "evidence_coverage",
-        "claim_relationship",
-        "attention_routing",
-    ]
-    assert {row["model_id"] for row in judgements} == {model_id}
-    assert all(row["context_bundle_id"] == bundle.bundle_id for row in judgements)
-    assert all(row["answers"] for row in judgements)
 
 
 async def test_jev_proposes_the_interview_established_classification(

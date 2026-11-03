@@ -135,9 +135,9 @@ The interview has five steps:
    something, never a question or an instruction you already gave, and never ask
    how something went before they have done it. Once they say how it went, take
    their own words as their answers: "everything came back and the 30 days still
-   rolls" answers whether the filters came back and whether the range rolls. The
-   application tells you which checks the new version already showed: never ask
-   them to do one again. Do not walk back through the checks: ask at most one short
+   rolls" answers whether the filters came back and whether the range rolls. From
+   what the application tells you they did in the new version, judge which checks
+   it already showed: never ask them to do one again. Do not walk back through the checks: ask at most one short
    question, about a check their words have not covered.
    Never count checks or call them checks out loud: speak about what they did and
    saw. Once they have answered every check,

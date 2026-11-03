@@ -12,9 +12,8 @@ whole filter set hides the one choice the person just made. When several values
 change at once, as on a reload or a reopened saved view, the values that stayed are
 named too, because the whole set is then what the person sees. A milestone repeated
 with the same values says nothing new and is not sent, nor is a click on a control
-the product does not name. During validation the same append also says which
-agreed checks this activity newly showed (`ShownChecks`), so the agent hears the
-activity and what it proved together and answers once.
+the product does not name. During validation the agent judges from these lines
+which agreed checks the new version already showed.
 
 Context appended while the agent is talking can make it break off mid-sentence,
 so what the person does then is held and sent, combined, the moment the agent
@@ -44,7 +43,6 @@ from app.interview.observations import (
 )
 from app.interview.voice.acknowledgements import Acknowledgements
 from app.interview.voice.channel import AgentChannel, VoiceSubject
-from app.interview.voice.checks_shown import ShownChecks
 from app.interview.voice.session_changes import SessionChanges
 from app.logging import get_logger
 
@@ -70,7 +68,6 @@ async def feed_activity(
     subject: VoiceSubject,
     agent: AgentChannel,
     agent_quiet: asyncio.Event,
-    checks: ShownChecks,
     acknowledgements: Acknowledgements,
 ) -> None:
     """Append each new piece of the person's preview activity until cancelled.
@@ -82,13 +79,10 @@ async def feed_activity(
     seen: set[str] = set()
     reported: Mapping[str, Mapping[str, str]] = {}
     held: list[str] = []
-    held_checks: str | None = None
     history = True
     woken = changes.watch()
     while True:
-        await _next_wake(
-            woken, agent_quiet=agent_quiet, holding=bool(held) or held_checks is not None
-        )
+        await _next_wake(woken, agent_quiet=agent_quiet, holding=bool(held))
         woken.clear()
         first, history = history, False
         read_at = loop.time()
@@ -106,15 +100,10 @@ async def feed_activity(
             lines, reported = _describe(fresh, reported=reported)
             moment = [] if first or held else lines
             held.extend(lines)
-            if any(item.milestone is not None for item in fresh):
-                report = await checks.newly_shown()
-                if report is not None:
-                    held_checks = report
-        if (held or held_checks is not None) and agent_quiet.is_set():
+        if held and agent_quiet.is_set():
             spoken = bool(moment) and await acknowledgements.worth_saying(moment, read_at=read_at)
-            await _append(agent, subject=subject, lines=held, checks=held_checks, spoken=spoken)
+            await _append(agent, subject=subject, lines=held, spoken=spoken)
             held = []
-            held_checks = None
 
 
 async def _next_wake(woken: asyncio.Event, *, agent_quiet: asyncio.Event, holding: bool) -> None:
@@ -187,20 +176,17 @@ async def _append(
     *,
     subject: VoiceSubject,
     lines: Sequence[str],
-    checks: str | None,
     spoken: bool,
 ) -> None:
     """Send the activity quietly, or, when it is acknowledged, as speakable context."""
     if spoken:
-        tail = _ACKNOWLEDGE if checks is None else f"{checks} {_ACKNOWLEDGE}"
-        await agent.say(_content(lines, tail=tail))
+        await agent.say(_content(lines, tail=_ACKNOWLEDGE))
     else:
-        await agent.note(_content(lines, tail=checks))
+        await agent.note(_content(lines, tail=None))
     _log.info(
         "voice_activity_fed",
         interview_session_id=str(subject.interview_session_id),
         items=len(lines),
-        checks_reported=checks is not None,
         acknowledged=spoken,
     )
 
@@ -217,7 +203,7 @@ def _content(lines: Sequence[str], *, tail: str | None) -> str:
         size += len(line) + 2
     if not kept:
         if tail is None:
-            raise ValueError("an append needs activity lines or a checks report")
+            raise ValueError("an append needs activity lines")
         return tail
     body = _PREFIX + "; ".join(reversed(kept)) + "."
     return body if tail is None else f"{body} {tail}"
