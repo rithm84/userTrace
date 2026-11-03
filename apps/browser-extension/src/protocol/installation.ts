@@ -18,13 +18,13 @@ import {
   uuidSchema,
 } from "./common";
 
-export const proofOfPossessionSchema = z.strictObject({
+const proofOfPossessionSchema = z.strictObject({
   algorithm: z.literal("ES256"),
   challenge_b64u: base64UrlSchema,
   signature_b64u: base64UrlSchema,
 });
 
-export const installationRegistrationRequestSchema = z.strictObject({
+const installationRegistrationRequestSchema = z.strictObject({
   schema_version: schemaVersionSchema,
   kind: z.literal("installation_registration_request"),
   link_code: base64UrlSchema,
@@ -34,7 +34,7 @@ export const installationRegistrationRequestSchema = z.strictObject({
   proof_of_possession: proofOfPossessionSchema,
 });
 
-export const installationRegistrationResponseSchema = z.strictObject({
+const installationRegistrationResponseSchema = z.strictObject({
   schema_version: schemaVersionSchema,
   kind: z.literal("installation_registration_response"),
   installation_id: uuidSchema,
@@ -53,7 +53,7 @@ export type ProofOfPossession = z.infer<typeof proofOfPossessionSchema>;
 export type InstallationRegistrationRequest = z.infer<
   typeof installationRegistrationRequestSchema
 >;
-export type InstallationRegistrationResponse = z.infer<
+type InstallationRegistrationResponse = z.infer<
   typeof installationRegistrationResponseSchema
 >;
 

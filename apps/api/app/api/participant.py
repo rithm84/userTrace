@@ -23,7 +23,6 @@ from app.api.responses import (
 from app.auth.dependencies import (
     AuthenticatedIdentity,
     CurrentDatabase,
-    CurrentSettings,
     ParticipantOfPath,
 )
 from app.errors import GuardRejectedError
@@ -37,10 +36,6 @@ from app.queries import load_participant_account, load_session, participant_user
 __all__ = ["router"]
 
 router = APIRouter(prefix="/v1", tags=["participant"])
-
-# The invitation claim lives in `app.api.invitations`, which owns the claim
-# completion: identity binding, the Interview Session, and the preview preparation
-# Job.
 
 
 @router.get("/sessions/{session_id}", response_model=SessionProjectionResponse)
@@ -61,7 +56,6 @@ async def get_session(
 async def preview_handoff(
     participant: ParticipantOfPath,
     database: CurrentDatabase,
-    settings: CurrentSettings,
     session_id: Annotated[UUID, Path()],
 ) -> PreviewHandoffResponse:
     """Mint the one-time front-door claim for this session's current route.

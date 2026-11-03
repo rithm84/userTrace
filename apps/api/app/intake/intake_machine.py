@@ -56,7 +56,6 @@ def intake_transition(
     jobs: Sequence[JobIntent],
     commands: Sequence[CommandIntent],
 ) -> TransitionRequest:
-    """Return the request the kernel commits for one Intake Item move."""
     item_id = context.scope.intake_item_id
     return plan_transition(
         INTAKE_ITEM_MACHINE,

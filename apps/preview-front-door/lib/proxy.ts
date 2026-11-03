@@ -60,7 +60,6 @@ const isDroppedRequestHeader = (name: string): boolean =>
   droppedRequestHeaders.has(name) ||
   droppedRequestPrefixes.some((prefix) => name.startsWith(prefix));
 
-/** Point the upstream port URL at the requested path and query. */
 export function buildUpstreamUrl(params: {
   upstreamBase: URL;
   requestUrl: URL;
@@ -79,9 +78,8 @@ export function buildUpstreamUrl(params: {
  * header is that proof. The browser cannot set it — the door does, on every
  * forwarded request — and any caller-supplied `x-utrace-*` is stripped first.
  */
-export const previewEntryHeader = "x-utrace-preview-entry";
+const previewEntryHeader = "x-utrace-preview-entry";
 
-/** Build the headers forwarded to the preview runtime. */
 export function buildUpstreamHeaders(params: {
   requestHeaders: Headers;
   sessionCookieName: string;
@@ -115,10 +113,10 @@ export function buildUpstreamHeaders(params: {
 }
 
 /**
- * Build the headers returned to the browser, keeping the runtime's own cookies and
- * rewriting any redirect that would otherwise hand the browser the provider port URL.
+ * Keeps the runtime's own cookies and rewrites any redirect that would otherwise hand the
+ * browser the provider port URL.
  */
-export function buildDownstreamHeaders(params: {
+function buildDownstreamHeaders(params: {
   upstreamHeaders: Headers;
   upstreamOrigin: string;
   publicPreviewHost: string;
@@ -168,8 +166,6 @@ function rewriteLocation(params: {
 }
 
 /**
- * Forward one request to the preview runtime and stream the answer back.
- *
  * The hop is never retried: the request body is a stream that can be read once, and a
  * repeated product request is a side effect the door has no authority to cause.
  */

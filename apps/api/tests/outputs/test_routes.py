@@ -26,7 +26,7 @@ from utrace_contracts.domain.lifecycle import (
 from app.db.pool import Database
 from app.ids import uuid7
 from app.main import create_app
-from app.offers.budget import authorize_allowance, reserve_offer
+from app.offers.budget import authorize_allowance
 from app.offers.entitlement import CaseStopReason, evaluate_entitlement
 from app.outputs.handlers import assemble
 from app.ports import PortRegistry
@@ -34,6 +34,7 @@ from app.settings import Settings
 from app.validation.completion import CriterionConfirmation, complete_validation
 from app.validation.controller import begin_validation, open_validation_attempt
 from app.validation.evidence import DurableEvidenceQuery
+from tests.helpers import reserve_usd_offer
 from tests.supabase_auth import SignedInUser
 from tests.validation.scenario import (
     ValidationScenario,
@@ -237,17 +238,13 @@ async def test_the_offer_disposition_hides_invoice_application_until_reconciled(
         authorized_minor_units=50_000,
         authorized_by_auth_user_id=auth_users["owner_a"].auth_user_id,
     )
-    offer_id = await reserve_offer(
+    offer_id = await reserve_usd_offer(
         database,
         client_id=scenario.client_id,
         product_signal_id=scenario.product_signal_id,
         customer_account_id=scenario.customer_account_id,
-        currency=CURRENCY,
         amount_minor_units=REWARD_MINOR_UNITS,
-        billing_account_ref="acct_utrace_sandbox",
         billing_customer_ref="cus_route_test",
-        billing_mapping_revision=1,
-        completion_terms={"amount_minor_units": REWARD_MINOR_UNITS},
     )
     await evaluate_entitlement(
         database,

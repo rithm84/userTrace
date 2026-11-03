@@ -103,7 +103,7 @@ async def test_live_progress_reaches_the_session_tab_projection(
 
 
 async def test_async_progress_is_durable_without_a_live_session(
-    database: Database, auth_users: dict[str, SignedInUser], workspace_snapshot_id: str
+    database: Database, auth_users: dict[str, SignedInUser]
 ) -> None:
     """Async work between sessions still exposes equivalent durable status."""
     gated = await create_gated_case(
@@ -117,7 +117,7 @@ async def test_async_progress_is_durable_without_a_live_session(
         database,
         case=gated,
         scope=saved_views_scope(checks=shopalytics_checks()),
-        workspace_snapshot_id=workspace_snapshot_id,
+        workspace_snapshot_id=SNAPSHOT,
     )
     await record_progress(
         database,

@@ -1,0 +1,31 @@
+---
+title: Implementation workspace · what the fenced sandbox can reach
+---
+flowchart TB
+  cp["`**Implementation controller**
+  Holds the lease + fencing token`"]:::runtime
+  subgraph sandbox ["Workspace sandbox · Vercel Sandbox microVM"]
+    direction LR
+    codex["`**Codex CLI · GPT-6.1 Sol**
+    Sandbox's non-root user`"]:::reasoning
+    checkout[Repository checkout + scratch]:::observation
+    codex -->|reads + edits| checkout
+  end
+  firewall{{"`**Sandbox firewall**
+  Network policy outside the microVM`"}}:::gate
+  subgraph row_dest [" "]
+    direction LR
+    openai[OpenAI API]:::reasoning
+    registries[Required public or client-declared registries]:::external
+    utrace[uTrace callback + artifact endpoints]:::runtime
+    other[Any other host]:::external
+    openai ~~~ registries ~~~ utrace ~~~ other
+  end
+
+  cp -->|creates for the current lease · sets egress policy| sandbox
+  cp -->|collects artifacts under the current lease| checkout
+  sandbox -->|all egress| firewall
+  firewall -->|replaces the Authorization header| openai
+  firewall -->|permitted| registries
+  firewall -->|permitted| utrace
+  firewall blocked_1@-->|not permitted| other

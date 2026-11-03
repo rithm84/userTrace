@@ -15,7 +15,7 @@ import { isExpired } from "../core/time.js";
 import { INGEST_CREDENTIAL_SUBPROTOCOL_PREFIX } from "../core/versions.js";
 
 /** Operational limits negotiated at activation, clamped to platform ceilings. */
-export interface NegotiatedLimits {
+interface NegotiatedLimits {
   readonly max_observation_bytes: number;
   readonly max_batch_bytes: number;
   readonly max_bytes_per_second: number;

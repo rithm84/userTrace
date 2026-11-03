@@ -260,32 +260,30 @@ async def test_departure_interrupts_validation_and_schedules_expiry_once(
     telemetry_database: Database,
     auth_users: dict[str, SignedInUser],
 ) -> None:
-    """Leaving mid-validation interrupts it; the deadline and its Job are recorded once."""
+    """Leaving mid-validation interrupts it; the deadline and its Job are recorded once.
+
+    A departure after resuming, even with a longer window, keeps the first deadline.
+    """
     database = telemetry_database
     candidate = await _awaiting_validation(database, auth_users, name="session-departs")
     started = await start_session_validation(
         database, interview_session_id=candidate.interview_session_id
     )
-    for _ in range(2):
+
+    async def depart(return_window_seconds: int) -> datetime:
         async with database.transaction() as conn:
-            await record_departure(
+            return await record_departure(
                 conn,
                 product_signal_id=candidate.case.product_signal_id,
                 reason=ControlAction.FINISH_LATER.value,
-                return_window_seconds=3600,
+                return_window_seconds=return_window_seconds,
             )
+
+    first = await depart(3600)
+    assert await depart(3600) == first
     assert (
         await _state(database, table="validation_attempts", row_id=started.validation_attempt_id)
         == ValidationAttemptState.INTERRUPTED.value
-    )
-    assert (
-        await count_rows(
-            database,
-            table="jobs",
-            where="job_type = %s and input ->> 'product_signal_id' = %s",
-            params=(EXPIRE_VALIDATION_RETURN, str(candidate.case.product_signal_id)),
-        )
-        == 1
     )
     resumed = await start_session_validation(
         database, interview_session_id=candidate.interview_session_id
@@ -294,6 +292,17 @@ async def test_departure_interrupts_validation_and_schedules_expiry_once(
     assert (
         await _state(database, table="validation_attempts", row_id=started.validation_attempt_id)
         == ValidationAttemptState.IN_PROGRESS.value
+    )
+
+    assert await depart(99999) == first
+    assert (
+        await count_rows(
+            database,
+            table="jobs",
+            where="job_type = %s and input ->> 'product_signal_id' = %s",
+            params=(EXPIRE_VALIDATION_RETURN, str(candidate.case.product_signal_id)),
+        )
+        == 1
     )
 
 

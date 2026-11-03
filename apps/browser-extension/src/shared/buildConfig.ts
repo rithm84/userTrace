@@ -15,8 +15,8 @@ export const EXTENSION_VERSION: string = __UTRACE_EXTENSION_VERSION__;
 export const API_AUDIENCE: string = new URL(BUILD_ORIGINS.apiBaseUrl).origin;
 export const CONTROL_SOCKET_AUDIENCE: string = new URL(BUILD_ORIGINS.controlSocketBaseUrl).origin;
 
-export const CONTROL_SOCKET_PATH = "/v1/extension/control";
-export const INSTALLATIONS_PATH = "/v1/extension/installations";
+const CONTROL_SOCKET_PATH = "/v1/extension/control";
+const INSTALLATIONS_PATH = "/v1/extension/installations";
 
 export function controlSocketUrl(): string {
   return `${BUILD_ORIGINS.controlSocketBaseUrl}${CONTROL_SOCKET_PATH}`;

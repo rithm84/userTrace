@@ -1,20 +1,7 @@
-/** Component interaction proof; the shared test harness does not verify the rendered Rive rig or browser layout. */
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { createElement } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { WhereItHelps } from "./WhereItHelps";
-
-vi.mock("@rive-app/react-webgl2", () => ({
-  useRive: () => ({ rive: null, RiveComponent: () => createElement("canvas") }),
-  useViewModelInstanceNumber: () => ({ value: 0, setValue: () => undefined }),
-  useViewModelInstanceEnum: () => ({ value: "idle", values: [], setValue: () => undefined }),
-}));
-vi.mock("@rive-app/webgl2", () => ({
-  Alignment: { Center: "center" },
-  Fit: { Contain: "contain" },
-  Layout: class Layout {},
-}));
 
 afterEach(() => {
   cleanup();

@@ -1,6 +1,6 @@
 import { RuntimeLoader } from "@rive-app/webgl2";
 
-export type AgentCharacterResourceErrorCode =
+type AgentCharacterResourceErrorCode =
   | "invalid_resource_url"
   | "runtime_reconfigured";
 
@@ -53,13 +53,13 @@ export function configureAgentCharacterRuntime(
 }
 
 function assertPackagedResourceUrl(url: string, name: string): void {
-  if (typeof url === "string" && (isRootRelativeUrl(url) || isChromeExtensionUrl(url))) {
+  if (typeof url === "string" && isRootRelativeUrl(url)) {
     return;
   }
 
   throw new AgentCharacterResourceError(
     "invalid_resource_url",
-    `Agent character ${name} must be a root-relative path or a valid chrome-extension URL; received ${describeResourceUrl(url)}.`,
+    `Agent character ${name} must be a root-relative path; received ${describeResourceUrl(url)}.`,
   );
 }
 
@@ -79,22 +79,6 @@ function isRootRelativeUrl(url: string): boolean {
   const packagedOrigin = "https://packaged-resource.utrace.invalid";
   try {
     return new URL(url, packagedOrigin).origin === packagedOrigin;
-  } catch {
-    return false;
-  }
-}
-
-function isChromeExtensionUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url);
-    return (
-      parsed.protocol === "chrome-extension:" &&
-      parsed.hostname.length > 0 &&
-      parsed.username.length === 0 &&
-      parsed.password.length === 0 &&
-      parsed.port.length === 0 &&
-      url.startsWith("chrome-extension://")
-    );
   } catch {
     return false;
   }

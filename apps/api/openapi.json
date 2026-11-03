@@ -654,6 +654,17 @@
             "title": "Environment Profile",
             "type": "string"
           },
+          "format_command": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format Command"
+          },
           "install_command": {
             "title": "Install Command",
             "type": "string"
@@ -675,6 +686,7 @@
           "node_version",
           "package_manager",
           "install_command",
+          "format_command",
           "build_command",
           "start_command",
           "application_port",

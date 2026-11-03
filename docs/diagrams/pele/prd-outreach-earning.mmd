@@ -1,0 +1,23 @@
+---
+title: Outreach Offers · how a case's end decides the reward
+---
+flowchart TB
+  offer(["`**Private invitation**
+  Credit reserved against the budget`"]):::people
+  ending{How did the case end?}:::gate
+  fulfilled{"`**Participant fulfilled**
+  everything requested so far?`"}:::gate
+  earned["`**Reward earned**
+  Owed even if issuance fails`"]:::outcome
+  none(["No reward"]):::neutral
+  credit@{ shape: doc, label: "**Invoice credit**<br/>Customer organization's Stripe balance" }
+
+  offer --> ending
+  ending ok_1@-->|interview done, gate chose no implementation| earned
+  ending ok_2@-->|live implementation, participated through validation| earned
+  ending -->|uTrace or the client ended it| fulfilled
+  fulfilled ok_3@-->|yes| earned
+  fulfilled blocked_1@-->|no, or stopped before participation| none
+  ending blocked_2@-->|participant cancelled, declined, or abandoned| none
+  earned -->|backend issues| credit
+  class credit outcome

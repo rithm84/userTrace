@@ -14,7 +14,6 @@ from utrace_contracts.domain.lifecycle import (
     CriterionObservability,
     FlowType,
     InterviewPhase,
-    ProductSignalState,
 )
 
 from app.connectors.typesafe_jev import JevClient
@@ -34,8 +33,8 @@ from app.interview.attention import (
 )
 from app.interview.readiness import ExtensionReadiness, record_observation_facts
 from tests.connectors.conftest import optional_env, require_env
-from tests.factories import CaseFixture, create_case, create_gate_decision
-from tests.interview.fixtures import create_live_session
+from tests.factories import CaseFixture, create_gate_decision
+from tests.interview.fixtures import create_live_session, interviewing_case
 from tests.supabase_auth import SignedInUser
 
 _CANONICAL_REQUEST = (
@@ -45,23 +44,9 @@ _CANONICAL_REQUEST = (
 )
 
 
-async def _case(
-    database: Database, auth_users: dict[str, SignedInUser], name: str
-) -> CaseFixture:
-    """One routed Product Signal in its interviewing state."""
-    return await create_case(
-        database,
-        name=name,
-        state=ProductSignalState.INTERVIEWING,
-        authorizing_auth_user_id=auth_users["owner_a"].auth_user_id,
-        participant_auth_user_id=None,
-    )
-
-
 async def _bundle(
     database: Database, *, case: CaseFixture, session_id: UUID, purpose: str
 ) -> AssembledBundle:
-    """Assemble one current bundle for the case."""
     return await assemble_bundle(
         database,
         client_id=case.client_id,
@@ -79,7 +64,7 @@ async def _bundle(
 async def test_the_interview_records_the_classification_it_established(
     database: Database, auth_users: dict[str, SignedInUser]
 ) -> None:
-    case = await _case(database, auth_users, "classification-retained")
+    case = await interviewing_case(database, auth_users, "classification-retained")
     session_id = await create_live_session(
         database, case=case, phase=InterviewPhase.DISCOVERY
     )
@@ -126,7 +111,7 @@ async def test_the_interview_records_the_classification_it_established(
 async def test_correcting_a_used_classification_holds_new_implementation_steps(
     database: Database, auth_users: dict[str, SignedInUser]
 ) -> None:
-    case = await _case(database, auth_users, "classification-corrected")
+    case = await interviewing_case(database, auth_users, "classification-corrected")
     session_id = await create_live_session(
         database, case=case, phase=InterviewPhase.DISCOVERY
     )
@@ -190,7 +175,7 @@ async def test_correcting_a_used_classification_holds_new_implementation_steps(
 async def test_a_stale_bundle_cannot_record_an_agreement(
     database: Database, auth_users: dict[str, SignedInUser]
 ) -> None:
-    case = await _case(database, auth_users, "agreement-stale")
+    case = await interviewing_case(database, auth_users, "agreement-stale")
     session_id = await create_live_session(
         database, case=case, phase=InterviewPhase.DISCOVERY
     )
@@ -229,7 +214,7 @@ async def test_only_what_a_classification_rests_on_can_make_it_stale(
     database: Database, auth_users: dict[str, SignedInUser]
 ) -> None:
     """Telemetry readiness moving refuses no classification; a scope change still does."""
-    case = await _case(database, auth_users, "classification-dependencies")
+    case = await interviewing_case(database, auth_users, "classification-dependencies")
     session_id = await create_live_session(
         database, case=case, phase=InterviewPhase.DISCOVERY
     )
@@ -297,7 +282,7 @@ async def test_jev_assesses_criterion_coverage_over_a_real_bundle(
 ) -> None:
     values = require_env("VERCEL_AI_GATEWAY_API_KEY")
     model_id = optional_env("UTRACE_JEV_MODEL_ID") or "typesafe-ai/jev"
-    case = await _case(database, auth_users, "attention-coverage")
+    case = await interviewing_case(database, auth_users, "attention-coverage")
     session_id = await create_live_session(
         database, case=case, phase=InterviewPhase.DISCOVERY
     )
@@ -396,7 +381,7 @@ async def test_jev_proposes_the_interview_established_classification(
 ) -> None:
     values = require_env("VERCEL_AI_GATEWAY_API_KEY")
     model_id = optional_env("UTRACE_JEV_MODEL_ID") or "typesafe-ai/jev"
-    case = await _case(database, auth_users, "attention-classification")
+    case = await interviewing_case(database, auth_users, "attention-classification")
     session_id = await create_live_session(
         database, case=case, phase=InterviewPhase.DISCOVERY
     )

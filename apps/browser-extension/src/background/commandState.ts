@@ -11,7 +11,7 @@
 import type { CommandOutcome, TargetReference } from "../protocol/common";
 import type { VisualCommandFrame } from "../protocol/control";
 
-export type CommandResultRecord = Readonly<{
+type CommandResultRecord = Readonly<{
   command_id: string;
   outcome: CommandOutcome;
   reason?: string;
@@ -21,11 +21,10 @@ export type CommandResultRecord = Readonly<{
   completed_at: string;
 }>;
 
-export type PendingCommand = Readonly<{
+type PendingCommand = Readonly<{
   commandId: string;
   frame: VisualCommandFrame;
   deadlineAt: number;
-  routedAt: number;
 }>;
 
 export type CommandRegistry = Readonly<{
@@ -69,7 +68,7 @@ export type CommandEffect =
   | Readonly<{ type: "emit_result"; result: CommandResultRecord }>
   | Readonly<{ type: "clear_scenes"; reason: string }>;
 
-export type CommandTransition = Readonly<{
+type CommandTransition = Readonly<{
   registry: CommandRegistry;
   effects: readonly CommandEffect[];
 }>;
@@ -129,7 +128,6 @@ function receiveCommand(
     commandId,
     frame,
     deadlineAt: Date.parse(frame.payload.deadline_at),
-    routedAt: context.now,
   });
 
   return {

@@ -23,7 +23,7 @@ from websockets.asyncio.client import ClientConnection, connect
 
 from app.ids import uuid7
 
-__all__ = ["BrowserExporter", "observation", "request_started"]
+__all__ = ["BrowserExporter", "baseline_snapshot", "observation", "request_started"]
 
 INGEST_SUBPROTOCOL = "utrace.browser.v1"
 CREDENTIAL_PREFIX = "utrace.credential."
@@ -70,6 +70,38 @@ def observation(
     if span_id is not None:
         wire["span_id"] = span_id
     return wire
+
+
+def baseline_snapshot(*, runtime_id: UUID, document_attachment_id: UUID) -> dict[str, object]:
+    """Build a document's first record: an empty conversion-dashboard baseline."""
+    return observation(
+        observation_type="baseline.snapshot",
+        runtime_id=runtime_id,
+        document_attachment_id=document_attachment_id,
+        source_sequence=1,
+        export_sequence=1,
+        payload={
+            "baseline_id": str(uuid7()),
+            "reason": "activation",
+            "route": {
+                "route_template": "/dashboard/conversion",
+                "unknown_route": False,
+                "segment_count": 2,
+                "has_query": False,
+                "has_fragment": False,
+                "params": [],
+            },
+            "landmarks": [],
+            "targets": [],
+            "surfaces": ["conversion_dashboard"],
+            "entities": [],
+            "node_budget_exhausted": False,
+        },
+        trace_id=None,
+        span_id=None,
+        target_id=None,
+        occurred_at=None,
+    )
 
 
 def request_started(browser_request_id: str) -> dict[str, object]:
@@ -143,7 +175,6 @@ class BrowserExporter:
         await self._require_socket().send(dumps(frame))
 
     async def receive(self) -> dict[str, object]:
-        """Read one server frame."""
         raw = await self._require_socket().recv()
         decoded = loads(raw if isinstance(raw, str) else raw.decode("utf-8"))
         if not isinstance(decoded, dict):
@@ -151,7 +182,6 @@ class BrowserExporter:
         return decoded
 
     async def open_stream(self, *, resume_from: int) -> dict[str, object]:
-        """Send ``stream.open`` and return the answer."""
         await self._send(
             {
                 "kind": "stream.open",
@@ -169,7 +199,6 @@ class BrowserExporter:
     async def send_batch(
         self, observations: Sequence[Mapping[str, object]], *, batch_id: UUID | None
     ) -> dict[str, object]:
-        """Send one ``observation.batch`` and return the answer."""
         sequences = [int(str(record["export_sequence"])) for record in observations]
         await self._send(
             {

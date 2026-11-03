@@ -12,7 +12,6 @@ export interface JitterSource {
   next(): number;
 }
 
-/** `Math.random`-backed jitter. */
 export const systemJitter: JitterSource = {
   next(): number {
     return Math.random();

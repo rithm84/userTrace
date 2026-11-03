@@ -48,7 +48,6 @@ function SetupRows(props: Readonly<{ rows: readonly SetupRow[] }>): JSX.Element 
   );
 }
 
-/** One numbered bay of the setup checklist. */
 function Bay(props: Readonly<{ number: string; id: string; title: string; children: ReactNode }>): JSX.Element {
   return (
     <article className="fits-bay" data-testid={`fits-bay-${Number(props.number)}`} aria-labelledby={props.id}>

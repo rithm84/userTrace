@@ -36,7 +36,12 @@ from typing import Final
 
 from app.db.pool import Database
 from app.db.rows import as_bool
-from app.interview.observations import ObservedActivity, describe_activity, recent_activity
+from app.interview.observations import (
+    ObservedActivity,
+    describe_activity,
+    identifier_words,
+    recent_activity,
+)
 from app.interview.voice.acknowledgements import Acknowledgements
 from app.interview.voice.channel import AgentChannel, VoiceSubject
 from app.interview.voice.checks_shown import ShownChecks
@@ -158,27 +163,23 @@ def _changed(item: ObservedActivity, *, before: Mapping[str, str]) -> str:
     if item.milestone is None:
         raise ValueError("only a milestone has values to compare")
     changes = [
-        f"{_words(name)}: {before.get(name, 'none')} → {value}"
+        f"{identifier_words(name)}: {before.get(name, 'none')} → {value}"
         for name, value in item.milestone_attributes.items()
         if before.get(name) != value
     ]
     changes.extend(
-        f"{_words(name)}: {value} → none"
+        f"{identifier_words(name)}: {value} → none"
         for name, value in before.items()
         if name not in item.milestone_attributes
     )
     kept = [
-        f"{_words(name)} {value}"
+        f"{identifier_words(name)} {value}"
         for name, value in item.milestone_attributes.items()
         if before.get(name) == value
     ]
     if len(changes) > 1 and kept:
         changes.append(f"unchanged: {', '.join(kept)}")
-    return f"{_words(item.milestone)} ({', '.join(changes)})"
-
-
-def _words(identifier: str) -> str:
-    return identifier.replace(".", " ").replace("_", " ")
+    return f"{identifier_words(item.milestone)} ({', '.join(changes)})"
 
 
 async def _append(

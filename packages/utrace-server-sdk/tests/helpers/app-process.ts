@@ -15,7 +15,6 @@ const PACKAGE_ROOT = join(import.meta.dirname, '..', '..');
 /** Built preload entry used with `node --import`. */
 const PRELOAD_ENTRY = join(PACKAGE_ROOT, 'dist', 'preload.js');
 
-/** A running application process. */
 export interface AppProcess {
   readonly stdout: string[];
   readonly stderr: string[];
@@ -23,8 +22,7 @@ export interface AppProcess {
   stop(): Promise<void>;
 }
 
-/** How to start one application process. */
-export interface AppProcessOptions {
+interface AppProcessOptions {
   readonly appFile: string;
   readonly environment: Readonly<Record<string, string>>;
   readonly withPreload: boolean;
@@ -102,13 +100,11 @@ export async function startApp(options: AppProcessOptions): Promise<AppProcess> 
   throw new Error(`application never reported listening: ${stderr.join('')}`);
 }
 
-/** One response from the product service under test. */
-export interface AppResponse {
+interface AppResponse {
   readonly statusCode: number;
   readonly body: string;
 }
 
-/** Issues one request to the product service. */
 export function callApp(
   port: number,
   path: string,

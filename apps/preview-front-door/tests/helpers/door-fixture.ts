@@ -29,7 +29,6 @@ export const identities = {
 
 export const previewEntryToken = "pe_9Rb4Nk8Jd3Lf0Pw5Ag1Ts6Yh2Qm7Zx";
 
-/** The document nonce the browser SDK bootstrap mints for one activation. */
 export const documentNonce = "b4f2c9a1d8e30576a7c1e2f30415a6b7";
 
 /**
@@ -37,7 +36,7 @@ export const documentNonce = "b4f2c9a1d8e30576a7c1e2f30415a6b7";
  * unchanged. The signature bytes are filler: only the browser SDK verifies
  * them, against its packaged public key.
  */
-export function signedEnvelope(payload: Readonly<Record<string, string>>): SignedEnvelope {
+function signedEnvelope(payload: Readonly<Record<string, string>>): SignedEnvelope {
   return {
     algorithm: "ed25519",
     key_id: "utrace-browser-2026-09-01",
@@ -70,7 +69,6 @@ export const telemetryCredential: TelemetryCredential = {
   },
 };
 
-/** The activation request the browser SDK bootstrap posts. */
 export const activationRequest: ActivationRequest = {
   sdk_installation_id: "shopalytics-preview",
   environment_name: "preview",

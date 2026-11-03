@@ -10,11 +10,9 @@ from uuid import UUID
 
 from app.db.pool import Database
 from app.db.rows import as_int
-from app.logging import get_logger
 
 __all__ = ["Wakeup", "acknowledge_wakeup", "read_wakeups", "scan_ready"]
 
-_log = get_logger(__name__)
 
 _QUEUE = "utrace_outbox"
 

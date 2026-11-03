@@ -17,7 +17,7 @@ export function Panel(
   props: Readonly<{
     title: string;
     aside: ReactNode;
-    variant: "plain" | "raised" | "core" | "mutable";
+    variant: "plain" | "raised";
     testId: string;
     children: ReactNode;
   }>,

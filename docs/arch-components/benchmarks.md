@@ -2,29 +2,25 @@
 
 [Back to uTrace architecture](../ARCHITECTURE.md)
 
-These dated measurements are the evidence behind uTrace's model, pipeline, and
-infrastructure choices. Each ran from a workstation, not from the deployed control
-plane. Provider models change under the same names, so rerun a measurement before
-changing the model, pipeline, threshold, or floor it supports.
-[Evaluation and observability](./evaluation-and-observability.md) owns the checks
-themselves.
+These dated measurements justify uTrace's model, pipeline, and infrastructure
+choices. Each ran from a workstation, not the deployed control plane. Providers
+change models under the same names, so rerun a measurement before changing the
+model, pipeline, threshold, or floor it supports.
+[Evaluation and observability](./evaluation-and-observability.md) owns the checks.
 
 ## Agent cursor
 
-Taken on 2026-10-06, these are the evidence behind grounding the
+Taken on 2026-10-06, these ground the
 [agent cursor](./interview-and-voice.md#agent-cursor) in the target registry. Jev
-is served under the unversioned ID `typesafe-ai/jev`, and the Decisions API was in
-public beta. In the GPT-Live design that the inline marks replaced, Jev judged
-GPT-Live's transcript of the agent's speech and circled at best 93% of the
-controls its recaps named on time.
+is served under the unversioned ID `typesafe-ai/jev`; the Decisions API was in
+public beta.
 
 ### Finding the named control
 
 Each approach answered 68 queries twice across eight Shopalytics states,
 including a restyled conversion page and pages without uTrace annotations: 116
-answers that name a control and 20 that name nothing on screen. A hit is a point
-inside the named control; for a query that names nothing, the correct answer is
-no point.
+answers name a control and 20 name nothing on screen. A hit is a point inside the
+named control, or no point when nothing is named.
 
 | Approach | Model | Named control | Nothing on screen | p50 latency |
 | --- | --- | --- | --- | --- |
@@ -41,9 +37,9 @@ no point.
 
 ### Pointing inside a component
 
-Eight queries, answered twice, named a part of a component on the applied
-conversion page: a chart point, an axis label, a product row, or a review. A
-circle around the whole chart or table does not count.
+Eight queries, answered twice, named part of a component on the applied
+conversion page: a chart point, axis label, product row, or review. Circling the
+whole chart or table misses.
 
 | Approach | Hits | p50 latency |
 | --- | --- | --- |
@@ -57,53 +53,69 @@ circle around the whole chart or table does not count.
 | `gemini-robotics-er-2-preview` on the screenshot | 14/16 | 1,219 ms |
 | `gpt-6-astra` on the screenshot | 14/16 | 2,227 ms |
 
-With the parts declared, the conversion page offers 44 targets instead of 13. On
-its 52 whole-control queries, answered twice, a Jev choice still found 102 of 104
-and the Decisions API 100 of 104. One yes-or-no question per target scaled worse:
-88 of 104, and 13 of 16 parts.
+Declared parts raise the page's targets from 13 to 44. On its 52 whole-control
+queries, answered twice, a Jev choice still found 102 of 104 and the Decisions API
+100 of 104; one yes-or-no question per target scaled worse: 88 of 104, and 13 of
+16 parts.
 
 ### The judge model
 
-On held-out labeled recap and debrief clauses, Jev judged 65 of 68 recaps and 34
-of 36 debriefs correctly, against 60 and 30 for the Decisions API, and gave no
-harmful answer (a circle on a control nobody named) against the Decisions API's
-six, at a p50 of 264 ms against 159 ms.
+Scored on held-out labeled recap and debrief clauses; a harmful answer circles a
+control nobody named.
+
+| Judge | Recaps correct | Debriefs correct | Harmful answers | p50 latency |
+| --- | --- | --- | --- | --- |
+| Jev | 65/68 | 34/36 | 0 | 264 ms |
+| Decisions API | 60/68 | 30/36 | 6 | 159 ms |
 
 ### Voice pipelines
 
-On 41 recorded recaps, a script-first cascade whose text model wrote gesture marks
-put every circle on time, and no speech-to-speech model did: `gpt-live-1` with a
-Jev clause judge was on time for 60% of mentions, `gpt-realtime-2` delivered its
-audio seconds ahead of playback so its gestures were early, and with pointing
-tools `gpt-realtime-2` made every call before speaking (first audio p50 7.69 s)
-while Gemini 3.8 Live spoke the tool syntax aloud in 3 of its 11 recordings.
+Each measured pipeline fires circles differently:
+
+![Option A's text model writes gesture marks inline and each mark fires as its word plays; GPT-Live's circles come from a Jev judge reading the transcript of its speech; other speech-to-speech models circle through pointing tool calls.](../diagrams/svg/benchmarks-voice-pipelines.svg)
+
+<details><summary>Diagram key</summary>
+
+![Diagram key of the ten node roles: people and customer surfaces, uTrace control plane, reasoning models, SDKs and previews, external or blocked, validated or durable, async path, gates and checks, neutral or closed, and client product.](../diagrams/svg/_key.svg)
+
+</details>
+<p></p>
+
+In the GPT-Live design the inline marks replaced, Jev circled at best 93% of the
+controls GPT-Live's recaps named on time. On 41 recorded recaps, the script-first
+cascade put every circle on time; no speech-to-speech model did:
+
+- `gpt-live-1` with a Jev clause judge: 60% of mentions on time.
+- `gpt-realtime-2`: audio arrived seconds ahead of playback, so gestures were
+  early.
+- With pointing tools, `gpt-realtime-2` made every call before speaking (first
+  audio p50 7.69 s); Gemini 3.8 Live spoke tool syntax aloud in 3 of 11
+  recordings.
 
 ## Voice and reasoning models
 
-Taken from 2026-10-07 to 2026-10-09, these are the evidence behind keeping GPT-6.1
-Sol in its [reasoning roles](./interview-and-voice.md#conversation-and-backend-work)
-and behind the active voice design. They compare Claude Haiku 5.5
-(`claude-haiku-5-5`) in Sol's roles, and a script-first voice pipeline ("option
-A") in which a text model writes the reply with inline gesture marks, a speech
-engine speaks it, and the application owns turn-taking. Option A, first measured
-with Sonnet 5.5, is the active
-[voice agent](./interview-and-voice.md#conversation-and-backend-work), with GPT-6.1
-Sol on the Ultrafast tier writing its words.
-
-The retired GPT-Live pipeline is the baseline it replaced. Recorded on the server
-during the live realtime tests, GPT-Live replied a median 1.45 seconds after the
-participant's last speech (p90 4.0 seconds, 103 replies).
+Taken from 2026-10-07 to 2026-10-09, these back keeping GPT-6.1 Sol in its
+[reasoning roles](./interview-and-voice.md#conversation-and-backend-work) and the
+active voice design. Option A, the [script-first cascade](#voice-pipelines) with
+application-owned turn-taking, was first measured with Sonnet 5.5 and is the
+active [voice agent](./interview-and-voice.md#voice-pipeline), with GPT-6.1 Sol on
+the Ultrafast tier writing its words. It replaced the GPT-Live pipeline, which
+replied a median 1.45 seconds after the participant's last speech (p90 4.0
+seconds, 103 replies, recorded on the server during the live realtime tests).
 
 ### Claude Haiku 5.5 in Sol's roles
 
-Sol ran each role as `gpt-6.1-sol` on the Fast tier, at low
-effort for gate proposals and code work, and medium for intake and Case File
-drafting. Haiku ran every role at low, medium, and high effort, each with
-adaptive thinking and with thinking disabled; its code work ran through the
-Claude Agent SDK. Each structured role answered frozen production inputs four
-times. The five Implementation Gate
-cases are an approval, a terminated preview environment, missing evidence, an
-exhausted Implementation Attempt budget, and another account's data.
+Sol ran each role as `gpt-6.1-sol` on the Fast tier: low effort for gate proposals
+and code work, medium for intake and Case File drafting. Haiku ran each role at
+low, medium, and high effort, with adaptive thinking and with thinking disabled,
+and code work through the Claude Agent SDK.
+
+#### Structured roles
+
+Each structured role answered frozen production inputs four times, through
+production's prompts and schemas. The five Implementation Gate cases: an approval,
+a terminated preview environment, missing evidence, an exhausted Implementation
+Attempt budget, and another account's data.
 
 | Configuration | Gate proposals correct | Gate after controller checks | Gate p50 / p90 | Case File drafts verified | Case File p50 | Intake correct | Intake p50 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -116,16 +128,18 @@ exhausted Implementation Attempt budget, and another account's data.
 | Haiku, high, thinking disabled | 6/20 | 18/20 | 3.3 s / 4.3 s | 4/4 | 7.7 s | 16/16 | 1.6 s |
 
 Every Haiku configuration proposed live implementation in every run for the
-terminated environment and the missing evidence; Sol refused the first in 4 of 4
-runs and the second in 2 of 4. With thinking disabled, Haiku also approved the exhausted budget in every run and the
-other account's data in half. The gate controller's own checks caught most of
-these, but a proposal is not meant to depend on them. A structured Haiku call
-cost about USD 0.001.
+terminated environment and the missing evidence, which Sol refused in 4 of 4 and
+2 of 4 runs. With thinking disabled, Haiku also approved the exhausted budget every
+time and the other account's data in half the runs. The gate controller's checks
+caught most of these, but proposals should not rely on them. A structured Haiku
+call cost about USD 0.001.
 
-Code work ran three times per configuration on the Saved Conversion Views change.
-Investigation counts how many of the eight files the production change touches
-were cited, every cited range having been verified; implementation counts runs
-whose candidate passed the acceptance suite.
+#### Code work
+
+Each configuration ran three times on the Saved Conversion Views change, against
+one Shopalytics checkout and acceptance suite. Investigation counts cited files
+among the eight the production change touches, every cited range verified;
+implementation counts runs whose candidate passed the acceptance suite.
 
 | Harness and model | Investigation p50 | Needed files cited | Implementation passed | Time to candidate, p50 | Cost per implementation |
 | --- | --- | --- | --- | --- | --- |
@@ -137,17 +151,18 @@ whose candidate passed the acceptance suite.
 
 The failed run stopped to report that the change needed a wider scope. With
 thinking on, Haiku implemented as reliably at under a tenth of the cost, but took
-half again as long or more, and cited fewer of the needed files.
+half again as long or more and cited fewer needed files.
 
 ### Script-first voice with gesture marks
 
-The text model receives the interview instructions and an `<application>` block
-of on-screen controls under short handles (`T1`, `T2`, ...), and writes a mark before the words that name a control
-(`<c id="T5"/>the channel filter`) or wrapped around them. Nine scenarios, run four
-times each, cover the recap, a vague ask, a request to be shown a control, a
+The text model gets the interview instructions and an `<application>` block naming
+on-screen controls by short handles (`T1`, `T2`, ...), and marks a control before
+(`<c id="T5"/>the channel filter`) or around the words naming it. Nine scenarios,
+four runs each, cover the recap, a vague ask, a request to be shown a control, a
 question about which control is the segment, the debrief, and four moments that
-must not circle anything. A run is exact when it marks every required control,
-nothing outside the allowed set, and no malformed mark.
+must not circle anything. A run is exact if it marks every required control,
+nothing outside the allowed set, and no malformed mark. The agent writes marks
+before words.
 
 | Text model | Exact, mark before | Exact, mark around | First token p50 |
 | --- | --- | --- | --- |
@@ -159,12 +174,14 @@ nothing outside the allowed set, and no malformed mark.
 | `claude-haiku-5-5`, low, thinking disabled | 30/36 | 27/36 | 585 ms |
 | `claude-haiku-5-5`, low, adaptive | 28/36 | 27/36 | 463 ms |
 
-End to end, a scripted participant's synthesized speech streamed in real time to
-Deepgram Flux (`flux-general-en`), whose eager end of turn started the text
-model; the text, marks removed, streamed to ElevenLabs. Each configuration ran
-two 12-turn interviews. Reply latency runs from the participant's last speech
-(RMS at least 0.01) to the first audio from ElevenLabs, before any network to a
-listener.
+#### End to end
+
+A scripted participant's speech, synthesized with `gpt-4o-mini-tts`, streamed to
+Deepgram Flux (`flux-general-en`) in real time in 80 ms chunks; Flux's eager end of
+turn started the text model, whose text, marks removed, streamed to ElevenLabs.
+Each configuration ran two 12-turn interviews. Reply latency runs from the
+participant's last speech (RMS at least 0.01) to ElevenLabs' first audio, before
+any network to a listener.
 
 | Text model | Speech engine | Marks | Reply p50 | Reply p90 | Required circles | Circles not asked for | Words per walkthrough step |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -175,93 +192,116 @@ listener.
 | `gpt-6-luna` | Eleven v4 Turbo | Around | 1.50 s | 2.02 s | 7/18 | 0 | 11.9 |
 | `gemini-3.5-flash-lite` | Eleven v4 Turbo | Around | 1.78 s | 2.41 s | 10/18 | 8 | 15.1 |
 
-Words per walkthrough step should be one ("Mm-hmm"); Haiku narrated the
-participant's steps. A circle lands on its word only as well as the speech
-engine's character timing matches the audio. Against Deepgram `nova-3` word
-timestamps on the same audio, Eleven v4 Turbo's timing was off by a median 53 ms
-(p90 193 ms), Flash v2.5 by 23 ms (p90 69 ms), and Eleven v4 ran a median 350 ms
-ahead of its audio, which rules it out. Eleven v4 and v4 Turbo stream only over
-the Text to Dialogue WebSocket.
+A walkthrough step should get one word ("Mm-hmm"); Haiku narrated the steps.
 
-Flux's thresholds trade speed for cut-off turns. Over 22 turns each, the
-participant's last speech to Flux's end of turn took a median 665 ms at
-`eot_threshold` 0.5 with `eager_eot_threshold` 0.3, with two transcripts cut short;
-747 ms at 0.6 and 0.4, all complete; and 995 ms at 0.7 and 0.5. Option A used 0.6
-and 0.4 with Sonnet, and uses 0.7 and 0.4 with Sol (see
-[GPT-6.1 Sol Ultrafast as the voice text model](#gpt-61-sol-ultrafast-as-the-voice-text-model)).
+#### Speech engine timing
+
+A circle lands on its word only as well as the engine's character timing matches
+the audio. Against Deepgram `nova-3` word timestamps on the same audio:
+
+| Speech engine | Character timing error |
+| --- | --- |
+| Eleven v4 Turbo | Median 53 ms, p90 193 ms |
+| Eleven Flash v2.5 | Median 23 ms, p90 69 ms |
+| Eleven v4 | A median 350 ms ahead of its audio, which rules it out |
+
+Eleven v4 and v4 Turbo stream only over the Text to Dialogue WebSocket.
+
+#### Flux thresholds
+
+Flux's thresholds trade speed for cut-off turns. Over 22 turns each, from the
+participant's last speech to Flux's end of turn:
+
+| `eot_threshold` | `eager_eot_threshold` | Median | Transcripts cut short |
+| --- | --- | --- | --- |
+| 0.5 | 0.3 | 665 ms | 2 |
+| 0.6 | 0.4 | 747 ms | None |
+| 0.7 | 0.5 | 995 ms | Not reported |
+
+Option A used 0.6 and 0.4 with Sonnet, and uses 0.7 and 0.4
+[with Sol](#gpt-61-sol-ultrafast-as-the-voice-text-model).
 
 ### Full-duplex turn-taking
 
-Option A was then built with full-duplex turn-taking on Pipecat 1.12.0, from its
-own components: Flux turn events with eager end of turn, Sonnet 5.5, ElevenLabs'
-Text to Dialogue service with Eleven v4 Turbo, and Pipecat's WebRTC transport.
-Production runs the same pipeline over Daily's transport. A user
-turn interrupts the agent, the context keeps only the words that were played,
-and a pattern aggregator splits the marks out of the text. uTrace added four
-pieces of its own, and production keeps the first three:
+Option A was then built with full-duplex turn-taking on Pipecat 1.12.0 from its own
+components: Flux turn events with eager end of turn, Sonnet 5.5, ElevenLabs' Text
+to Dialogue service with Eleven v4 Turbo, and Pipecat's WebRTC transport
+(production uses Daily's). A user turn interrupts the agent, the context keeps only
+played words, and a pattern aggregator splits marks out of the text.
 
-- While the agent talks, an utterance opens a turn only once its new words are
-  neither a backchannel ("mm-hmm", "yeah", "right", "okay") nor echo. Echo means
-  no speech-level audio at the participant's microphone during the utterance, or
-  words that replay the agent's last four seconds in order. A backchannel that
-  outlasts the agent's reply opens the turn, because it may answer a question.
-- Text reaches the speech engine a whole word at a time instead of a sentence at
-  a time, and the first clause of each reply is flushed, because Eleven v4 Turbo
-  otherwise holds about 40 characters before it speaks. Together these saved
-  roughly 0.4 seconds before the first audio.
-- Pipecat releases a mark once the audio before it has been handed to the
-  transport, which ran a median 200 ms (up to 720 ms) before its word played.
-  Each gesture is instead sent with its word's text frame, which the transport
-  releases on its playout clock, and an interruption drops gestures still
-  waiting.
-- The page holds each circle back by the audio's measured lag, from the server's
-  "bot started speaking" message to that reply's audio being heard, so the
-  cursor lands as the word begins. Production dispatches each circle through the
-  extension's visual-command path instead, without this delay.
+#### uTrace's additions
 
-A scripted participant joined over WebRTC as a browser would and spoke
-synthesized lines in real time: a long ask with two backchannels during the
-reply, a short answer, a sentence with a 1.4-second pause in the middle, a cut-in
-during the new version's walkthrough, and a cut-in 0.25 seconds into a reply.
-GPT-Live, configured as production then configured it but with nothing answering
-its delegations, heard the same lines. Its replies stayed short, so its cut-ins
-and backchannels were measured on 30-second monologues instead. All times are as
-the participant's client received the audio, after both network legs; option A ran on the same workstation, GPT-Live in
-OpenAI's cloud.
+uTrace added four pieces; production keeps the first three, which the
+[voice pipeline](./interview-and-voice.md#voice-pipeline) defines, echo included:
 
-| Clean audio | Option A | GPT-Live |
+1. **Backchannel and echo guard:** while the agent talks, an utterance opens a
+   turn only once its new words are neither a backchannel ("mm-hmm", "yeah",
+   "right", "okay") nor echo, or once a backchannel outlasts the agent's reply.
+2. **Word-at-a-time text:** the speech engine gets whole words, not sentences, and
+   each reply's first clause is flushed, since Eleven v4 Turbo otherwise holds
+   about 40 characters before speaking. Together these saved roughly 0.4 seconds
+   to first audio.
+3. **Gestures on the playout clock:** Pipecat releases a mark once the audio before
+   it reaches the transport, a median 200 ms (up to 720 ms) before its word
+   played. Each gesture instead rides its word's text frame, which the transport
+   releases on its playout clock.
+4. **Page delay:** the page held each circle back by the measured lag from the
+   server's "bot started speaking" message to the reply being heard, landing the
+   cursor as the word begins. Production dispatches circles through the
+   extension's visual-command path, without this delay.
+
+#### Participant script
+
+A scripted participant, a Python WebRTC client (`aiortc`), joined like a browser
+and spoke synthesized lines in real time: a long ask with two backchannels during
+the reply, a short answer, a sentence with a 1.4-second pause in the middle, a
+cut-in during the new version's walkthrough, and a cut-in 0.25 seconds into a
+reply. GPT-Live, in its then-production configuration but with nothing answering
+its delegations, heard the same lines; its replies stayed short, so its cut-ins and
+backchannels were measured on 30-second monologues. Times are as the participant's
+client received the audio, after both network legs; option A ran on the same
+workstation, GPT-Live in OpenAI's cloud.
+
+#### Clean audio
+
+| Measure | Option A | GPT-Live |
 | --- | --- | --- |
 | First audio after the participant's last speech, p50 / p90 | 2.03 s / 2.44 s (32 replies) | 1.78 s / 2.43 s (32 replies), often only "One moment" |
 | Silent after a cut-in, p50 / p90 | 0.74 s / 0.84 s (8 mid-walkthrough), 0.73 s / 0.82 s (8 at a reply's start) | 1.17 s / 1.48 s (19 mid-monologue) |
 | Backchannels that stopped the agent | 0/11 | 7/20 |
 | Agent heard during a 1.4-second pause | 0/8 | 0/8 |
 
-The reply rows are not comparable. Option A's first audio is its answer.
-GPT-Live's first audio was often a holding phrase, and no answer followed to be
-timed. With its delegations answered, GPT-Live's p90 was 4.0 seconds.
+The reply rows are not comparable: option A's first audio is its answer, but no
+answer followed GPT-Live's holding phrase to be timed. With its delegations
+answered, GPT-Live's p90 was 4.0 seconds.
 
-Option A's reply time divides into Flux's end of turn (a median 1.02 seconds after
-the participant's last speech reached the bot), the reply's first audio leaving
-the bot (0.86 seconds later, with Sonnet's first token at a median 0.81 seconds
-and the speech engine's first audio at 0.15 seconds), and 0.16 seconds of network
-and jitter buffer. A cut-in took 0.10 seconds to reach the bot, 0.51 seconds for
-Flux to report the turn, no measurable time to decide, and 0.13 seconds until the
-participant heard silence. When Flux ended a turn during the pause, the reply was
-cancelled before any of it played.
+Option A's time splits:
 
-Across the 8 clean option A runs, 28 gestures fired, each as its word started on
-the server. Their messages reached the client a median 164 ms before the word's
-audio, and with the page's delay the circle landed a median 2 ms before the word
-was heard (largest error 47 ms, 90th percentile 19 ms). No gesture fired after an
+- **Reply:** end of turn a median 1.02 seconds after the participant's last speech
+  reached the bot; first audio leaving the bot 0.86 seconds later (Sonnet's first
+  token at a median 0.81, the speech engine's first audio at 0.15); then 0.16
+  seconds of network and jitter buffer. A reply to a turn Flux ended during the
+  pause was cancelled before any of it played.
+- **Cut-in:** 0.10 seconds to reach the bot, 0.51 for Flux to report the turn, no
+  measurable time to decide, and 0.13 until the participant heard silence.
+
+#### Gesture timing
+
+In the 8 clean option A runs, 28 gestures fired, each as its word started on the
+server. Their messages reached the client a median 164 ms before the word's audio;
+with the page's delay, circles landed a median 2 ms before the word was heard
+(largest error 47 ms, 90th percentile 19 ms). No gesture fired after an
 interruption, and in all 73 assistant turns the context held exactly the words
-played, with the marks of the gestures shown. Asked where the save button is, the
-agent circled it in 8 of 8 runs. Asked to show the segment filter, it circled the
-filter in 5 of the 7 runs whose reply reached the control's name before the
-participant cut in; in the other 2 it named the filter without a mark.
+played, with the shown gestures' marks. Asked where the save button is, the agent
+circled it in 8 of 8 runs; asked to show the segment filter, it circled it in 5 of
+the 7 runs whose reply reached its name before the participant cut in, and named it
+unmarked in the other 2.
 
-Echo is the open problem. The participant's microphone carried the agent's own
-audio, mixed in 60 ms late at 20 or 30 dB below the agent's level, standing in for
-what a browser's echo cancellation fails to remove.
+#### Echo
+
+Echo is the open problem. The participant's microphone carried the agent's audio
+60 ms late at 20 or 30 dB below the agent's level, standing in for what browser
+echo cancellation misses.
 
 | Echo at the microphone | Option A: silent after a cut-in, p50 | Option A: backchannels that interrupted | Option A: echo utterances ignored | GPT-Live: silent after a cut-in, p50 | GPT-Live: backchannels that stopped it |
 | --- | --- | --- | --- | --- | --- |
@@ -270,24 +310,23 @@ what a browser's echo cancellation fails to remove.
 | 20 dB below | 1.86 s, and 1 of 4 never stopped it | 3/5 | 19 | 1.28 s | 1/8 |
 
 Flux transcribes leaked echo, often misheard ("Ruth" for "Wren", "Shore" for
-"short"), and folds it into the same turn as a backchannel spoken over it, so the
-echo's words are credited to the participant. GPT-Live heard its own output: echo
-slowed its cut-ins at 30 dB below but did not make it stop on backchannels more
-often. Option A's backchannel counts here come from its
-own turn decisions, which the client cannot see; GPT-Live's come from its audio.
-Option A therefore depends on echo cancellation removing the agent's voice
-before Flux hears it.
+"short"), into the turn of a backchannel spoken over it, crediting the echo's words
+to the participant. GPT-Live heard its own output: echo slowed its cut-ins at
+30 dB below but did not make it stop on backchannels more often. Option A's
+backchannel counts come from its turn decisions, which the client cannot see;
+GPT-Live's, from its audio. Option A therefore depends on echo cancellation
+removing the agent's voice before Flux hears it.
 
 ### Whole interviews
 
-On 2026-10-08 the interview quality test held the scenario's whole interview on a
-workstation's local stack, over a live Daily call with the production pipeline and
-tools. The scenario's originating user, the `maya` persona, was played by
-`claude-sonnet-5-5`, hearing the agent's played words and answering through
-synthesized speech; a `terse` persona answered in as few words as it could; and
-`claude-opus-5-5` judged each transcript. Each row is one interview, and each
-design keeps the changes of the rows above it. Reply time runs from the
-end of the participant's speech to the agent's first played word.
+On 2026-10-08 the
+[interview quality test](./evaluation-and-observability.md#live-voice-checks) ran on
+a workstation's local stack over a live Daily call with the production pipeline and
+tools. `claude-sonnet-5-5` played the originating user (the `maya` persona),
+hearing the agent's played words and answering in synthesized speech; a `terse`
+persona answered as briefly as it could; `claude-opus-5-5` judged each transcript.
+Each row is one interview; each design keeps the changes above it. Reply time runs
+from the end of the participant's speech to the agent's first played word.
 
 | Agent | Persona | Checks' findings | Judge: naturalness, efficiency | Judge's findings | Reply p50 | Reply p90 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -305,22 +344,21 @@ end of the participant's speech to the agent's first played word.
 | End of turn at 0.7, and an interrupted reply finishes in a whole sentence (active) | Maya | none | 8, 9 | none | 1.46 s | 2.17 s |
 | End of turn at 0.7, and an interrupted reply finishes in a whole sentence (active) | Terse | none | 8, 9 | none | 1.36 s | 2.04 s |
 
-Over the three rounds in which the acknowledgement came first, 5 of 6 interviews
-passed; the failure, before the last instruction changes, was two mild
-repetitions: a restated check list and an echoed thanks. Recorded silently, an
-agreement was acknowledged 5.6 seconds after the participant agreed; said first,
-1.0 second after, with the recording running while it played.
+In the three rounds with the acknowledgement first, 5 of 6 interviews passed; the
+failure, before the last instruction changes, was two mild repetitions: a restated
+check list and an echoed thanks. Recorded silently, an agreement was acknowledged
+5.6 seconds after the participant agreed; said first, 1.0 second after, with the
+recording running during playback.
 
 ### GPT-6.1 Sol Ultrafast as the voice text model
 
 GPT-6.1 Sol on the Ultrafast tier replaced Claude Sonnet 5.5 in the same pipeline,
 through the Responses API over one WebSocket per call. Sol accepts no reasoning
-effort below `low`, and Pipecat requests `none` unless the effort is set. In the
-nine-scenario text-stage benchmark Sol marked every required control exactly in
-36 of 36 runs with the mark before its words, the form the agent uses.
+effort below `low`; Pipecat requests `none` unless the effort is set.
 
-A reply's time splits into Flux's end of turn and the agent's own part. From
-Flux's committed end of turn, the agent's first audio took:
+#### Reply latency
+
+From Flux's committed end of turn to the agent's first audio:
 
 | Text model | Interviews | End of turn to first text, p50 / p90 | First text to first audio, p50 / p90 | End of turn to first audio, p50 / p90 |
 | --- | --- | --- | --- | --- |
@@ -328,57 +366,69 @@ Flux's committed end of turn, the agent's first audio took:
 | `gpt-6.1-sol`, low effort, Ultrafast tier, `eot_threshold` 0.6 | 10 | 0.42 s / 0.74 s | 0.19 s / 0.31 s | 0.62 s / 0.94 s |
 | `gpt-6.1-sol`, low effort, Ultrafast tier, `eot_threshold` 0.7 | 6 | 0.29 s / 0.77 s | 0.18 s / 0.25 s | 0.52 s / 0.96 s |
 
-Sol's reply begins at Flux's eager end of turn, so most of it is written before
-the turn is committed; the rest of a reply's time is Flux waiting for the turn to
-end. A faster reply also reaches a participant's pause between sentences sooner.
-At `eot_threshold` 0.6, Flux ended 18 percent of turns that the participant then
-continued within two seconds (12 percent with Sonnet), and in 13 of 186 turns Sol's
-audio had started, for up to 0.4 seconds, before they went on (1 of 129 with
-Sonnet). At 0.7 Flux ended 5 percent of turns early, and the agent's audio started
-in 3 of 92, for at most 0.05 seconds. Because Sol's reply is ready by the later
-commit, replies took a median 1.22 seconds and a p90 of 1.89 seconds at 0.7 over
-six interviews, against 1.27 and 2.12 seconds at 0.6 over ten, and 1.60 and 2.56
-seconds with Sonnet over eight. The agent uses 0.7.
+Sol starts replying at Flux's eager end of turn, so most of a reply is written
+before the turn commits; the rest is Flux waiting for the turn to end.
 
-Sol writes typographic apostrophes ("I’m"), so the echo guard and the tests'
-checks compare words with apostrophes normalized. Sol speaks only from the
-activity it is given, so the activity feed names the values that stayed whenever
-several change at once. The instructions keep a check about saving under a name
-the participant chooses, not one they offered as an example, and have an
-interrupted reply finish in a whole sentence instead of picking up mid-sentence.
+#### End-of-turn threshold
 
-The browser call test passed both scenarios with Sol: the greeting was heard 4.6
+A faster reply also reaches a participant's pause between sentences sooner:
+
+| Text model, `eot_threshold` | Turns Flux ended that the participant continued within two seconds | Turns where the agent's audio had started before they went on | Interviews | Reply p50 / p90 |
+| --- | --- | --- | --- | --- |
+| Sonnet, 0.6 | 12 percent | 1 of 129 | 8 | 1.60 s / 2.56 s |
+| Sol, 0.6 | 18 percent | 13 of 186, for up to 0.4 s | 10 | 1.27 s / 2.12 s |
+| Sol, 0.7 | 5 percent | 3 of 92, for at most 0.05 s | 6 | 1.22 s / 1.89 s |
+
+Since Sol's reply is ready by the later commit, replies at 0.7 were no slower. The
+agent uses 0.7.
+
+#### Adjustments for Sol
+
+- Sol writes typographic apostrophes ("I’m"), so the echo guard and the tests'
+  checks normalize apostrophes.
+- Sol speaks only from the activity it is given, so the activity feed names the
+  values that stayed whenever several change at once.
+- The instructions keep a check about saving under a name the participant
+  chooses, not an example they offered, and have an interrupted reply finish in a
+  whole sentence instead of resuming mid-sentence.
+
+#### Browser call and Codex
+
+With Sol, the browser call test passed both scenarios: the greeting was heard 4.6
 seconds after the tab opened, a reload rejoined the same call and agent, and an
-agent started 40 seconds late joined one connection without a loop. The other
-live realtime tests run with Sol also passed.
-
-In Codex, the same investigation task took 9.2 seconds on the Ultrafast tier and
-19.1 seconds on the Fast tier, at $0.51 against $0.19.
+agent started 40 seconds late joined one connection without a loop. The other live
+realtime tests also passed. In Codex, the same investigation task took 9.2 seconds
+on the Ultrafast tier and 19.1 seconds on the Fast tier, at USD 0.51 against
+USD 0.19.
 
 ### The voice agent's host
 
 On 2026-10-09 the first production call with the agent in the Supabase Compute
-worker carried no audio either way. Daily's call logs showed the browser's media
-connections up over UDP, sending the participant's microphone at about 45 kbps
-and receiving nothing, while the agent's send and receive connections stayed in
-ICE `checking` for the whole call; signaling, app messages, and the agent's HTTPS
-calls to Daily, Deepgram, and OpenAI worked. With Daily's TURN relays on TCP and
-TLS over port 443 in its ICE configuration, the agent still never connected. The
-same `daily-python` sender reached a listener from a Linux container with all
-outbound UDP dropped, through Daily's TCP relay, and from a Daytona sandbox, so
-Compute's network blocks more than UDP. The agent moved to Pipecat Cloud. Run from
-its production image on a workstation and started through the image's `/bot`
-route as Pipecat Cloud starts it, the agent joined the call 1.5 seconds after the
-start request and its greeting reached the participant 3.5 seconds after it.
+worker carried no audio either way:
+
+- Daily's call logs showed the browser's media connections up over UDP, sending
+  the participant's microphone at about 45 kbps and receiving nothing.
+- The agent's send and receive connections stayed in ICE `checking` all call,
+  even with Daily's TURN relays on TCP and TLS over port 443 in its ICE
+  configuration.
+- Signaling, app messages, and the agent's HTTPS calls to Daily, Deepgram, and
+  OpenAI worked.
+- The same `daily-python` sender reached a listener from a Linux container with
+  all outbound UDP dropped (through Daily's TCP relay) and from a Daytona sandbox,
+  so Compute's network blocks more than UDP.
+
+The agent moved to Pipecat Cloud. Run from its production image on a workstation
+and started through the image's `/bot` route as Pipecat Cloud starts it, it joined
+the call 1.5 seconds after the start request; its greeting reached the participant
+3.5 seconds after it.
 
 ## Live checks
 
-On 2026-10-31 the committed live voice checks ran 23 times against a
-workstation's local stack with the production providers: GPT-6.1 Sol on the
-Ultrafast tier, Flux at `eot_threshold` 0.7 and `eager_eot_threshold` 0.4, Eleven
-v4 Turbo, and a Daily call per run. The interview quality test did not run: its
-participant and judge are Claude models, and the workstation had no
-`ANTHROPIC_API_KEY`.
+On 2026-10-31 the committed live voice checks ran 23 times on a workstation's
+local stack with the production providers: GPT-6.1 Sol on the Ultrafast tier, Flux
+at `eot_threshold` 0.7 and `eager_eot_threshold` 0.4, Eleven v4 Turbo, and a Daily
+call per run. The interview quality test did not run: its participant and judge
+are Claude models, and the workstation had no `ANTHROPIC_API_KEY`.
 
 | Check | Runs | Passed |
 | --- | --- | --- |
@@ -392,8 +442,8 @@ participant and judge are Claude models, and the workstation had no
 
 ### Reply timing
 
-From Flux's committed end of turn, on the agent's clock, to the first text sent
-to the speech engine and to the transport's first audio:
+From Flux's committed end of turn, on the agent's clock, to the first text sent to
+the speech engine and the transport's first audio:
 
 | Check | Replies | End of turn to first text, p50 / p90 | End of turn to first audio, p50 / p90 |
 | --- | --- | --- | --- |
@@ -404,39 +454,35 @@ to the speech engine and to the transport's first audio:
 | Journey | 60 | 0.42 s / 0.68 s | 0.59 s / 0.84 s |
 | All | 127 | 0.42 s / 0.77 s | 0.59 s / 0.92 s |
 
-First text to first audio took a median 0.16 seconds (p90 0.19 seconds), and no
-reply took longer than 1.40 seconds from the end of turn. Walkthrough replies are
-the fastest because each is "Mm-hmm." Flux raised 173 eager ends of turn, and 40
-were withdrawn because the participant kept talking. The 2026-10-07 interviews
-measured a p50 of 0.52 seconds and a p90 of 0.96 seconds from end of turn to
-first audio (see
-[GPT-6.1 Sol Ultrafast as the voice text model](#gpt-61-sol-ultrafast-as-the-voice-text-model)).
+First text to first audio took a median 0.16 seconds (p90 0.19); no reply exceeded
+1.40 seconds from the end of turn. Walkthrough replies, each "Mm-hmm.", are
+fastest. Flux withdrew 40 of its 173 eager ends of turn because the participant
+kept talking. The same span took 0.52 / 0.96 seconds (p50 / p90) in the
+[2026-10-07 interviews](#gpt-61-sol-ultrafast-as-the-voice-text-model).
 
-From the end of the participant's scripted line to the agent's first played
-word, 23 replies took a median 1.10 seconds and a p90 of 2.03 seconds: 1.30
-seconds for "what did I apply" (5 replies), 0.73 seconds for a request to circle
-the channel filter, 0.81 seconds for "how is the change going", 1.68 seconds for
-the opening line, and 2.03 seconds for the recap after the ask. The greeting
-began a median 1.28 seconds after the call connected.
+From the end of the participant's scripted line to the agent's first played word,
+23 replies took a median 1.10 seconds (p90 2.03): 1.30 for "what did I apply" (5
+replies), 0.73 for a request to circle the channel filter, 0.81 for "how is the
+change going", 1.68 for the opening line, and 2.03 for the recap after the ask.
+The greeting began a median 1.28 seconds after the call connected.
 
 ### Gestures and cues
 
-All 72 circles in 16 runs fired on the first word of the phrase that names their
+All 72 circles in 16 runs fired on the first word of the phrase naming their
 control: "Last" for the date range, "TikTok" for the channel, "the" in "the
 channel filter", and "Save" for the save button. Each dispatch committed a median
-10 ms after that word started playing on the agent (p90 13 ms, largest 14 ms).
-These checks do not include the extension's delivery after the dispatch.
+10 ms after that word started playing on the agent (p90 13 ms, largest 14 ms),
+excluding the extension's delivery after dispatch.
 
-- Asked to circle the channel filter, the agent circled it in 5 of 5 runs, a
-  median 1.04 seconds after the ask ended. Asked which control is the segment, it
-  circled the segment filter in 5 of 5.
+- Asked to circle the channel filter, the agent did in 5 of 5 runs, a median 1.04
+  seconds after the ask ended; asked which control is the segment, it circled the
+  segment filter in 5 of 5.
 - Asked what was applied, it named every applied filter in 5 of 5.
-- During the walkthrough it said only "Mm-hmm." to each step in all 6
-  walkthrough and acknowledgement runs, and circled nothing in the 3 walkthrough
-  runs.
+- In the walkthrough it said only "Mm-hmm." to each step in all 6 walkthrough and
+  acknowledgement runs, and circled nothing in the 3 walkthrough runs.
 
 Each [application cue](./interview-and-voice.md#application-cues) reached the
-agent within a fraction of a second of the record that triggers it:
+agent within a fraction of a second of its trigger:
 
 | Cue | Runs | Appended after its trigger | Agent's first words after the trigger |
 | --- | --- | --- | --- |
@@ -446,116 +492,91 @@ agent within a fraction of a second of the record that triggers it:
 | Acknowledge the loaded dashboard | 3 | 0.28–0.62 s | 1.05–1.54 s ("There it is.") |
 | The applied filters, after they committed | 5 | 0.30–0.56 s | Not measured |
 
-The agent acknowledged nothing during the walkthrough or while the new version was
-announced, in 3 of 3 acknowledgement runs. In the two passing journeys, no Job
-failed, no cursor target went stale, and no connection sat idle inside a
-transaction.
+In 3 of 3 acknowledgement runs the agent acknowledged nothing during the
+walkthrough or the new version's announcement. In the two passing journeys no Job
+failed, no cursor target went stale, and no connection sat idle in a transaction.
 
 ### Browser call
 
-In each of three runs, the session tab heard the greeting 2.92 to 3.55 seconds
-after it opened (median 3.54 seconds). After a reload, it reconnected to the same
-call and agent in 0.98 to 1.02 seconds. It heard the agent's reply a median 1.63
-seconds after the participant's line ended (6 replies, largest 1.96 seconds). With
-the agent started late, the tab heard the greeting 1.05 to 1.46 seconds after its
-call connected, over one connection and one agent run.
+In each of three runs the session tab heard the greeting 2.92–3.55 seconds after
+opening (median 3.54), rejoined the same call and agent 0.98–1.02 seconds after a
+reload, and heard the agent's reply a median 1.63 seconds after the participant's
+line ended (6 replies, largest 1.96). With the agent started late, the tab heard
+the greeting 1.05–1.46 seconds after its call connected, over one connection and
+one agent run.
 
 ### Recording the agreement
 
 Before the fix, in 4 of 6 journey runs the agent said its agreement line ("That's
-agreed; I'll get that started and tell you when it's ready to try") and ended its
-answer without calling `record_acceptance_criteria`, so nothing was recorded. The
-logged Responses API events show each failing answer completing with a reasoning
-item and a message and no function call; the pipeline delivered every event Sol
-sent. Every one of those runs reached the agreement on a contradictory answer:
+agreed; I'll get that started and tell you when it's ready to try") without calling
+`record_acceptance_criteria`, so nothing was recorded. The logged Responses API
+events show each failing answer ending with a reasoning item, a message, and no
+function call; the pipeline delivered every event Sol sent. Each such run reached
+agreement on a contradictory answer:
 
 - After the participant's ask, the agent recapped and asked what the view is for
   instead of proposing the change, in all 6 journey, 3 walkthrough, and 3
-  vague-ask runs. The instructions' discovery step allows the question, because
-  the participant has not said what the weekly analysis is for.
-- The journey's scripted participant expected a proposal there, so its later "No,
-  that's everything. That sounds right to me." answered "Would you like us to go
-  ahead?", and the agent declared agreement on it.
+  vague-ask runs; the instructions' discovery step allows this, since the
+  participant has not said what the weekly analysis is for.
+- The scripted participant, expecting a proposal there, later answered "Would you
+  like us to go ahead?" with "No, that's everything. That sounds right to me.",
+  and the agent declared agreement on it.
 
-Replayed outside the pipeline with the production instructions, tools, model,
-tier, and effort, Sol called the tool with its agreement line in 10 of 10 replies.
-The replay leaves out the live context's application notes and earlier reasoning,
-and it did not reproduce the missing call.
+A replay outside the pipeline, with the production instructions, tools, model,
+tier, and effort but without the live context's application notes and earlier
+reasoning, called the tool with the agreement line in 10 of 10 replies; it did not
+reproduce the missing call.
 
-The application now makes the promise itself once the agreement is recorded (see
-[tools and customer language](./interview-and-voice.md#tools-and-customer-language)),
+#### Fix and results
+
+The application now makes the promise itself once the agreement is recorded
+([tools and customer language](./interview-and-voice.md#tools-and-customer-language)),
 and the journey's participant says what the view is for before agreeing. With
-both, the journey passed 5 of 5 runs. In 3 the model said "Agreed." before its
-call, and the application followed with "I'll get that started and tell you when
-it's ready to try." In 2 it called without a word, and the application said the
-whole line 55 to 69 ms after the call arrived. From Flux's end of turn, the first
-audio of the agreement took a median 1.14 seconds (0.61 to 1.37 seconds). The
-realtime voice (2 runs), acknowledgement (2), walkthrough (1), and vague-ask (1)
-checks also passed on the same code.
+both, the journey passed 5 of 5 runs: in 3 the model said "Agreed." before its call
+and the application followed with "I'll get that started and tell you when it's
+ready to try."; in 2 it called without a word and the application said the whole
+line 55–69 ms after the call arrived. The agreement's first audio came a median
+1.14 seconds (0.61–1.37) after Flux's end of turn. The realtime voice (2 runs),
+acknowledgement (2), walkthrough (1), and vague-ask (1) checks also passed on the
+same code.
 
 ### Preview cold start
 
 Eight cold starts of the Shopalytics base preview (template revision 13, 2 vCPU,
 Vercel Sandbox), from creating the sandbox to the app answering its health check
-with the dataset verified, took a median 4.8 seconds (3.86 to 8.03 seconds).
-Creating the sandbox alone took 1.1 to 3.1 seconds and caused most of the spread.
-The readiness probes and the session's claim, which warm and cold starts both
-run, are not included. A [warm runtime](./preview-runtime-and-seeding.md#allocation-lifecycle)
-saves only these seconds, which overlap participant setup and the greeting.
+with the dataset verified, took a median 4.8 seconds (3.86–8.03). Creating the
+sandbox alone took 1.1–3.1 seconds, most of the spread. This excludes the readiness
+probes and the session's claim, which warm and cold starts share, so a
+[warm runtime](./preview-runtime-and-seeding.md#allocation-lifecycle) saves only
+these seconds, which overlap participant setup and the greeting.
 
 ## Measurement harnesses
 
-None of these harnesses was committed.
+None was committed. Beyond the methods above, they comprised:
 
-### Agent cursor harness
-
-- A Playwright capture of the Shopalytics fixture served locally at 1440×900,
-  saving a screenshot and the target registry, as the SDK reports it, for each
-  state: base, filters applied, a candidate with saved-view controls, a restyle,
-  and four other pages.
-- 68 labeled grounding queries and eight queries naming parts of a component,
-  each with the boxes that count as a hit, run against every approach twice.
-- Recorders for each voice pipeline, timestamping every audio frame and
-  transcript fragment.
-- A scorer that transcribes each recording with Deepgram `nova-3` word
-  timestamps, simulates playback to find when each word is heard, and replays
-  every judge against the recorded transcript in real time.
-- Labeled recap, debrief, acknowledgement, and intake clauses, split into
-  calibration and held-out sets, scored with the production acceptance rules.
-
-### Voice and reasoning model harness
-
-- For Haiku: the five gate cases, a Case File drafting bundle, and intake
-  contexts frozen from production inputs and run through production's own
-  prompts and schemas, and a code benchmark that ran Codex and the Claude Agent
-  SDK against the same Shopalytics checkout and acceptance suite.
-- For option A's text stage: the nine scenarios with their required and allowed
-  controls, scored per run.
-- For option A end to end: participant lines synthesized with `gpt-4o-mini-tts`,
-  streamed to Flux in 80 ms chunks in real time, with every turn's speech end,
-  Flux events, first token, first audio, and mark timing recorded; and a check of
-  each speech engine's character timing against Deepgram `nova-3` word
-  timestamps.
-- For full duplex: a Python WebRTC participant (`aiortc`) that speaks the same
-  synthesized lines in real time, optionally mixes the agent's audio back into its
-  microphone, records the agent's audio level every 20 ms and every gesture
-  message, and mirrors the page's circle delay; the bot's own event log of
-  microphone activity, Flux events, turn decisions, words as they played,
-  gestures, and the final context.
-
-### Live check harness
-
-- A runner that ran the committed live checks one at a time with `-s`, one log
-  per run.
-- A read-only poller that copied `visual_command_dispatches`,
+- **Agent cursor:** Playwright captures of the Shopalytics fixture served locally
+  at 1440×900, a screenshot and the SDK-reported target registry per state (base,
+  filters applied, a candidate with saved-view controls, a restyle, and four other
+  pages); recorders timestamping every audio frame and transcript fragment of each
+  voice pipeline; a scorer that transcribes recordings with Deepgram `nova-3` word
+  timestamps, simulates playback to find when each word is heard, and replays every
+  judge on the recorded transcript in real time; and labeled recap, debrief,
+  acknowledgement, and intake clauses in calibration and held-out sets, scored with
+  the production acceptance rules.
+- **Option A end to end:** a record of each turn's speech end, Flux events, first
+  token, first audio, and mark timing.
+- **Full duplex:** the participant optionally mixed the agent's audio into its
+  microphone, recorded the agent's audio level every 20 ms and every gesture
+  message, and mirrored the page's circle delay; the bot logged microphone
+  activity, Flux events, turn decisions, words as played, gestures, and the final
+  context.
+- **Live checks:** a runner for the committed live checks, one at a time with `-s`
+  and one log per run; a read-only poller copying `visual_command_dispatches`,
   `voice_transcript_fragments`, and `voice_connections` from the local database
-  every 0.5 seconds, before each test emptied them.
-- A log parser that times each committed end of turn to the next text sent to the
-  speech engine and the next "Bot started speaking", and counts eager ends of turn
-  and their withdrawals.
-- A pytest plugin that logged every Responses API WebSocket event, function-call
-  run, and tool run in the journey, apart from text and argument deltas.
-- A replay of the journey's agreement through the Responses API with the
-  production instructions and tools.
-- A script that runs the warm runtime's sandbox provisioning steps without
-  database writes and deletes each sandbox.
+  every 0.5 seconds, before each test emptied them; a log parser timing each
+  committed end of turn to the next text sent to the speech engine and the next
+  "Bot started speaking", and counting eager ends of turn and their withdrawals; a
+  pytest plugin logging every Responses API WebSocket event, function-call run, and
+  tool run in the journey, except text and argument deltas; and a script running
+  the warm runtime's sandbox provisioning steps without database writes, deleting
+  each sandbox.

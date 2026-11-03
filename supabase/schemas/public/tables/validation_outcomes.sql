@@ -5,7 +5,6 @@ CREATE TABLE "public"."validation_outcomes" (
   "validation_criterion_id"           uuid                     NOT NULL,
   "user_confirmed"                    boolean                  NOT NULL,
   "evidence_record_ids"               uuid[]                   NOT NULL,
-  "note"                              text,
   "schema_version"                    smallint                 NOT NULL DEFAULT 1,
   "created_at"                        timestamp with time zone NOT NULL DEFAULT now(),
   "confirmation_evidence_record_id"   uuid,

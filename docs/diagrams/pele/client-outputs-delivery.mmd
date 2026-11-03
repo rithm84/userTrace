@@ -1,0 +1,26 @@
+---
+title: Case File assembly and GitHub delivery · delivery resolves before the core is sealed
+---
+sequenceDiagram
+  autonumber
+  participant ctl as Client outputs · control plane
+  participant sol as GPT-6.1 Sol
+  participant gh as GitHub App
+  participant dash as Client dashboard
+  ctl->>sol: Frozen, source-linked context bundle
+  sol-->>ctl: Typed draft fields
+  ctl->>ctl: Verify content, freeze findings
+  opt Validated implementation
+    ctl->>ctl: Reserve Case File identity and stable authenticated URL
+    ctl->>gh: Preflight
+    ctl->>gh: Branch, commit, and draft PR with hidden marker
+    ctl->>gh: Reconcile and verify exact branch and head
+    alt Verified
+      gh-->>ctl: Delivery identities
+      ctl->>ctl: Persist delivery identities
+    else Delivery blocker
+      ctl->>ctl: Become the blocked variant, verify again
+    end
+  end
+  ctl->>ctl: Set ready, compute immutable core digest
+  ctl->>dash: Publish sealed Case File

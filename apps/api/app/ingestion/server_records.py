@@ -23,20 +23,17 @@ from app.db.rows import as_int, as_str, as_uuid
 from app.envelope import JsonValue
 from app.ids import uuid7
 from app.ingestion.errors import IdentityReuseError, IntegrityViolationError
+from app.ingestion.journal import record_identity_conflict
 from app.ingestion.normalize import content_digest
 from app.ingestion.otlp import NormalizedSpan
 from app.ingestion.server_activation import ServerActivation
-from app.logging import get_logger
 
 __all__ = [
     "advance_batch_sequence",
     "assert_trace_not_claimed_elsewhere",
     "record_server_identity_conflict",
-    "span_digest",
     "store_span",
 ]
-
-_log = get_logger(__name__)
 
 
 def span_digest(span: NormalizedSpan) -> str:
@@ -228,34 +225,15 @@ async def record_server_identity_conflict(
     error: IdentityReuseError,
 ) -> None:
     """Keep both versions of a reused span identity as diagnostics and fail the stream."""
-    if error.first_ingestion_receipt_id is None:
-        raise IntegrityViolationError(
-            identity_kind=error.identity_kind,
-            identity_value=error.identity_value,
-            reason="has no first receipt to attribute the conflict to",
-        )
+    await record_identity_conflict(
+        conn,
+        client_id=activation.client_id,
+        activation_id=activation.activation_id,
+        producer_kind="server",
+        source_stream_id=activation.server_stream_id,
+        error=error,
+    )
     async with conn.cursor() as cur:
-        await cur.execute(
-            """
-            insert into public.telemetry_identity_conflicts (
-                id, client_id, activation_id, producer_kind, source_stream_id,
-                identity_kind, identity_value, first_content_sha256,
-                conflicting_content_sha256, first_ingestion_receipt_id
-            )
-            values (%s, %s, %s, 'server', %s, %s, %s, %s, %s, %s)
-            """,
-            (
-                uuid7(),
-                activation.client_id,
-                activation.activation_id,
-                activation.server_stream_id,
-                error.identity_kind,
-                error.identity_value,
-                error.first_content_sha256,
-                error.conflicting_content_sha256,
-                error.first_ingestion_receipt_id,
-            ),
-        )
         await cur.execute(
             """
             update public.server_streams

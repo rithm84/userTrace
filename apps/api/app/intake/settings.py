@@ -13,7 +13,7 @@ from functools import lru_cache
 from pydantic import Field, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from app.settings import ConfigurationError
+from app.settings import ConfigurationError, _offending_variables
 
 __all__ = ["IntakeOutreachSettings", "get_intake_settings"]
 
@@ -44,13 +44,7 @@ class IntakeOutreachSettings(BaseSettings):
 
 @lru_cache(maxsize=1)
 def get_intake_settings() -> IntakeOutreachSettings:
-    """Return this workstream's settings, read once from the environment."""
     try:
         return IntakeOutreachSettings()  # type: ignore[call-arg]
     except ValidationError as error:
-        names: list[str] = []
-        for item in error.errors():
-            location = item["loc"]
-            if location:
-                names.append(str(location[0]))
-        raise ConfigurationError(tuple(dict.fromkeys(names))) from None
+        raise ConfigurationError(_offending_variables(error)) from None

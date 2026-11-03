@@ -43,7 +43,7 @@ from app.logging import get_logger
 from app.outreach.delivery import record_send_result
 from app.outreach.message import stop_notice_text
 from app.outreach.reasons import DO_NOT_CONTACT
-from app.outreach.recipient import client_name, load_recipient, product_name
+from app.outreach.recipient import client_and_product_names, load_recipient
 
 __all__ = [
     "NEVER_REACHED",
@@ -225,10 +225,10 @@ async def _prepare(
                 product_signal_id=product_signal_id,
                 reason=DO_NOT_CONTACT,
             )
-        content = stop_notice_text(
-            client_name=await client_name(conn, client_id=client_id),
-            product_name=await product_name(conn, client_id=client_id),
+        client_name, product_name = await client_and_product_names(
+            conn, client_id=client_id
         )
+        content = stop_notice_text(client_name=client_name, product_name=product_name)
         command_id = await _insert_command(
             conn,
             client_id=client_id,

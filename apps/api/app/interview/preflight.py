@@ -72,15 +72,9 @@ class PreflightCheck:
 class PreflightOutcome:
     """The recorded preflight, and the projection when it admitted the session."""
 
-    record_id: UUID
     passed: bool
     checks: tuple[PreflightCheck, ...]
     projection: SessionProjection | None
-
-    @property
-    def failed_checks(self) -> tuple[str, ...]:
-        """The identifiers of every check that did not pass."""
-        return tuple(check.check_id for check in self.checks if not check.passed)
 
 
 async def run_participant_preflight(
@@ -107,29 +101,28 @@ async def run_participant_preflight(
         installation_linked=installation is not None,
         supported_protocol_versions=tuple(supported_protocol_versions),
     )
-    passed = all(check.passed for check in checks)
-    record_id = await _record(
+    failed = [check.check_id for check in checks if not check.passed]
+    passed = not failed
+    await _record(
         database,
         participant=participant,
         interview_session_id=interview_session_id,
         environment=environment,
         installation_id=installation,
         checks=checks,
-        passed=passed,
+        failed=failed,
     )
     _log.info(
         "participant_preflight_recorded",
         client_id=str(participant.client_id),
         interview_session_id=str(interview_session_id),
         passed=passed,
-        failed_checks=[check.check_id for check in checks if not check.passed],
+        failed_checks=failed,
         browser=environment.browser_name,
         browser_major_version=environment.browser_major_version,
     )
     if not passed:
-        return PreflightOutcome(
-            record_id=record_id, passed=False, checks=checks, projection=None
-        )
+        return PreflightOutcome(passed=False, checks=checks, projection=None)
 
     await run_preflight(
         database,
@@ -157,9 +150,7 @@ async def run_participant_preflight(
         projection = await publish_projection_on_connection(
             conn, interview_session_id=interview_session_id
         )
-    return PreflightOutcome(
-        record_id=record_id, passed=True, checks=checks, projection=projection
-    )
+    return PreflightOutcome(passed=True, checks=checks, projection=projection)
 
 
 def _evaluate(
@@ -168,7 +159,6 @@ def _evaluate(
     installation_linked: bool,
     supported_protocol_versions: tuple[str, ...],
 ) -> tuple[PreflightCheck, ...]:
-    """Run every named check against the observed environment."""
     browser_supported = (
         environment.browser_name.strip().lower() in _SUPPORTED_BROWSERS
         and environment.browser_major_version >= MINIMUM_CHROME_VERSION
@@ -271,10 +261,9 @@ async def _record(
     environment: ParticipantEnvironment,
     installation_id: UUID | None,
     checks: tuple[PreflightCheck, ...],
-    passed: bool,
-) -> UUID:
+    failed: list[str],
+) -> None:
     """Write the immutable preflight record, passing or failing."""
-    record_id = uuid7()
     async with database.transaction() as conn, conn.cursor() as cur:
         await cur.execute(
             """
@@ -288,7 +277,7 @@ async def _record(
             values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, true, %s, %s, %s, %s)
             """,
             (
-                record_id,
+                uuid7(),
                 participant.client_id,
                 interview_session_id,
                 participant.client_user_id,
@@ -302,15 +291,13 @@ async def _record(
                 environment.microphone_permission_granted,
                 environment.reported_protocol_version,
                 _passed(checks, "extension_installed"),
-                passed,
-                [check.check_id for check in checks if not check.passed],
+                not failed,
+                failed,
             ),
         )
-    return record_id
 
 
 def _passed(checks: tuple[PreflightCheck, ...], check_id: str) -> bool:
-    """Return whether one named check passed."""
     for check in checks:
         if check.check_id == check_id:
             return check.passed

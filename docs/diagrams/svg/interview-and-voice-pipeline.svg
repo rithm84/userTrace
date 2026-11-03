@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="pele-doc" viewBox="0 0 1027 889" width="1027" height="889" style="max-width:100%;height:auto" role="img" aria-label="Voice pipeline · audio in, words and gestures out"><title>Voice pipeline · audio in, words and gestures out</title><style><![CDATA[
+/*
+  Shared uTrace diagram theme. docs/diagrams/render.mjs embeds this file in every
+  exported SVG, so a diagram source names roles (`:::runtime`) and edge kinds
+  (`async_1@-.->`) and never sets a color itself. Pick a role by what a node is,
+  never by how it should look. Colors follow the reader's light or dark scheme.
+*/
+
+.pele-doc {
+  --pele-bg: #ffffff;
+  --pele-fg: #24303a;
+  --pele-muted: #5c6770;
+  --pele-line: #596773;
+  --pele-surface: #f2f4f6;
+  --pele-surface-alt: #f7f8fa;
+  --pele-border: #5c6770;
+  --pele-accent: #1971c2;
+  --pele-critical: #c44d41;
+  --pele-radius: 6px;
+
+  --people-fill: #e7f5ff;      --people-stroke: #1971c2;
+  --runtime-fill: #eee8ff;     --runtime-stroke: #7048e8;
+  --reasoning-fill: #f8e7fc;   --reasoning-stroke: #9c36b5;
+  --observation-fill: #e3fafc; --observation-stroke: #0c8599;
+  --external-fill: #fff0ed;    --external-stroke: #c44d41;
+  --outcome-fill: #e5f5e8;     --outcome-stroke: #2f9e44;
+  --async-fill: #ffd8a8;       --async-stroke: #e8590c;
+  --gate-fill: #fff4d6;        --gate-stroke: #b37c00;
+  --neutral-fill: #f2f4f6;     --neutral-stroke: #5c6770;
+  --client-fill: #ffffff;      --client-stroke: #1e1e1e;
+
+  --edge-async: #e8590c;   --edge-async-text: #b3470a;
+  --edge-blocked: #c44d41; --edge-blocked-text: #a13a2f;
+  --edge-ok: #2f9e44;      --edge-ok-text: #23783a;
+}
+
+@media (prefers-color-scheme: dark) {
+  .pele-doc {
+    --pele-bg: #0d1117;
+    --pele-fg: #e6edf3;
+    --pele-muted: #9da7b3;
+    --pele-line: #9da7b3;
+    --pele-surface: #161b22;
+    --pele-surface-alt: #10151c;
+    --pele-border: #6e7781;
+    --pele-accent: #4dabf7;
+    --pele-critical: #ff8787;
+
+    --people-fill: #0c2a43;      --people-stroke: #4dabf7;
+    --runtime-fill: #241c49;     --runtime-stroke: #9775fa;
+    --reasoning-fill: #381640;   --reasoning-stroke: #da77f2;
+    --observation-fill: #0b3338; --observation-stroke: #3bc9db;
+    --external-fill: #3d1714;    --external-stroke: #ff8787;
+    --outcome-fill: #11321b;     --outcome-stroke: #51cf66;
+    --async-fill: #4a2508;       --async-stroke: #ff922b;
+    --gate-fill: #3d2e05;        --gate-stroke: #fcc419;
+    --neutral-fill: #21262d;     --neutral-stroke: #8b949e;
+    --client-fill: #161b22;      --client-stroke: #c9d1d9;
+
+    --edge-async: #ff922b;   --edge-async-text: #ffa94d;
+    --edge-blocked: #ff8787; --edge-blocked-text: #ffa8a8;
+    --edge-ok: #51cf66;      --edge-ok-text: #69db7c;
+  }
+}
+
+.pele-doc > .pele-doc-bg { fill: var(--pele-bg); }
+
+/* Roles: fill and stroke only; text stays the ink color. */
+.pele-node.people > :is(rect, path, polygon, circle, ellipse),
+.pele-node.people > g > path { fill: var(--people-fill); stroke: var(--people-stroke); }
+.pele-node.runtime > :is(rect, path, polygon, circle, ellipse),
+.pele-node.runtime > g > path { fill: var(--runtime-fill); stroke: var(--runtime-stroke); }
+.pele-node.reasoning > :is(rect, path, polygon, circle, ellipse),
+.pele-node.reasoning > g > path { fill: var(--reasoning-fill); stroke: var(--reasoning-stroke); }
+.pele-node.observation > :is(rect, path, polygon, circle, ellipse),
+.pele-node.observation > g > path { fill: var(--observation-fill); stroke: var(--observation-stroke); }
+.pele-node.external > :is(rect, path, polygon, circle, ellipse),
+.pele-node.external > g > path { fill: var(--external-fill); stroke: var(--external-stroke); }
+.pele-node.outcome > :is(rect, path, polygon, circle, ellipse),
+.pele-node.outcome > g > path { fill: var(--outcome-fill); stroke: var(--outcome-stroke); }
+.pele-node.async > :is(rect, path, polygon, circle, ellipse),
+.pele-node.async > g > path { fill: var(--async-fill); stroke: var(--async-stroke); }
+.pele-node.gate > :is(rect, path, polygon, circle, ellipse),
+.pele-node.gate > g > path { fill: var(--gate-fill); stroke: var(--gate-stroke); }
+.pele-node.neutral > :is(rect, path, polygon, circle, ellipse),
+.pele-node.neutral > g > path { fill: var(--neutral-fill); stroke: var(--neutral-stroke); }
+.pele-node.client > :is(rect, path, polygon, circle, ellipse),
+.pele-node.client > g > path { fill: var(--client-fill); stroke: var(--client-stroke); }
+
+/* Subgraphs are boundaries: a dashed outline, like a zone. Swimlanes share
+   their borders, so theirs stay solid; a sequence box is a shaded region with no
+   outline, because message labels have no background to hide a line behind. Its
+   opaque surface fill keeps the region visible on the dark background. */
+.pele-cluster > rect { stroke-dasharray: 5 4; }
+.pele-lane > rect { stroke-dasharray: none; }
+.pele-box > rect { stroke: none; fill: var(--pele-surface); fill-opacity: 1; }
+
+/* A `row_*` subgraph only arranges its nodes into a row; it draws nothing. */
+.pele-cluster[data-id^="row_"] { display: none; }
+
+/* Edge kinds, selected by the edge id prefix the source gives the edge. */
+.pele-edge[data-id^="async_"] > path { stroke: var(--edge-async); }
+.pele-edge[data-id^="async_"] > path.pele-marker { fill: var(--edge-async); stroke: none; }
+.pele-edge-label[data-id^="async_"] text { fill: var(--edge-async-text); }
+.pele-edge[data-id^="blocked_"] > path { stroke: var(--edge-blocked); }
+.pele-edge[data-id^="blocked_"] > path.pele-marker { fill: var(--edge-blocked); stroke: none; }
+.pele-edge-label[data-id^="blocked_"] text { fill: var(--edge-blocked-text); }
+.pele-edge[data-id^="ok_"] > path { stroke: var(--edge-ok); }
+.pele-edge[data-id^="ok_"] > path.pele-marker { fill: var(--edge-ok); stroke: none; }
+.pele-edge-label[data-id^="ok_"] text { fill: var(--edge-ok-text); }
+]]></style><rect class="pele-doc-bg" width="1027" height="889" rx="8"/><svg x="0" y="0" class="pele pele-flowchart" viewBox="0 0 1027 889" width="1027" height="889" style="--_bg:var(--pele-bg,#fff);--_fg:var(--pele-fg,#1f1f1f);--_m:var(--pele-muted,#6e6e6e);--_l:var(--pele-line,#1f1f1f);--_s:var(--pele-surface,#f3f3f3);--_a:var(--pele-surface-alt,#e6e6e6);--_b:var(--pele-border,#8a8a8a);--_c:var(--pele-accent,#5b7bd5);color:var(--_fg);--_r:var(--pele-radius,4px);--_fm:var(--pele-font-mono,monospace);font:16px sans-serif;letter-spacing:normal;word-spacing:normal;text-transform:none;direction:ltr;font-family:var(--pele-font,sans-serif)" fill="var(--_fg)" role="graphics-document document" aria-roledescription="flowchart"><g class="pele-clusters"><g class="pele-cluster" data-id="row_speak"><rect x="793.7" y="299.5" width="208.38" height="451" fill="var(--_a)" fill-opacity="0.5" stroke="var(--_b)" style="rx:var(--_r)"/></g><g class="pele-cluster" data-id="row_answer"><rect x="422.03" y="24" width="219.17" height="451" fill="var(--_a)" fill-opacity="0.5" stroke="var(--_b)" style="rx:var(--_r)"/></g><g class="pele-cluster" data-id="row_hear"><rect x="24" y="414" width="230.74" height="451" fill="var(--_a)" fill-opacity="0.5" stroke="var(--_b)" style="rx:var(--_r)"/></g></g><g class="pele-edges" fill="none" stroke="var(--_l)" stroke-linecap="round"><g class="pele-edge" data-id="L_daily_in_mic_0"><path d="M139.37,482L139.37,548"/><path class="pele-marker" d="M139.37,555L136.01,547L142.73,547Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_mic_flux_0"><path d="M139.37,603L139.37,669"/><path class="pele-marker" d="M139.37,676L136.01,668L142.73,668Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_flux_turns_0"><path d="M139.37,724L139.37,790"/><path class="pele-marker" d="M139.37,797L136.01,789L142.73,789Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_screen_sol_0"><path d="M531.62,407L531.62,341"/><path class="pele-marker" d="M531.62,334L534.98,342L528.26,342Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_sol_follower_0"><path d="M531.62,286L531.62,220"/><path class="pele-marker" d="M531.62,213L534.98,221L528.26,221Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_follower_words_0"><path d="M531.62,165L531.62,99"/><path class="pele-marker" d="M531.62,92L534.98,100L528.26,100Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_eleven_daily_out_0"><path d="M897.89,367.5L897.89,433.5"/><path class="pele-marker" d="M897.89,440.5L894.53,432.5L901.25,432.5Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_daily_out_tap_0"><path d="M897.89,488.5L897.89,554.5"/><path class="pele-marker" d="M897.89,561.5L894.53,553.5L901.25,553.5Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_tap_preview_0"><path d="M897.89,609.5L897.89,675.5"/><path class="pele-marker" d="M897.89,682.5L894.53,674.5L901.25,674.5Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_turns_screen_0"><path d="M234.74,821L254.74,821C259.86,821 270.11,431 275.24,431L461.71,431"/><path class="pele-marker" d="M468.71,431L460.71,434.36L460.71,427.64Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_words_eleven_0"><path d="M621.2,68L766.2,68C777.18,68 782.72,343.5 793.7,343.5L831.09,343.5"/><path class="pele-marker" d="M838.09,343.5L830.09,346.86L830.09,340.14Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_cues_sol_0"><path d="M254.74,350C264.99,350 264.99,310 275.24,310L462.6,310"/><path class="pele-marker" d="M469.6,310L461.6,313.36L461.6,306.64Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="async_1"><path d="M834.09,585.5L793.7,585.5C724.8,585.5 724.8,821 655.9,821L241.74,821" stroke-dasharray="3 4"/><path class="pele-marker" d="M234.74,821L242.74,817.64L242.74,824.36Z" fill="var(--_l)" stroke="none"/></g></g><g class="pele-edge-labels" font-size="14"><g class="pele-edge-label" data-id="L_daily_in_mic_0"><rect x="84.01" y="504.5" width="110.72" height="21" rx="3" fill="var(--_bg)"/><text x="139.37" y="519.9" text-anchor="middle">participant audio</text></g><g class="pele-edge-label" data-id="L_mic_flux_0"><rect x="89.06" y="625.5" width="100.61" height="21" rx="3" fill="var(--_bg)"/><text x="139.37" y="640.9" text-anchor="middle">unmuted audio</text></g><g class="pele-edge-label" data-id="L_flux_turns_0"><rect x="88.09" y="746.5" width="102.56" height="21" rx="3" fill="var(--_bg)"/><text x="139.37" y="761.9" text-anchor="middle">turn start + end</text></g><g class="pele-edge-label" data-id="L_screen_sol_0"><rect x="455.83" y="363.5" width="151.57" height="21" rx="3" fill="var(--_bg)"/><text x="531.62" y="378.9" text-anchor="middle">turn + application block</text></g><g class="pele-edge-label" data-id="L_sol_follower_0"><rect x="481.12" y="242.5" width="100.99" height="21" rx="3" fill="var(--_bg)"/><text x="531.62" y="257.9" text-anchor="middle">text + tool calls</text></g><g class="pele-edge-label" data-id="L_follower_words_0"><rect x="476.65" y="121.5" width="109.93" height="21" rx="3" fill="var(--_bg)"/><text x="531.62" y="136.9" text-anchor="middle">answer to speak</text></g><g class="pele-edge-label" data-id="L_eleven_daily_out_0"><rect x="857.31" y="390" width="81.16" height="21" rx="3" fill="var(--_bg)"/><text x="897.89" y="405.4" text-anchor="middle">agent audio</text></g><g class="pele-edge-label" data-id="L_daily_out_tap_0"><rect x="852.66" y="511" width="90.47" height="21" rx="3" fill="var(--_bg)"/><text x="897.89" y="526.4" text-anchor="middle">played words</text></g><g class="pele-edge-label" data-id="L_tap_preview_0"><rect x="815.7" y="632" width="164.38" height="21" rx="3" fill="var(--_bg)"/><text x="897.89" y="647.4" text-anchor="middle">circle at the marked word</text></g><g class="pele-edge-label" data-id="L_turns_screen_0"><rect x="277.24" y="420.5" width="100.6" height="21" rx="3" fill="var(--_bg)"/><text x="327.53" y="435.9" text-anchor="middle">participant turn</text></g><g class="pele-edge-label" data-id="L_words_eleven_0"><rect x="678.4" y="57.5" width="85.8" height="21" rx="3" fill="var(--_bg)"/><text x="721.3" y="72.9" text-anchor="middle">whole words</text></g><g class="pele-edge-label" data-id="L_cues_sol_0"><rect x="288.9" y="299.5" width="77.26" height="21" rx="3" fill="var(--_bg)"/><text x="327.53" y="314.9" text-anchor="middle">say or note</text></g><g class="pele-edge-label" data-id="async_1"><rect x="409.33" y="810.5" width="244.57" height="21" rx="3" fill="var(--_bg)"/><text x="531.62" y="825.9" text-anchor="middle">recent agent words for the echo guard</text></g></g><g class="pele-nodes"><g class="pele-node pele-shape-lean-r external" data-id="daily_in" transform="translate(139.37,458)"><polygon points="-55.34,-24 67.34,-24 55.34,24 -67.34,24" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Daily input</text></g><g class="pele-node pele-shape-hex gate" data-id="mic" transform="translate(139.37,579)"><polygon points="-77.58,-24 77.58,-24 89.58,0 77.58,24 -77.58,24 -89.58,0" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Microphone gate</text></g><g class="pele-node pele-shape-rect reasoning" data-id="flux" transform="translate(139.37,700)"><rect x="-72.68" y="-24" width="145.36" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Deepgram Flux</text></g><g class="pele-node pele-shape-rect runtime" data-id="turns" transform="translate(139.37,821)"><rect x="-95.37" y="-24" width="190.74" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">User turn aggregation</text></g><g class="pele-node pele-shape-rect runtime" data-id="screen" transform="translate(531.62,431)"><rect x="-62.91" y="-24" width="125.82" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Screen state</text></g><g class="pele-node pele-shape-rect reasoning" data-id="sol" transform="translate(531.62,310)"><rect x="-62.02" y="-24" width="124.03" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">GPT-6.1 Sol</text></g><g class="pele-node pele-shape-rect runtime" data-id="follower" transform="translate(531.62,189)"><rect x="-74.46" y="-24" width="148.91" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Answer follower</text></g><g class="pele-node pele-shape-rect runtime" data-id="words" transform="translate(531.62,68)"><rect x="-89.58" y="-24" width="179.17" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Words and gestures</text></g><g class="pele-node pele-shape-rect reasoning" data-id="eleven" transform="translate(897.89,343.5)"><rect x="-59.8" y="-24" width="119.6" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">ElevenLabs</text></g><g class="pele-node pele-shape-lean-r external" data-id="daily_out" transform="translate(897.89,464.5)"><polygon points="-60.24,-24 72.24,-24 60.24,24 -72.24,24" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Daily output</text></g><g class="pele-node pele-shape-rect runtime" data-id="tap" transform="translate(897.89,585.5)"><rect x="-63.8" y="-24" width="127.6" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Playback tap</text></g><g class="pele-node pele-shape-stadium observation" data-id="preview" transform="translate(897.89,706.5)"><rect x="-67.79" y="-24" width="135.58" height="48" rx="24" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Preview tab</text></g><g class="pele-node pele-shape-stadium runtime" data-id="cues" transform="translate(150.93,350)"><rect x="-103.81" y="-24" width="207.62" height="48" rx="24" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Application messages</text></g></g></svg></svg>

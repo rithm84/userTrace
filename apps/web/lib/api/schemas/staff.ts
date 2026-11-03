@@ -40,8 +40,6 @@ const minorUnits = z.int();
 const currency = z.string().length(3);
 const text = z.string().min(1);
 
-/* ------------------------------------------------- opaque client references */
-
 export const REFERENCE_KIND_CLIENT_USER = "client_user";
 export const REFERENCE_KIND_CUSTOMER_ACCOUNT = "customer_account";
 
@@ -58,7 +56,7 @@ export function opaqueReference(
   return `${kind}:${identifier}`;
 }
 
-export const resolvedReferenceSchema = z.object({
+const resolvedReferenceSchema = z.object({
   ref: text,
   kind: text,
   id: uuid,
@@ -71,9 +69,7 @@ export const referenceResolutionSchema = z.object({
   references: z.array(resolvedReferenceSchema),
 });
 
-/* ------------------------------------------------------- client and staff */
-
-export const clientRecordSchema = z.object({
+const clientRecordSchema = z.object({
   id: uuid,
   name: text,
   product_name: text,
@@ -81,7 +77,7 @@ export const clientRecordSchema = z.object({
   created_at: timestamp,
 });
 
-export const clientMemberSchema = z.object({
+const clientMemberSchema = z.object({
   id: uuid,
   client_id: uuid,
   role: clientMemberRoleSchema,
@@ -99,7 +95,7 @@ export type Client = z.infer<typeof clientSchema>;
 
 export const memberListSchema = z.object({ members: z.array(clientMemberSchema) });
 
-export const watchedChannelSchema = z.object({ channel_ref: text, name: text });
+const watchedChannelSchema = z.object({ channel_ref: text, name: text });
 
 const releasePolicySchema = z.object({
   customer_surface: z.object({
@@ -156,9 +152,7 @@ export const clientConfigurationSchema = z
   }));
 export type ClientConfiguration = z.infer<typeof clientConfigurationSchema>;
 
-/* ------------------------------------------------------------------ cases */
-
-export const productSignalSchema = z.object({
+const productSignalSchema = z.object({
   id: uuid,
   client_id: uuid,
   state: productSignalStateSchema,
@@ -179,7 +173,7 @@ export const productSignalSchema = z.object({
 });
 export type ProductSignal = z.infer<typeof productSignalSchema>;
 
-export const caseConcernSchema = z.object({
+const caseConcernSchema = z.object({
   concern_revision: z.int(),
   origin: z.enum(["routing_inference", "interview_established"]),
   pain_point: text,
@@ -187,7 +181,7 @@ export const caseConcernSchema = z.object({
   established_at: timestamp,
 });
 
-export const caseOverviewSchema = z.object({
+const caseOverviewSchema = z.object({
   product_signal_id: uuid,
   concern: absentWhenNull(caseConcernSchema),
   originating_user_ref: text,
@@ -201,7 +195,7 @@ export const caseListSchema = z.object({
 });
 export type CaseList = z.infer<typeof caseListSchema>;
 
-export const gateDecisionSchema = z.object({
+const gateDecisionSchema = z.object({
   id: uuid,
   client_id: uuid,
   product_signal_id: uuid,
@@ -213,7 +207,7 @@ export const gateDecisionSchema = z.object({
   decided_at: timestamp,
 });
 
-export const implementationAttemptSchema = z.object({
+const implementationAttemptSchema = z.object({
   id: uuid,
   client_id: uuid,
   product_signal_id: uuid,
@@ -227,7 +221,7 @@ export const implementationAttemptSchema = z.object({
   updated_at: timestamp,
 });
 
-export const validationAttemptSchema = z.object({
+const validationAttemptSchema = z.object({
   id: uuid,
   client_id: uuid,
   product_signal_id: uuid,
@@ -244,7 +238,7 @@ export const validationAttemptSchema = z.object({
   created_at: timestamp,
 });
 
-export const caseSessionSchema = z.object({
+const caseSessionSchema = z.object({
   id: uuid,
   purpose: z.enum(["interview", "validation"]),
   state: interviewSessionStateSchema,
@@ -255,7 +249,7 @@ export const caseSessionSchema = z.object({
   closure_reason: absentWhenNull(text),
 });
 
-export const previewVersionSchema = z.object({
+const previewVersionSchema = z.object({
   id: uuid,
   implementation_attempt_id: uuid,
   state: previewVersionStateSchema,
@@ -266,7 +260,7 @@ export const previewVersionSchema = z.object({
   ready_at: absentWhenNull(timestamp),
 });
 
-export const caseStopSchema = z.object({
+const caseStopSchema = z.object({
   recorded_at: timestamp,
   outcome: text,
   reason: text,
@@ -274,7 +268,7 @@ export const caseStopSchema = z.object({
   staff_role: clientMemberRoleSchema,
 });
 
-export const deliverySchema = z.object({
+const deliverySchema = z.object({
   delivery_id: uuid,
   case_file_id: uuid,
   product_signal_id: uuid,
@@ -285,7 +279,7 @@ export const deliverySchema = z.object({
 });
 export type Delivery = z.infer<typeof deliverySchema>;
 
-export const caseFileRecordSchema = z.object({
+const caseFileRecordSchema = z.object({
   id: uuid,
   client_id: uuid,
   product_signal_id: uuid,
@@ -300,7 +294,7 @@ export const caseFileRecordSchema = z.object({
 });
 export type CaseFileRecord = z.infer<typeof caseFileRecordSchema>;
 
-export const offerDispositionSchema = z.object({
+const offerDispositionSchema = z.object({
   outreach_offer_id: uuid,
   product_signal_id: uuid,
   customer_account_id: uuid,
@@ -342,16 +336,14 @@ export const caseStopResultSchema = z.object({
 });
 export type CaseStopResult = z.infer<typeof caseStopResultSchema>;
 
-/* -------------------------------------------------------------- Case File */
-
-export const citationSchema = z.object({
+const citationSchema = z.object({
   evidence_record_id: uuid,
   evidence_class: evidenceClassSchema,
   source_ref: z.string(),
 });
 export type Citation = z.infer<typeof citationSchema>;
 
-export const citedStatementSchema = z.object({
+const citedStatementSchema = z.object({
   statement: text,
   citations: z.array(citationSchema).min(1),
 });
@@ -366,7 +358,7 @@ const checkResultSchema = z.object({
  * The sealed Case File core. It names the originating user and their
  * organization by opaque reference; the dashboard resolves those.
  */
-export const caseFileCoreSchema = z.object({
+const caseFileCoreSchema = z.object({
   metadata: z.object({
     schema_revision: z.int(),
     context_revision: z.int(),
@@ -478,9 +470,6 @@ export const caseFileListSchema = z.object({
   deliveries: z.array(deliverySchema),
 });
 export type CaseFileList = z.infer<typeof caseFileListSchema>;
-
-
-/* ------------------------------------------------------------- offers */
 
 export const allowanceSchema = z.object({
   currency: absentWhenNull(currency),

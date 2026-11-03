@@ -35,7 +35,7 @@ from app.connectors.openai_roles import OpenAIRole, openai_api_key, openai_confi
 from app.connectors.vercel_sandboxes import VercelSandboxes, sandbox_grant_from_environment
 from app.db.kernel import append_fact
 from app.db.pool import Database
-from app.db.rows import as_int, as_optional_str, as_str, as_uuid
+from app.db.rows import as_int, as_optional_uuid, as_str, as_uuid
 from app.envelope import Actor, AuditIntent, EventAppend, StreamRef
 from app.errors import AggregateNotFoundError, GuardRejectedError
 from app.execution.jobs import ClaimedJob
@@ -71,7 +71,6 @@ from app.settings import get_settings
 
 __all__ = [
     "RUN_IMPLEMENTATION_ATTEMPT",
-    "load_attempt_specification",
     "run_implementation_attempt",
 ]
 
@@ -151,7 +150,7 @@ async def load_attempt_specification(
         product_signal_id=as_uuid(attempt, "product_signal_id"),
         implementation_attempt_id=implementation_attempt_id,
         gate_decision_id=as_uuid(attempt, "gate_decision_id"),
-        interview_session_id=_optional_uuid(attempt, "interview_session_id"),
+        interview_session_id=as_optional_uuid(attempt, "interview_session_id"),
         pinned_configuration_release_id=as_uuid(decision, "pinned_configuration_release_id"),
         checkout=RepositoryCheckout(
             repository_ref=policy.repository_ref,
@@ -164,9 +163,7 @@ async def load_attempt_specification(
         lease=LeaseBinding(
             lease_id=as_uuid(lease, "id"), fencing_token=as_int(lease, "fencing_token")
         ),
-        workspace_snapshot_id=(
-            as_optional_str(attempt, "workspace_snapshot_id") or policy.workspace_snapshot_id
-        ),
+        workspace_snapshot_id=policy.workspace_snapshot_id,
         context_bundle_refs=(f"gate_decision:{as_uuid(attempt, 'gate_decision_id')}",),
         code_findings=findings,
         callback_hosts=policy.callback_hosts,
@@ -435,7 +432,6 @@ async def _attempt(conn: AsyncConnection[DictRow], attempt_id: UUID) -> DictRow:
             """
             select attempts.id, attempts.client_id, attempts.product_signal_id,
                    attempts.gate_decision_id, attempts.base_revision,
-                   attempts.workspace_snapshot_id,
                    (select sessions.id from public.interview_sessions as sessions
                      where sessions.product_signal_id = attempts.product_signal_id
                        and sessions.state = 'live'
@@ -538,8 +534,4 @@ def _object(row: DictRow, column: str) -> Mapping[str, object]:
     if not isinstance(value, Mapping):
         raise TypeError(f"gate_decisions.{column} is not a JSON object")
     return value
-
-
-def _optional_uuid(row: DictRow, column: str) -> UUID | None:
-    return None if row[column] is None else as_uuid(row, column)
 

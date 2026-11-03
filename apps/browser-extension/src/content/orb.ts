@@ -47,7 +47,7 @@ const ICON_ATTRIBUTES = Object.freeze({
   focusable: "false",
 });
 
-export type OrbCallbacks = Readonly<{
+type OrbCallbacks = Readonly<{
   onControlAction: (action: ControlAction) => void;
   onReturnToSession: () => void;
   onSettingsChanged: (settings: OrbSettings) => void;

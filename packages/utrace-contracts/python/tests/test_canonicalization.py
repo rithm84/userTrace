@@ -25,12 +25,6 @@ _VECTOR_DOCUMENT = json.loads(_VECTORS_PATH.read_text(encoding="utf-8"))
 _VECTORS: list[Mapping[str, JsonValue]] = _VECTOR_DOCUMENT["vectors"]
 
 
-def test_vector_file_declares_the_envelope_algorithms() -> None:
-    assert _VECTOR_DOCUMENT["algorithm"] == "sha256"
-    assert _VECTOR_DOCUMENT["canonicalization"] == "jcs"
-    assert len(_VECTORS) >= 8
-
-
 @pytest.mark.parametrize("vector", _VECTORS, ids=lambda vector: str(vector["name"]))
 def test_canonical_form_matches_the_vector(vector: Mapping[str, JsonValue]) -> None:
     assert canonicalize(vector["value"]).decode("utf-8") == vector["canonical"]

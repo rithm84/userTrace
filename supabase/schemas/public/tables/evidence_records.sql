@@ -5,7 +5,6 @@ CREATE TABLE "public"."evidence_records" (
   "interview_session_id" uuid,
   "source_ref"           text                     NOT NULL,
   "context_revision"     bigint                   NOT NULL,
-  "artifact_ref"         jsonb,
   "body"                 jsonb                    NOT NULL,
   "supersedes_id"        uuid,
   "recorded_at"          timestamp with time zone NOT NULL DEFAULT now(),

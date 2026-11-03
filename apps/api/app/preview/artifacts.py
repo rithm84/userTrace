@@ -32,7 +32,6 @@ __all__ = [
     "patch_digest_for",
     "publish_preview_version",
     "record_artifact",
-    "reopen_for_rebuild",
 ]
 
 
@@ -188,26 +187,3 @@ async def fail_preview_version(
             ),
         )
 
-
-async def reopen_for_rebuild(
-    database: Database, *, preview_version_id: UUID
-) -> None:
-    """Return a ready Preview Version to building so its candidate can be rebuilt.
-
-    The artifact is not touched: a rebuild reproduces the same bytes from the same
-    frozen inputs, so the Preview Version keeps its identity and the validation
-    evidence that cites it stays admissible.
-    """
-    async with database.transaction() as conn, conn.cursor() as cur:
-        await cur.execute(
-            """
-            update public.preview_versions
-            set state = %s, ready_at = null, revision = revision + 1, updated_at = now()
-            where id = %s and state = %s
-            """,
-            (
-                PreviewVersionState.BUILDING.value,
-                preview_version_id,
-                PreviewVersionState.READY.value,
-            ),
-        )

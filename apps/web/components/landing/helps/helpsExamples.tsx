@@ -11,7 +11,7 @@ import { SHOPALYTICS } from "../story/shopalyticsFixture";
 
 export type SituationId = "failure" | "capability" | "workaround";
 
-export type Situation = Readonly<{
+type Situation = Readonly<{
   id: SituationId;
   label: string;
   /** One line under the label on the thumbnail. */

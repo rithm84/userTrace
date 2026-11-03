@@ -11,8 +11,9 @@ from uuid import UUID
 
 from app.db.pool import Database
 from app.db.rows import as_int, as_str
+from app.offers.budget import read_allowance
 from app.outreach.expiry import expire_initial_invitation
-from app.outreach.offers import remaining_allowance, reserve_offer
+from app.outreach.offers import reserve_offer
 from app.outreach.reasons import INVITATION_EXPIRED
 from tests.cases import seed_awaiting_invitation, seed_product_signal
 from tests.supabase_auth import SignedInUser
@@ -78,7 +79,7 @@ async def test_an_unanswered_invitation_expires_and_releases_its_reservation(
     database: Database, auth_users: dict[str, SignedInUser]
 ) -> None:
     fixture, signal_id, attempt_id = await _case_awaiting_response(database, auth_users)
-    before = await remaining_allowance(
+    before = await read_allowance(
         database, client_id=fixture.client_id, currency="USD"
     )
     assert before.reserved_minor_units == OFFER_AMOUNT_MINOR_UNITS
@@ -122,7 +123,7 @@ async def test_an_unanswered_invitation_expires_and_releases_its_reservation(
     assert case_files is not None
     assert as_int(case_files, "total") == 0
 
-    after = await remaining_allowance(
+    after = await read_allowance(
         database, client_id=fixture.client_id, currency="USD"
     )
     assert after.reserved_minor_units == 0
@@ -147,7 +148,7 @@ async def test_expiry_before_the_deadline_changes_nothing(
     assert signal is not None
     assert as_str(signal, "state") == "awaiting_interview"
 
-    allowance = await remaining_allowance(
+    allowance = await read_allowance(
         database, client_id=fixture.client_id, currency="USD"
     )
     assert allowance.reserved_minor_units == OFFER_AMOUNT_MINOR_UNITS

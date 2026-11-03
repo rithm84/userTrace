@@ -56,7 +56,6 @@ class SignedEnvelope(BaseModel):
 
 
 def b64url_encode(raw: bytes) -> str:
-    """Encode bytes as unpadded base64url."""
     return urlsafe_b64encode(raw).decode("ascii").rstrip("=")
 
 

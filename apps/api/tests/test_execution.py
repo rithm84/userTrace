@@ -293,7 +293,6 @@ async def test_retry_class_decides_whether_another_run_is_legal(
 async def test_concurrency_key_admits_only_one_leased_job_per_client(
     database: Database, auth_users: dict[str, SignedInUser]
 ) -> None:
-    """Two Jobs sharing a concurrency key never run at the same time."""
     case = await _case(database, auth_users["owner_a"], "exec-concurrency")
     first = make_job(
         job_type="control_plane.test_concurrency",

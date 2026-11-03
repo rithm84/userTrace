@@ -18,7 +18,6 @@ than a weak yes.
 """
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from uuid import UUID
 
 from typesafe_sdk import Choice, Question
 
@@ -34,6 +33,7 @@ from app.db.pool import Database
 from app.interview.judgements import (
     STALE_BUNDLE,
     AttentionResult,
+    bundle_provenance,
     bundle_state,
     conversation_state,
     judge,
@@ -42,15 +42,8 @@ from app.interview.judgements import (
 from app.logging import get_logger
 
 __all__ = [
-    "ACKNOWLEDGEMENT_OPTIONS",
-    "CHECK_SHOWN_OPTIONS",
-    "CLAIM_RELATION_OPTIONS",
-    "COVERAGE_OPTIONS",
-    "FLOW_OPTIONS",
     "ChecksShown",
-    "acknowledgement_questions",
     "assess_evidence_coverage",
-    "checks_shown_questions",
     "judge_acknowledgement",
     "judge_checks_shown",
     "propose_flow_classification",
@@ -60,16 +53,16 @@ __all__ = [
 
 _log = get_logger(__name__)
 
-COVERAGE_OPTIONS: tuple[str, ...] = ("addressed", "unanswered", "contradicted", "unclear")
-CLAIM_RELATION_OPTIONS: tuple[str, ...] = (
+_COVERAGE_OPTIONS: tuple[str, ...] = ("addressed", "unanswered", "contradicted", "unclear")
+_CLAIM_RELATION_OPTIONS: tuple[str, ...] = (
     "supports",
     "contradicts",
     "unrelated",
     "unclear",
 )
-FLOW_OPTIONS: tuple[str, ...] = ("bugfix_flow", "feature_request_flow", "unclear")
-CHECK_SHOWN_OPTIONS: tuple[str, ...] = ("shown", "not_shown", "contradicted", "unclear")
-ACKNOWLEDGEMENT_OPTIONS: tuple[str, ...] = ("acknowledge", "stay_quiet", "unclear")
+_FLOW_OPTIONS: tuple[str, ...] = ("bugfix_flow", "feature_request_flow", "unclear")
+_CHECK_SHOWN_OPTIONS: tuple[str, ...] = ("shown", "not_shown", "contradicted", "unclear")
+_ACKNOWLEDGEMENT_OPTIONS: tuple[str, ...] = ("acknowledge", "stay_quiet", "unclear")
 
 _NO_MATCH = "unclear"
 _NO_TASK = "no_task"
@@ -105,7 +98,6 @@ _ACKNOWLEDGEMENT_CONFIDENCE = 0.5
 class ChecksShown:
     """Which agreed checks the person's activity in the new version showed, by id."""
 
-    semantic_judgement_id: UUID
     shown: frozenset[str]
     contradicted: frozenset[str]
 
@@ -142,7 +134,7 @@ async def assess_evidence_coverage(
                 "unclear": "The context does not settle which of the above holds.",
             },
         )
-        supplied[question_id] = COVERAGE_OPTIONS
+        supplied[question_id] = _COVERAGE_OPTIONS
         thresholds[question_id] = ChoiceThreshold(
             question_id=question_id,
             minimum_confidence=_COVERAGE_CONFIDENCE,
@@ -194,7 +186,7 @@ async def relate_claim(
                 "unclear": "The wording does not settle the relationship.",
             },
         )
-        supplied[question_id] = CLAIM_RELATION_OPTIONS
+        supplied[question_id] = _CLAIM_RELATION_OPTIONS
         thresholds[question_id] = ChoiceThreshold(
             question_id=question_id,
             minimum_confidence=_RELATION_CONFIDENCE,
@@ -257,7 +249,7 @@ async def route_attention(
     )
 
 
-def checks_shown_questions(checks: Mapping[str, str]) -> dict[str, Question]:
+def _checks_shown_questions(checks: Mapping[str, str]) -> dict[str, Question]:
     """One question per agreed check, keyed `check_shown::<criterion id>`."""
     return {
         f"{_CHECK_SHOWN}{check_id}": Choice(
@@ -301,15 +293,9 @@ async def judge_checks_shown(
         raise ValueError("judging shown checks needs at least one agreed check")
     if not activity:
         raise ValueError("judging shown checks needs activity in the new version")
-    questions = checks_shown_questions(checks)
+    questions = _checks_shown_questions(checks)
     batch = await jev.judge(
-        state={
-            "context_bundle_id": str(bundle.bundle_id),
-            "context_revision": bundle.context_revision,
-            "digest": bundle.digest,
-            "cutoff_at": bundle.cutoff_at.isoformat(),
-            "activity_in_new_version": list(activity),
-        },
+        state={**bundle_provenance(bundle), "activity_in_new_version": list(activity)},
         questions=questions,
     )
     verdicts: dict[str, str] = {}
@@ -322,7 +308,7 @@ async def judge_checks_shown(
             question_id=question_id,
             choice=answer.choice,
             confidence=answer.confidence,
-            supplied_options=CHECK_SHOWN_OPTIONS,
+            supplied_options=_CHECK_SHOWN_OPTIONS,
             threshold=ChoiceThreshold(
                 question_id=question_id,
                 minimum_confidence=_CHECK_SHOWN_CONFIDENCE,
@@ -363,7 +349,6 @@ async def judge_checks_shown(
         semantic_judgement_id=str(judgement_id),
     )
     return ChecksShown(
-        semantic_judgement_id=judgement_id,
         shown=frozenset(check for check, verdict in verdicts.items() if verdict == _SHOWN),
         contradicted=frozenset(
             check for check, verdict in verdicts.items() if verdict == _CONTRADICTED
@@ -371,7 +356,7 @@ async def judge_checks_shown(
     )
 
 
-def acknowledgement_questions() -> dict[str, Question]:
+def _acknowledgement_questions() -> dict[str, Question]:
     """The one question an acknowledgement is decided by, keyed `activity::acknowledge`."""
     return {
         _ACKNOWLEDGEMENT: Choice(
@@ -427,8 +412,8 @@ async def judge_acknowledgement(
         bundle=bundle,
         state={**conversation_state(bundle), "just_did": list(activity)},
         purpose="attention_routing",
-        questions=acknowledgement_questions(),
-        supplied_options={_ACKNOWLEDGEMENT: ACKNOWLEDGEMENT_OPTIONS},
+        questions=_acknowledgement_questions(),
+        supplied_options={_ACKNOWLEDGEMENT: _ACKNOWLEDGEMENT_OPTIONS},
         thresholds={
             _ACKNOWLEDGEMENT: ChoiceThreshold(
                 question_id=_ACKNOWLEDGEMENT,
@@ -472,7 +457,7 @@ async def propose_flow_classification(
         state=bundle_state(bundle),
         purpose="flow_classification",
         questions=questions,
-        supplied_options={question_id: FLOW_OPTIONS},
+        supplied_options={question_id: _FLOW_OPTIONS},
         thresholds={
             question_id: ChoiceThreshold(
                 question_id=question_id,

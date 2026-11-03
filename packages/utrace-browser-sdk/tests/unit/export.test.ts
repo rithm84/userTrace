@@ -1,7 +1,3 @@
-/**
- * Export buffer, priorities, gap accounting, and baseline chunking.
- */
-
 import { describe, expect, it } from "vitest";
 import { ExportBuffer } from "../../src/export/buffer.js";
 import { chunkBaseline } from "../../src/export/chunking.js";

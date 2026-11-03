@@ -15,8 +15,8 @@ import type { JsonValue } from "../src/json.js";
 import { FIXTURES_ROOT, SCHEMAS_ROOT } from "../src/locations.js";
 import { AREA_CONTRACTS_EXPORT, type ContractBindings } from "../src/registry.js";
 
-export const CONTRACT_SEPARATOR = "__";
-export const NON_AREA_PREFIX = "_";
+const CONTRACT_SEPARATOR = "__";
+const NON_AREA_PREFIX = "_";
 const SCHEMA_SUFFIX = ".schema.json";
 
 export interface Fixture {
@@ -42,13 +42,7 @@ function directories(root: string): string[] {
 
 function readBucket(areaRoot: string, area: string, bucket: string, expectValid: boolean): Fixture[] {
   const bucketRoot = join(areaRoot, bucket);
-  let names: string[];
-  try {
-    names = readdirSync(bucketRoot);
-  } catch {
-    return [];
-  }
-  return names
+  return readdirSync(bucketRoot)
     .filter((name) => name.endsWith(".json"))
     .sort()
     .map((name) => {
@@ -87,8 +81,12 @@ export function discoverFixtures(): Fixture[] {
           `prefix the directory with '${NON_AREA_PREFIX}' if it is not a contract area`,
       );
     }
-    fixtures.push(...readBucket(areaRoot, area, "valid", true));
-    fixtures.push(...readBucket(areaRoot, area, "invalid", false));
+    if (buckets.includes("valid")) {
+      fixtures.push(...readBucket(areaRoot, area, "valid", true));
+    }
+    if (buckets.includes("invalid")) {
+      fixtures.push(...readBucket(areaRoot, area, "invalid", false));
+    }
   }
   if (fixtures.length === 0) {
     throw new Error(`no fixtures discovered under ${FIXTURES_ROOT}`);

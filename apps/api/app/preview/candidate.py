@@ -76,7 +76,6 @@ __all__ = [
     "DeployedCandidate",
     "build_candidate_runtime",
     "deploy_candidate",
-    "expire_idle_candidates",
 ]
 
 _log = get_logger(__name__)
@@ -177,7 +176,6 @@ async def _run_build_recipe(
     recipe: TemplateRecipe,
     commands: Sequence[str],
 ) -> None:
-    """Run the candidate's build commands inside its runtime."""
     for command in commands:
         result = await provider.execute(
             handle=handle,
@@ -552,51 +550,3 @@ async def deploy_candidate(
         route=route,
         report=report,
     )
-
-
-async def expire_idle_candidates(
-    database: Database,
-    *,
-    provider: PreviewRuntimeProvider,
-    activation: ServerActivationContext,
-    client_id: UUID,
-    idle_seconds: int,
-) -> tuple[UUID, ...]:
-    """Destroy candidate runtimes whose route revision is no longer active.
-
-    A superseded candidate is derived runtime bytes, not evidence: its artifact
-    and dataset manifest remain durable, so it can be rebuilt exactly if it is
-    needed again.
-    """
-    async with database.connection() as conn, conn.cursor() as cur:
-        await cur.execute(
-            """
-            select allocations.id
-            from public.preview_runtime_allocations as allocations
-            where allocations.client_id = %s
-              and allocations.pool_role = 'candidate'
-              and allocations.state = 'bound'
-              and allocations.updated_at < now() - make_interval(secs => %s)
-              and not exists (
-                select 1 from public.preview_routes routes
-                where routes.preview_runtime_allocation_id = allocations.id
-                  and routes.state = 'active'
-              )
-            """,
-            (client_id, idle_seconds),
-        )
-        rows = await cur.fetchall()
-    expired: list[UUID] = []
-    for row in rows:
-        allocation_id = row["id"]
-        if not isinstance(allocation_id, UUID):
-            raise TypeError("preview_runtime_allocations.id is not a UUID")
-        await tear_down_allocation(
-            database,
-            provider=provider,
-            activation=activation,
-            allocation_id=allocation_id,
-            reason="idle_candidate_expired",
-        )
-        expired.append(allocation_id)
-    return tuple(expired)

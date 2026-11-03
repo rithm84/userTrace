@@ -14,7 +14,7 @@ import { context } from '@opentelemetry/api';
 import { suppressTracing } from '@opentelemetry/core';
 import { ProtobufTraceSerializer } from '@opentelemetry/otlp-transformer';
 
-import { CONTRACT_MAJOR, SDK_VERSION } from '../constants.js';
+import { SDK_USER_AGENT } from '../constants.js';
 import type { ExportLimits } from '../contracts/activation.js';
 import type { ServerSdkFailureInput } from '../errors.js';
 import type { StructuredLogger } from '../logging.js';
@@ -22,13 +22,13 @@ import { backoffDelayMillis, parseRetryAfter, type JitterSource } from './backof
 import { envelopeHeaders, type ExportBatch } from './batch.js';
 
 /** Supplies the current short-lived service-instance credential. */
-export interface CredentialSource {
+interface CredentialSource {
   currentToken(): string;
 }
 
 /** Terminal outcome of delivering one immutable batch. */
-export type DeliveryOutcome =
-  | { readonly kind: 'acknowledged'; readonly attempts: number }
+type DeliveryOutcome =
+  | { readonly kind: 'acknowledged' }
   | { readonly kind: 'failed'; readonly failure: ServerSdkFailureInput };
 
 interface RawResponse {
@@ -101,7 +101,7 @@ export class OtlpTraceExporter {
     for (let attempt = 1; attempt <= limits.retry.max_attempts; attempt += 1) {
       const outcome = await this.attempt(batch);
       if (outcome.kind === 'acknowledged') {
-        return { kind: 'acknowledged', attempts: attempt };
+        return { kind: 'acknowledged' };
       }
       if (outcome.kind === 'permanent') {
         return { kind: 'failed', failure: outcome.failure };
@@ -213,7 +213,7 @@ export class OtlpTraceExporter {
       'content-type': 'application/x-protobuf',
       'content-encoding': 'gzip',
       'content-length': String(batch.body.byteLength),
-      'user-agent': `utrace-server-sdk/${SDK_VERSION} contract/${String(CONTRACT_MAJOR)}`,
+      'user-agent': SDK_USER_AGENT,
     };
 
     return context.with(suppressTracing(context.active()), () =>

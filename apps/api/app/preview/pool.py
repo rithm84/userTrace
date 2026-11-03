@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import secrets
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -42,11 +43,7 @@ from app.db.rows import (
     as_uuid,
 )
 from app.envelope import Actor, AuditIntent, EventAppend, StreamRef
-from app.errors import (
-    AggregateNotFoundError,
-    GuardRejectedError,
-    LeaseLostError,
-)
+from app.errors import AggregateNotFoundError, GuardRejectedError
 from app.ids import uuid7
 from app.lifecycle.machine import resolve
 from app.logging import get_logger
@@ -57,15 +54,14 @@ from app.preview.machines import (
 from app.preview.records import AllocationPins, PoolRole, RuntimeTemplate
 
 __all__ = [
-    "PREVIEW_ACTOR",
+    "RuntimeSecrets",
     "acquire_allocation",
     "claim_base_allocation",
     "commit_allocation_transition",
     "insert_allocation",
     "load_pins",
-    "load_runtime_secret",
+    "load_runtime_secrets",
     "mint_secret",
-    "require_current_fencing_token",
     "session_allocation_id",
 ]
 
@@ -149,7 +145,6 @@ async def insert_allocation(
 
 
 async def load_pins(database: Database, *, allocation_id: UUID) -> AllocationPins:
-    """Return one allocation's recorded pins."""
     async with database.connection() as conn, conn.cursor() as cur:
         await cur.execute(_PINS_QUERY, (allocation_id,))
         row = await cur.fetchone()
@@ -200,8 +195,9 @@ async def acquire_allocation(
 ) -> tuple[AllocationPins, int]:
     """Take over one allocation for this worker and return its new fencing token.
 
-    Acquiring mints a fresh token, so any worker still holding the previous one
-    is fenced out of every mutating step from this moment on.
+    Acquiring mints a fresh token that supersedes the previous holder's. No
+    preview step re-reads the token before mutating, so this alone does not stop
+    a worker still holding the previous one.
     """
     async with database.transaction() as conn, conn.cursor() as cur:
         await cur.execute(
@@ -220,28 +216,6 @@ async def acquire_allocation(
             table="preview_runtime_allocations", row_id=allocation_id
         )
     return _as_pins(row), token
-
-
-async def require_current_fencing_token(
-    database: Database, *, allocation_id: UUID, fencing_token: int
-) -> None:
-    """Refuse a mutating step whose token is no longer the allocation's current one."""
-    async with database.connection() as conn, conn.cursor() as cur:
-        await cur.execute(
-            "select fencing_token from public.preview_runtime_allocations where id = %s",
-            (allocation_id,),
-        )
-        row = await cur.fetchone()
-    if row is None:
-        raise AggregateNotFoundError(
-            table="preview_runtime_allocations", row_id=allocation_id
-        )
-    if as_int(row, "fencing_token") != fencing_token:
-        raise LeaseLostError(
-            lease_kind="preview_runtime_allocation",
-            lease_id=allocation_id,
-            fencing_token=fencing_token,
-        )
 
 
 async def commit_allocation_transition(
@@ -401,19 +375,23 @@ async def claim_base_allocation(
     return _as_pins(row)
 
 
-async def load_runtime_secret(
-    database: Database, *, allocation_id: UUID, column: str
-) -> str:
-    """Return one secret injected into a runtime at creation.
 
-    Only ``handoff_secret`` is readable this way: the route-context secret belongs
-    to a route revision, not to the allocation, and is read with its route.
-    """
-    if column != "handoff_secret":
-        raise ValueError(f"'{column}' is not a readable allocation secret")
+@dataclass(frozen=True, slots=True)
+class RuntimeSecrets:
+    """The secrets injected into one runtime at creation."""
+
+    handoff_secret: str
+    route_context_signing_secret: str
+
+
+async def load_runtime_secrets(database: Database, *, allocation_id: UUID) -> RuntimeSecrets:
+    """Return the handoff and route-context secrets one runtime was created with."""
     async with database.connection() as conn, conn.cursor() as cur:
         await cur.execute(
-            "select handoff_secret from public.preview_runtime_allocations where id = %s",
+            """
+            select handoff_secret, route_context_signing_secret
+            from public.preview_runtime_allocations where id = %s
+            """,
             (allocation_id,),
         )
         row = await cur.fetchone()
@@ -421,20 +399,23 @@ async def load_runtime_secret(
         raise AggregateNotFoundError(
             table="preview_runtime_allocations", row_id=allocation_id
         )
-    secret = as_optional_str(row, "handoff_secret")
-    if secret is None:
+    handoff_secret = as_optional_str(row, "handoff_secret")
+    route_context_signing_secret = as_optional_str(row, "route_context_signing_secret")
+    if handoff_secret is None or route_context_signing_secret is None:
         raise GuardRejectedError(
             machine="preview_runtime_allocation",
-            trigger="read_handoff_secret",
-            reason="the allocation carries no handoff secret",
+            trigger="read_runtime_secrets",
+            reason="the allocation carries no injected runtime secrets",
         )
-    return secret
+    return RuntimeSecrets(
+        handoff_secret=handoff_secret,
+        route_context_signing_secret=route_context_signing_secret,
+    )
 
 
 async def session_allocation_id(
     database: Database, *, interview_session_id: UUID
 ) -> UUID | None:
-    """Return the base allocation bound to one Interview Session, if any."""
     async with database.connection() as conn, conn.cursor() as cur:
         await cur.execute(
             """

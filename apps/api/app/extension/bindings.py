@@ -45,7 +45,6 @@ __all__ = [
     "BoundDocument",
     "PageProofVerifier",
     "apply_binding_request",
-    "current_binding",
     "mint_binding_offer",
     "offer_digest",
     "revoke_binding",
@@ -226,7 +225,7 @@ async def apply_binding_request(
         offer_token_id: UUID | None = as_uuid(stored, "id")
     else:
         session_id = request.session_id
-        existing = await current_binding(conn, interview_session_id=session_id)
+        existing = await _current_binding(conn, interview_session_id=session_id)
         if existing is None or existing != request.extension_binding_id:
             return _rejected(session_id, "unknown_binding_for_rebind")
         previous = await _load_binding(conn, binding_id=request.extension_binding_id)
@@ -386,7 +385,7 @@ async def revoke_binding(
     return revoked
 
 
-async def current_binding(
+async def _current_binding(
     conn: AsyncConnection[DictRow], *, interview_session_id: UUID
 ) -> UUID | None:
     """Return the session's current binding identifier, if it has one."""
@@ -444,7 +443,6 @@ async def _next_binding_revision(
 async def _load_binding(
     conn: AsyncConnection[DictRow], *, binding_id: UUID
 ) -> DictRow:
-    """Read one binding row."""
     async with conn.cursor() as cur:
         await cur.execute(
             """

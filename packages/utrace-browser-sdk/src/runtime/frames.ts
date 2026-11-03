@@ -45,7 +45,7 @@ export interface ChildRecord {
   readonly body: JsonObject;
 }
 
-export interface FrameCoordinatorCallbacks {
+interface FrameCoordinatorCallbacks {
   /** Accepts a normalized record produced by a child frame runtime. */
   readonly onChildObservation: (attachment: FrameAttachment, record: ChildRecord) => void;
   readonly onAttachmentLost: (attachment: FrameAttachment) => void;

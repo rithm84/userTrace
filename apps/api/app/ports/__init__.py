@@ -40,12 +40,4 @@ class PortRegistry:
             raise NotYetWiredError(capability="voice_call", owning_workstream="provider-adapters")
         return self.voice
 
-    def require_observation(self) -> ObservationReadinessPort:
-        """Return the observation readiness adapter or refuse."""
-        if self.observation is None:
-            raise NotYetWiredError(
-                capability="server_sdk_activation_and_telemetry_readiness",
-                owning_workstream="telemetry-ingestion",
-            )
-        return self.observation
 

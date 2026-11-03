@@ -59,7 +59,7 @@ export class TranscriptEventError extends Error {
  * hears it while they are still talking: each one replaces the last, and the
  * final words of the turn replace them.
  */
-export type UserTranscription =
+type UserTranscription =
   | Readonly<{ final: true; delta: TranscriptDelta }>
   | Readonly<{ final: false; text: string }>;
 

@@ -37,13 +37,10 @@ __all__ = [
     "openai_gateway_for",
 ]
 
-_CREDENTIAL_REFERENCE: Final[str] = "supabase-compute/secrets/OPENAI_API_KEY"
 _REQUEST_TIMEOUT_SECONDS: Final[float] = 120.0
 
 
 class OpenAIRole(StrEnum):
-    """The reasoning roles."""
-
     INTAKE_ASSISTANCE = "intake_assistance"
     """Interprets a batch intake routing could not resolve from supplied facts."""
     CASE_FILE_SYNTHESIS = "case_file_synthesis"
@@ -99,7 +96,6 @@ def openai_configuration_for(role: OpenAIRole) -> OpenAIModelConfiguration:
         model_id=model_id,
         effort=effort,
         service_tier=service_tier,
-        credential_reference=_CREDENTIAL_REFERENCE,
     )
 
 

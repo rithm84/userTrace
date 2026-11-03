@@ -21,16 +21,20 @@ from app.db.pool import Database
 from app.db.rows import as_str
 from app.envelope import JsonValue
 from app.ids import uuid7
-from app.ingestion.errors import IngestionError
+from app.ingestion.errors import (
+    IdentityReuseError,
+    IngestionError,
+    IntegrityViolationError,
+)
 from app.logging import get_logger
 
 __all__ = [
-    "STAGE_ORDER",
     "ReceiptDraft",
     "ReceiptOutcome",
     "advance_stage",
     "find_receipt",
     "record_failure",
+    "record_identity_conflict",
     "write_receipt",
 ]
 
@@ -74,13 +78,10 @@ class ReceiptDraft:
 
 @dataclass(frozen=True, slots=True)
 class ReceiptOutcome:
-    """A committed receipt and whether this call is the one that created it."""
+    """A committed receipt and the content hash a retry is compared against."""
 
     ingestion_receipt_id: UUID
-    stage: str
-    outcome: str
     content_sha256: str
-    created: bool
 
 
 async def find_receipt(
@@ -94,7 +95,7 @@ async def find_receipt(
     async with conn.cursor() as cur:
         await cur.execute(
             """
-            select id, stage, outcome, content_sha256
+            select id, content_sha256
             from public.ingestion_receipts
             where client_id = %s and source_stream_id = %s and batch_id = %s
             """,
@@ -105,10 +106,7 @@ async def find_receipt(
         return None
     return ReceiptOutcome(
         ingestion_receipt_id=UUID(str(row["id"])),
-        stage=as_str(row, "stage"),
-        outcome=as_str(row, "outcome"),
         content_sha256=as_str(row, "content_sha256"),
-        created=False,
     )
 
 
@@ -180,11 +178,7 @@ async def write_receipt(
         outcome=outcome,
     )
     return ReceiptOutcome(
-        ingestion_receipt_id=receipt_id,
-        stage=stage,
-        outcome=outcome,
-        content_sha256=draft.content_sha256,
-        created=True,
+        ingestion_receipt_id=receipt_id, content_sha256=draft.content_sha256
     )
 
 
@@ -294,3 +288,47 @@ async def record_failure(
     return failure_id
 
 
+async def record_identity_conflict(
+    conn: AsyncConnection[DictRow],
+    *,
+    client_id: UUID,
+    activation_id: UUID,
+    producer_kind: str,
+    source_stream_id: UUID,
+    error: IdentityReuseError,
+) -> None:
+    """Keep both versions of a reused identity as non-authoritative diagnostics.
+
+    This runs in its own transaction, after the rejected batch has rolled back,
+    so the diagnostic survives while the conflicting record never becomes
+    evidence.
+    """
+    if error.first_ingestion_receipt_id is None:
+        raise IntegrityViolationError(
+            identity_kind=error.identity_kind,
+            identity_value=error.identity_value,
+            reason="has no first receipt to attribute the conflict to",
+        )
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            insert into public.telemetry_identity_conflicts (
+                id, client_id, activation_id, producer_kind, source_stream_id,
+                identity_kind, identity_value, first_content_sha256,
+                conflicting_content_sha256, first_ingestion_receipt_id
+            )
+            values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """,
+            (
+                uuid7(),
+                client_id,
+                activation_id,
+                producer_kind,
+                source_stream_id,
+                error.identity_kind,
+                error.identity_value,
+                error.first_content_sha256,
+                error.conflicting_content_sha256,
+                error.first_ingestion_receipt_id,
+            ),
+        )

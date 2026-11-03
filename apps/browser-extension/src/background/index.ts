@@ -9,7 +9,12 @@
  */
 import { SessionCoordinator } from "./session";
 import { linkAccount, revokeInstallation } from "./installation";
-import { clearSessionState, readInstallation, writePreferences } from "./storage";
+import {
+  clearSessionState,
+  DEFAULT_PREFERENCES,
+  readInstallation,
+  writePreferences,
+} from "./storage";
 import {
   parseExtensionRequest,
   type ExtensionResponse,
@@ -196,11 +201,7 @@ chrome.runtime.onInstalled.addListener((details) => {
       await clearSessionState();
     }
     if (details.reason === "install") {
-      await writePreferences({
-        preferences_revision: 0,
-        visual_guidance_enabled: true,
-        agent_cursor_enabled: true,
-      });
+      await writePreferences(DEFAULT_PREFERENCES);
     }
     await chrome.alarms.create(RECONNECT_ALARM, { periodInMinutes: 1 });
   })();

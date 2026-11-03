@@ -35,7 +35,7 @@ export interface DoorRequestLog {
   readonly routeRevision?: number;
 }
 
-export interface DoorWarningLog {
+interface DoorWarningLog {
   readonly reason: string;
   readonly endpoint: string;
   readonly attempt: number;

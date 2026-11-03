@@ -118,13 +118,16 @@ describe("unknown hosts", () => {
 });
 
 describe("interstitials", () => {
-  it("says nothing about a session on the neutral page", async () => {
+  it("gives a leaked preview URL with no cookie a neutral page that says nothing about a session", async () => {
     const response = await get({
       host: sessionHost,
       path: "/dashboard",
       headers: {},
     });
 
+    expect(response.status).toBe(404);
+    expect(controlPlane.received).toHaveLength(0);
+    expect(runtime.received).toHaveLength(0);
     expect(response.body).toContain("Nothing to open here");
     expect(response.body).toContain(
       "Preview addresses are private to one session",
@@ -223,29 +226,36 @@ describe("interstitials", () => {
   });
 });
 
+/** The `preview_door_request` entry the door writes to stdout while `run` is in flight. */
+async function captureDoorLog(
+  run: () => Promise<unknown>,
+): Promise<Record<string, unknown> | undefined> {
+  const lines: string[] = [];
+  const write = vi
+    .spyOn(process.stdout, "write")
+    .mockImplementation((chunk: string | Uint8Array): boolean => {
+      lines.push(typeof chunk === "string" ? chunk : chunk.toString());
+      return true;
+    });
+  try {
+    await run();
+  } finally {
+    write.mockRestore();
+  }
+  return lines
+    .map((line) => JSON.parse(line) as Record<string, unknown>)
+    .find((line) => line["event"] === "preview_door_request");
+}
+
 describe("door logs", () => {
   it("records the request shape and route identity, and no secrets", async () => {
-    const lines: string[] = [];
-    const write = vi
-      .spyOn(process.stdout, "write")
-      .mockImplementation((chunk: string | Uint8Array): boolean => {
-        lines.push(typeof chunk === "string" ? chunk : chunk.toString());
-        return true;
-      });
-
-    try {
-      await get({
+    const entry = await captureDoorLog(() =>
+      get({
         host: sessionHost,
         path: "/accounts/dudulemon/views/tiktok-sizing?token=should-not-be-logged",
         headers: { cookie: sessionCookieHeader(sessionCredential) },
-      });
-    } finally {
-      write.mockRestore();
-    }
-
-    const entry = lines
-      .map((line) => JSON.parse(line) as Record<string, unknown>)
-      .find((line) => line["event"] === "preview_door_request");
+      }),
+    );
 
     expect(entry).toMatchObject({
       event: "preview_door_request",
@@ -270,27 +280,13 @@ describe("door logs", () => {
   });
 
   it("keeps the reserved door paths readable in the log", async () => {
-    const lines: string[] = [];
-    const write = vi
-      .spyOn(process.stdout, "write")
-      .mockImplementation((chunk: string | Uint8Array): boolean => {
-        lines.push(typeof chunk === "string" ? chunk : chunk.toString());
-        return true;
-      });
-
-    try {
-      await get({
+    const entry = await captureDoorLog(() =>
+      get({
         host: sessionHost,
         path: "/__utrace/claim?code=hx7Qm2Zt9Lb4Nv6Ks1Jd3Pf0",
         headers: {},
-      });
-    } finally {
-      write.mockRestore();
-    }
-
-    const entry = lines
-      .map((line) => JSON.parse(line) as Record<string, unknown>)
-      .find((line) => line["event"] === "preview_door_request");
+      }),
+    );
 
     expect(entry?.["pathTemplate"]).toBe("/__utrace/claim");
     expect(JSON.stringify(entry)).not.toContain("hx7Qm2Zt9Lb4Nv6Ks1Jd3Pf0");

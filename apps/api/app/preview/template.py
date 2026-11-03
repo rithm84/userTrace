@@ -294,7 +294,6 @@ async def pin_template(
 async def load_current_template(
     database: Database, *, client_id: UUID
 ) -> RuntimeTemplate:
-    """Return the client's current pinned runtime template."""
     async with database.connection() as conn, conn.cursor() as cur:
         await cur.execute(
             """
@@ -337,7 +336,6 @@ async def load_current_template(
 
 
 async def load_recipe(database: Database, *, template_id: UUID) -> TemplateRecipe:
-    """Return the recipe the named template was pinned with."""
     async with database.connection() as conn, conn.cursor() as cur:
         await cur.execute(
             "select seed_manifest from public.preview_runtime_templates where id = %s",

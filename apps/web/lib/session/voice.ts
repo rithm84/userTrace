@@ -28,7 +28,7 @@ import {
  * disabled; the tab enables it through `setMicrophoneEnabled`.
  */
 
-export type VoiceErrorCode = "join_failed";
+type VoiceErrorCode = "join_failed";
 
 export class VoiceError extends Error {
   readonly code: VoiceErrorCode;

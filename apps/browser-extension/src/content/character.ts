@@ -26,9 +26,9 @@ const STATE_MACHINE = "AgentCharacterMachine";
 const CHARACTER_FILE = "agent-character.riv";
 const WASM_FILE = "rive.wasm";
 
-export type CharacterErrorCode = "character_asset_failed" | "character_binding_mismatch";
+type CharacterErrorCode = "character_asset_failed" | "character_binding_mismatch";
 
-export class CharacterError extends Error {
+class CharacterError extends Error {
   readonly code: CharacterErrorCode;
 
   constructor(code: CharacterErrorCode, message: string) {

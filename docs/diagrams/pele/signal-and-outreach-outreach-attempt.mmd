@@ -1,0 +1,35 @@
+---
+title: Outreach Attempt · one send, never retried
+---
+stateDiagram-v2
+  direction LR
+  [*] --> scheduled
+
+  state "Open" as open {
+    state "scheduled" as scheduled
+    state "dispatching" as dispatching
+    dispatching : No recorded result · reconcile against the DM channel before any resend
+    state "awaiting_response" as awaiting_response
+    scheduled --> dispatching: within the contact budget
+    dispatching --> awaiting_response: delivery confirmed
+  }
+
+  state "claimed" as claimed
+  state "declined" as declined
+  state "unreached" as unreached
+  unreached : Offer reservation released
+  state "expired" as expired
+  expired : Invitation deadline passed
+  state "revoked" as revoked
+
+  awaiting_response --> claimed: bound Discord identity proven
+  awaiting_response --> declined: declined
+  dispatching --> unreached: send failed
+  open --> expired: from any open state
+  open --> revoked: from any open state
+
+  class scheduled,dispatching runtime
+  class awaiting_response people
+  class claimed outcome
+  class unreached external
+  class declined,expired,revoked neutral

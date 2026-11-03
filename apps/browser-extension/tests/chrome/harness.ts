@@ -3,8 +3,8 @@
  *
  * It stands up the two servers the extension talks to — a test control plane
  * implementing the documented `WS /v1/extension/control` contract, and a static
- * server for the session-tab and preview fixtures — then launches the installed
- * Google Chrome with the unpacked build. The control plane and the browser SDK
+ * server for the session-tab and preview fixtures — then launches Chrome for
+ * Testing with the unpacked build. The control plane and the browser SDK
  * are built by other workstreams; these are test doubles of their contracts.
  */
 import { createReadStream, existsSync, readdirSync } from "node:fs";
@@ -23,8 +23,8 @@ import {
   type OutboundFrame,
 } from "../../src/protocol/control";
 
-export const CONTROL_PORT = 8411;
-export const STATIC_PORT = 8410;
+const CONTROL_PORT = 8411;
+const STATIC_PORT = 8410;
 
 /** The control plane's close code for an installation it does not know or has revoked. */
 const INSTALLATION_NOT_LINKED_CLOSE_CODE = 4003;
@@ -48,7 +48,7 @@ const CHROME_FOR_TESTING_CACHES = [
   },
 ] as const;
 
-export function resolveChromeExecutable(): string {
+function resolveChromeExecutable(): string {
   const found: string[] = [];
   for (const cache of CHROME_FOR_TESTING_CACHES) {
     const entries = readdirSync(cache.root, { withFileTypes: true })
@@ -97,7 +97,6 @@ export type ControlPlane = Readonly<{
   close: () => Promise<void>;
 }>;
 
-/** A test control plane speaking the documented extension control protocol. */
 export async function startControlPlane(): Promise<ControlPlane> {
   const received: OutboundFrame[] = [];
   const subprotocols: string[] = [];

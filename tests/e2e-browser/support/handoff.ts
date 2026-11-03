@@ -14,7 +14,7 @@ import { createHmac, randomUUID } from "node:crypto";
 /** A handoff is a few seconds of authority; the runtime caps its lifetime. */
 const LIFETIME_MS = 60_000;
 
-export interface HandoffRequest {
+interface HandoffRequest {
   readonly subjectEmail: string;
   /** The session origin host the token is bound to, without scheme or port. */
   readonly audience: string;

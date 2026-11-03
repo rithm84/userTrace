@@ -23,7 +23,7 @@ import { join, resolve } from "node:path";
 import { chromium, type BrowserContext, type Page, type Worker } from "playwright-core";
 
 /** WebCrypto Ed25519 shipped in Chrome 137. */
-export const MINIMUM_CHROME_MAJOR = 137;
+const MINIMUM_CHROME_MAJOR = 137;
 
 const CHROME_FOR_TESTING_CACHES = [
   {

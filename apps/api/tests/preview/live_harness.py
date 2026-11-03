@@ -340,7 +340,7 @@ async def preview_tls(*, apex: str) -> AsyncIterator[PreviewTls]:
     a secure origin, and a session origin is a subdomain so ``localhost``'s
     exemption does not reach it. The
     ``--unsafely-treat-insecure-origin-as-secure`` flag does not change that: Chrome
-    still dropped the cookie, and every request after the claim would then
+    still drops the cookie, and every request after the claim would then
     arrive without a session and prove nothing about routing. A run-scoped
     certificate is generated here and Chrome is told to accept that one key,
     which is what the deployed door's certificate does for real.
@@ -462,7 +462,6 @@ class PreviewBrowser:
     async def _call(
         self, method: str, params: Mapping[str, object]
     ) -> Mapping[str, object]:
-        """Send one command and return its result."""
         self._next_id += 1
         request_id = self._next_id
         await self._socket.send(
@@ -486,7 +485,6 @@ class PreviewBrowser:
         await self._call("Page.enable", {})
 
     async def evaluate(self, expression: str) -> object:
-        """Evaluate one expression in the page and return its JSON value."""
         result = await self._call(
             "Runtime.evaluate",
             {"expression": expression, "returnByValue": True, "awaitPromise": True},
@@ -582,11 +580,9 @@ class PreviewBrowser:
         return int(str(status))
 
     async def text(self) -> str:
-        """The rendered text of the current page."""
         return str(await self.evaluate("document.body ? document.body.innerText : ''"))
 
     async def url(self) -> str:
-        """Where the page ended up."""
         return str(await self.evaluate("window.location.href"))
 
 

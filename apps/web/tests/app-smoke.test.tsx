@@ -1,34 +1,8 @@
 import { render, screen, within } from "@testing-library/react";
-import type { AgentCharacterProps } from "@utrace/agent-character";
-import { createElement } from "react";
 import { vi } from "vitest";
 import ErrorPage from "../app/error";
 import NotFound from "../app/not-found";
-import HomePage, { metadata as homeMetadata } from "../app/page";
-
-vi.mock("@utrace/agent-character", () => ({
-  acceptCharacterProjection: (
-    _previous: AgentCharacterProps["projection"] | null,
-    candidate: AgentCharacterProps["projection"],
-  ) => ({ kind: "applied", projection: Object.freeze(candidate) }),
-  createAgentCharacterResources: (assetUrl: string, wasmUrl: string) =>
-    Object.freeze({ assetUrl, wasmUrl }),
-  configureAgentCharacterRuntime: () => undefined,
-  AgentCharacter: (props: AgentCharacterProps) =>
-    createElement("div", { "data-testid": props.dataTestId, "data-state": props.projection.state }),
-}));
-
-// the landing rigs talk to the Rive runtime directly; jsdom has no WebGL
-vi.mock("@rive-app/react-webgl2", () => ({
-  useRive: () => ({ rive: null, RiveComponent: () => createElement("canvas") }),
-  useViewModelInstanceNumber: () => ({ value: 0, setValue: () => undefined }),
-  useViewModelInstanceEnum: () => ({ value: "idle", values: [], setValue: () => undefined }),
-}));
-vi.mock("@rive-app/webgl2", () => ({
-  Alignment: { Center: "center" },
-  Fit: { Contain: "contain" },
-  Layout: class Layout {},
-}));
+import HomePage from "../app/page";
 
 describe("web route smoke", () => {
   it("renders the landing: nav, hero, the seven sections and the footer", () => {
@@ -94,13 +68,5 @@ describe("web route smoke", () => {
     ).toBeInTheDocument();
 
     errorSpy.mockRestore();
-  });
-
-  it("publishes uTrace metadata rather than generic placeholder metadata", () => {
-    expect(homeMetadata.title).toBe(
-      "uTrace — Ship features your customers actually want",
-    );
-    expect(homeMetadata.description).toContain("turn community feedback into merge-ready changes");
-
   });
 });

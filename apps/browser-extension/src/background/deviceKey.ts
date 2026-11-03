@@ -15,12 +15,12 @@ const RECORD_KEY = "current";
 const KEY_ALGORITHM: EcKeyGenParams = { name: "ECDSA", namedCurve: "P-256" };
 const SIGN_ALGORITHM: EcdsaParams = { name: "ECDSA", hash: "SHA-256" };
 
-export type DeviceKeyErrorCode =
+type DeviceKeyErrorCode =
   | "indexeddb_unavailable"
   | "key_generation_failed"
   | "key_record_corrupt";
 
-export class DeviceKeyError extends Error {
+class DeviceKeyError extends Error {
   readonly code: DeviceKeyErrorCode;
 
   constructor(code: DeviceKeyErrorCode, message: string) {
@@ -30,13 +30,13 @@ export class DeviceKeyError extends Error {
   }
 }
 
-export type DeviceKeyPair = Readonly<{
+type DeviceKeyPair = Readonly<{
   privateKey: CryptoKey;
   publicKey: CryptoKey;
 }>;
 
 /** The claims the control plane checks for freshness and single use. */
-export type PossessionChallenge = Readonly<{
+type PossessionChallenge = Readonly<{
   audience: string;
   purpose:
     | "installation_registration"
@@ -85,10 +85,15 @@ function readRecord(database: IDBDatabase): Promise<unknown> {
   });
 }
 
-function writeRecord(database: IDBDatabase, pair: DeviceKeyPair): Promise<void> {
+/** Runs one write in a readwrite transaction and resolves once it commits. */
+function commitWrite(
+  database: IDBDatabase,
+  write: (store: IDBObjectStore) => IDBRequest,
+  failure: "stored" | "removed",
+): Promise<void> {
   return new Promise((resolve, reject) => {
     const transaction = database.transaction(STORE_NAME, "readwrite");
-    transaction.objectStore(STORE_NAME).put(pair, RECORD_KEY);
+    write(transaction.objectStore(STORE_NAME));
     transaction.oncomplete = (): void => {
       resolve();
     };
@@ -96,7 +101,7 @@ function writeRecord(database: IDBDatabase, pair: DeviceKeyPair): Promise<void> 
       reject(
         new DeviceKeyError(
           "indexeddb_unavailable",
-          `The installation key could not be stored: ${String(transaction.error?.message)}.`,
+          `The installation key could not be ${failure}: ${String(transaction.error?.message)}.`,
         ),
       );
     };
@@ -141,7 +146,7 @@ export async function loadDeviceKeyPair(): Promise<DeviceKeyPair> {
       privateKey: generated.privateKey,
       publicKey: generated.publicKey,
     };
-    await writeRecord(database, pair);
+    await commitWrite(database, (store) => store.put(pair, RECORD_KEY), "stored");
     return pair;
   } finally {
     database.close();
@@ -151,21 +156,7 @@ export async function loadDeviceKeyPair(): Promise<DeviceKeyPair> {
 export async function deletePersistedDeviceKey(): Promise<void> {
   const database = await openDatabase();
   try {
-    await new Promise<void>((resolve, reject) => {
-      const transaction = database.transaction(STORE_NAME, "readwrite");
-      transaction.objectStore(STORE_NAME).delete(RECORD_KEY);
-      transaction.oncomplete = (): void => {
-        resolve();
-      };
-      transaction.onerror = (): void => {
-        reject(
-          new DeviceKeyError(
-            "indexeddb_unavailable",
-            `The installation key could not be removed: ${String(transaction.error?.message)}.`,
-          ),
-        );
-      };
-    });
+    await commitWrite(database, (store) => store.delete(RECORD_KEY), "removed");
   } finally {
     database.close();
   }

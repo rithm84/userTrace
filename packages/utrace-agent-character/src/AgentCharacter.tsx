@@ -23,7 +23,7 @@ import {
   type AgentCharacterResources,
 } from "./resources";
 
-export type AgentCharacterErrorCode =
+type AgentCharacterErrorCode =
   | "asset_load_failed"
   | "binding_contract_mismatch";
 
@@ -37,7 +37,7 @@ export class AgentCharacterError extends Error {
   }
 }
 
-export type AgentCharacterFailure =
+type AgentCharacterFailure =
   | AgentCharacterError
   | CharacterProjectionError;
 

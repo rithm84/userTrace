@@ -1,0 +1,29 @@
+---
+title: Control plane · one Job Run from committed outbox to accepted Result
+---
+sequenceDiagram
+  autonumber
+  participant ctl as Owning controller
+  participant pg as Supabase Postgres
+  participant wake as Queues + Cron
+  participant worker as Worker · Job Run
+  participant target as Command target · provider
+
+  ctl->>pg: one transaction · state, Event, Job, outbox
+  pg->>wake: outbox wake-up
+  wake->>worker: deliver · at least once
+  worker->>pg: claim the Job · transactional lease
+  worker->>target: Command · command_id = idempotency key
+  target-->>worker: provider operation ID
+  worker->>pg: record the provider operation ID
+  opt effect uncertain
+    worker->>target: read back the provider's own record
+    Note over worker,target: Reconcile by stable provider identity,<br/>never by repeating the Command.
+  end
+  alt Result returned
+    worker->>pg: typed Result · inbox deduplicates
+    ctl->>pg: apply the Result · new transaction + revision check
+  else run failed, no legal run remains
+    worker->>ctl: failure
+    ctl->>pg: record the failure + product consequence · one transaction
+  end

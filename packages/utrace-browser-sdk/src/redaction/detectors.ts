@@ -7,7 +7,7 @@
 
 import type { OutputClass } from "./classes.js";
 
-export interface DetectionResult {
+interface DetectionResult {
   readonly restrictTo: OutputClass | null;
   readonly rule_id: string;
 }

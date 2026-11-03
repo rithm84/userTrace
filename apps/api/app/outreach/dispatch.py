@@ -30,6 +30,8 @@ from datetime import UTC, datetime, timedelta
 from typing import Final
 from uuid import UUID
 
+from psycopg import AsyncConnection
+from psycopg.rows import DictRow
 from utrace_contracts.domain.lifecycle import OutreachAttemptState, OutreachPurpose
 
 from app.clients.configuration import ActiveRelease, load_active_release
@@ -65,10 +67,9 @@ from app.outreach.reasons import CONTACT_BUDGET_EXHAUSTED, DO_NOT_CONTACT
 from app.outreach.recipient import (
     Recipient,
     billing_customer_ref,
-    client_name,
+    client_and_product_names,
     concern_excerpt,
     load_recipient,
-    product_name,
 )
 
 __all__ = ["send_initial_invitation"]
@@ -77,6 +78,26 @@ _log = get_logger(__name__)
 
 _SECONDS_PER_HOUR: Final[int] = 3600
 _CHANNEL_ACKNOWLEDGEMENT: Final[str] = "Thanks for sharing this! I've sent you a DM."
+
+
+async def _cancel_before_contact(
+    conn: AsyncConnection[DictRow], *, client_id: UUID, product_signal_id: UUID, reason: str
+) -> DispatchOutcome:
+    await cancel_case(
+        conn,
+        client_id=client_id,
+        product_signal_id=product_signal_id,
+        reason=reason,
+        outreach_attempt_id=None,
+        attempt_trigger=None,
+    )
+    return DispatchOutcome(
+        outreach_attempt_id=None,
+        invitation_id=None,
+        state="canceled",
+        delivered=False,
+        reason=reason,
+    )
 
 
 async def _prepare(
@@ -141,22 +162,13 @@ async def _prepare(
             )
 
         recipient: Recipient = await load_recipient(
-        conn, product_signal_id=product_signal_id
-    )
+            conn, product_signal_id=product_signal_id
+        )
         if recipient.do_not_contact:
-            await cancel_case(
+            return await _cancel_before_contact(
                 conn,
                 client_id=client_id,
                 product_signal_id=product_signal_id,
-                reason=DO_NOT_CONTACT,
-                outreach_attempt_id=None,
-                attempt_trigger=None,
-            )
-            return DispatchOutcome(
-                outreach_attempt_id=None,
-                invitation_id=None,
-                state="canceled",
-                delivered=False,
                 reason=DO_NOT_CONTACT,
             )
 
@@ -167,19 +179,10 @@ async def _prepare(
             budget=policy.contact_budget,
         )
         if allowance.exhausted():
-            await cancel_case(
+            return await _cancel_before_contact(
                 conn,
                 client_id=client_id,
                 product_signal_id=product_signal_id,
-                reason=CONTACT_BUDGET_EXHAUSTED,
-                outreach_attempt_id=None,
-                attempt_trigger=None,
-            )
-            return DispatchOutcome(
-                outreach_attempt_id=None,
-                invitation_id=None,
-                state="canceled",
-                delivered=False,
                 reason=CONTACT_BUDGET_EXHAUSTED,
             )
 
@@ -242,9 +245,12 @@ async def _prepare(
             issued_at=now,
             ttl_seconds=ttl,
         )
+        client_name, product_name = await client_and_product_names(
+            conn, client_id=client_id
+        )
         content = invitation_text(
-            client_name=await client_name(conn, client_id=client_id),
-            product_name=await product_name(conn, client_id=client_id),
+            client_name=client_name,
+            product_name=product_name,
             concern_excerpt=await concern_excerpt(
                 conn, product_signal_id=product_signal_id
             ),

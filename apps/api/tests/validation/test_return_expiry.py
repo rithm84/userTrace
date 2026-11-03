@@ -18,8 +18,8 @@ from app.ids import uuid7
 from app.validation.controller import (
     EXPIRE_VALIDATION_RETURN,
     begin_validation,
-    interrupt_validation,
     open_validation_attempt,
+    record_departure,
 )
 from app.validation.return_expiry import expire_validation_return
 from tests.factories import create_case, create_interview_session
@@ -80,12 +80,13 @@ async def test_terminal_expiry_revokes_authority_and_obliges_a_case_file(
     await begin_validation(
         database, attempt_id=attempt_id, originating_user_id=scenario.client_user_id
     )
-    await interrupt_validation(
-        database,
-        attempt_id=attempt_id,
-        reason="finish_later",
-        return_window_seconds=0,
-    )
+    async with database.transaction() as conn:
+        await record_departure(
+            conn,
+            product_signal_id=scenario.product_signal_id,
+            reason="finish_later",
+            return_window_seconds=0,
+        )
     await expire_validation_return(
         database, _claimed(scenario, product_signal_id=scenario.product_signal_id)
     )

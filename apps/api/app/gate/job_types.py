@@ -45,7 +45,6 @@ class GateFailureOutcome(StrEnum):
 def decide_gate_job(
     *, product_signal_id: UUID, cancellation_scope_id: UUID, now: datetime
 ) -> JobIntent:
-    """Build the Job that runs the Implementation Gate for one Product Signal."""
     return JobIntent(
         job_id=uuid7(),
         job_type=DECIDE_GATE,

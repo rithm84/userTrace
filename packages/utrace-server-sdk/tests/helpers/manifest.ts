@@ -18,7 +18,7 @@ import type {
 } from '../../src/contracts/manifest.js';
 
 /** An Ed25519 signing identity plus the env-encoded trust anchor. */
-export interface SigningIdentity {
+interface SigningIdentity {
   readonly keyId: string;
   readonly privateKeyPem: string;
   readonly trustAnchorEnvValue: string;
@@ -58,7 +58,6 @@ function canonicalize(value: unknown): string {
   return JSON.stringify(value);
 }
 
-/** Signs a manifest with the identity's private key. */
 export function signManifest(
   manifest: ServerInstrumentationManifest,
   identity: SigningIdentity,
@@ -75,8 +74,7 @@ export function signManifest(
   };
 }
 
-/** What a test wants in the manifest for one service. */
-export interface ManifestServiceOverrides {
+interface ManifestServiceOverrides {
   readonly serviceKey: string;
   readonly serviceName?: string;
   readonly requiredAdapters: readonly Adapter[];
@@ -85,8 +83,7 @@ export interface ManifestServiceOverrides {
   readonly operationalNoise?: readonly OperationalNoise[];
 }
 
-/** What a test wants in the manifest overall. */
-export interface ManifestOverrides {
+interface ManifestOverrides {
   readonly services: readonly ManifestServiceOverrides[];
   readonly propagationTargets?: readonly NetworkTarget[];
   readonly allowedHttpDestinations?: readonly NetworkTarget[];

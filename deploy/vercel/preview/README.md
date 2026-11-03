@@ -64,5 +64,5 @@ policies live in `apps/api/app/preview/template.py`.
 `gating_probes` must pass, or be declared absent in `not_applicable_probes`,
 before a route may be committed. `browser_observation` and `trace_correlation`
 are advisory at route commit because they need the participant's own traffic;
-`confirm_session_observation` in `apps/api/app/preview/recovery.py` answers them
-once the session is live.
+`refresh_observation_readiness` in `apps/api/app/interview/readiness.py` re-reads
+them from the observation port once the session is live.

@@ -1,0 +1,17 @@
+---
+title: Session readiness · one record, two derived boundaries
+---
+flowchart TB
+  ingest[Telemetry ingestion]:::runtime
+  extension([Extension]):::observation
+  record[(Session readiness record)]:::outcome
+  conversational{{Conversational readiness}}:::gate
+  observation{{Observation readiness}}:::gate
+  projection[Session projection]:::runtime
+
+  ingest -->|preview, browser, server, correlation| record
+  extension -->|connection, binding, Pause| record
+  record -->|derived in the same transaction| conversational
+  conversational -->|plus the observation path| observation
+  record -->|changed record republishes| projection
+  projection -->|pushed| extension

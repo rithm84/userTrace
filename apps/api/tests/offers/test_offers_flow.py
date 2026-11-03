@@ -13,14 +13,14 @@ from utrace_contracts.domain.lifecycle import (
 
 from app.db.pool import Database
 from app.errors import BudgetExhaustedError, GuardRejectedError
-from app.offers.budget import authorize_allowance, read_allowance, reserve_offer
+from app.offers.budget import authorize_allowance, read_allowance
 from app.offers.entitlement import (
     CaseStopReason,
     EntitlementDecision,
     evaluate_entitlement,
 )
 from app.offers.read_model import load_offers_view
-from tests.helpers import count_rows, read_state
+from tests.helpers import count_rows, read_state, reserve_usd_offer
 from tests.supabase_auth import SignedInUser
 from tests.validation.scenario import ValidationScenario, build_scenario
 
@@ -50,17 +50,13 @@ async def _scenario(
 async def _reserve(
     database: Database, scenario: ValidationScenario, *, amount: int
 ) -> UUID:
-    return await reserve_offer(
+    return await reserve_usd_offer(
         database,
         client_id=scenario.client_id,
         product_signal_id=scenario.product_signal_id,
         customer_account_id=scenario.customer_account_id,
-        currency=CURRENCY,
         amount_minor_units=amount,
-        billing_account_ref="acct_shopalytics_sandbox",
         billing_customer_ref="cus_dudulemon",
-        billing_mapping_revision=1,
-        completion_terms={"amount_minor_units": amount, "currency": CURRENCY},
     )
 
 
@@ -132,17 +128,13 @@ async def test_a_reservation_cannot_exceed_the_remaining_allowance(
             (second.product_signal_id,),
         )
     with pytest.raises(BudgetExhaustedError):
-        await reserve_offer(
+        await reserve_usd_offer(
             database,
             client_id=scenario.client_id,
             product_signal_id=second.product_signal_id,
             customer_account_id=scenario.customer_account_id,
-            currency=CURRENCY,
             amount_minor_units=1,
-            billing_account_ref="acct_shopalytics_sandbox",
             billing_customer_ref="cus_dudulemon",
-            billing_mapping_revision=1,
-            completion_terms={},
         )
 
 

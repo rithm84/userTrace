@@ -70,13 +70,13 @@ const bindingStatePayloadSchema = z
     error: "a revoked or rejected binding_state must carry a reason",
   });
 
-export const bindingStateFrameSchema = z.strictObject({
+const bindingStateFrameSchema = z.strictObject({
   ...sequencedEnvelope,
   kind: z.literal("binding_state"),
   payload: bindingStatePayloadSchema,
 });
 
-export const readinessFrameSchema = z.strictObject({
+const readinessFrameSchema = z.strictObject({
   ...sequencedEnvelope,
   kind: z.literal("readiness"),
   payload: z.strictObject({
@@ -88,7 +88,7 @@ export const readinessFrameSchema = z.strictObject({
   }),
 });
 
-export const characterStateFrameSchema = z.strictObject({
+const characterStateFrameSchema = z.strictObject({
   ...sequencedEnvelope,
   kind: z.literal("character_state"),
   payload: z.strictObject({
@@ -138,7 +138,7 @@ const sceneStepSchema = z.discriminatedUnion("step", [
   z.strictObject({ step: z.literal("clear") }),
 ]);
 
-export const sceneSchema = z.strictObject({
+const sceneSchema = z.strictObject({
   scene_id: uuidSchema,
   steps: z.array(sceneStepSchema).min(1).max(12),
 });
@@ -169,13 +169,13 @@ export const visualCommandFrameSchema = z.strictObject({
   }),
 });
 
-export const cancelFrameSchema = z.strictObject({
+const cancelFrameSchema = z.strictObject({
   ...sequencedEnvelope,
   kind: z.literal("cancel"),
   payload: z.strictObject({ command_id: uuidSchema, reason: reasonCodeSchema }),
 });
 
-export const controlActionResultFrameSchema = z.strictObject({
+const controlActionResultFrameSchema = z.strictObject({
   ...sequencedEnvelope,
   kind: z.literal("control_action_result"),
   payload: z.strictObject({
@@ -193,7 +193,7 @@ export const controlActionResultFrameSchema = z.strictObject({
  * The session's own mute and pause state, whichever surface changed it. The pills
  * show it; a frame for another session replaces what they showed.
  */
-export const controlsStateFrameSchema = z.strictObject({
+const controlsStateFrameSchema = z.strictObject({
   ...sequencedEnvelope,
   kind: z.literal("controls_state"),
   payload: z.strictObject({
@@ -204,7 +204,7 @@ export const controlsStateFrameSchema = z.strictObject({
   }),
 });
 
-export const recoveryStateFrameSchema = z.strictObject({
+const recoveryStateFrameSchema = z.strictObject({
   ...sequencedEnvelope,
   kind: z.literal("recovery_state"),
   payload: z.strictObject({
@@ -216,7 +216,7 @@ export const recoveryStateFrameSchema = z.strictObject({
   }),
 });
 
-export const preferencesStateFrameSchema = z.strictObject({
+const preferencesStateFrameSchema = z.strictObject({
   ...sequencedEnvelope,
   kind: z.literal("preferences_state"),
   payload: z.strictObject({
@@ -226,13 +226,13 @@ export const preferencesStateFrameSchema = z.strictObject({
   }),
 });
 
-export const heartbeatFrameSchema = z.strictObject({
+const heartbeatFrameSchema = z.strictObject({
   ...unsequencedEnvelope,
   kind: z.literal("heartbeat"),
   payload: z.strictObject({ acknowledged_sequence: z.int().min(0) }),
 });
 
-export const inboundFrameSchema = z.discriminatedUnion("kind", [
+const inboundFrameSchema = z.discriminatedUnion("kind", [
   bindingStateFrameSchema,
   readinessFrameSchema,
   characterStateFrameSchema,
@@ -261,7 +261,7 @@ export const bindingOfferSchema = z.strictObject({
  * valid tab of the same session transfers the existing binding instead, so the
  * consumed offer is never replayed.
  */
-export const bindingRequestSchema = z.discriminatedUnion("kind", [
+const bindingRequestSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("offer"), offer: bindingOfferSchema }),
   z.strictObject({
     kind: z.literal("rebind"),
@@ -270,7 +270,7 @@ export const bindingRequestSchema = z.discriminatedUnion("kind", [
   }),
 ]);
 
-export const bindingOfferFrameSchema = z.strictObject({
+const bindingOfferFrameSchema = z.strictObject({
   ...unsequencedEnvelope,
   kind: z.literal("binding_offer"),
   payload: z.strictObject({
@@ -281,7 +281,7 @@ export const bindingOfferFrameSchema = z.strictObject({
   }),
 });
 
-export const commandResultFrameSchema = z.strictObject({
+const commandResultFrameSchema = z.strictObject({
   ...unsequencedEnvelope,
   kind: z.literal("command_result"),
   payload: z
@@ -299,7 +299,7 @@ export const commandResultFrameSchema = z.strictObject({
     }),
 });
 
-export const controlActionFrameSchema = z.strictObject({
+const controlActionFrameSchema = z.strictObject({
   ...unsequencedEnvelope,
   kind: z.literal("control_action"),
   payload: z
@@ -316,7 +316,7 @@ export const controlActionFrameSchema = z.strictObject({
     }),
 });
 
-export const recoveryRequestFrameSchema = z.strictObject({
+const recoveryRequestFrameSchema = z.strictObject({
   ...unsequencedEnvelope,
   kind: z.literal("recovery_request"),
   payload: z.strictObject({
@@ -329,7 +329,7 @@ export const recoveryRequestFrameSchema = z.strictObject({
   }),
 });
 
-export const readinessReportFrameSchema = z.strictObject({
+const readinessReportFrameSchema = z.strictObject({
   ...unsequencedEnvelope,
   kind: z.literal("readiness_report"),
   payload: z.strictObject({
@@ -341,7 +341,7 @@ export const readinessReportFrameSchema = z.strictObject({
   }),
 });
 
-export const preferencesUpdateFrameSchema = z.strictObject({
+const preferencesUpdateFrameSchema = z.strictObject({
   ...unsequencedEnvelope,
   kind: z.literal("preferences_update"),
   payload: z.strictObject({
@@ -351,13 +351,13 @@ export const preferencesUpdateFrameSchema = z.strictObject({
   }),
 });
 
-export const controlAckFrameSchema = z.strictObject({
+const controlAckFrameSchema = z.strictObject({
   ...unsequencedEnvelope,
   kind: z.literal("control_ack"),
   payload: z.strictObject({ acknowledged_sequence: sequenceSchema }),
 });
 
-export const outboundFrameSchema = z.discriminatedUnion("kind", [
+const outboundFrameSchema = z.discriminatedUnion("kind", [
   bindingOfferFrameSchema,
   commandResultFrameSchema,
   controlActionFrameSchema,

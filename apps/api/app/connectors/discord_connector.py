@@ -21,9 +21,9 @@ What this connector does and does not do:
 - Direct messages are private outreach to one recipient. A send returns a durable delivery
   receipt, which is a delivery result and never a Product Signal state change, and never
   proof that the person read it.
-- Identity mapping is mechanical: a Discord user id plus its guild becomes a scoped
-  provider identity string. Resolving that to a `client_user_id`, a customer account, or a
-  membership is the control plane's decision, not this connector's.
+- Identity is reported, never resolved: receipts carry the Discord user and guild ids.
+  Resolving them to a `client_user_id`, a customer account, or a membership is the control
+  plane's decision, not this connector's.
 
 Typing in a watched channel is reported as a `TypingReceipt`, a content-free timing
 hint the control plane uses to keep an author's batch open while they compose the next
@@ -69,7 +69,6 @@ __all__ = [
     "DiscordConnector",
     "GuildChannelSummary",
     "ProviderIdentity",
-    "scoped_provider_identity",
 ]
 
 _logger = structlog.get_logger(__name__)
@@ -93,21 +92,6 @@ class ProviderIdentity(BaseModel):
 
     guild_id: str
     user_id: str
-    username: str
-    is_bot: bool
-
-    def scoped_key(self) -> str:
-        """Return the stable lookup key the control plane maps to a client-scoped user."""
-        return scoped_provider_identity(guild_id=self.guild_id, user_id=self.user_id)
-
-
-def scoped_provider_identity(*, guild_id: str, user_id: str) -> str:
-    """Build the provider identity key for one Discord user in one guild.
-
-    Guild-scoped rather than global, because participation and data are scoped per client:
-    the same person in two clients' servers is two client-scoped identities.
-    """
-    return f"discord:{guild_id}:{user_id}"
 
 
 class GuildChannelSummary(BaseModel):
@@ -117,7 +101,6 @@ class GuildChannelSummary(BaseModel):
 
     channel_id: str
     name: str
-    channel_type: str
     is_watched: bool
 
 
@@ -219,12 +202,7 @@ class DiscordConnector:
                 operation="fetch_bot_user",
                 message="login succeeded but no bot account was reported",
             )
-        return ProviderIdentity(
-            guild_id=self._guild_id,
-            user_id=str(user.id),
-            username=user.name,
-            is_bot=True,
-        )
+        return ProviderIdentity(guild_id=self._guild_id, user_id=str(user.id))
 
     async def list_guild_channels(self) -> tuple[GuildChannelSummary, ...]:
         """List the configured guild's channels and mark which ones uTrace watches."""
@@ -244,7 +222,6 @@ class DiscordConnector:
             GuildChannelSummary(
                 channel_id=str(channel.id),
                 name=channel.name,
-                channel_type=str(channel.type),
                 is_watched=str(channel.id) in self._watched_channel_ids,
             )
             for channel in channels

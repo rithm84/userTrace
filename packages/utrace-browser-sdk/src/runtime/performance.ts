@@ -22,7 +22,7 @@ interface Aggregate {
   max: number;
 }
 
-export type PerformanceWindowListener = (payload: PerformanceMeasurementPayload) => void;
+type PerformanceWindowListener = (payload: PerformanceMeasurementPayload) => void;
 
 export class PerformanceCollector {
   readonly #view: BrowserView;

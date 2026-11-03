@@ -69,7 +69,6 @@ _MOTION_BY_STATE: dict[CharacterState, tuple[float, float]] = {
 async def load_character(
     conn: AsyncConnection[DictRow], *, interview_session_id: UUID
 ) -> CharacterProjection:
-    """Return the current character projection for one session."""
     async with conn.cursor() as cur:
         await cur.execute(
             """
@@ -96,20 +95,16 @@ async def set_character(
     *,
     interview_session_id: UUID,
     state: CharacterState,
-) -> CharacterProjection:
+) -> None:
     """Advance the character state, bumping its revision only on a real change.
 
-    A repeated state returns the current projection unchanged so a surface that
-    ignores older revisions is never asked to re-render the same frame.
+    A repeated state keeps its revision, so a surface that ignores older revisions
+    is never asked to re-render the same frame.
     """
-    revision = await _advance(conn, interview_session_id=interview_session_id, state=state)
-    if revision is not None:
-        return _project(
-            interview_session_id=interview_session_id,
-            state=state,
-            character_revision=revision,
-        )
-    return await load_character(conn, interview_session_id=interview_session_id)
+    if await _advance(conn, interview_session_id=interview_session_id, state=state) is None:
+        # An unchanged state and a missing session both update no row; this read
+        # raises for the missing one.
+        await load_character(conn, interview_session_id=interview_session_id)
 
 
 async def change_character(

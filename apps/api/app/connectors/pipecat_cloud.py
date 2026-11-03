@@ -59,7 +59,6 @@ class PipecatCloudAgents:
         )
 
     async def aclose(self) -> None:
-        """Close the HTTP transport."""
         await self._client.aclose()
 
     async def start(self, *, voice_agent_job_id: UUID) -> None:

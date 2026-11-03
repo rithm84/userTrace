@@ -7,8 +7,8 @@
  * codes, revisions, and the extension's own error messages; callers never pass
  * page content, form values, transcripts, or credentials.
  */
-export type LogValue = string | number | boolean | null;
-export type LogFields = Readonly<Record<string, LogValue>>;
+type LogValue = string | number | boolean | null;
+type LogFields = Readonly<Record<string, LogValue>>;
 
 function formatLogEntry(event: string, fields: LogFields): string {
   return `${event} ${JSON.stringify(fields)}`;

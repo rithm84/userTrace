@@ -137,7 +137,6 @@ class GitHubAppDelivery:
         self._token_expires_at: float = 0.0
 
     async def __aenter__(self) -> Self:
-        """Enter the connector's HTTP client scope."""
         return self
 
     async def __aexit__(

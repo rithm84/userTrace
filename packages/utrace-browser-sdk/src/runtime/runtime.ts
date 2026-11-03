@@ -29,8 +29,6 @@ import { buildEnvelope } from "../observation/envelope.js";
 import type { Actor, BaselineReason, ObservationPayload, ObservationScope, RouteState } from "../observation/types.js";
 import type { RedactionPipeline } from "../redaction/pipeline.js";
 import type { TargetRegistry } from "../registry/targets.js";
-import type { RouteTemplates } from "../routes/templates.js";
-import type { TraceCoordinator } from "../trace/context.js";
 import { ExportBuffer } from "../export/buffer.js";
 import type { ExportRecord } from "../export/record.js";
 import { AcknowledgementTracker, SequenceAllocator } from "../export/sequences.js";
@@ -156,10 +154,6 @@ export class SharedObservationRuntime {
     return this.#runtimeId;
   }
 
-  get browserStreamId(): string {
-    return this.#browserStreamId;
-  }
-
   get pageProof(): SignedEnvelope | null {
     return this.#activation?.pageProof ?? null;
   }
@@ -174,14 +168,6 @@ export class SharedObservationRuntime {
 
   get registry(): TargetRegistry {
     return this.#requireCore().registry;
-  }
-
-  get routes(): RouteTemplates {
-    return this.#requireCore().routes;
-  }
-
-  get trace(): TraceCoordinator {
-    return this.#requireCore().trace;
   }
 
   get attestationDocumentAttachmentId(): string {
@@ -394,7 +380,6 @@ export class SharedObservationRuntime {
       this.view,
       this.clock,
       this.random,
-      this.#config,
       activation,
       {
         runtime_id: this.#runtimeId,

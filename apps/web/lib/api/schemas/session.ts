@@ -26,20 +26,18 @@ const uuid = z.uuid();
 const timestamp = z.iso.datetime({ offset: true });
 const text = z.string().min(1);
 
-/* --------------------------------------------------------- durable record */
-
-export const sessionControlsStateSchema = z.object({
+const sessionControlsStateSchema = z.object({
   muted: z.boolean(),
   paused: z.boolean(),
 });
 
-export const sessionReadinessSchema = z.object({
+const sessionReadinessSchema = z.object({
   conversational: z.boolean(),
   observation: z.boolean(),
 });
 
 /** The durable Interview Session row, as `GET /v1/sessions/{id}` answers it. */
-export const interviewSessionSchema = z.object({
+const interviewSessionSchema = z.object({
   id: uuid,
   client_id: uuid,
   product_signal_id: uuid,
@@ -59,9 +57,7 @@ export type InterviewSession = z.infer<typeof interviewSessionSchema>;
 
 export const sessionRecordSchema = z.object({ session: interviewSessionSchema });
 
-/* ------------------------------------------------------- tab projection */
-
-export const tabStateSchema = z.enum([
+const tabStateSchema = z.enum([
   "participant_setup",
   "interviewing",
   "paused",
@@ -75,7 +71,7 @@ export type TabState = z.infer<typeof tabStateSchema>;
  * `discovery` phase in two: problem discussion may begin while the preview
  * prepares, and observed workflow probing waits for the complete evidence path.
  */
-export const tabPhaseSchema = z.enum([
+const tabPhaseSchema = z.enum([
   "preflight",
   "greeting",
   "problem_discussion",
@@ -86,7 +82,7 @@ export const tabPhaseSchema = z.enum([
 ]);
 
 /** The user-facing implementation progress the session tab shows. */
-export const tabProgressSchema = z.enum([
+const tabProgressSchema = z.enum([
   "reproduction_captured",
   "making_changes",
   "preparing_the_preview",
@@ -94,7 +90,7 @@ export const tabProgressSchema = z.enum([
 ]);
 export type TabProgress = z.infer<typeof tabProgressSchema>;
 
-export const sessionEndReasonSchema = z.enum([
+const sessionEndReasonSchema = z.enum([
   "finish_later",
   "connection_lost",
   "ended_by_participant",
@@ -106,31 +102,9 @@ export const sessionEndReasonSchema = z.enum([
 ]);
 export type SessionEndReason = z.infer<typeof sessionEndReasonSchema>;
 
-/**
- * The character states the interview runtime publishes in the projection.
- *
- * Two more than the shared `agent-character-state` contract: the runtime's
- * migration adds `paused` and `reconnecting` to `public.agent_character_state`
- * without adding them to the schema the contract package ships. The Rive rig
- * carries both, so the tab renders them; the drift is recorded for integration.
- */
-export const CHARACTER_PROJECTION_STATES = [
-  "idle",
-  "listening",
-  "thinking",
-  "speaking",
-  "acknowledgement",
-  "concern",
-  "paused",
-  "reconnecting",
-  "completion",
-] as const;
-
-export const characterProjectionStateSchema = z.enum(CHARACTER_PROJECTION_STATES);
-
-export const characterProjectionSchema = z.object({
+const characterProjectionSchema = z.object({
   revision: z.int().nonnegative(),
-  state: characterProjectionStateSchema,
+  state: agentCharacterStateSchema,
   gazeX: z.number().min(-1).max(1),
   gazeY: z.number().min(-1).max(1),
   speechEnergy: z.number().min(0).max(1),
@@ -153,13 +127,13 @@ export const controlsStateSchema = z.object({
 });
 export type ControlsState = z.infer<typeof controlsStateSchema>;
 
-export const readinessSchema = z.object({
+const readinessSchema = z.object({
   conversational: z.boolean(),
   observation: z.boolean(),
   unavailable_detail: absentWhenNull(text),
 });
 
-export const agentCharacterColourSchema = z.enum([
+const agentCharacterColourSchema = z.enum([
   "coral",
   "black",
   "mint",
@@ -220,8 +194,6 @@ export const sessionControlAckSchema = z.object({
 });
 export type SessionControlAck = z.infer<typeof sessionControlAckSchema>;
 
-/* --------------------------------------------------- participant routes */
-
 export const invitationClaimSchema = z.object({
   session_id: uuid,
   product_signal_id: uuid,
@@ -254,7 +226,7 @@ export const PREFLIGHT_CHECK_IDS = [
   "microphone",
 ] as const;
 
-export const preflightCheckIdSchema = z.enum(PREFLIGHT_CHECK_IDS);
+const preflightCheckIdSchema = z.enum(PREFLIGHT_CHECK_IDS);
 export type PreflightCheckId = z.infer<typeof preflightCheckIdSchema>;
 
 export const preflightResultSchema = z.object({
@@ -311,8 +283,6 @@ export const extensionLinkCodeSchema = z.object({
 });
 export type ExtensionLinkCode = z.infer<typeof extensionLinkCodeSchema>;
 
-/* ---------------------------------------------------- participant account */
-
 /**
  * The participant's global action preferences (`public.extension_preferences`).
  * An update names the revision it read, so a stale page is refused rather than
@@ -326,7 +296,7 @@ export const participantPreferencesSchema = z.object({
 export type ParticipantPreferences = z.infer<typeof participantPreferencesSchema>;
 
 /** One Interview Session the participant took part in, newest first. */
-export const participantInterviewSchema = z.object({
+const participantInterviewSchema = z.object({
   session_id: uuid,
   client_name: text,
   topic: text,

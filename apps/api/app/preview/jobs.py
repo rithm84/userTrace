@@ -1,6 +1,6 @@
 """The ``preview.*`` Jobs and their handlers.
 
-Five durable responsibilities live here. Session preparation consumes the Job an
+Four durable responsibilities live here. Session preparation consumes the Job an
 invitation claim commits: it claims a warm runtime, or creates one from the
 template, and routes the session's origin to it. A preparation that fails enters
 [bounded recovery](./session_recovery.py), whose runs retry it until the
@@ -8,9 +8,6 @@ recovery deadline and then close the session as blocked. Warm-pool maintenance i
 by the ``utrace-preview-pool-scan`` cron scan whenever a current template is short
 of its target, under a concurrency key so a second scan cannot double-provision.
 Teardown destroys one allocation after its routes and credentials are revoked.
-Idle-candidate expiry destroys candidate runtimes whose route revision is no
-longer active; their artifact and seed manifest stay durable, so they can be
-rebuilt exactly.
 
 Each handler opens its own provider client and HTTP client for the run and closes
 them again, because a Job Run is the unit of work the lease covers. It also
@@ -29,16 +26,14 @@ from uuid import UUID
 
 import httpx
 
-from app.adapters.wire import install_ingestion_adapters
+from app.adapters.observation_readiness import IngestionObservationReadiness
 from app.connectors.vercel_sandboxes import sandbox_grant_from_environment
 from app.db.pool import Database
 from app.execution.jobs import ClaimedJob
 from app.ingestion.settings import get_ingestion_settings
 from app.intake.jobs import PREPARE_BASE_ALLOCATION
 from app.logging import get_logger
-from app.ports import PortRegistry
 from app.preview.activation import ServerActivationContext
-from app.preview.candidate import expire_idle_candidates
 from app.preview.config import PreviewSettings, get_preview_settings
 from app.preview.ports import ObservationReadinessPort
 from app.preview.provisioning import (
@@ -63,8 +58,6 @@ from app.preview.template import load_current_template, load_recipe
 from app.settings import get_settings
 
 __all__ = [
-    "EXPIRE_IDLE_CANDIDATES",
-    "MAINTAIN_WARM_POOL",
     "TEAR_DOWN_ALLOCATION",
     "build_preview_handlers",
     "preview_session",
@@ -74,7 +67,7 @@ _log = get_logger(__name__)
 
 MAINTAIN_WARM_POOL = "preview.maintain_warm_pool"
 TEAR_DOWN_ALLOCATION = "preview.tear_down_allocation"
-EXPIRE_IDLE_CANDIDATES = "preview.expire_idle_candidates"
+
 
 @dataclass(frozen=True, slots=True)
 class PreviewSession:
@@ -94,10 +87,6 @@ async def preview_session(database: Database) -> AsyncIterator[PreviewSession]:
     settings = get_preview_settings()
     control_plane = get_settings()
     ingestion = get_ingestion_settings()
-    ports = install_ingestion_adapters(
-        PortRegistry(voice=None, observation=None, evidence=None),
-        database=database,
-    )
     async with (
         PreviewRuntimeProvider(grant=sandbox_grant_from_environment()) as provider,
         httpx.AsyncClient(
@@ -115,7 +104,7 @@ async def preview_session(database: Database) -> AsyncIterator[PreviewSession]:
                 manifest_key_id=ingestion.server_manifest_trust_anchor_key_id,
                 manifest_public_key=ingestion.manifest_trust_anchor_key(),
             ),
-            observation=ports.require_observation(),
+            observation=IngestionObservationReadiness(database),
             origin_suffix=control_plane.preview_origin_suffix,
         )
 
@@ -303,32 +292,12 @@ async def tear_down_allocation_job(database: Database, claimed: ClaimedJob) -> N
         )
 
 
-async def expire_idle_candidates_job(database: Database, claimed: ClaimedJob) -> None:
-    """Destroy candidate runtimes no route revision points at any more."""
-    idle_seconds = int(str(claimed.input["idle_seconds"]))
-    async with preview_session(database) as session:
-        expired = await expire_idle_candidates(
-            database,
-            provider=session.provider,
-            activation=session.activation,
-            client_id=claimed.client_id,
-            idle_seconds=idle_seconds,
-        )
-    _log.info(
-        "preview_idle_candidates_expired",
-        client_id=str(claimed.client_id),
-        expired=len(expired),
-    )
-
-
 def build_preview_handlers() -> Mapping[
     str, Callable[[Database, ClaimedJob], Awaitable[None]]
 ]:
-    """Return the preview area's Job handlers."""
     return {
         PREPARE_BASE_ALLOCATION: prepare_session_preview_job,
         RECOVER_SESSION_PREVIEW: recover_session_preview_job,
         MAINTAIN_WARM_POOL: maintain_warm_pool_job,
         TEAR_DOWN_ALLOCATION: tear_down_allocation_job,
-        EXPIRE_IDLE_CANDIDATES: expire_idle_candidates_job,
     }

@@ -78,15 +78,13 @@ class OpenAIServiceTier(StrEnum):
 
 
 class OpenAIModelConfiguration(BaseModel):
-    """The pinned OpenAI configuration a Job records and replays against."""
+    """The model, reasoning effort, and service tier one role is pinned to."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     model_id: str
     effort: OpenAIEffort
     service_tier: OpenAIServiceTier
-    credential_reference: str
-    """Opaque reference to the API key in custody, never the key itself."""
 
 
 class TokenUsage(BaseModel):
@@ -155,7 +153,6 @@ class OpenAIResponsesGateway:
         )
 
     async def __aenter__(self) -> Self:
-        """Enter the gateway's HTTP client scope."""
         return self
 
     async def __aexit__(

@@ -79,10 +79,7 @@ class CriterionDraft:
 class FlowClassificationRecord:
     """The committed interview-established classification at one revision."""
 
-    record_id: UUID
-    product_signal_id: UUID
     classification_revision: int
-    flow_type: FlowType
     retained: bool
     gate_hold_id: UUID | None
 
@@ -91,11 +88,8 @@ class FlowClassificationRecord:
 class AcceptanceCriteriaAgreement:
     """The committed agreed scope and its frozen criteria at one revision."""
 
-    record_id: UUID
-    product_signal_id: UUID
     acceptance_criteria_revision: int
     criterion_ids: tuple[UUID, ...]
-    concern_revision: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -213,10 +207,7 @@ async def record_flow_classification(
         gate_hold_id=str(gate_hold_id) if gate_hold_id else None,
     )
     return FlowClassificationRecord(
-        record_id=record_id,
-        product_signal_id=bundle.product_signal_id,
         classification_revision=classification_revision,
-        flow_type=flow_type,
         retained=flow_type is initial,
         gate_hold_id=gate_hold_id,
     )
@@ -492,11 +483,8 @@ async def _freeze_agreement(
         criterion_count=len(criterion_ids),
     )
     return AcceptanceCriteriaAgreement(
-        record_id=record_id,
-        product_signal_id=bundle.product_signal_id,
         acceptance_criteria_revision=criteria_revision,
         criterion_ids=tuple(criterion_ids),
-        concern_revision=concern_revision,
     )
 
 

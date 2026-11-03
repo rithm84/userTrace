@@ -11,8 +11,8 @@ function nearness(b: Box): number {
   return b.x + b.w / 2 + b.y + b.d / 2 + (b.z + b.h / 2) * 0.01;
 }
 
-export type DepthNode = Readonly<{ id: string; box: Box; rig: boolean }>;
-export type Leveled<T> = Readonly<{ node: T; level: number }>;
+type DepthNode = Readonly<{ id: string; box: Box; rig: boolean }>;
+type Leveled<T> = Readonly<{ node: T; level: number }>;
 
 /**
  * Orders nodes back to front and assigns each the lowest paint level it can take. Pairs that

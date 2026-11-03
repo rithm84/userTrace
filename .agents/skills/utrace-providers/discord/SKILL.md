@@ -141,9 +141,6 @@ gateway on_message      →  MessageReceipt
   surface (`UnwatchedSurfaceError`), an unattributed bot author
   (`UnattributedAuthorError`), and an author with no client-scoped identity.
   Each is logged with its reason and the next receipt is read.
-- `scoped_provider_identity(guild_id=..., user_id=...)` yields
-  `discord:<guild>:<user>`. It is guild-scoped because participation is scoped
-  per client, and it never substitutes for a `client_user_id`.
 - The receipt queue holds 1000 entries; an overflow logs
   `discord.receipt.dropped` and the message is recovered through the re-ingest
   route below.

@@ -1,6 +1,4 @@
-/** Typed failures from the control-plane HTTP contract. */
-
-export type ControlPlaneErrorCode =
+type ControlPlaneErrorCode =
   | "unauthenticated"
   | "forbidden"
   | "not_found"
@@ -10,7 +8,7 @@ export type ControlPlaneErrorCode =
   | "transport"
   | "invalid_response";
 
-export type ControlPlaneErrorContext = Readonly<{
+type ControlPlaneErrorContext = Readonly<{
   code: ControlPlaneErrorCode;
   method: string;
   path: string;

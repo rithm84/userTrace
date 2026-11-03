@@ -77,29 +77,6 @@ class _CleaningSandboxes(VercelSandboxes):
         super().__init__(grant=grant)
         self._created: list[str] = []
 
-    async def create_from_image(
-        self,
-        *,
-        name: str,
-        image: str,
-        ports: Sequence[int],
-        env: Mapping[str, str],
-        egress: EgressPolicy,
-        execution_time_limit_seconds: int,
-        vcpus: int,
-    ) -> SandboxHandle:
-        handle = await super().create_from_image(
-            name=name,
-            image=image,
-            ports=ports,
-            env=env,
-            egress=egress,
-            execution_time_limit_seconds=execution_time_limit_seconds,
-            vcpus=vcpus,
-        )
-        self._created.append(name)
-        return handle
-
     async def create_from_default_image(
         self,
         *,
@@ -143,7 +120,6 @@ class _CleaningSandboxes(VercelSandboxes):
         return handle
 
     async def delete_leftovers(self) -> None:
-        """Delete each sandbox this connector created that still exists."""
         for name in self._created:
             handle = await self.find(name=name)
             if handle is not None:
@@ -173,7 +149,6 @@ def openai_key() -> Secret:
 
 @pytest.fixture
 def artifact_store(database: Database, settings: Settings) -> ArtifactStore:
-    """The real Supabase Storage artifact store for this project."""
     require("UTRACE_SUPABASE_SECRET_KEY")
     return ArtifactStore(
         database=database,

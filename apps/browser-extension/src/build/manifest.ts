@@ -11,16 +11,14 @@
  */
 import { createHash } from "node:crypto";
 
-import type { BuildOrigins } from "./buildOrigins";
+import { HOST_PERMISSIONS, type BuildOrigins } from "./buildOrigins.ts";
 
-export const REQUIRED_PERMISSIONS = [
+const REQUIRED_PERMISSIONS = [
   "storage",
   "scripting",
   "identity",
   "alarms",
 ] as const;
-
-export const OPTIONAL_HOST_PERMISSIONS = ["https://*/*", "http://*/*"] as const;
 
 export const FORBIDDEN_PERMISSIONS = [
   "tabs",
@@ -35,7 +33,7 @@ export const FORBIDDEN_PERMISSIONS = [
 
 export const MINIMUM_CHROME_VERSION = "137";
 
-export type ChromeManifest = Readonly<{
+type ChromeManifest = Readonly<{
   manifest_version: 3;
   name: string;
   version: string;
@@ -58,7 +56,7 @@ export type ChromeManifest = Readonly<{
 }>;
 
 /** Files the content script and main-world bridge fetch from the package. */
-export const WEB_ACCESSIBLE_RESOURCES = [
+const WEB_ACCESSIBLE_RESOURCES = [
   "main-world-bridge.js",
   "agent-character.riv",
   "rive.wasm",
@@ -78,8 +76,8 @@ export function createManifest(
     key: origins.manifestKey,
     permissions: [...REQUIRED_PERMISSIONS],
     ...(origins.hostPermissions === "required"
-      ? { host_permissions: [...OPTIONAL_HOST_PERMISSIONS] }
-      : { optional_host_permissions: [...OPTIONAL_HOST_PERMISSIONS] }),
+      ? { host_permissions: [...HOST_PERMISSIONS] }
+      : { optional_host_permissions: [...HOST_PERMISSIONS] }),
     background: Object.freeze({ service_worker: "background.js", type: "module" as const }),
     action: Object.freeze({
       default_popup: "popup.html",
@@ -97,7 +95,7 @@ export function createManifest(
     web_accessible_resources: [
       Object.freeze({
         resources: [...WEB_ACCESSIBLE_RESOURCES],
-        matches: [...OPTIONAL_HOST_PERMISSIONS],
+        matches: [...HOST_PERMISSIONS],
       }),
     ],
   });
@@ -110,7 +108,7 @@ export function createManifest(
  * limited to the uTrace origins this build targets. A source with a path would
  * match only that exact path, so the control-plane base URLs enter as origins.
  */
-export function createExtensionPagesCsp(origins: BuildOrigins): string {
+function createExtensionPagesCsp(origins: BuildOrigins): string {
   const connectSources = [
     "'self'",
     new URL(origins.apiBaseUrl).origin,

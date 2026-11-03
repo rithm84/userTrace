@@ -7,36 +7,23 @@
 import { requestFromWorker } from "../shared/extensionMessages";
 import { DEFAULT_ORB_SETTINGS, ORB_DIAMETER, type OrbSettings } from "../shared/portMessages";
 import {
+  bindAccountButtons,
+  buttonElement,
+  element,
   expectStatus,
   hostPermissionGranted,
   loadStatus,
-  requestHostPermission,
   renderRows,
+  report,
   showNotice,
   statusRows,
 } from "./status";
 import type { StatusSnapshot } from "../background/session";
 
-function element(id: string): HTMLElement {
-  const found = document.getElementById(id);
-  if (found === null) {
-    throw new Error(`The settings page is missing its ${id} element.`);
-  }
-  return found;
-}
-
 function inputElement(id: string): HTMLInputElement {
   const found = element(id);
   if (!(found instanceof HTMLInputElement)) {
     throw new Error(`The ${id} element is not an input.`);
-  }
-  return found;
-}
-
-function buttonElement(id: string): HTMLButtonElement {
-  const found = element(id);
-  if (!(found instanceof HTMLButtonElement)) {
-    throw new Error(`The ${id} element is not a button.`);
   }
   return found;
 }
@@ -61,10 +48,6 @@ function apply(status: StatusSnapshot, granted: boolean): void {
 async function refresh(): Promise<void> {
   const [status, granted] = await Promise.all([loadStatus(), hostPermissionGranted()]);
   apply(status, granted);
-}
-
-function report(error: unknown): void {
-  showNotice(element("notice"), error instanceof Error ? error.message : String(error));
 }
 
 async function savePreferences(): Promise<void> {
@@ -92,13 +75,7 @@ async function saveOrb(orb: OrbSettings): Promise<void> {
   apply(status, await hostPermissionGranted());
 }
 
-element("link").addEventListener("click", () => {
-  void requestFromWorker({ kind: "link_account" }).then(expectStatus).then(refresh).catch(report);
-});
-
-element("permissions").addEventListener("click", () => {
-  void requestHostPermission().then(refresh).catch(report);
-});
+bindAccountButtons(refresh);
 
 element("refresh").addEventListener("click", () => {
   void refresh().catch(report);

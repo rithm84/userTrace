@@ -23,8 +23,10 @@ from utrace_contracts.domain.lifecycle import (
     ImplementationProgress,
     InterviewPhase,
     InterviewSessionState,
+    ProductSignalState,
 )
 
+from app.auth.principals import ParticipantPrincipal
 from app.db.pool import Database
 from app.db.rows import as_uuid
 from app.ids import uuid7
@@ -32,8 +34,9 @@ from app.ingestion.preview_environments import resolve_preview_environment_id
 from app.ingestion.readiness import ReadinessFact, publish_readiness
 from app.interview.ports import RegisteredTarget
 from app.preview.ports import ServerSdkActivation, TelemetryReadiness
-from tests.factories import CaseFixture
+from tests.factories import CaseFixture, create_case
 from tests.helpers import record_session_readiness
+from tests.supabase_auth import SignedInUser
 
 __all__ = [
     "ObservedDocument",
@@ -42,14 +45,14 @@ __all__ = [
     "create_binding",
     "create_live_session",
     "create_preview_allocation",
-    "incomplete_readiness",
+    "interviewing_case",
     "link_installation",
     "observe_document",
     "observe_ready_page",
     "open_page",
+    "participant_of",
     "record_ready_page",
     "record_registry_change",
-    "session_client_user",
 ]
 
 
@@ -94,6 +97,29 @@ class RecordingObservationReadiness:
         return self._readiness
 
 
+async def interviewing_case(
+    database: Database, auth_users: dict[str, SignedInUser], name: str
+) -> CaseFixture:
+    """One routed Product Signal in its interviewing state."""
+    return await create_case(
+        database,
+        name=name,
+        state=ProductSignalState.INTERVIEWING,
+        authorizing_auth_user_id=auth_users["owner_a"].auth_user_id,
+        participant_auth_user_id=None,
+    )
+
+
+def participant_of(case: CaseFixture) -> ParticipantPrincipal:
+    """The originating user's resolved participation identity."""
+    return ParticipantPrincipal(
+        auth_user_id=uuid7(),
+        utrace_user_id=case.utrace_user_id,
+        client_user_id=case.client_user_id,
+        client_id=case.client_id,
+    )
+
+
 def complete_readiness() -> TelemetryReadiness:
     """A complete correlated evidence path across all three kinds."""
     return TelemetryReadiness(
@@ -102,17 +128,6 @@ def complete_readiness() -> TelemetryReadiness:
         correlation_ready=True,
         observed_at=datetime.now(tz=UTC),
         detail="",
-    )
-
-
-def incomplete_readiness(detail: str) -> TelemetryReadiness:
-    """An incomplete correlated evidence path, with the reason it is incomplete."""
-    return TelemetryReadiness(
-        browser_ready=False,
-        server_ready=False,
-        correlation_ready=False,
-        observed_at=datetime.now(tz=UTC),
-        detail=detail,
     )
 
 
@@ -258,22 +273,6 @@ async def create_binding(
             ),
         )
     return binding_id, attachment_id
-
-
-async def session_client_user(database: Database, *, session_id: UUID) -> UUID:
-    """Return the client-scoped identity bound to one Interview Session."""
-    async with database.connection() as conn, conn.cursor() as cur:
-        await cur.execute(
-            "select client_user_id from public.interview_sessions where id = %s",
-            (session_id,),
-        )
-        row = await cur.fetchone()
-    if row is None:
-        raise LookupError(f"interview session {session_id} does not exist")
-    value = row["client_user_id"]
-    if not isinstance(value, UUID):
-        raise TypeError("interview_sessions.client_user_id is not a UUID")
-    return value
 
 
 @dataclass(frozen=True, slots=True)

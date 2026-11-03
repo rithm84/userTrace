@@ -272,14 +272,12 @@ class SdkProcess:
     stderr_path: Path
 
     def output(self) -> str:
-        """Return everything the process has written, for a failure message."""
         return (
             self.stdout_path.read_text(encoding="utf-8")
             + self.stderr_path.read_text(encoding="utf-8")
         )
 
     def stop(self) -> None:
-        """Terminate the process and wait for it to exit."""
         if self.process.poll() is None:
             self.process.terminate()
             try:

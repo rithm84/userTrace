@@ -5,15 +5,6 @@ import ExtensionLinkPage from "@/app/extension/link/page";
 import { ControlPlaneError } from "@/lib/api/errors";
 import { FixtureControlPlaneClient } from "@/lib/api/fixture";
 
-/**
- * The one-time extension account link.
- *
- * The extension opens this page inside `chrome.identity.launchWebAuthFlow` and
- * expects a redirect to its own `chromiumapp.org` address carrying a
- * `link_code`. Everything else it may be asked to redirect to is refused, so
- * the page cannot be used as an open redirect by a link someone was sent.
- */
-
 const EXTENSION_ID = "abcdefghijklmnopabcdefghijklmnop";
 const REDIRECT_URI = `https://${EXTENSION_ID}.chromiumapp.org/extension-link`;
 

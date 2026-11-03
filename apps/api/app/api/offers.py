@@ -16,6 +16,7 @@ from utrace_contracts.domain.lifecycle import ClientMemberRole
 from app.auth.dependencies import CurrentDatabase, StaffOfPath
 from app.errors import AggregateNotFoundError, AuthorizationError
 from app.offers.budget import authorize_allowance, read_allowance
+from app.offers.ledger import Allowance
 from app.offers.read_model import OfferDisposition, load_offer, load_offers_view
 
 __all__ = ["router"]
@@ -65,6 +66,16 @@ class OffersViewResponse(ApiModel):
     offers: list[OfferDisposition]
 
 
+def _allowance_response(allowance: Allowance) -> AllowanceResponse:
+    return AllowanceResponse(
+        currency=allowance.currency,
+        authorized_minor_units=allowance.authorized_minor_units,
+        reserved_minor_units=allowance.reserved_minor_units,
+        earned_minor_units=allowance.earned_minor_units,
+        remaining_minor_units=allowance.remaining_minor_units,
+    )
+
+
 @router.post(
     "/{client_id}/offers/budget",
     response_model=AllowanceResponse,
@@ -88,13 +99,7 @@ async def authorize_offer_budget(
         authorized_minor_units=body.authorized_minor_units,
         authorized_by_auth_user_id=staff.auth_user_id,
     )
-    return AllowanceResponse(
-        currency=allowance.currency,
-        authorized_minor_units=allowance.authorized_minor_units,
-        reserved_minor_units=allowance.reserved_minor_units,
-        earned_minor_units=allowance.earned_minor_units,
-        remaining_minor_units=allowance.remaining_minor_units,
-    )
+    return _allowance_response(allowance)
 
 
 @router.get(
@@ -111,13 +116,7 @@ async def get_offer_budget(
     allowance = await read_allowance(
         database, client_id=staff.client_id, currency=currency
     )
-    return AllowanceResponse(
-        currency=allowance.currency,
-        authorized_minor_units=allowance.authorized_minor_units,
-        reserved_minor_units=allowance.reserved_minor_units,
-        earned_minor_units=allowance.earned_minor_units,
-        remaining_minor_units=allowance.remaining_minor_units,
-    )
+    return _allowance_response(allowance)
 
 
 @router.get(

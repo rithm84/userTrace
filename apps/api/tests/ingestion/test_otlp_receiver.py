@@ -27,41 +27,28 @@ from tests.supabase_auth import SignedInUser
 
 @dataclass(frozen=True, slots=True)
 class ActiveServerStream:
-    """One activated service process ready to export."""
-
     preview: PreviewFixture
     activation_id: UUID
     server_stream_id: UUID
     service_instance_id: UUID
     token: str
-    preview_entry_token: str
 
 
 async def _activate_server(
     database: Database, keys: SigningKeys, *, name: str, authorizing_auth_user_id: UUID
 ) -> ActiveServerStream:
-    """Create a preview and activate one server service against it."""
     preview = await create_preview(
         database, name=name, authorizing_auth_user_id=authorizing_auth_user_id
     )
-    activation_id, server_stream_id, token, entry_token = await start_server_activation(
-        database, preview=preview, keys=keys
+    activation_id, server_stream_id, service_instance_id, token, _entry = (
+        await start_server_activation(database, preview=preview, keys=keys)
     )
-    async with database.connection() as conn, conn.cursor() as cur:
-        await cur.execute(
-            "select service_instance_id from public.telemetry_activations where id = %s",
-            (activation_id,),
-        )
-        row = await cur.fetchone()
-    if row is None:
-        raise AssertionError("the server activation was not committed")
     return ActiveServerStream(
         preview=preview,
         activation_id=activation_id,
         server_stream_id=server_stream_id,
-        service_instance_id=UUID(str(row["service_instance_id"])),
+        service_instance_id=service_instance_id,
         token=token,
-        preview_entry_token=entry_token,
     )
 
 
@@ -95,7 +82,6 @@ async def _post(
     base_url: str, stream: ActiveServerStream, spans: list[SpanSpec], *, sequence: int,
     batch_id: UUID | None,
 ) -> tuple[int, bytes]:
-    """Serialize and post one batch, returning the status and body."""
     body = serialize(
         spans,
         service_name="shopalytics-api",
@@ -127,7 +113,6 @@ async def test_a_valid_batch_is_a_full_success_with_no_partial_success(
     ingest_server: str,
     auth_users: dict[str, SignedInUser],
 ) -> None:
-    """A success acknowledges the complete batch and commits every span."""
     stream = await _activate_server(
         telemetry_database,
         keys,
@@ -369,7 +354,6 @@ async def test_a_credential_from_the_browser_edge_is_refused(
     ingest_server: str,
     auth_users: dict[str, SignedInUser],
 ) -> None:
-    """A credential minted for one edge cannot write on the other."""
     stream = await _activate_server(
         telemetry_database,
         keys,
@@ -407,7 +391,6 @@ async def test_an_envelope_that_claims_another_activation_is_refused(
     ingest_server: str,
     auth_users: dict[str, SignedInUser],
 ) -> None:
-    """The envelope's claims must agree with the authenticated activation."""
     stream = await _activate_server(
         telemetry_database,
         keys,

@@ -78,7 +78,6 @@ class CurrentAttempt:
 
 
 async def current_attempt(database: Database, *, attempt_id: UUID) -> CurrentAttempt:
-    """Read the attempt's durable state, revision, and consumption."""
     async with database.connection() as conn:
         return await _read(conn, attempt_id)
 

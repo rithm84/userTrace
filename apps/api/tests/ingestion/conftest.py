@@ -50,14 +50,7 @@ _KEYS = _install_ingestion_environment()
 
 @pytest.fixture(scope="session")
 def keys() -> SigningKeys:
-    """The run's ephemeral signing keys."""
     return _KEYS
-
-
-@pytest.fixture(scope="session")
-def ingest_base_url() -> str:
-    """The HTTP origin the ingestion server listens on."""
-    return f"http://127.0.0.1:{INGEST_PORT}"
 
 
 @pytest.fixture(scope="session")

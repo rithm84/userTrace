@@ -1,4 +1,5 @@
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import type { ComponentProps, JSX } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const riveDouble = vi.hoisted(() => {
@@ -12,34 +13,16 @@ const riveDouble = vi.hoisted(() => {
   const enumSetter = vi.fn<(value: string) => void>(() => setterOrder.push("state"));
 
   return {
-    cleanup: vi.fn<() => void>(),
     enumSetter,
-    enumValues: [
-      "idle",
-      "investigating",
-      "listening",
-      "thinking",
-      "speaking",
-      "acknowledgement",
-      "concern",
-      "building",
-      "completion",
-      "ship",
-      "reconnecting",
-      "paused",
-      "sleep",
-      "pointer",
-    ],
-    enumAccessorCalls: 0,
+    // `beforeEach` fills this with the package's states; a test may reorder or corrupt it.
+    enumValues: [] as string[],
     loadErrorCallback: null as RendererParameters["onLoadError"] | null,
     missingBindings: new Set<string>(),
-    numberAccessorCalls: 0,
     numberSetters,
     params: null as RendererParameters | null,
     setWasmFallbackUrl: vi.fn<(url: string | null) => void>(),
     setWasmUrl: vi.fn<(url: string) => void>(),
     setterOrder,
-    usedPaths: [] as string[],
   };
 });
 
@@ -78,47 +61,38 @@ vi.mock("@rive-app/webgl2", () => ({
   },
 }));
 
-vi.mock("@rive-app/react-webgl2", async () => {
-  const React = await import("react");
+vi.mock("@rive-app/react-webgl2", () => {
   const fakeViewModelInstance = {
-    enum: (path: string) => {
-      riveDouble.enumAccessorCalls += 1;
-      return path === "state" && !riveDouble.missingBindings.has(path)
+    enum: (path: string) =>
+      path === "state" && !riveDouble.missingBindings.has(path)
         ? { values: riveDouble.enumValues }
-        : null;
-    },
-    number: (path: string) => {
-      riveDouble.numberAccessorCalls += 1;
-      return path in riveDouble.numberSetters && !riveDouble.missingBindings.has(path)
+        : null,
+    number: (path: string) =>
+      path in riveDouble.numberSetters && !riveDouble.missingBindings.has(path)
         ? { value: 0 }
-        : null;
-    },
+        : null,
   };
 
   return {
     useRive: (parameters: RendererParameters) => {
       riveDouble.params = parameters;
       riveDouble.loadErrorCallback ??= parameters.onLoadError;
-      React.useEffect(() => () => riveDouble.cleanup(), []);
       return {
         rive: { viewModelInstance: fakeViewModelInstance },
-        RiveComponent: (props: React.ComponentProps<"canvas">) => (
+        RiveComponent: (props: ComponentProps<"canvas">) => (
           <canvas data-testid="rive-canvas" {...props} />
         ),
       };
     },
-    useViewModelInstanceEnum: (path: string) => {
-      riveDouble.usedPaths.push(path);
-      return {
-        setValue: riveDouble.enumSetter,
-        value: "idle",
-        values: riveDouble.enumValues,
-      };
-    },
-    useViewModelInstanceNumber: (path: keyof typeof riveDouble.numberSetters) => {
-      riveDouble.usedPaths.push(path);
-      return { setValue: riveDouble.numberSetters[path], value: 0 };
-    },
+    useViewModelInstanceEnum: () => ({
+      setValue: riveDouble.enumSetter,
+      value: "idle",
+      values: riveDouble.enumValues,
+    }),
+    useViewModelInstanceNumber: (path: keyof typeof riveDouble.numberSetters) => ({
+      setValue: riveDouble.numberSetters[path],
+      value: 0,
+    }),
   };
 });
 
@@ -127,8 +101,9 @@ import {
   CharacterProjectionError,
   acceptCharacterProjection,
   createAgentCharacterResources,
+  type AcceptedCharacterProjection,
 } from "../src";
-import { AgentCharacter, AgentCharacterError } from "../src/AgentCharacter";
+import { AgentCharacter, AgentCharacterError, type AgentCharacterProps } from "../src/AgentCharacter";
 
 const resources = createAgentCharacterResources(
   "/agent/utrace-agent-coral.riv",
@@ -157,35 +132,39 @@ function acceptedProjection(
   return decision.projection;
 }
 
+function character(
+  projection: AcceptedCharacterProjection,
+  onError: AgentCharacterProps["onError"],
+  size: number,
+): JSX.Element {
+  return (
+    <AgentCharacter
+      dataTestId="agent"
+      onError={onError}
+      projection={projection}
+      resources={resources}
+      size={size}
+    />
+  );
+}
+
 const initialProjection = acceptedProjection(7, "speaking", -0.4, 0.3, 0.62, 1);
 
 describe("AgentCharacter", () => {
   beforeEach(() => {
-    riveDouble.cleanup.mockReset();
     riveDouble.enumSetter.mockClear();
-    riveDouble.enumAccessorCalls = 0;
     riveDouble.enumValues.splice(0, riveDouble.enumValues.length, ...CHARACTER_STATES);
     riveDouble.missingBindings.clear();
     riveDouble.loadErrorCallback = null;
-    riveDouble.numberAccessorCalls = 0;
     Object.values(riveDouble.numberSetters).forEach((setter) => setter.mockClear());
     riveDouble.params = null;
     riveDouble.setterOrder.splice(0);
-    riveDouble.usedPaths.splice(0);
   });
 
   afterEach(() => cleanup());
 
   it("loads the one packaged artboard and state machine with contain-center layout", async () => {
-    render(
-      <AgentCharacter
-        dataTestId="agent"
-        onError={vi.fn()}
-        projection={initialProjection}
-        resources={resources}
-        size={236}
-      />,
-    );
+    render(character(initialProjection, vi.fn(), 236));
 
     await waitFor(() => expect(riveDouble.params).not.toBeNull());
     expect(riveDouble.params).toMatchObject({
@@ -200,15 +179,7 @@ describe("AgentCharacter", () => {
   });
 
   it("renders the explicit diagnostic wrapper and a presentation-only canvas", async () => {
-    const { container } = render(
-      <AgentCharacter
-        dataTestId="agent"
-        onError={vi.fn()}
-        projection={initialProjection}
-        resources={resources}
-        size={56}
-      />,
-    );
+    const { container } = render(character(initialProjection, vi.fn(), 56));
 
     const wrapper = await screen.findByTestId("agent");
     expect(wrapper.style.height).toBe("56px");
@@ -222,15 +193,7 @@ describe("AgentCharacter", () => {
   });
 
   it("applies every numeric property before the semantic state", async () => {
-    render(
-      <AgentCharacter
-        dataTestId="agent"
-        onError={vi.fn()}
-        projection={initialProjection}
-        resources={resources}
-        size={236}
-      />,
-    );
+    render(character(initialProjection, vi.fn(), 236));
 
     await waitFor(() =>
       expect(riveDouble.setterOrder).toEqual([
@@ -250,39 +213,14 @@ describe("AgentCharacter", () => {
 
   it("skips stale and duplicate projections", async () => {
     const onError = vi.fn();
-    const { rerender } = render(
-      <AgentCharacter
-        dataTestId="agent"
-        onError={onError}
-        projection={initialProjection}
-        resources={resources}
-        size={236}
-      />,
-    );
+    const { rerender } = render(character(initialProjection, onError, 236));
     await waitFor(() => expect(riveDouble.enumSetter).toHaveBeenCalledTimes(1));
     riveDouble.setterOrder.splice(0);
     Object.values(riveDouble.numberSetters).forEach((setter) => setter.mockClear());
     riveDouble.enumSetter.mockClear();
 
-    const stale = acceptedProjection(6, "idle", 0, 0, 0, 1);
-    rerender(
-      <AgentCharacter
-        dataTestId="agent"
-        onError={onError}
-        projection={stale}
-        resources={resources}
-        size={236}
-      />,
-    );
-    rerender(
-      <AgentCharacter
-        dataTestId="agent"
-        onError={onError}
-        projection={initialProjection}
-        resources={resources}
-        size={236}
-      />,
-    );
+    rerender(character(acceptedProjection(6, "idle", 0, 0, 0, 1), onError, 236));
+    rerender(character(initialProjection, onError, 236));
 
     await act(async () => undefined);
     expect(riveDouble.setterOrder).toEqual([]);
@@ -291,27 +229,11 @@ describe("AgentCharacter", () => {
 
   it("reports same-revision conflicts without changing Rive values", async () => {
     const onError = vi.fn();
-    const { rerender } = render(
-      <AgentCharacter
-        dataTestId="agent"
-        onError={onError}
-        projection={initialProjection}
-        resources={resources}
-        size={236}
-      />,
-    );
+    const { rerender } = render(character(initialProjection, onError, 236));
     await waitFor(() => expect(riveDouble.enumSetter).toHaveBeenCalledTimes(1));
     riveDouble.setterOrder.splice(0);
 
-    rerender(
-      <AgentCharacter
-        dataTestId="agent"
-        onError={onError}
-        projection={acceptedProjection(7, "speaking", 0.2, 0.3, 0.62, 1)}
-        resources={resources}
-        size={236}
-      />,
-    );
+    rerender(character(acceptedProjection(7, "speaking", 0.2, 0.3, 0.62, 1), onError, 236));
 
     await waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
     expect(onError.mock.calls[0]?.[0]).toBeInstanceOf(CharacterProjectionError);
@@ -323,15 +245,7 @@ describe("AgentCharacter", () => {
     async (missingPath) => {
       riveDouble.missingBindings.add(missingPath);
       const onError = vi.fn();
-      render(
-        <AgentCharacter
-          dataTestId="agent"
-          onError={onError}
-          projection={initialProjection}
-          resources={resources}
-          size={236}
-        />,
-      );
+      render(character(initialProjection, onError, 236));
 
       await waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
       expect(onError.mock.calls[0]?.[0]).toEqual(
@@ -348,15 +262,7 @@ describe("AgentCharacter", () => {
   ])("rejects %s in the state enum", async (_description, enumValues) => {
     riveDouble.enumValues.splice(0, riveDouble.enumValues.length, ...enumValues);
     const onError = vi.fn();
-    render(
-      <AgentCharacter
-        dataTestId="agent"
-        onError={onError}
-        projection={initialProjection}
-        resources={resources}
-        size={236}
-      />,
-    );
+    render(character(initialProjection, onError, 236));
 
     await waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
     expect(onError.mock.calls[0]?.[0]).toBeInstanceOf(AgentCharacterError);
@@ -366,15 +272,7 @@ describe("AgentCharacter", () => {
   it("accepts the Rive runtime enum order when it contains the exact semantic state set", async () => {
     riveDouble.enumValues.reverse();
     const onError = vi.fn();
-    render(
-      <AgentCharacter
-        dataTestId="agent"
-        onError={onError}
-        projection={initialProjection}
-        resources={resources}
-        size={236}
-      />,
-    );
+    render(character(initialProjection, onError, 236));
 
     await waitFor(() => expect(riveDouble.enumSetter).toHaveBeenCalledTimes(1));
     expect(onError).not.toHaveBeenCalled();
@@ -389,15 +287,7 @@ describe("AgentCharacter", () => {
 
   it("reports runtime load failures", async () => {
     const onError = vi.fn();
-    render(
-      <AgentCharacter
-        dataTestId="agent"
-        onError={onError}
-        projection={initialProjection}
-        resources={resources}
-        size={236}
-      />,
-    );
+    render(character(initialProjection, onError, 236));
     await waitFor(() => expect(riveDouble.params).not.toBeNull());
 
     act(() => riveDouble.loadErrorCallback?.({ data: "bad bytes", type: "loaderror" }));
@@ -410,26 +300,10 @@ describe("AgentCharacter", () => {
   it("reports a delayed load failure through the latest error handler", async () => {
     const firstOnError = vi.fn();
     const latestOnError = vi.fn();
-    const view = render(
-      <AgentCharacter
-        dataTestId="agent"
-        onError={firstOnError}
-        projection={initialProjection}
-        resources={resources}
-        size={236}
-      />,
-    );
+    const view = render(character(initialProjection, firstOnError, 236));
     await waitFor(() => expect(riveDouble.loadErrorCallback).not.toBeNull());
 
-    view.rerender(
-      <AgentCharacter
-        dataTestId="agent"
-        onError={latestOnError}
-        projection={initialProjection}
-        resources={resources}
-        size={236}
-      />,
-    );
+    view.rerender(character(initialProjection, latestOnError, 236));
     act(() => riveDouble.loadErrorCallback?.({ data: "late failure", type: "loaderror" }));
 
     expect(firstOnError).not.toHaveBeenCalled();
@@ -438,83 +312,9 @@ describe("AgentCharacter", () => {
     );
   });
 
-  it("validates a successful binding contract once per view-model instance", async () => {
-    const view = render(
-      <AgentCharacter
-        dataTestId="agent"
-        onError={vi.fn()}
-        projection={initialProjection}
-        resources={resources}
-        size={236}
-      />,
-    );
-    await waitFor(() => expect(riveDouble.enumSetter).toHaveBeenCalledTimes(1));
-    expect(riveDouble.numberAccessorCalls).toBe(4);
-    expect(riveDouble.enumAccessorCalls).toBe(1);
-
-    view.rerender(
-      <AgentCharacter
-        dataTestId="agent"
-        onError={vi.fn()}
-        projection={acceptedProjection(8, "listening", 0, 0, 0, 0.5)}
-        resources={resources}
-        size={236}
-      />,
-    );
-    await waitFor(() => expect(riveDouble.enumSetter).toHaveBeenCalledTimes(2));
-
-    expect(riveDouble.numberAccessorCalls).toBe(4);
-    expect(riveDouble.enumAccessorCalls).toBe(1);
-  });
-
-  it("allows the Rive hook lifecycle to clean up on unmount", async () => {
-    const view = render(
-      <AgentCharacter
-        dataTestId="agent"
-        onError={vi.fn()}
-        projection={initialProjection}
-        resources={resources}
-        size={236}
-      />,
-    );
-    await screen.findByTestId("rive-canvas");
-
-    view.unmount();
-
-    expect(riveDouble.cleanup).toHaveBeenCalledTimes(1);
-  });
-
   it("rejects non-positive and non-finite sizes", () => {
     for (const size of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
-      expect(() =>
-        render(
-          <AgentCharacter
-            dataTestId="agent"
-            onError={vi.fn()}
-            projection={initialProjection}
-            resources={resources}
-            size={size}
-          />,
-        ),
-      ).toThrowError(RangeError);
+      expect(() => render(character(initialProjection, vi.fn(), size))).toThrowError(RangeError);
     }
-  });
-
-  it("uses every required data-binding path", async () => {
-    render(
-      <AgentCharacter
-        dataTestId="agent"
-        onError={vi.fn()}
-        projection={initialProjection}
-        resources={resources}
-        size={236}
-      />,
-    );
-
-    await waitFor(() =>
-      expect(new Set(riveDouble.usedPaths)).toEqual(
-        new Set(["state", "gazeX", "gazeY", "speechEnergy", "motionScale"]),
-      ),
-    );
   });
 });

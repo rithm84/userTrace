@@ -17,8 +17,6 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 from utrace_contracts.domain.lifecycle import (
     AgentCharacterState,
-    CaseFileStage,
-    CaseFileVariant,
     CriterionObservability,
     CriterionResult,
     DeliveryState,
@@ -473,12 +471,3 @@ class PreviewVersionDetail(Partial):
     artifact_manifest_digest: str | None = None
     superseded_by_preview_version_id: UUID | None = None
 
-
-def published(case_files: list[CaseFileRecord]) -> list[CaseFileRecord]:
-    """Return only the Case Files that reached ``published``."""
-    return [record for record in case_files if record.stage is CaseFileStage.PUBLISHED]
-
-
-def validated_implementation(record: CaseFileRecord) -> bool:
-    """Return whether one Case File is the validated-implementation variant."""
-    return record.variant is CaseFileVariant.VALIDATED_IMPLEMENTATION

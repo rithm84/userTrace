@@ -6,6 +6,7 @@
 
 import * as z from 'zod';
 
+import { PLATFORM_CEILINGS } from '../constants.js';
 import { HTTP_METHODS, signedServerInstrumentationManifestSchema } from './manifest.js';
 
 export const PROBE_HOPS = [
@@ -19,26 +20,30 @@ export const PROBE_HOPS = [
 
 export type ProbeHop = (typeof PROBE_HOPS)[number];
 
-export const exportLimitsSchema = z.strictObject({
-  max_batch_spans: z.int().min(1).max(2048),
-  max_batch_bytes: z.int().min(1024).max(4_194_304),
-  max_queue_batches: z.int().min(1).max(1024),
-  max_queue_spans: z.int().min(1).max(65_536),
+/**
+ * The maxima are the packaged platform ceilings, so a handshake value above a
+ * ceiling fails validation as an invalid activation rather than being clamped.
+ */
+const exportLimitsSchema = z.strictObject({
+  max_batch_spans: z.int().min(1).max(PLATFORM_CEILINGS.maxBatchSpans),
+  max_batch_bytes: z.int().min(1024).max(PLATFORM_CEILINGS.maxBatchBytes),
+  max_queue_batches: z.int().min(1).max(PLATFORM_CEILINGS.maxQueueBatches),
+  max_queue_spans: z.int().min(1).max(PLATFORM_CEILINGS.maxQueueSpans),
   readiness_high_water_ratio: z.number().gt(0).lt(1),
-  max_in_flight_batches: z.int().min(1).max(8),
-  export_interval_millis: z.int().min(10).max(30_000),
-  acknowledgement_lag_millis: z.int().min(100).max(300_000),
-  flush_timeout_millis: z.int().min(100).max(30_000),
+  max_in_flight_batches: z.int().min(1).max(PLATFORM_CEILINGS.maxInFlightBatches),
+  export_interval_millis: z.int().min(10).max(PLATFORM_CEILINGS.maxExportIntervalMillis),
+  acknowledgement_lag_millis: z.int().min(100).max(PLATFORM_CEILINGS.maxAcknowledgementLagMillis),
+  flush_timeout_millis: z.int().min(100).max(PLATFORM_CEILINGS.maxFlushTimeoutMillis),
   retry: z.strictObject({
-    initial_backoff_millis: z.int().min(1).max(60_000),
-    max_backoff_millis: z.int().min(1).max(60_000),
+    initial_backoff_millis: z.int().min(1).max(PLATFORM_CEILINGS.maxBackoffMillis),
+    max_backoff_millis: z.int().min(1).max(PLATFORM_CEILINGS.maxBackoffMillis),
     multiplier: z.number().min(1).max(10),
     jitter_ratio: z.number().min(0).max(1),
-    max_attempts: z.int().min(1).max(12),
+    max_attempts: z.int().min(1).max(PLATFORM_CEILINGS.maxRetryAttempts),
   }),
 });
 
-export const propagationProbeSchema = z.strictObject({
+const propagationProbeSchema = z.strictObject({
   probe_id: z.uuid(),
   route_template: z.string().min(1).max(200),
   method: z.enum(HTTP_METHODS),

@@ -16,7 +16,7 @@ from uuid import UUID
 from fastapi import APIRouter, Path, Response, WebSocket
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.auth.dependencies import AuthenticatedIdentity, CurrentDatabase
+from app.auth.dependencies import AuthenticatedIdentity, CurrentDatabase, CurrentPorts
 from app.db.pool import Database
 from app.db.rows import as_uuid
 from app.errors import AuthorizationError
@@ -34,12 +34,9 @@ from app.ingestion.control_hub import require_control_hub
 from app.ingestion.wiring import require_signer
 from app.interview.controls import RETURN_WINDOW_SECONDS
 from app.interview.settings import get_interview_settings
-from app.logging import get_logger
-from app.ports import PortRegistry
 
-__all__ = ["router"]
+__all__ = ["router", "supported_protocol_versions"]
 
-_log = get_logger(__name__)
 
 router = APIRouter(prefix="/v1/extension", tags=["extension"])
 
@@ -128,7 +125,7 @@ async def register(
         database,
         request=body,
         audience=interview.extension_api_audience,
-        supported_protocol_versions=_supported_protocol_versions(),
+        supported_protocol_versions=supported_protocol_versions(),
         possession_max_age_seconds=interview.possession_proof_lifetime_seconds,
     )
     return InstallationRegistrationResult(
@@ -161,21 +158,19 @@ async def revoke(
 
 
 @router.websocket("/control")
-async def extension_control(websocket: WebSocket) -> None:
+async def extension_control(
+    websocket: WebSocket, database: CurrentDatabase, ports: CurrentPorts
+) -> None:
     """Carry the extension's authorized command and result protocol."""
-    state = websocket.app.state
-    database = state.database
-    if not isinstance(database, Database):
-        raise TypeError("the application was assembled without a database connector")
     interview = get_interview_settings()
     socket = ExtensionControlSocket(
         websocket,
         SocketDependencies(
             database=database,
             verifier=PageProofVerifier(signer=require_signer(websocket.app)),
-            observation=_provider_registry(state).observation,
+            observation=ports.observation,
             control_hub=require_control_hub(websocket.app),
-            supported_protocol_versions=_supported_protocol_versions(),
+            supported_protocol_versions=supported_protocol_versions(),
             socket_audience=interview.extension_socket_audience,
             possession_max_age_seconds=interview.possession_proof_lifetime_seconds,
             return_window_seconds=RETURN_WINDOW_SECONDS,
@@ -185,7 +180,7 @@ async def extension_control(websocket: WebSocket) -> None:
     await socket.serve()
 
 
-def _supported_protocol_versions() -> tuple[str, ...]:
+def supported_protocol_versions() -> tuple[str, ...]:
     """The current and previous extension protocol this control plane accepts."""
     interview = get_interview_settings()
     return tuple(
@@ -196,14 +191,6 @@ def _supported_protocol_versions() -> tuple[str, ...]:
             )
         )
     )
-
-
-def _provider_registry(state: object) -> PortRegistry:
-    """Return the kernel's provider registry from one application's state."""
-    registry = getattr(state, "ports", None)
-    if not isinstance(registry, PortRegistry):
-        raise TypeError("the application was assembled without a port registry")
-    return registry
 
 
 async def _utrace_user(database: Database, *, auth_user_id: UUID) -> UUID:

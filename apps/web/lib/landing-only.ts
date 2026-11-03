@@ -6,13 +6,12 @@
  * `/_next/*` and any path with a file extension.
  */
 
-export const LANDING_ONLY_VARIABLE = "LANDING_ONLY";
+const LANDING_ONLY_VARIABLE = "LANDING_ONLY";
 
 export function isLandingOnly(env: Readonly<Record<string, string | undefined>>): boolean {
   return env[LANDING_ONLY_VARIABLE]?.trim() === "1";
 }
 
-/** True when a request for `pathname` must be redirected to the landing. */
 export function landingOnlyRedirects(pathname: string, env: Readonly<Record<string, string | undefined>>): boolean {
   if (!isLandingOnly(env)) return false;
   return pathname !== "/";

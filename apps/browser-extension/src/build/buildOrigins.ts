@@ -11,6 +11,9 @@
  */
 import { z } from "zod";
 
+/** Every http and https page: onboarding requests the two together. */
+export const HOST_PERMISSIONS = ["https://*/*", "http://*/*"] as const;
+
 const ORIGIN_PATTERN = /^[a-z][a-z0-9+.-]*:\/\/[^/?#]+$/u;
 const BASE_URL_PATTERN = /^[a-z][a-z0-9+.-]*:\/\/[^/?#@]+(\/[^?#]*)?$/u;
 
@@ -35,7 +38,7 @@ export type BuildOrigins = Readonly<{
   manifestKey: string;
 }>;
 
-export class BuildConfigError extends Error {
+class BuildConfigError extends Error {
   readonly field: string;
 
   constructor(field: string, message: string) {
@@ -60,8 +63,6 @@ const buildOriginsSchema = z
   .strict();
 
 /**
- * Validates raw JSON into the build origins.
- *
  * Remote origins must be `https`/`wss`; plaintext is accepted only for
  * loopback development and test builds, which is the single place this
  * package relaxes transport security.

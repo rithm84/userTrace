@@ -174,7 +174,6 @@ class AttemptRunner:
         self._prebuild: asyncio.Task[PrebuiltCandidate] | None = None
 
     async def run(self) -> AttemptRunResult:
-        """Execute the attempt and return its outcome."""
         specification = self._specification
         ledger = self._ledger
         await self._progress(ImplementationProgress.REPRODUCTION_CAPTURED)
@@ -697,7 +696,6 @@ class AttemptRunner:
             )
 
     async def _stage_and_diff(self, executor: ToolExecutor) -> str:
-        """Stage everything the cycle wrote and return the complete staged diff."""
         await executor.execute(
             RunProcess(
                 tool=ToolName.RUN_PROCESS,
@@ -755,7 +753,6 @@ class AttemptRunner:
         return result.stdout
 
     async def _dependency_identity(self, executor: ToolExecutor) -> DependencyLockIdentity:
-        """Read the candidate's manifest and lockfile digests."""
         manifest = await self._read_optional(executor, "package.json")
         lockfile = await self._read_optional(executor, "package-lock.json")
         return DependencyLockIdentity(

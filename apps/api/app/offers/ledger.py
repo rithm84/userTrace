@@ -100,12 +100,11 @@ async def _authorization(
     )
 
 
-async def current_allowance(
-    conn: AsyncConnection[DictRow], *, client_id: UUID, currency: str | None
+async def _allowance(
+    conn: AsyncConnection[DictRow], *, client_id: UUID, currency: str | None, lock: bool
 ) -> Allowance:
-    """Read the client's authorized, reserved, earned, and remaining allowance."""
     authorization = await _authorization(
-        conn, client_id=client_id, currency=currency, lock=False
+        conn, client_id=client_id, currency=currency, lock=lock
     )
     if authorization is None:
         return Allowance(
@@ -124,6 +123,13 @@ async def current_allowance(
         reserved_minor_units=reserved,
         earned_minor_units=earned,
     )
+
+
+async def current_allowance(
+    conn: AsyncConnection[DictRow], *, client_id: UUID, currency: str | None
+) -> Allowance:
+    """Read the client's authorized, reserved, earned, and remaining allowance."""
+    return await _allowance(conn, client_id=client_id, currency=currency, lock=False)
 
 
 async def lock_allowance(
@@ -133,28 +139,9 @@ async def lock_allowance(
 
     Serializing on the authorization row is what makes concurrent invitations
     unable to exceed the remaining allowance: the second transaction waits, then
-    sees the first reservation.
+    sees the first reservation. ``sequence_number`` is ``0`` when no ceiling exists.
     """
-    authorization = await _authorization(
-        conn, client_id=client_id, currency=currency, lock=True
-    )
-    if authorization is None:
-        return Allowance(
-            currency=currency,
-            sequence_number=0,
-            authorized_minor_units=0,
-            reserved_minor_units=0,
-            earned_minor_units=0,
-        )
-    resolved, sequence_number, authorized = authorization
-    reserved, earned = await _totals(conn, client_id=client_id, currency=resolved)
-    return Allowance(
-        currency=resolved,
-        sequence_number=sequence_number,
-        authorized_minor_units=authorized,
-        reserved_minor_units=reserved,
-        earned_minor_units=earned,
-    )
+    return await _allowance(conn, client_id=client_id, currency=currency, lock=True)
 
 
 async def record_entry(

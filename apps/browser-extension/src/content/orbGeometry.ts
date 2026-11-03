@@ -15,7 +15,7 @@ import type { OrbSettings } from "../shared/portMessages";
 
 export type Viewport = Readonly<{ width: number; height: number }>;
 export type Point = Readonly<{ x: number; y: number }>;
-export type Size = Readonly<{ width: number; height: number }>;
+type Size = Readonly<{ width: number; height: number }>;
 
 /**
  * Control sizes in CSS pixels; the interface renders at these exact values.
@@ -38,7 +38,7 @@ export const ORB_LAYOUT = Object.freeze({
 });
 
 /** Offsets from the orb's centre to the centre of each expanded pill. */
-export type PillOffsets = Readonly<{ stack: number; side: number }>;
+type PillOffsets = Readonly<{ stack: number; side: number }>;
 
 export function orbRadius(diameter: number): number {
   return Math.round(diameter / 2);
@@ -120,7 +120,6 @@ export function confirmationOrigin(
   return { x: Math.round(x), y: Math.round(y) };
 }
 
-/** A whole-pixel CSS length. */
 export function px(value: number): string {
   return `${String(value)}px`;
 }

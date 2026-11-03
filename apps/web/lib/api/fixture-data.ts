@@ -513,7 +513,6 @@ export const fixtureCaseDetails: Readonly<Record<string, CaseDetail>> = {
   },
 };
 
-/** One material claim and the single evidence slice this fixture cites for it. */
 /**
  * The durable Interview Session row, as `GET /v1/sessions/{id}` answers it.
  * The session tab renders the committed projection below; this is the

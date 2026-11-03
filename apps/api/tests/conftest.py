@@ -70,7 +70,6 @@ OWNED_TABLES: tuple[str, ...] = (
     "ingestion_receipt_stages",
     "ingestion_receipts",
     "telemetry_artifacts",
-    "telemetry_credential_revocations",
     "telemetry_credentials",
     "telemetry_activations",
     "preview_environments",

@@ -56,18 +56,10 @@ Object.defineProperty(HTMLMediaElement.prototype, "play", {
   value: vi.fn().mockResolvedValue(undefined),
 });
 
-Object.defineProperty(HTMLMediaElement.prototype, "pause", {
-  configurable: true,
-  writable: true,
-  value: vi.fn(),
-});
-
 vi.mock("next/link", () => ({
   default: ({ children, href, ...props }: Record<string, unknown>) =>
     createElement("a", { href, ...props }, children),
 }));
-
-export const testPathname = { current: "/" };
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -78,8 +70,15 @@ vi.mock("next/navigation", () => ({
     forward: vi.fn(),
     prefetch: vi.fn(),
   }),
-  usePathname: () => testPathname.current,
+  usePathname: () => "/",
   useSearchParams: () => new URLSearchParams(),
   redirect: vi.fn(),
   notFound: vi.fn(),
+}));
+
+// jsdom has no WebGL: every landing rig renders an empty canvas and never loads.
+vi.mock("@rive-app/react-webgl2", () => ({
+  useRive: () => ({ rive: null, RiveComponent: () => createElement("canvas") }),
+  useViewModelInstanceNumber: () => ({ value: 0, setValue: () => undefined }),
+  useViewModelInstanceEnum: () => ({ value: "idle", values: [], setValue: () => undefined }),
 }));

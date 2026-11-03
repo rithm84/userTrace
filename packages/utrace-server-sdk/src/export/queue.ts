@@ -13,8 +13,7 @@ import type { ExportLimits } from '../contracts/activation.js';
 import type { BufferStatus } from '../contracts/health.js';
 import type { ExportBatch } from './batch.js';
 
-/** What `admit` decided about one redacted span. */
-export type AdmissionOutcome =
+type AdmissionOutcome =
   | { readonly kind: 'admitted'; readonly highWaterReached: boolean }
   | { readonly kind: 'exhausted'; readonly queuedSpans: number };
 

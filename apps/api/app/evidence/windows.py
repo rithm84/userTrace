@@ -79,7 +79,6 @@ class EvidenceWindow:
     revision: int
 
     def is_frozen(self) -> bool:
-        """Return whether later data can still reach this window."""
         return self.mode == "frozen"
 
 
@@ -334,7 +333,6 @@ async def freeze_window(
 
 
 async def load_window(database: Database, *, evidence_window_id: UUID) -> EvidenceWindow:
-    """Load one evidence window."""
     async with database.connection() as conn:
         return await _load(conn, evidence_window_id=evidence_window_id, lock=False)
 

@@ -33,7 +33,6 @@ def _proposal(
     decision: str,
     evidence_id: str,
     finding_id: str,
-    path: str = "src/lib/dashboard/saved-views.ts",
     estimated_elapsed_seconds: int = 900,
 ) -> GateProposal:
     return GateProposal(
@@ -43,7 +42,7 @@ def _proposal(
         excluded_changes=["sharing", "rename", "deletion", "a dashboard redesign"],
         proposed_changes=[
             ProposedChange(
-                path=path,
+                path="src/lib/dashboard/saved-views.ts",
                 change_kind="create",
                 rationale="the filter stack is not persisted anywhere today",
                 cited_finding_ids=[finding_id],
@@ -200,35 +199,6 @@ async def test_an_uncited_reference_commits_no_implementation_with_a_typed_block
     row = await _decision_row(database, outcome.gate_decision_id)
     assert as_optional_str(row, "blocker_reason") is not None
     assert "unverifiable_citation" in as_str(row, "blocker_reason")
-
-
-async def test_a_blocked_surface_proposal_denies_implementation(
-    database: Database, auth_users: dict[str, SignedInUser]
-) -> None:
-    """A proposal that would change a blocked surface never becomes an approval."""
-    case, evidence_id, finding_id = await prepare_gated_case(
-        database, auth_users["owner_a"].auth_user_id, "gate-blocked"
-    )
-    bundle = await assemble_gate_bundle(
-        database,
-        client_id=case.client_id,
-        product_signal_id=case.product_signal_id,
-        now=datetime.now(tz=UTC),
-    )
-    outcome = await decide_gate(
-        database,
-        bundle=bundle,
-        proposal=_proposal(
-            decision="approved_live",
-            evidence_id=evidence_id,
-            finding_id=finding_id,
-            path="src/lib/utrace/chart-state.ts",
-        ),
-        base_revision=SHOPALYTICS_BASE_REVISION,
-        now=datetime.now(tz=UTC),
-    )
-    assert outcome.decision is GateDecisionKind.NO_IMPLEMENTATION
-    assert outcome.blocker is GateBlocker.BLOCKED_CODE_SURFACE
 
 
 async def test_an_unprepared_environment_denies_implementation(

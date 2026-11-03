@@ -45,26 +45,20 @@ def test_the_promised_reward_passes_identity() -> None:
     )
 
 
-def test_a_transaction_on_another_customer_is_refused() -> None:
-    with pytest.raises(BillingError, match="not the mapped Dudulemon customer"):
+@pytest.mark.parametrize(
+    ("customer", "amount", "currency", "refusal"),
+    [
+        ("cus_someone_else", -25_000, "usd", "not the mapped Dudulemon customer"),
+        (CUSTOMER, -10_000, "usd", "not the promised"),
+        (CUSTOMER, -25_000, "eur", "not usd"),
+    ],
+)
+def test_a_reward_off_the_promise_is_refused(
+    customer: str, amount: int, currency: str, refusal: str
+) -> None:
+    with pytest.raises(BillingError, match=refusal):
         verify_reward_identity(
-            _transaction(customer="cus_someone_else", amount=-25_000, currency="usd"),
-            customer_id=CUSTOMER,
-        )
-
-
-def test_a_transaction_of_the_wrong_amount_is_refused() -> None:
-    with pytest.raises(BillingError, match="not the promised"):
-        verify_reward_identity(
-            _transaction(customer=CUSTOMER, amount=-10_000, currency="usd"),
-            customer_id=CUSTOMER,
-        )
-
-
-def test_a_transaction_in_the_wrong_currency_is_refused() -> None:
-    with pytest.raises(BillingError, match="not usd"):
-        verify_reward_identity(
-            _transaction(customer=CUSTOMER, amount=-25_000, currency="eur"),
+            _transaction(customer=customer, amount=amount, currency=currency),
             customer_id=CUSTOMER,
         )
 
@@ -73,16 +67,16 @@ def test_the_scenarios_invoice_passes() -> None:
     verify_invoice_application(_invoice(total=100_000, applied=25_000, due=75_000))
 
 
-def test_an_invoice_that_applied_nothing_is_refused() -> None:
-    with pytest.raises(BillingError, match="minor units of credit"):
-        verify_invoice_application(_invoice(total=100_000, applied=0, due=100_000))
-
-
-def test_an_invoice_of_the_wrong_total_is_refused() -> None:
-    with pytest.raises(BillingError, match="not the scenario's"):
-        verify_invoice_application(_invoice(total=50_000, applied=25_000, due=25_000))
-
-
-def test_an_invoice_leaving_the_wrong_amount_due_is_refused() -> None:
-    with pytest.raises(BillingError, match="not the expected"):
-        verify_invoice_application(_invoice(total=100_000, applied=25_000, due=80_000))
+@pytest.mark.parametrize(
+    ("total", "applied", "due", "refusal"),
+    [
+        (100_000, 0, 100_000, "minor units of credit"),
+        (50_000, 25_000, 25_000, "not the scenario's"),
+        (100_000, 25_000, 80_000, "not the expected"),
+    ],
+)
+def test_an_invoice_off_the_scenario_is_refused(
+    total: int, applied: int, due: int, refusal: str
+) -> None:
+    with pytest.raises(BillingError, match=refusal):
+        verify_invoice_application(_invoice(total=total, applied=applied, due=due))

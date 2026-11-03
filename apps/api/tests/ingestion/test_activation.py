@@ -133,7 +133,6 @@ async def test_attestation_cannot_be_exchanged_twice(
 async def test_activation_refuses_a_session_credential_for_another_origin(
     telemetry_database: Database,
     settings: Settings,
-    keys: SigningKeys,
     ingest_server: str,
     auth_users: dict[str, SignedInUser],
 ) -> None:

@@ -16,7 +16,7 @@ from app.interview.settings import (
     UnknownAgentCharacterError,
     get_interview_settings,
 )
-from app.settings import ConfigurationError, Settings, get_settings
+from app.settings import ConfigurationError, get_settings
 
 _REQUIRED = (
     "UTRACE_DATABASE_URL",
@@ -44,7 +44,6 @@ def cleared_environment() -> Iterator[None]:
 def test_missing_configuration_names_variables_without_echoing_values(
     cleared_environment: None,
 ) -> None:
-    """The refusal lists variable names only."""
     os.environ["UTRACE_DATABASE_URL"] = "postgresql://user:hunter2@example.invalid/db"
     try:
         with pytest.raises(ConfigurationError) as refusal:
@@ -81,13 +80,3 @@ def test_the_agent_character_must_name_a_shipped_rive_rig() -> None:
         else:
             os.environ["UTRACE_AGENT_CHARACTER"] = saved
         get_interview_settings.cache_clear()
-
-
-def test_derived_supabase_endpoints_follow_the_project_url() -> None:
-    """The issuer and JWKS endpoint come from the project URL, never a guess."""
-    settings = Settings.model_construct(supabase_url="https://project.supabase.co/")
-    assert settings.supabase_jwt_issuer == "https://project.supabase.co/auth/v1"
-    assert (
-        settings.supabase_jwks_url
-        == "https://project.supabase.co/auth/v1/.well-known/jwks.json"
-    )

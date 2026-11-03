@@ -312,8 +312,12 @@ def signed_server_manifest(keys: SigningKeys) -> dict[str, object]:
 
 async def start_server_activation(
     database: Database, *, preview: PreviewFixture, keys: SigningKeys
-) -> tuple[UUID, UUID, str, str]:
-    """Activate one server service and return its identities, token, and entry token."""
+) -> tuple[UUID, UUID, UUID, str, str]:
+    """Activate one server service.
+
+    Returns its activation, server stream, and service instance IDs, its
+    credential token, and its preview entry token.
+    """
     server_stream_id = uuid7()
     activation, credential, preview_entry_token = await create_server_activation(
         database,
@@ -332,6 +336,7 @@ async def start_server_activation(
     return (
         activation.activation_id,
         activation.server_stream_id,
+        activation.service_instance_id,
         credential.token,
         preview_entry_token,
     )

@@ -35,10 +35,10 @@ import { decodeSignedEnvelope, payloadDigest, verifySignedEnvelope } from "./sig
  * window aborts, so a slow or hung front door cannot hold the application
  * before hydration indefinitely.
  */
-export const ACTIVATION_REQUEST_TIMEOUT_MS = 10_000;
+const ACTIVATION_REQUEST_TIMEOUT_MS = 10_000;
 
 /** Same-origin control-path fetch captured before any hook is installed. */
-export type ControlFetch = (path: string, body: string) => Promise<Response>;
+type ControlFetch = (path: string, body: string) => Promise<Response>;
 
 export const controlFetch = (view: BrowserView): ControlFetch => {
   const nativeFetch = view.fetch.bind(view);
@@ -53,7 +53,7 @@ export const controlFetch = (view: BrowserView): ControlFetch => {
     });
 };
 
-export interface ActivationRequest {
+interface ActivationRequest {
   readonly config: BrowserSdkConfig;
   readonly documentOrigin: string;
   readonly fetchControl: ControlFetch;

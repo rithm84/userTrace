@@ -1,0 +1,23 @@
+---
+title: Autonomy Policy pinning · each step narrows authority, none widens it
+---
+flowchart TB
+  deny[/"`**Deny-only overrides**
+  Offboarding · credential revocation
+  Legal deletion · security prohibition`"/]:::external
+  release@{ shape: doc, label: "**Configuration release N**<br/>Immutable Autonomy Policy" }
+  later@{ shape: doc, label: "**Configuration release N+1**<br/>Published later" }
+  signal[Product Signal]:::runtime
+  newer[Later Product Signals]:::runtime
+  gate{{Implementation Gate decision}}:::gate
+  scope@{ shape: doc, label: "**Approved scope**<br/>Frozen for one attempt" }
+  attempt[Implementation Attempt]:::runtime
+
+  release -->|pinned for its lifecycle| signal
+  later -->|pinned by| newer
+  deny blocked_1@-.->|removes authority at once, never grants it| signal
+  signal -->|each gate decision| gate
+  gate -->|approved_live freezes| scope
+  scope -->|authorizes one| attempt
+  attempt async_1@-.->|change asked · up to implementation_limit| gate
+  class release,later,scope gate

@@ -5,7 +5,7 @@ One Intake Item walks `received -> routing -> routed`, or into
 an immutable routing decision, including the ones that blocked and the ones that
 followed conditional assistance.
 
-Contract: docs/arch-components/signal-and-outreach.md#routing-and-matching-contract
+Contract: docs/arch-components/signal-and-outreach.md#routing-contract
 """
 
 from __future__ import annotations

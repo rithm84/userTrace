@@ -6,36 +6,23 @@ from uuid import UUID
 from utrace_contracts.domain.lifecycle import (
     CriterionObservability,
     InterviewPhase,
-    ProductSignalState,
 )
 
 from app.context.bundles import AssembledBundle, assemble_bundle
 from app.context.purposes import BundlePurpose
 from app.db.pool import Database
-from app.interview.voice.tools import ToolContext, execute_tool
-from tests.factories import CaseFixture, create_case
+from app.interview.voice.tools import ToolContext, execute_tool, progress_in_words
+from tests.factories import CaseFixture
 from tests.interview.fixtures import (
     create_live_session,
+    interviewing_case,
 )
 from tests.supabase_auth import SignedInUser
 
-_DEVICE_KEY = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEtoolstestkeyfortheinstallationrecord"
 _OBSERVATION_WINDOW_SECONDS = 300
 
 
-async def _case(database: Database, auth_users: dict[str, SignedInUser], name: str) -> CaseFixture:
-    """One routed Product Signal in its interviewing state."""
-    return await create_case(
-        database,
-        name=name,
-        state=ProductSignalState.INTERVIEWING,
-        authorizing_auth_user_id=auth_users["owner_a"].auth_user_id,
-        participant_auth_user_id=None,
-    )
-
-
 async def _bundle(database: Database, *, case: CaseFixture, session_id: UUID) -> AssembledBundle:
-    """Assemble one current tool-call bundle."""
     return await assemble_bundle(
         database,
         client_id=case.client_id,
@@ -53,7 +40,7 @@ async def _bundle(database: Database, *, case: CaseFixture, session_id: UUID) ->
 async def test_recording_criteria_freezes_them_and_advances_the_concern_revision(
     database: Database, auth_users: dict[str, SignedInUser]
 ) -> None:
-    case = await _case(database, auth_users, "tools-criteria")
+    case = await interviewing_case(database, auth_users, "tools-criteria")
     session_id = await create_live_session(database, case=case, phase=InterviewPhase.DISCOVERY)
     bundle = await _bundle(database, case=case, session_id=session_id)
     context = ToolContext(
@@ -87,7 +74,7 @@ async def test_recording_criteria_freezes_them_and_advances_the_concern_revision
     assert recorded == {"acceptance_criteria_revision": 1, "criterion_count": 2}
 
     status = json.loads(await execute_tool(context, name="implementation_status", arguments={}))
-    assert status["progress"] == "nothing is being changed yet"
+    assert status["progress"] == progress_in_words("not_started")
     assert status["work_in_flight"] is False
 
     async with database.connection() as conn, conn.cursor() as cur:

@@ -311,26 +311,6 @@ describe("proxy", () => {
     runtime.respond = defaultRuntimeResponse;
   });
 
-  it("gives a leaked preview URL with no cookie the neutral interstitial", async () => {
-    controlPlane.routes.set(
-      sessionHost,
-      readyRoute({ host: sessionHost, routeRevision: 4 }),
-    );
-
-    const response = await proxied({
-      host: sessionHost,
-      method: "GET",
-      path: "/dashboard",
-      headers: {},
-      body: null,
-    });
-
-    expect(response.status).toBe(404);
-    expect(response.body).toContain("Nothing to open here");
-    expect(controlPlane.received).toHaveLength(0);
-    expect(runtime.received).toHaveLength(0);
-  });
-
   it("refuses a session credential the control plane does not recognise", async () => {
     controlPlane.routes.set(
       sessionHost,

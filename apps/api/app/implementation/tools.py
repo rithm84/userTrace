@@ -47,6 +47,7 @@ __all__ = [
     "WorkspaceShell",
     "WriteFile",
     "journal_payload",
+    "require_active_lease",
 ]
 
 _logger = structlog.get_logger(__name__)
@@ -70,8 +71,6 @@ class ToolCallRefusedError(Exception):
 
 
 class ToolModel(BaseModel):
-    """Base for the tool payloads: immutable and closed to extra fields."""
-
     model_config = ConfigDict(frozen=True, extra="forbid")
 
 
@@ -91,8 +90,6 @@ class WriteFile(ToolModel):
 
 
 class RunProcess(ToolModel):
-    """Run one command inside the checkout."""
-
     tool: Literal[ToolName.RUN_PROCESS]
     command: str
     working_directory: str
@@ -143,7 +140,6 @@ class WorkspaceShell(Protocol):
     """
 
     async def execute(self, call: RunProcess | ReadFile) -> ToolResult:
-        """Run one command or read one file."""
         ...
 
     def at_root(self, workspace_root: str) -> WorkspaceShell:
@@ -196,7 +192,6 @@ class ToolExecutor:
 
     @property
     def workspace(self) -> WorkspaceAccess:
-        """The sandbox this executor drives."""
         return WorkspaceAccess(sandboxes=self._sandboxes, handle=self._handle)
 
     async def require_current_lease(self) -> None:
@@ -282,29 +277,21 @@ class ToolExecutor:
 
     async def _require_current_lease(self, tool: ToolName) -> None:
         """Refuse a mutating call whose run no longer holds the attempt's lease."""
-        lease = self._specification.lease
-        async with self._database.connection() as conn, conn.cursor() as cur:
-            await cur.execute(
-                """
-                select fencing_token from public.environment_leases
-                where id = %s and implementation_attempt_id = %s and state = 'active'
-                """,
-                (lease.lease_id, self._specification.implementation_attempt_id),
+        try:
+            await require_active_lease(
+                self._database,
+                specification=self._specification,
+                fencing_token=self._fencing_token,
             )
-            row: DictRow | None = await cur.fetchone()
-        if row is None or as_int(row, "fencing_token") != self._fencing_token:
+        except LeaseLostError:
             _logger.warning(
                 "implementation.tool.stale_lease",
                 tool=tool.value,
                 attempt_id=str(self._specification.implementation_attempt_id),
-                lease_id=str(lease.lease_id),
+                lease_id=str(self._specification.lease.lease_id),
                 fencing_token=self._fencing_token,
             )
-            raise LeaseLostError(
-                lease_kind="environment",
-                lease_id=lease.lease_id,
-                fencing_token=self._fencing_token,
-            )
+            raise
 
     def _absolute(self, path: str, *, allow_root: bool) -> str:
         """Resolve a repository-relative path inside the checkout, or refuse it."""
@@ -354,6 +341,25 @@ class ToolExecutor:
         )
 
 
+async def require_active_lease(
+    database: Database, *, specification: AttemptSpecification, fencing_token: int
+) -> None:
+    """Raise `LeaseLostError` unless the attempt's lease is active at exactly this token."""
+    lease = specification.lease
+    async with database.connection() as conn, conn.cursor() as cur:
+        await cur.execute(
+            """
+            select fencing_token from public.environment_leases
+            where id = %s and implementation_attempt_id = %s and state = 'active'
+            """,
+            (lease.lease_id, specification.implementation_attempt_id),
+        )
+        row: DictRow | None = await cur.fetchone()
+    if row is None or as_int(row, "fencing_token") != fencing_token:
+        raise LeaseLostError(
+            lease_kind="environment", lease_id=lease.lease_id, fencing_token=fencing_token
+        )
+
+
 def journal_payload(entries: Sequence[ToolJournalEntry]) -> list[Mapping[str, object]]:
-    """Render the journal for the durable artifact."""
     return [entry.model_dump(mode="json") for entry in entries]

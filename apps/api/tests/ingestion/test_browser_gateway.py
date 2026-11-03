@@ -99,7 +99,6 @@ async def active_stream(
     ingest_server: str,
     auth_users: dict[str, SignedInUser],
 ) -> AsyncIterator[ActiveBrowserStream]:
-    """One activated document ready to export."""
     yield await _activate(
         telemetry_database,
         settings,
@@ -111,7 +110,6 @@ async def active_stream(
 
 
 def _exporter(stream: ActiveBrowserStream, url: str) -> BrowserExporter:
-    """Build an exporter for one activated document."""
     return BrowserExporter(
         url,
         token=stream.document.token,
@@ -123,7 +121,6 @@ def _exporter(stream: ActiveBrowserStream, url: str) -> BrowserExporter:
 
 
 def _record(stream: ActiveBrowserStream, sequence: int) -> dict[str, object]:
-    """Build one interaction record at a given export sequence."""
     return observation(
         observation_type="interaction.activation",
         runtime_id=stream.runtime_id,
@@ -150,7 +147,6 @@ async def test_receipt_is_durable_before_the_acknowledgement(
     telemetry_database: Database,
     ingest_websocket_url: str,
 ) -> None:
-    """The acknowledged batch is already a committed receipt and committed records."""
     async with _exporter(active_stream, ingest_websocket_url) as exporter:
         accepted = await exporter.open_stream(resume_from=0)
         assert accepted["kind"] == "stream.accepted"
@@ -302,7 +298,6 @@ async def test_a_paused_stream_reopens_at_its_watermark(
     telemetry_database: Database,
     ingest_websocket_url: str,
 ) -> None:
-    """Resume keeps the same stream and continues from the durable acknowledgement."""
     async with _exporter(active_stream, ingest_websocket_url) as exporter:
         await exporter.open_stream(resume_from=0)
         ack = await exporter.send_batch([_record(active_stream, 1)], batch_id=None)
@@ -480,7 +475,6 @@ async def test_a_forbidden_value_is_refused_and_nothing_is_written(
     telemetry_database: Database,
     ingest_websocket_url: str,
 ) -> None:
-    """A payload with platform-excluded material reaches no store at all."""
     unsafe = observation(
         observation_type="product.milestone",
         runtime_id=active_stream.runtime_id,
@@ -662,7 +656,6 @@ async def test_an_acknowledgement_beyond_the_durable_watermark_is_refused(
     active_stream: ActiveBrowserStream,
     ingest_websocket_url: str,
 ) -> None:
-    """A resume that claims more than ingestion committed is an integrity failure."""
     async with _exporter(active_stream, ingest_websocket_url) as exporter:
         refusal = await exporter.open_stream(resume_from=12)
     assert refusal["kind"] == "error"

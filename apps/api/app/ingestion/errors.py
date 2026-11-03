@@ -45,10 +45,6 @@ class TelemetryAuthenticationError(IngestionError):
     """The presented credential is absent, unknown, expired, or revoked."""
 
     code = "credential_rejected"
-    stage = "received"
-
-    def __init__(self, reason: str) -> None:
-        super().__init__(reason)
 
 
 class PayloadLimitError(IngestionError):

@@ -41,7 +41,6 @@ class SigningKeys:
 
 
 def _b64url(raw: bytes) -> str:
-    """Encode raw key bytes as unpadded base64url."""
     return urlsafe_b64encode(raw).decode("ascii").rstrip("=")
 
 

@@ -12,9 +12,9 @@ preview area needs on top of ``app.connectors.vercel_sandboxes``:
   no provider-level authorization; the runtime's own middleware and entry token
   are the ingress check. The URL is a server-side route target only.
 
-Fencing is the caller's: ``app.preview.pool.require_current_fencing_token``
-re-reads the allocation's token immediately before any mutating sequence, so a
-worker holding a superseded handle cannot write, publish, or route traffic.
+This adapter does not fence. ``app.preview.pool.acquire_allocation`` mints a fresh
+fencing token for an allocation, but no preview step re-reads that token before a
+mutating sequence, so a worker holding a superseded handle is not refused here.
 """
 
 from __future__ import annotations
@@ -133,13 +133,10 @@ class PreviewRuntimeHandle:
 
 
 class PreviewRuntimeProvider:
-    """Sandbox operations for preview runtimes."""
-
     def __init__(self, *, grant: SandboxGrant) -> None:
         self._sandboxes = VercelSandboxes(grant=grant)
 
     async def __aenter__(self) -> Self:
-        """Enter the connector's scope."""
         await self._sandboxes.__aenter__()
         return self
 
@@ -149,7 +146,6 @@ class PreviewRuntimeProvider:
         exc: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
-        """Close the connector's session."""
         await self._sandboxes.__aexit__(exc_type, exc, traceback)
 
     async def snapshot_exists(self, *, snapshot_id: str) -> bool:
@@ -285,11 +281,9 @@ class PreviewRuntimeProvider:
     async def write_file(
         self, *, handle: PreviewRuntimeHandle, path: str, content: bytes
     ) -> None:
-        """Replace one file inside the runtime."""
         await self._sandboxes.write_file(handle.sandbox, path=path, content=content)
 
     async def read_file(self, *, handle: PreviewRuntimeHandle, path: str) -> bytes:
-        """Read one file out of the runtime."""
         return await self._sandboxes.read_file(handle.sandbox, path=path)
 
     def upstream_url(self, *, handle: PreviewRuntimeHandle) -> str:

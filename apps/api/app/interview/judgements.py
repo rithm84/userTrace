@@ -35,8 +35,8 @@ from app.logging import get_logger
 __all__ = [
     "STALE_BUNDLE",
     "AttentionResult",
+    "bundle_provenance",
     "bundle_state",
-    "check_batch",
     "conversation_state",
     "judge",
     "record_judgement",
@@ -82,7 +82,7 @@ async def judge(
             raise ValueError(precheck.detail)
 
     batch = await jev.judge(state=dict(state), questions=dict(questions))
-    outcome = check_batch(
+    outcome = _check_batch(
         batch=batch, supplied_options=supplied_options, thresholds=thresholds
     )
     freshness = await check_bundle_freshness(database, bundle_id=bundle.bundle_id)
@@ -125,13 +125,12 @@ async def judge(
     )
 
 
-def check_batch(
+def _check_batch(
     *,
     batch: JevBatchResult,
     supplied_options: Mapping[str, Sequence[str]],
     thresholds: Mapping[str, ChoiceThreshold],
 ) -> AcceptanceOutcome:
-    """Apply the contract's acceptance checks to one batch."""
     expected = dict.fromkeys(thresholds, JevPrimitive.CHOICE)
     outcomes = [
         check_answer_primitives(
@@ -154,6 +153,16 @@ def check_batch(
     return accept_all(outcomes)
 
 
+def bundle_provenance(bundle: AssembledBundle) -> dict[str, JsonValue]:
+    """The bundle's identity, revision, digest, and cutoff, which every supplied state carries."""
+    return {
+        "context_bundle_id": str(bundle.bundle_id),
+        "context_revision": bundle.context_revision,
+        "digest": bundle.digest,
+        "cutoff_at": bundle.cutoff_at.isoformat(),
+    }
+
+
 def bundle_state(bundle: AssembledBundle) -> dict[str, JsonValue]:
     """Render the bundle as the supplied state, with its provenance attached.
 
@@ -162,10 +171,7 @@ def bundle_state(bundle: AssembledBundle) -> dict[str, JsonValue]:
     here.
     """
     return {
-        "context_bundle_id": str(bundle.bundle_id),
-        "context_revision": bundle.context_revision,
-        "digest": bundle.digest,
-        "cutoff_at": bundle.cutoff_at.isoformat(),
+        **bundle_provenance(bundle),
         "context": [
             {
                 "section": item.section,
@@ -210,10 +216,7 @@ def conversation_state(bundle: AssembledBundle) -> dict[str, JsonValue]:
         for speaker, text in turns
     )
     return {
-        "context_bundle_id": str(bundle.bundle_id),
-        "context_revision": bundle.context_revision,
-        "digest": bundle.digest,
-        "cutoff_at": bundle.cutoff_at.isoformat(),
+        **bundle_provenance(bundle),
         "earlier": earlier,
         "participant_last_said": participant_last.strip(),
         "agent_last_said": agent_last.strip(),

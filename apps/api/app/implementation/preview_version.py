@@ -26,8 +26,7 @@ from utrace_contracts.canonical import payload_digest
 from utrace_contracts.domain.lifecycle import PreviewVersionState
 
 from app.db.pool import Database
-from app.db.rows import as_int, as_uuid
-from app.errors import LeaseLostError
+from app.db.rows import as_uuid
 from app.ids import uuid7
 from app.implementation.artifacts import ArtifactManifest
 from app.implementation.checks import CheckComparison, CheckRun
@@ -42,6 +41,7 @@ from app.implementation.ports import (
 )
 from app.implementation.scope_check import ScopeCheckResult
 from app.implementation.specification import AttemptSpecification
+from app.implementation.tools import require_active_lease
 
 __all__ = [
     "PublicationRefusal",
@@ -68,7 +68,6 @@ SECRET_PATTERNS: tuple[tuple[str, str], ...] = (
 class RefusalKind(StrEnum):
     """The closed set of reasons publication refuses a candidate."""
 
-    STALE_LEASE = "stale_lease"
     SCOPE_VIOLATED = "scope_violated"
     SOURCE_REVISION_MISMATCH = "source_revision_mismatch"
     NEW_CHECK_FAILURE = "new_check_failure"
@@ -139,8 +138,10 @@ async def publish_preview_version(
 
     A refusal leaves the prebuilt runtime with the caller; a handoff passes it on.
     """
+    await require_active_lease(
+        database, specification=specification, fencing_token=specification.lease.fencing_token
+    )
     refusals = [
-        *await _lease_refusals(database, specification),
         *_scope_refusals(scope_check, specification),
         *_check_refusals(comparison, candidate_checks),
         *_artifact_refusals(manifest),
@@ -196,28 +197,6 @@ async def publish_preview_version(
         allocation_id=str(acceptance.preview_runtime_allocation_id),
     )
     return (handoff, acceptance)
-
-
-async def _lease_refusals(
-    database: Database, specification: AttemptSpecification
-) -> Sequence[PublicationRefusal]:
-    """A candidate may be accepted only from the attempt's current active lease."""
-    async with database.connection() as conn, conn.cursor() as cur:
-        await cur.execute(
-            """
-            select fencing_token from public.environment_leases
-            where id = %s and implementation_attempt_id = %s and state = 'active'
-            """,
-            (specification.lease.lease_id, specification.implementation_attempt_id),
-        )
-        row = await cur.fetchone()
-    if row is None or as_int(row, "fencing_token") != specification.lease.fencing_token:
-        raise LeaseLostError(
-            lease_kind="environment",
-            lease_id=specification.lease.lease_id,
-            fencing_token=specification.lease.fencing_token,
-        )
-    return ()
 
 
 def _scope_refusals(
@@ -293,7 +272,6 @@ def _diff_refusals(final_diff: str) -> Sequence[PublicationRefusal]:
 
 
 def _build_digest(*, build: BuildRecipe, dependencies: DependencyLockIdentity) -> str:
-    """Digest the build recipe and the dependency lock identity together."""
     return payload_digest(
         {"build": build.model_dump(mode="json"), "dependencies": dependencies.model_dump(mode="json")}
     )

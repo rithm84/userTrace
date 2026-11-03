@@ -158,7 +158,7 @@ function AccountPanel(): JSX.Element {
   );
 }
 
-export function Avatar(props: Readonly<{ author: Author; size: number; online?: boolean }>): JSX.Element {
+function Avatar(props: Readonly<{ author: Author; size: number; online?: boolean }>): JSX.Element {
   const { avatar } = props.author;
   return (
     <span className={"dc-avatar" + (avatar === "app" ? " is-app" : "")} style={{ width: props.size, height: props.size, background: typeof avatar === "object" ? avatar.colour : undefined }}>
@@ -211,7 +211,7 @@ export function DmHeader(): JSX.Element {
   );
 }
 
-export function AppTag(): JSX.Element {
+function AppTag(): JSX.Element {
   return (
     <span className="dc-tag">
       <Check size={10} strokeWidth={3} />

@@ -58,34 +58,28 @@ def as_int(row: Mapping[str, object], column: str) -> int:
 
 
 def as_str(row: Mapping[str, object], column: str) -> str:
-    """Return a text column."""
     return _require(row, column, str, "str")
 
 
 def as_optional_str(row: Mapping[str, object], column: str) -> str | None:
-    """Return a nullable text column."""
     if row[column] is None:
         return None
     return as_str(row, column)
 
 
 def as_bool(row: Mapping[str, object], column: str) -> bool:
-    """Return a boolean column."""
     return _require(row, column, bool, "bool")
 
 
 def as_uuid(row: Mapping[str, object], column: str) -> UUID:
-    """Return a uuid column."""
     return _require(row, column, UUID, "UUID")
 
 
 def as_optional_uuid(row: Mapping[str, object], column: str) -> UUID | None:
-    """Return a nullable uuid column."""
     if row[column] is None:
         return None
     return as_uuid(row, column)
 
 
 def as_datetime(row: Mapping[str, object], column: str) -> datetime:
-    """Return a timestamptz column."""
     return _require(row, column, datetime, "datetime")

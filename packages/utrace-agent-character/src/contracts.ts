@@ -17,7 +17,7 @@ export const CHARACTER_STATES = [
 
 export type CharacterState = (typeof CHARACTER_STATES)[number];
 
-export type CharacterProjection = Readonly<{
+type CharacterProjection = Readonly<{
   revision: number;
   state: CharacterState;
   gazeX: number;
@@ -31,12 +31,12 @@ export type AcceptedCharacterProjection = CharacterProjection & {
   readonly [acceptedProjection]: true;
 };
 
-export type CharacterProjectionDecision =
+type CharacterProjectionDecision =
   | Readonly<{ kind: "applied"; projection: AcceptedCharacterProjection }>
   | Readonly<{ kind: "duplicate"; projection: AcceptedCharacterProjection }>
   | Readonly<{ kind: "stale"; projection: AcceptedCharacterProjection }>;
 
-export type CharacterProjectionErrorCode =
+type CharacterProjectionErrorCode =
   | "invalid_projection"
   | "conflicting_revision";
 

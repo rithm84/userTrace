@@ -2,7 +2,8 @@
 
 [Back to uTrace architecture](../ARCHITECTURE.md)
 
-The diagram separates offer authorization, earned credit, and its effect on billing.
+Offer authorization, earned credit, and its effect on billing belong to separate
+owners:
 
 ![An authorized offer earns one Stripe invoice credit after required participation; unearned offers release their allowance.](../diagrams/svg/outreach-offers.svg)
 
@@ -15,127 +16,141 @@ The diagram separates offer authorization, earned credit, and its effect on bill
 
 ## Product and provider boundary
 
-The [PRD](../PRD.md#outreach-offers) owns participation requirements. One offer
-covers one case and rewards the originating user's customer organization with
-credit toward the client's product bills. The demo issues Stripe customer invoice
-credits in a uTrace-controlled Stripe sandbox that stands in for the client's
-billing account. Stripe's
+The [PRD](../PRD.md#outreach-offers) owns the product terms: one offer per case,
+credit for the originating user's customer organization, the participation
+requirements, how a case's end decides the reward, and the uTrace-controlled
+Stripe sandbox that stands in for the client's billing account. Stripe's
 [customer credit balance](https://docs.stripe.com/invoicing/customer/balance)
 applies available credit to the next finalized invoice and carries unused credit
-forward. No usage meter is required, and uTrace does not expire earned credits.
+forward. No usage meter is required, and uTrace never expires earned credits.
 
 ## Customer mapping
 
 The client configuration maps the client's `customer_account_id` to one existing
 Stripe Customer in the sandbox billing account, with a compatible billing
-currency. Use that recorded mapping, not email similarity, a model guess, or a
-participant-supplied Stripe ID. Include the account, environment, Customer ID,
-mapping revision, and currency in every offer. Participants need no Stripe login
-or bank onboarding. Sandbox credentials remain in server-side credential custody,
-and the adapter never creates charges, finalizes invoices, issues refunds, or moves
-funds.
+currency. Every offer uses that recorded mapping, never email similarity, a model
+guess, or a participant-supplied Stripe ID, and includes the account,
+environment, Customer ID, mapping revision, and currency. Participants need no
+Stripe login or bank onboarding.
 
-Recheck the mapping and customer availability before issuance. Changed, deleted,
-or ambiguous billing identities block issuance for reconciliation; they do not
-redirect the reward or erase its entitlement.
+Issuance first rechecks the mapping and customer availability. Changed, deleted,
+or ambiguous billing identities block it for reconciliation without redirecting
+the reward or erasing its entitlement.
+
+Sandbox credentials remain in server-side credential custody, and the adapter
+never creates charges, finalizes invoices, issues refunds, or moves funds.
+
+## Offer and issuance states
+
+Offers and their credit issuance move through these states:
+
+![A reserved offer becomes earned or released; an earned offer's issuance moves from pending through dispatched to issued, or to blocked until reconciled.](../diagrams/svg/outreach-offers-lifecycle.svg)
+
+<details><summary>Diagram key</summary>
+
+![Diagram key of the ten node roles: people and customer surfaces, uTrace control plane, reasoning models, SDKs and previews, external or blocked, validated or durable, async path, gates and checks, neutral or closed, and client product.](../diagrams/svg/_key.svg)
+
+</details>
+<p></p>
 
 ## Budget and offer reservations
 
-The owner authorizes a client/currency issuance ceiling. The fixed offer amount,
-currency, billing use, and completion terms come from the
+The owner authorizes a client and currency issuance ceiling that limits the face
+value of credits uTrace may issue, with no prefunding, cash custody, or balance
+transfer. The fixed offer amount, currency, billing use, and completion terms
+come from the
 [client configuration release](./client-configuration.md#immutable-configuration-releases),
-not from the dashboard. The budget limits the face value of credits
-uTrace may issue; no prefunding, cash custody, or balance transfer is involved.
-Models cannot negotiate amounts, increase allowance, or change recipients.
+not the dashboard, and models cannot negotiate amounts, increase allowance, or
+change recipients.
 
-Reserve the full promised credit and commit invitation intent atomically. Each
-reservation binds one offer, Product Signal, customer organization, billing
-mapping, amount, currency, and completion terms. Concurrent invitations cannot
-exceed the remaining allowance. Existing rewards and reservations count against
-the ceiling; return reminders reuse the original offer.
+The full promised credit is reserved atomically with the invitation intent,
+binding one offer, Product Signal, customer organization, billing mapping,
+amount, currency, and completion terms. Existing rewards and reservations count
+against the ceiling, so concurrent invitations cannot exceed the remaining
+allowance.
 
-Exhausted allowance blocks a new rewarded invitation with an actionable status.
-Unearned offers release their reservation after outreach and participation are
-reconciled. Earned or issued amounts continue to consume allowance, including
-after invoice application. An owner must explicitly authorize any increase; budget
-edits cannot cancel outstanding promises or silently reset consumed allowance.
+- Exhausted allowance blocks a new rewarded invitation with an actionable status.
+- Unearned offers release their reservation after outreach and participation are
+  reconciled.
+- Earned or issued amounts keep consuming allowance, including after invoice
+  application.
+- Only explicit owner authorization increases the budget, and edits cannot cancel
+  outstanding promises or silently reset consumed allowance.
 
 ## Completion and entitlement
 
-Evaluate the [PRD's completion conditions](../PRD.md#outreach-offers) from recorded
-participation, gate decisions, validation results, and the
-reason work ended. A session ending, a Case File existing, or an agent saying
-“done” is not sufficient evidence.
+Evaluate the [PRD's earning rules](../PRD.md#outreach-offers) from recorded
+participation, gate decisions, validation results, and the reason work ended. A
+session ending, a Case File existing, or an agent saying "done" is not sufficient
+evidence, and eligibility is never assigned solely from `closed_no_implementation`,
+`closed_blocked`, or `canceled`.
 
-A participant who fails to return within the return deadline has not completed
-participation. A system-caused stop qualifies
-when they fulfilled every request up to that point. Do not assign eligibility
-solely from `closed_no_implementation`, `closed_blocked`, or `canceled`.
-Pre-participation termination or voluntary withdrawal before completion earns
-nothing. Temporary disconnection and a resumable blocker leave eligibility pending.
-
-A client Stop case is a system-initiated stop, not participant cancellation. Apply
-the same fulfillment rule as other system-caused stops: if the participant
-completed every request made before Stop took effect, the reward is earned;
-otherwise eligibility records the outstanding participation rather than assuming
-forfeiture from the stop label alone.
+- Failing to return within the return deadline leaves participation incomplete.
+- A client Stop case is system-initiated, not participant cancellation. If
+  requests made before it took effect remain incomplete, eligibility records the
+  outstanding participation rather than assuming forfeiture from the stop label.
+- Temporary disconnection and a resumable blocker leave eligibility pending.
 
 At the final required participation milestone, atomically record the decision and
 evidence, convert the reservation into an earned credit obligation or release it,
-and enqueue eligible issuance. Do not wait for PR delivery or merge. Enforce one
-entitlement per offer. Negative validation cannot itself deny the reward.
+and enqueue eligible issuance, without waiting for PR delivery or merge. Each
+offer has one entitlement.
 
 ## Issuance and reconciliation
 
-Keep an append-only client/currency record of authorized allowance, reservations,
-releases, earned credits, and issuance results. Amounts use integer minor units
-and are never represented as scaled decimals.
+### Allowance ledger
 
-A ledger entry's movement is the change in *remaining* allowance, where remaining
-is the authorized ceiling minus what is reserved minus what is earned. That
-definition is what keeps the record honest about double counting:
+Keep an append-only client and currency record of authorized allowance,
+reservations, releases, earned credits, and issuance results. Amounts use integer
+minor units, never scaled decimals.
 
-- Authorizing a budget moves the ledger by the change in the ceiling, not by the
-  whole ceiling.
-- A reservation moves remaining down by the offer amount; a release moves it back
-  up.
-- Converting a reservation into an earned credit moves nothing. The reservation
-  already debited remaining, and conversion only changes which column accounts
-  for it, so the earned entry is recorded with a zero movement.
-- Issuance and issuance failure record their operation without moving allowance
-  at all.
+Each entry moves *remaining* allowance, the ceiling minus what is reserved minus
+what is earned, which keeps the record free of double counting:
 
-A ceiling may not be set below what is already reserved plus earned; that request
-is refused with the consumed amount rather than accepted and reconciled later.
-Each operation carries a stable identity, causal evidence, and scoped Stripe
+| Entry | Movement of remaining allowance |
+| --- | --- |
+| `budget_authorized` | The change in the ceiling, not the whole ceiling |
+| `reservation_created` | Down by the offer amount |
+| `reservation_released` | Up by the offer amount |
+| `credit_earned` | Zero: the reservation already debited it; conversion only changes the accounting column |
+| `credit_issued`, `issuance_blocked` | None; they only record the operation |
+
+Setting the ceiling below what is reserved plus earned is refused with the
+consumed amount, never accepted and reconciled later. Each
+operation carries a stable identity, causal evidence, and scoped Stripe
 references. Stripe owns the billing balance; uTrace owns its promises and issuance
 records, separately from the immutable Case File core.
 
-The backend issues earned credit by [creating a customer balance transaction](https://docs.stripe.com/api/customer_balance_transactions/create)
-with a negative amount in the agreed currency. Record the returned transaction ID
-and verify customer, account, environment, amount, and currency. Add the adjustment
-to the existing balance; never overwrite the total, which may include other
-credits or debits. Attach stable offer and operation references as metadata,
-without interview content or personal evidence.
+### Issuing a credit
 
-Persist the Command and outbox intent before calling Stripe. Retries reuse the
-same operation and [idempotency key](https://docs.stripe.com/api/idempotent_requests).
-Stripe can prune keys after at least 24 hours, so the key alone cannot guarantee
-permanent deduplication. Reconcile ambiguous responses against the customer's
-transaction history and operation metadata before redispatch, especially outside
-that window. If the outcome cannot be established, block for reconciliation;
-never create a fresh adjustment merely because an outcome was slow to confirm.
+The backend issues earned credit by
+[creating a customer balance transaction](https://docs.stripe.com/api/customer_balance_transactions/create)
+with a negative amount in the agreed currency. It records the returned
+transaction ID and verifies customer, account, environment, amount, and currency.
+The adjustment adds to the existing balance, never overwriting a total that may
+include other credits or debits. Metadata carries stable offer and operation
+references, never interview content or personal evidence.
+
+### Retries and reconciliation
+
+Retries reuse the same operation and
+[idempotency key](https://docs.stripe.com/api/idempotent_requests), but Stripe can
+prune keys after at least 24 hours. Ambiguous responses therefore reconcile
+against the customer's transaction history and operation metadata before
+redispatch, especially outside that window, and a slow confirmation never
+justifies a fresh adjustment.
+
+Repairs to credentials and mappings never ask the participant to repeat completed
+work, and case cleanup keeps the minimized records needed to reconcile
+outstanding credits. uTrace never reverses an earned credit for a negative
+verdict, cancellation after completion, or non-use.
+
+### Application to invoices
 
 A verified adjustment means the credit is issued, not necessarily consumed.
 Stripe applies the customer's aggregate credit balance as invoices finalize; the
-demo harness finalizes the test invoice that shows the credit applied. Application
-does not require another customer session and does not reopen the case.
-
-Failures preserve the earned obligation until issuance is confirmed. Repair
-credentials and mappings as needed without asking the participant to repeat
-completed work. Case cleanup preserves the minimized records needed to reconcile
-outstanding credits. uTrace does not reverse earned credits because of a negative
-verdict, cancellation after completion, or non-use.
+demo harness finalizes the test invoice that shows the credit applied.
+Application needs no other customer session and never reopens the case.
 
 ## Verification and fixture
 

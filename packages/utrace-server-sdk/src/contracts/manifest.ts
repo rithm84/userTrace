@@ -3,8 +3,7 @@
  *
  * These bindings mirror
  * `packages/utrace-contracts/schemas/server-activation/server-instrumentation-manifest.v1.schema.json`
- * and `.../signed-server-instrumentation-manifest.v1.schema.json`. They live in
- * this package until the contracts workstream publishes generated bindings.
+ * and `.../signed-server-instrumentation-manifest.v1.schema.json`.
  */
 
 import * as z from 'zod';
@@ -36,25 +35,25 @@ export type Adapter = (typeof ADAPTERS)[number];
 const httpMethodSchema = z.enum(HTTP_METHODS);
 const adapterSchema = z.enum(ADAPTERS);
 
-export const networkTargetSchema = z.strictObject({
+const networkTargetSchema = z.strictObject({
   scheme: z.enum(['http', 'https']),
   host: z.string().min(1).max(253),
   port: z.int().min(1).max(65_535),
 });
 
-export const registeredRouteSchema = z.strictObject({
+const registeredRouteSchema = z.strictObject({
   route_template: routeTemplate,
   methods: z.array(httpMethodSchema).min(1).max(9),
   operation_name: identifier,
   required: z.boolean(),
 });
 
-export const operationalNoiseSchema = z.strictObject({
+const operationalNoiseSchema = z.strictObject({
   path_pattern: routeTemplate,
   methods: z.array(httpMethodSchema).min(1).max(9),
 });
 
-export const manifestServiceSchema = z.strictObject({
+const manifestServiceSchema = z.strictObject({
   service_key: identifier,
   service_name: z.string().min(1).max(120),
   service_namespace: z.string().min(1).max(120),
@@ -66,7 +65,7 @@ export const manifestServiceSchema = z.strictObject({
   operational_noise: z.array(operationalNoiseSchema).max(128),
 });
 
-export const redactionRulesSchema = z.strictObject({
+const redactionRulesSchema = z.strictObject({
   allowed_http_destinations: z.array(networkTargetSchema).max(128),
   allowed_database_classes: z.array(z.string().min(1).max(200)).max(512),
   allowed_cache_classes: z.array(z.string().min(1).max(200)).max(256),
@@ -86,7 +85,7 @@ export const redactionRulesSchema = z.strictObject({
   max_span_attribute_count: z.int().min(1).max(128),
 });
 
-export const ANNOTATION_KINDS = [
+const ANNOTATION_KINDS = [
   'product_operation',
   'workflow_milestone',
   'entity_class',
@@ -95,14 +94,14 @@ export const ANNOTATION_KINDS = [
   'background_root',
 ] as const;
 
-export const OUTPUT_CLASSES = [
+const OUTPUT_CLASSES = [
   'registered_reference',
   'bounded_enum',
   'bounded_integer',
   'metadata_only',
 ] as const;
 
-export const annotationDefinitionSchema = z
+const annotationDefinitionSchema = z
   .strictObject({
     definition_id: z.uuid(),
     definition_ref: z.string().max(120).regex(/^[a-z][a-z0-9_]*\.v[1-9][0-9]*$/u),

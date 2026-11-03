@@ -1,0 +1,26 @@
+---
+title: Intake conditional assistance · widen once, restate once, or block
+---
+sequenceDiagram
+  autonumber
+  participant code as Intake code
+  participant jev as Jev
+  participant sol as GPT-6.1 Sol
+
+  code->>jev: batched questions · base routing context
+  jev-->>code: typed answers
+  opt a required fact stays unresolved
+    code->>jev: widened once · omitted overview sections + replied-to messages
+    jev-->>code: typed answers
+    opt still unresolved
+      code->>sol: restate what the batch reports or asks for
+      sol-->>code: restatement
+      code->>jev: once more · restatement as labeled context
+      jev-->>code: typed answers
+    end
+  end
+  alt every required fact resolved
+    code->>code: commit one route
+  else Sol cannot interpret, or still unresolved
+    code->>code: commit routing_blocked · never fabricated noise
+  end

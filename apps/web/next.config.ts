@@ -37,7 +37,7 @@ const configureWebpack: NonNullable<NextConfig["webpack"]> = (config) => {
 const nextConfig: NextConfig = {
   ...(process.env.UTRACE_PREVIEW_DIST_DIR ? { distDir: process.env.UTRACE_PREVIEW_DIST_DIR } : {}),
   transpilePackages: ["@utrace/agent-character"],
-  images: { qualities: [70, 75, 90] },
+  images: { qualities: [75, 90] },
   turbopack: {
     root: path.resolve(process.cwd(), "../.."),
     resolveAlias: {

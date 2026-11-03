@@ -71,7 +71,6 @@ export interface ControlPlane {
   readonly advance: (runtime: RoutedRuntime) => void;
   readonly extensionFrames: readonly ExtensionFrame[];
   readonly activationCount: () => number;
-  /** Sends one inbound frame to the connected extension. */
   readonly sendToExtension: (frame: Record<string, unknown>) => void;
   /** Resolves with the first extension frame of `kind` matching `predicate`. */
   readonly waitForExtensionFrame: (
@@ -81,7 +80,7 @@ export interface ControlPlane {
   readonly close: () => Promise<void>;
 }
 
-export interface ControlPlaneOptions {
+interface ControlPlaneOptions {
   readonly port: number;
   /** The private half of the browser SDK's packaged trust anchor. */
   readonly signing: SigningIdentity;

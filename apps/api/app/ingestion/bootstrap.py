@@ -35,7 +35,6 @@ from app.ingestion.errors import TelemetryAuthenticationError
 from app.logging import get_logger
 
 __all__ = [
-    "BOOTSTRAP_CREDENTIAL_LIFETIME_SECONDS",
     "ServerBootstrapCredential",
     "ServerBootstrapScope",
     "mint_server_bootstrap_credential",

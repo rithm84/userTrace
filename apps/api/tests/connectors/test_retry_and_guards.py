@@ -17,7 +17,6 @@ from app.connectors.failures import (
     RetryAdvice,
     TechnicalCategory,
 )
-from app.connectors.github_delivery import idempotency_marker
 from app.connectors.retry import RetryPolicy, retry_safe_call
 from app.connectors.stripe_credits import StripeCredits, reconcile_issued_credit
 from app.connectors.vercel_sandboxes import EgressPolicy, HeaderInjection
@@ -81,35 +80,27 @@ async def test_the_last_failure_is_raised_once_attempts_are_exhausted() -> None:
     assert attempts == 3
 
 
-async def test_an_indeterminate_effect_is_never_retried() -> None:
-    """A call that may have half-applied is reconciled by its owner, never repeated."""
+@pytest.mark.parametrize(
+    ("category", "advice", "effect"),
+    [
+        # A call that may have half-applied is reconciled by its owner, never repeated.
+        (
+            TechnicalCategory.PROVIDER_UNAVAILABLE,
+            RetryAdvice.AFTER_DELAY,
+            EffectState.INDETERMINATE,
+        ),
+        (TechnicalCategory.PROVIDER_REJECTED, RetryAdvice.NEVER, EffectState.ABSENT),
+    ],
+)
+async def test_an_indeterminate_or_permanent_failure_is_never_retried(
+    category: TechnicalCategory, advice: RetryAdvice, effect: EffectState
+) -> None:
     attempts = 0
 
     async def call() -> str:
         nonlocal attempts
         attempts += 1
-        raise _failure(
-            category=TechnicalCategory.PROVIDER_UNAVAILABLE,
-            advice=RetryAdvice.AFTER_DELAY,
-            effect=EffectState.INDETERMINATE,
-        )
-
-    with pytest.raises(ConnectorFailure):
-        await retry_safe_call(operation="call", policy=_FAST, call=call)
-    assert attempts == 1
-
-
-async def test_a_permanent_failure_is_never_retried() -> None:
-    attempts = 0
-
-    async def call() -> str:
-        nonlocal attempts
-        attempts += 1
-        raise _failure(
-            category=TechnicalCategory.PROVIDER_REJECTED,
-            advice=RetryAdvice.NEVER,
-            effect=EffectState.ABSENT,
-        )
+        raise _failure(category=category, advice=advice, effect=effect)
 
     with pytest.raises(ConnectorFailure):
         await retry_safe_call(operation="call", policy=_FAST, call=call)
@@ -131,13 +122,6 @@ def test_an_egress_injection_must_name_an_allowed_domain() -> None:
     )
     with pytest.raises(ValueError, match="api.openai.com"):
         policy.to_network_policy()
-
-
-def test_the_delivery_marker_is_stable_per_command() -> None:
-    first = idempotency_marker(command_id="cmd_abc")
-    assert first == idempotency_marker(command_id="cmd_abc")
-    assert first != idempotency_marker(command_id="cmd_def")
-    assert first.startswith("<!--") and first.endswith("-->")
 
 
 def test_credit_reconciliation_matches_on_the_operation_id_only() -> None:

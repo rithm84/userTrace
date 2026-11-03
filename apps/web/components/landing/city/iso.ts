@@ -111,7 +111,6 @@ export function faceLine(f: Face, points: readonly (readonly [number, number])[]
   return openPath(points.map(([u, v]) => f.at(u, v)));
 }
 
-/** Screen bounds of a box's eight corners. */
 export function screenBounds(b: Box): Readonly<{ left: number; right: number; top: number; bottom: number }> {
   const xs: number[] = [];
   const ys: number[] = [];

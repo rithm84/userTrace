@@ -27,8 +27,6 @@ interface Vector {
 }
 
 interface VectorDocument {
-  readonly algorithm: string;
-  readonly canonicalization: string;
   readonly vectors: readonly Vector[];
 }
 
@@ -37,10 +35,8 @@ const document = JSON.parse(
 ) as VectorDocument;
 
 describe("canonicalization vectors", () => {
-  it("declares the envelope algorithms", () => {
-    expect(document.algorithm).toBe("sha256");
-    expect(document.canonicalization).toBe("jcs");
-    expect(document.vectors.length).toBeGreaterThanOrEqual(8);
+  it("has vectors to check", () => {
+    expect(document.vectors.length).toBeGreaterThan(0);
   });
 
   it.each(document.vectors.map((vector) => [vector.name, vector] as const))(

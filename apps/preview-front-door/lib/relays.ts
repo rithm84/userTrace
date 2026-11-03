@@ -3,6 +3,7 @@ import {
   propagationProbeRequestSchema,
   telemetryCredentialRequestSchema,
 } from "./contracts";
+import type { ControlPlaneOutcome } from "./control-plane";
 import {
   enterDoor,
   finish,
@@ -10,6 +11,7 @@ import {
   relayFailureResponse,
   relayResponse,
   unavailable,
+  type DoorEntry,
 } from "./door-entry";
 import { readSessionCredential } from "./session-cookie";
 
@@ -22,47 +24,65 @@ import { readSessionCredential } from "./session-cookie";
  * denial to the browser.
  */
 
-/** Relay the browser SDK's document activation and return its signed attestation. */
-export async function handleActivationRelay(
-  request: Request,
-): Promise<Response> {
-  const startedAt = Date.now();
+type RelayEntry<T> =
+  | {
+      readonly kind: "entered";
+      readonly entry: DoorEntry;
+      readonly body: T;
+      readonly sessionCredential: string;
+    }
+  | { readonly kind: "refused"; readonly response: Response };
+
+/**
+ * Admit one relay request: door entry, a same-origin body that matches its contract, then
+ * the session cookie. Otherwise answer with the refusal for the first check that fails.
+ */
+async function enterRelay<T>(params: {
+  request: Request;
+  startedAt: number;
+  parse: (payload: unknown) => { success: true; data: T } | { success: false };
+}): Promise<RelayEntry<T>> {
+  const { request, startedAt } = params;
   const entered = enterDoor({ request, startedAt, json: true });
   if (entered.kind === "refused") {
-    return entered.response;
+    return entered;
   }
-  const { client, config, origin } = entered.entry;
 
-  const body = await readRelayRequest({
-    request,
-    startedAt,
-    parse: (payload) => activationRequestSchema.safeParse(payload),
-  });
+  const body = await readRelayRequest({ request, startedAt, parse: params.parse });
   if (body.kind === "refused") {
-    return body.response;
+    return body;
   }
 
   const sessionCredential = readSessionCredential({
     cookieHeader: request.headers.get("cookie"),
-    cookieName: config.sessionCookieName,
+    cookieName: entered.entry.config.sessionCookieName,
   });
   if (sessionCredential === null) {
-    return finish({
-      request,
-      startedAt,
-      response: relayFailureResponse({ reason: "unauthorized", status: 403 }),
-      outcome: "rejected",
-      reason: "missing_session_cookie",
-      route: null,
-    });
+    return {
+      kind: "refused",
+      response: finish({
+        request,
+        startedAt,
+        response: relayFailureResponse({ reason: "unauthorized", status: 403 }),
+        outcome: "rejected",
+        reason: "missing_session_cookie",
+        route: null,
+      }),
+    };
   }
+  return { kind: "entered", entry: entered.entry, body: body.value, sessionCredential };
+}
 
+/** Return the control plane's answer unchanged; a typed denial reaches the browser only as `unauthorized`. */
+async function relayAnswer<T>(params: {
+  request: Request;
+  startedAt: number;
+  failureReason: string;
+  call: () => Promise<ControlPlaneOutcome<T>>;
+}): Promise<Response> {
+  const { request, startedAt } = params;
   try {
-    const relayed = await client.relayActivation({
-      publicPreviewHost: origin.publicPreviewHost,
-      sessionCredential,
-      activationRequest: body.value,
-    });
+    const relayed = await params.call();
     if (relayed.outcome === "denied") {
       return finish({
         request,
@@ -85,7 +105,7 @@ export async function handleActivationRelay(
     return unavailable({
       request,
       startedAt,
-      reason: "activation_relay_failed",
+      reason: params.failureReason,
       status: 502,
       json: true,
       error,
@@ -93,75 +113,56 @@ export async function handleActivationRelay(
   }
 }
 
+/** Relay the browser SDK's document activation and return its signed attestation. */
+export async function handleActivationRelay(
+  request: Request,
+): Promise<Response> {
+  const startedAt = Date.now();
+  const relay = await enterRelay({
+    request,
+    startedAt,
+    parse: (payload) => activationRequestSchema.safeParse(payload),
+  });
+  if (relay.kind === "refused") {
+    return relay.response;
+  }
+  return relayAnswer({
+    request,
+    startedAt,
+    failureReason: "activation_relay_failed",
+    call: () =>
+      relay.entry.client.relayActivation({
+        publicPreviewHost: relay.entry.origin.publicPreviewHost,
+        sessionCredential: relay.sessionCredential,
+        activationRequest: relay.body,
+      }),
+  });
+}
+
 /** Relay the one-time exchange of a document attestation for a telemetry credential. */
 export async function handleTelemetryCredentialRelay(
   request: Request,
 ): Promise<Response> {
   const startedAt = Date.now();
-  const entered = enterDoor({ request, startedAt, json: true });
-  if (entered.kind === "refused") {
-    return entered.response;
-  }
-  const { client, config, origin } = entered.entry;
-
-  const body = await readRelayRequest({
+  const relay = await enterRelay({
     request,
     startedAt,
     parse: (payload) => telemetryCredentialRequestSchema.safeParse(payload),
   });
-  if (body.kind === "refused") {
-    return body.response;
+  if (relay.kind === "refused") {
+    return relay.response;
   }
-
-  const sessionCredential = readSessionCredential({
-    cookieHeader: request.headers.get("cookie"),
-    cookieName: config.sessionCookieName,
+  return relayAnswer({
+    request,
+    startedAt,
+    failureReason: "telemetry_credential_relay_failed",
+    call: () =>
+      relay.entry.client.relayTelemetryCredential({
+        publicPreviewHost: relay.entry.origin.publicPreviewHost,
+        sessionCredential: relay.sessionCredential,
+        credentialRequest: relay.body,
+      }),
   });
-  if (sessionCredential === null) {
-    return finish({
-      request,
-      startedAt,
-      response: relayFailureResponse({ reason: "unauthorized", status: 403 }),
-      outcome: "rejected",
-      reason: "missing_session_cookie",
-      route: null,
-    });
-  }
-
-  try {
-    const relayed = await client.relayTelemetryCredential({
-      publicPreviewHost: origin.publicPreviewHost,
-      sessionCredential,
-      credentialRequest: body.value,
-    });
-    if (relayed.outcome === "denied") {
-      return finish({
-        request,
-        startedAt,
-        response: relayFailureResponse({ reason: "unauthorized", status: 403 }),
-        outcome: "rejected",
-        reason: relayed.reason,
-        route: null,
-      });
-    }
-    return finish({
-      request,
-      startedAt,
-      response: relayResponse({ body: relayed.value, status: 200 }),
-      outcome: "relayed",
-      reason: null,
-      route: null,
-    });
-  } catch (error) {
-    return unavailable({
-      request,
-      startedAt,
-      reason: "telemetry_credential_relay_failed",
-      status: 502,
-      json: true,
-      error,
-    });
-  }
 }
 
 /**
@@ -182,34 +183,13 @@ export async function handleTelemetryCredentialRelay(
  */
 export async function handlePropagationProbe(request: Request): Promise<Response> {
   const startedAt = Date.now();
-  const entered = enterDoor({ request, startedAt, json: true });
-  if (entered.kind === "refused") {
-    return entered.response;
-  }
-  const { config } = entered.entry;
-
-  const body = await readRelayRequest({
+  const relay = await enterRelay({
     request,
     startedAt,
     parse: (payload) => propagationProbeRequestSchema.safeParse(payload),
   });
-  if (body.kind === "refused") {
-    return body.response;
-  }
-
-  const sessionCredential = readSessionCredential({
-    cookieHeader: request.headers.get("cookie"),
-    cookieName: config.sessionCookieName,
-  });
-  if (sessionCredential === null) {
-    return finish({
-      request,
-      startedAt,
-      response: relayFailureResponse({ reason: "unauthorized", status: 403 }),
-      outcome: "rejected",
-      reason: "missing_session_cookie",
-      route: null,
-    });
+  if (relay.kind === "refused") {
+    return relay.response;
   }
 
   const traceparent = request.headers.get("traceparent");

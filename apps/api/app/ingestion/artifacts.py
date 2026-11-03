@@ -61,7 +61,6 @@ class ChunkManifest:
     aggregate_hash: str
 
     def as_json(self) -> Mapping[str, JsonValue]:
-        """Return the manifest in its stored form."""
         return {
             "chunk_hashes": list(self.chunk_hashes),
             "aggregate_hash": self.aggregate_hash,
@@ -85,7 +84,6 @@ class ArtifactStore:
         )
 
     async def aclose(self) -> None:
-        """Close the HTTP client."""
         await self._client.aclose()
 
     def _object_key(self, client_id: UUID, artifact_class: str, artifact_id: UUID) -> str:

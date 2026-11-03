@@ -64,7 +64,6 @@ async def reconcile_issuance_job(database: Database, claimed: ClaimedJob) -> Non
 
 
 def offer_handlers() -> Mapping[str, JobHandler]:
-    """Return the Outreach Offer Job handlers for the worker's registry."""
     return {
         EVALUATE_ENTITLEMENT: evaluate_entitlement_job,
         ISSUE_CREDIT: issue_credit_job,

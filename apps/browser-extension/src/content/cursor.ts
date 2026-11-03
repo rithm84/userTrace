@@ -42,10 +42,6 @@ export class AgentCursor {
     layer.append(this.element);
   }
 
-  get at(): Point {
-    return this.position;
-  }
-
   show(): void {
     this.element.dataset["visible"] = "true";
   }

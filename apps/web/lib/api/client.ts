@@ -101,7 +101,7 @@ export interface ControlPlaneClient {
   ): Promise<ExtensionLinkCode>;
 }
 
-export type HttpControlPlaneOptions = Readonly<{
+type HttpControlPlaneOptions = Readonly<{
   baseUrl: string;
   accessToken: string;
   /** Attempts for a read, including the first. Writes are never repeated. */
@@ -172,7 +172,7 @@ export class HttpControlPlaneClient implements ControlPlaneClient {
   }
 
   stopCase(clientId: string, productSignalId: string, reason: string): Promise<CaseStopResult> {
-    return this.#write(
+    return this.#request(
       "POST",
       `/v1/clients/${segment(clientId)}/cases/${segment(productSignalId)}/stop`,
       { reason },
@@ -199,7 +199,7 @@ export class HttpControlPlaneClient implements ControlPlaneClient {
     clientId: string,
     authorization: Readonly<{ currency: string; authorized_minor_units: number }>,
   ): Promise<Allowance> {
-    return this.#write(
+    return this.#request(
       "POST",
       `/v1/clients/${segment(clientId)}/offers/budget`,
       authorization,
@@ -208,7 +208,7 @@ export class HttpControlPlaneClient implements ControlPlaneClient {
   }
 
   claimInvitation(invitationToken: string): Promise<InvitationClaim> {
-    return this.#write(
+    return this.#request(
       "POST",
       `/v1/invitations/${segment(invitationToken)}/claim`,
       null,
@@ -221,7 +221,7 @@ export class HttpControlPlaneClient implements ControlPlaneClient {
   }
 
   updateParticipantPreferences(update: ParticipantPreferencesUpdate): Promise<ParticipantPreferences> {
-    return this.#write("PATCH", "/v1/participants/me/preferences", update, participantPreferencesSchema);
+    return this.#request("PATCH", "/v1/participants/me/preferences", update, participantPreferencesSchema);
   }
 
   async getSession(sessionId: string): Promise<InterviewSession> {
@@ -238,7 +238,7 @@ export class HttpControlPlaneClient implements ControlPlaneClient {
   }
 
   submitPreflight(sessionId: string, report: PreflightReport): Promise<PreflightResult> {
-    return this.#write(
+    return this.#request(
       "POST",
       `/v1/sessions/${segment(sessionId)}/preflight`,
       report,
@@ -247,7 +247,7 @@ export class HttpControlPlaneClient implements ControlPlaneClient {
   }
 
   createVoiceConnection(sessionId: string): Promise<VoiceConnectionRecord> {
-    return this.#write(
+    return this.#request(
       "POST",
       `/v1/sessions/${segment(sessionId)}/voice/connections`,
       null,
@@ -256,7 +256,7 @@ export class HttpControlPlaneClient implements ControlPlaneClient {
   }
 
   sendControl(sessionId: string, action: SessionControlAction): Promise<SessionControlAck> {
-    return this.#write(
+    return this.#request(
       "POST",
       `/v1/sessions/${segment(sessionId)}/controls`,
       { action },
@@ -265,7 +265,7 @@ export class HttpControlPlaneClient implements ControlPlaneClient {
   }
 
   requestPreviewHandoff(sessionId: string): Promise<PreviewHandoff> {
-    return this.#write(
+    return this.#request(
       "POST",
       `/v1/sessions/${segment(sessionId)}/preview-handoff`,
       null,
@@ -274,7 +274,7 @@ export class HttpControlPlaneClient implements ControlPlaneClient {
   }
 
   requestBindingOffer(sessionId: string): Promise<BindingOffer> {
-    return this.#write(
+    return this.#request(
       "POST",
       `/v1/sessions/${segment(sessionId)}/extension-offer`,
       null,
@@ -289,7 +289,7 @@ export class HttpControlPlaneClient implements ControlPlaneClient {
       protocol_version: string;
     }>,
   ): Promise<ExtensionLinkCode> {
-    return this.#write("POST", "/v1/extension/link-codes", request, extensionLinkCodeSchema);
+    return this.#request("POST", "/v1/extension/link-codes", request, extensionLinkCodeSchema);
   }
 
   async #read<Parsed>(path: string, schema: z.ZodType<Parsed>): Promise<Parsed> {
@@ -315,17 +315,8 @@ export class HttpControlPlaneClient implements ControlPlaneClient {
     throw lastError ?? new Error("Control-plane read loop ended without a result.");
   }
 
-  #write<Parsed>(
-    method: "POST" | "PATCH",
-    path: string,
-    body: unknown,
-    schema: z.ZodType<Parsed>,
-  ): Promise<Parsed> {
-    return this.#request(method, path, body, schema);
-  }
-
   async #request<Parsed>(
-    method: string,
+    method: "GET" | "POST" | "PATCH",
     path: string,
     body: unknown,
     schema: z.ZodType<Parsed>,

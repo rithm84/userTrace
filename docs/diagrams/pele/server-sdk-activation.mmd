@@ -1,0 +1,38 @@
+---
+title: Server SDK · activation and the control channel
+---
+sequenceDiagram
+  autonumber
+  participant rt as Prepared-environment runtime
+  participant sdk as Server SDK
+  participant cp as Control plane
+  participant ing as Telemetry ingestion
+
+  rt->>sdk: claim-time restart · bootstrap credential + trust anchor
+  Note over sdk: Preload, before application code.<br/>Mints server_stream_id and service.instance.id.
+  sdk->>cp: open WS /v1/server-sdk/control · bearer bootstrap credential
+  sdk->>cp: activation frame · same credential + stream identity
+  Note over cp: One activation per stream.<br/>Manifest from the release the Product Signal pinned.
+  cp-->>sdk: activation record · signed manifest, credential, endpoint, limits, probe, entry token
+  Note over sdk: Verifies the manifest signature, or refuses to instrument.<br/>Installs the sole provider and the manifest's instrumentation.
+  loop While active
+    sdk->>ing: OTLP/HTTP batch · service-instance credential
+    ing-->>sdk: full success
+  end
+  loop Ahead of each credential expiry
+    sdk->>cp: rotate
+    cp-->>sdk: fresh short-lived service-instance credential
+  end
+  loop Each health interval
+    sdk->>cp: health report
+    Note over cp: Durable record, then a fresh readiness evaluation.
+  end
+  opt Pause or resume
+    cp->>sdk: pause or resume
+  end
+  opt Termination
+    cp->>sdk: terminate
+    sdk->>ing: bounded flush
+    sdk->>cp: terminal stream report
+  end
+  Note over sdk,cp: A dropped control connection reconnects with the same bootstrap credential, then rotates.<br/>A restarted process presents a new stream and becomes a new activation.

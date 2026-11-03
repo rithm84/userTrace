@@ -25,7 +25,7 @@ import { bridgeFrame, decodeBridgeFrame } from "./messages.js";
 /** Matches the extension protocol's `maxItems` on every resolved-target array. */
 const MAX_RESOLVED_TARGETS = 12;
 
-export interface BridgeCallbacks {
+interface BridgeCallbacks {
   /**
    * The extension reports an authoritative session control transition. The
    * shared runtime follows it; it never decides the transition itself.
@@ -58,12 +58,8 @@ export class ExtensionBridge {
     this.#callbacks = callbacks;
   }
 
-  get connected(): boolean {
-    return this.#ports.size > 0;
-  }
-
   /** Starts listening for the extension's page-proof request. */
-  listen(): () => void {
+  listen(): void {
     const view = this.#runtime.view;
     const listener = (event: MessageEvent): void => {
       if (event.origin !== view.location.origin || event.source !== view) return;
@@ -86,9 +82,6 @@ export class ExtensionBridge {
     };
     this.#discoveryListener = listener;
     view.addEventListener("message", listener);
-    return (): void => {
-      this.close();
-    };
   }
 
   /**

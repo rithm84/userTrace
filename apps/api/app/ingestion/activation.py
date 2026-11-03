@@ -43,13 +43,13 @@ from app.ingestion.errors import (
 )
 from app.ingestion.frames import ObservationScope
 from app.ingestion.limits import BrowserLimits, default_browser_limits
+from app.ingestion.manifests import load_pinned_policy_object
 from app.ingestion.preview_environments import resolve_preview_environment_id
 from app.ingestion.scheduling import schedule_readiness
 from app.ingestion.signing import SignedEnvelope, Signer, payload_digest
 from app.logging import get_logger
 
 __all__ = [
-    "ATTESTATION_LIFETIME_SECONDS",
     "ActivationRequest",
     "BrowserActivation",
     "IssuedAttestation",
@@ -105,7 +105,6 @@ class BrowserActivation:
     preview_runtime_allocation_id: UUID
     preview_version_id: UUID | None
     document_attachment_id: UUID
-    browser_stream_id: UUID | None
     policy_version: str
     redaction_version: str
     source_schema_version: str
@@ -148,42 +147,6 @@ async def _load_allocation(
             "the Interview Session bound to that preview origin is closed"
         )
     return row
-
-
-async def _load_annotation_manifest(
-    conn: AsyncConnection[DictRow], *, configuration_release_id: UUID
-) -> dict[str, JsonValue]:
-    """Read the signed annotation manifest onboarding pinned to this release.
-
-    Onboarding owns the manifest's content. Ingestion refuses to activate a
-    document whose release carries none rather than inventing an empty one: an
-    empty manifest would silently authorize nothing and look healthy.
-    """
-    async with conn.cursor() as cur:
-        await cur.execute(
-            "select policy from public.configuration_releases where id = %s",
-            (configuration_release_id,),
-        )
-        row = await cur.fetchone()
-    if row is None:
-        raise AggregateNotFoundError(
-            table="configuration_releases", row_id=configuration_release_id
-        )
-    policy = row["policy"]
-    if not isinstance(policy, dict):
-        raise SourceValidationError(
-            field="configuration_releases.policy", reason="is not an object"
-        )
-    manifest = policy.get("annotation_manifest")
-    if not isinstance(manifest, dict):
-        raise SourceValidationError(
-            field="configuration_releases.policy.annotation_manifest",
-            reason=(
-                "the pinned configuration release carries no annotation manifest; "
-                "onboarding must publish one before a document can activate"
-            ),
-        )
-    return dict(manifest)
 
 
 def _manifest_versions(manifest: dict[str, JsonValue]) -> tuple[str, str, str]:
@@ -241,10 +204,15 @@ async def create_browser_activation(
             conn, public_preview_host=request.public_preview_host
         )
         client_id = as_uuid(allocation, "client_id")
-        manifest = await _load_annotation_manifest(
+        manifest = await load_pinned_policy_object(
             conn,
             configuration_release_id=as_uuid(
                 allocation, "pinned_configuration_release_id"
+            ),
+            key="annotation_manifest",
+            missing_reason=(
+                "the pinned configuration release carries no annotation manifest; "
+                "onboarding must publish one before a document can activate"
             ),
         )
         manifest_version, redaction_version, policy_version = _manifest_versions(manifest)
@@ -513,7 +481,6 @@ async def load_browser_activation(
         preview_runtime_allocation_id=as_uuid(row, "preview_runtime_allocation_id"),
         preview_version_id=as_optional_uuid(row, "preview_version_id"),
         document_attachment_id=as_uuid(row, "document_attachment_id"),
-        browser_stream_id=None,
         policy_version=as_str(row, "policy_version"),
         redaction_version=as_str(row, "redaction_version"),
         source_schema_version=as_str(row, "source_schema_version"),

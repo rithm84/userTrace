@@ -44,13 +44,13 @@ const openRefusalCode = (frame: ErrorFrame): RuntimeFailureCode => {
   return "acknowledgement_integrity_failure";
 };
 
-export interface StreamIdentity {
+interface StreamIdentity {
   readonly browser_stream_id: string;
   readonly runtime_id: string;
   readonly document_attachment_id: string;
 }
 
-export interface TransportCallbacks {
+interface TransportCallbacks {
   readonly onAcknowledged: (acknowledgedThrough: number) => void;
   readonly onFlowControl: (state: "pause" | "resume") => void;
   readonly onFailure: (error: ExportError) => void;

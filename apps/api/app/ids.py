@@ -20,7 +20,6 @@ _VARIANT_IETF = 0x80
 
 
 def uuid7() -> UUID:
-    """Return a fresh time-ordered UUIDv7."""
     unix_ts_ms = time.time_ns() // 1_000_000
     entropy = secrets.token_bytes(10)
     raw = bytearray(16)

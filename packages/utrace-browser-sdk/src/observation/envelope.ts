@@ -8,22 +8,16 @@
  * in the export stream.
  */
 
-import type {
-  Observation,
-  ObservationEnvelope,
-  ObservationPayload,
-  ObservationType,
-  VisibilityState,
-} from "./types.js";
+import type { ObservationEnvelope, ObservationType, VisibilityState } from "./types.js";
 
 /** Identity of the local runtime producing the observation. */
-export interface RuntimeIdentity {
+interface RuntimeIdentity {
   readonly runtime_id: string;
   readonly document_attachment_id: string;
   readonly frame_id: string;
 }
 
-export interface EnvelopeInput {
+interface EnvelopeInput {
   readonly observation_id: string;
   readonly observation_type: ObservationType;
   readonly identity: RuntimeIdentity;
@@ -58,12 +52,3 @@ export const buildEnvelope = (input: EnvelopeInput): ObservationEnvelope => ({
   ...(input.trace_id === null ? {} : { trace_id: input.trace_id }),
   ...(input.span_id === null ? {} : { span_id: input.span_id }),
 });
-
-export const buildObservation = (envelope: ObservationEnvelope, payload: ObservationPayload): Observation => {
-  if (envelope.observation_type !== payload.type) {
-    throw new Error(
-      `uTrace envelope observation_type ${envelope.observation_type} does not match payload type ${payload.type}`,
-    );
-  }
-  return { envelope, payload };
-};

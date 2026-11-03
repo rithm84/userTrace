@@ -177,7 +177,6 @@ async def assemble_context(
 
 
 def _decode_messages(payload: object) -> tuple[SealedMessage, ...]:
-    """Decode the sealed message list stored on the Intake Item."""
     if not isinstance(payload, dict):
         raise TypeError("intake item payload is not an object")
     raw = payload.get("messages")
@@ -204,7 +203,6 @@ def _decode_messages(payload: object) -> tuple[SealedMessage, ...]:
 
 
 def _optional_str(value: object) -> str | None:
-    """Return a nullable provider reference as text."""
     if value is None:
         return None
     return str(value)

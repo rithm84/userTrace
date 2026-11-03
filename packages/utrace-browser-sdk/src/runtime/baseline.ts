@@ -16,6 +16,7 @@ import { readElementAnnotations, resolveSurface } from "../annotations/attribute
 import type { ManifestIndex } from "../annotations/manifest.js";
 import { computeAccessibleName, computeRole } from "../registry/accessible-name.js";
 import type { TargetRegistry } from "../registry/targets.js";
+import { resolveSafeEntity } from "../registry/targets.js";
 import type { RedactionPipeline } from "../redaction/pipeline.js";
 import { toSafeValue } from "../redaction/pipeline.js";
 
@@ -50,7 +51,7 @@ const depthOf = (element: Element, root: Element): number => {
   return depth;
 };
 
-export interface BaselineInput {
+interface BaselineInput {
   readonly baselineId: string;
   readonly reason: BaselineReason;
   readonly view: BrowserView;
@@ -98,23 +99,12 @@ export const buildBaseline = (input: BaselineInput): BaselineSnapshotPayload => 
   }
 
   for (const element of input.view.document.querySelectorAll("[data-utrace-entity]")) {
-    const annotations = readElementAnnotations(element, input.manifest);
-    const entity = annotations.entity;
+    const entity = resolveSafeEntity(element, readElementAnnotations(element, input.manifest), input.redaction);
     if (entity === null) continue;
-    const outcome = input.redaction.apply({
-      kind: "annotation_attribute",
-      value: entity.instance_ref_raw,
-      element,
-      inAttestedDocument: true,
-      rawBody: false,
-      approvedRuleId: entity.instance_ref_rule_id,
-      annotatedSensitive: annotations.sensitive,
-    });
-    if (outcome.value === null) continue;
-    const key = `${entity.entity_definition_id}|${outcome.value}`;
+    const key = `${entity.entity_definition_id}|${entity.instance_ref}`;
     if (seenEntities.has(key)) continue;
     seenEntities.add(key);
-    entities.push({ entity_definition_id: entity.entity_definition_id, instance_ref: outcome.value });
+    entities.push(entity);
   }
 
   return {

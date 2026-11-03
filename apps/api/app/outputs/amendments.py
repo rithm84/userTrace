@@ -31,8 +31,6 @@ _log = get_logger(__name__)
 
 
 class _Frozen(BaseModel):
-    """Immutable, closed projection shape."""
-
     model_config = ConfigDict(frozen=True, extra="forbid")
 
 

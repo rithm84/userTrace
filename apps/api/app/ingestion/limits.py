@@ -87,7 +87,6 @@ class ServerLimits(BaseModel):
 
 
 def default_browser_limits() -> BrowserLimits:
-    """Return the operational browser limits one activation hands out."""
     return BrowserLimits(
         max_observation_bytes=BROWSER_MAX_OBSERVATION_BYTES,
         max_batch_bytes=BROWSER_MAX_BATCH_BYTES,
@@ -99,7 +98,6 @@ def default_browser_limits() -> BrowserLimits:
 
 
 def default_server_limits() -> ServerLimits:
-    """Return the operational server limits one activation hands out."""
     return ServerLimits(
         max_batch_spans=SERVER_MAX_SPANS,
         max_batch_bytes=SERVER_MAX_REQUEST_BYTES,

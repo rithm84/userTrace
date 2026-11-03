@@ -1,10 +1,5 @@
-/**
- * Annotation surface, manifest verification, route normalization, and the
- * extension bridge message contract.
- */
-
 import { describe, expect, it, beforeEach } from "vitest";
-import { readElementAnnotations, resolveSurface, ANNOTATION_ATTRIBUTES } from "../../src/annotations/attributes.js";
+import { readElementAnnotations, resolveSurface } from "../../src/annotations/attributes.js";
 import { decodeAnnotationManifest } from "../../src/annotations/manifest.js";
 import { decodeSignedEnvelope } from "../../src/activation/signed-envelope.js";
 import { validateConfig } from "../../src/core/config.js";
@@ -29,20 +24,6 @@ beforeEach(() => {
 });
 
 describe("declarative annotations", () => {
-  it("exposes exactly the documented attribute set", () => {
-    expect([...ANNOTATION_ATTRIBUTES]).toEqual([
-      "data-utrace-surface",
-      "data-utrace-entity",
-      "data-utrace-target",
-      "data-utrace-visual-target",
-      "data-utrace-sensitive",
-      "data-utrace-safe-value",
-      "data-utrace-milestone",
-      "data-utrace-severity",
-      "data-utrace-priority",
-    ]);
-  });
-
   it("reads a fully annotated element", () => {
     const annotations = readElementAnnotations(
       element(

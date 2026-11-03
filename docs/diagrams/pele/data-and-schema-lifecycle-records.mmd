@@ -1,0 +1,35 @@
+---
+title: Lifecycle records · one Product Signal and the work it owns
+---
+erDiagram
+  originating_user["Originating user"]
+  intake_item["Intake Item"]
+  product_signal["Product Signal"]
+  outreach_attempt["Outreach Attempt"]
+  interview_session["Interview Session"]
+  gate_decision["Implementation Gate decision"]
+  implementation_attempt["Implementation Attempt"]
+  preview_version["Preview Version"]
+  validation_attempt["Validation Attempt"]
+  case_file["Case File"]
+  delivery["Delivery · draft PR"]
+
+  originating_user ||--o{ product_signal : originates
+  intake_item ||--o| product_signal : "routes to"
+  product_signal ||--|{ outreach_attempt : "invites through"
+  product_signal ||--o{ interview_session : "spans"
+  product_signal ||--o{ gate_decision : "decided at"
+  gate_decision ||--o| implementation_attempt : "approval authorizes"
+  implementation_attempt ||--o| preview_version : publishes
+  preview_version ||--o{ validation_attempt : "validated in"
+  interview_session ||--o{ validation_attempt : hosts
+  product_signal ||--o| case_file : "closes with"
+  validation_attempt ||--o| delivery : authorizes
+  case_file ||--o| delivery : includes
+
+  class originating_user people
+  class intake_item,product_signal,implementation_attempt runtime
+  class outreach_attempt people
+  class interview_session,preview_version observation
+  class gate_decision,validation_attempt gate
+  class case_file,delivery outcome

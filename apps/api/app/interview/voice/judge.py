@@ -12,7 +12,7 @@ from typing import Final
 
 from app.connectors.failures import ConnectorFailure
 from app.connectors.typesafe_jev import JevClient
-from app.context.bundles import assemble_conversation_bundle
+from app.context.bundles import AssembledBundle, assemble_conversation_bundle
 from app.context.purposes import BundlePurpose
 from app.db.pool import Database
 from app.interview.attention import ChecksShown, judge_acknowledgement, judge_checks_shown
@@ -55,14 +55,9 @@ class VoiceJudge:
             )
         )
 
-    async def checks_shown(
-        self, *, subject: VoiceSubject, checks: Mapping[str, str], activity: Sequence[str]
-    ) -> ChecksShown | None:
-        """Which agreed checks the person's activity in the new version showed.
-
-        `None` while Jev is unavailable, which is logged.
-        """
-        bundle = await assemble_conversation_bundle(
+    async def _conversation(self, subject: VoiceSubject) -> AssembledBundle:
+        """The conversation as recorded right now, which each judgement reads."""
+        return await assemble_conversation_bundle(
             self._database,
             client_id=subject.client_id,
             product_signal_id=subject.product_signal_id,
@@ -70,6 +65,15 @@ class VoiceJudge:
             purpose=_ATTENTION_PURPOSE,
             recent_fragment_limit=_CONVERSATION_FRAGMENTS,
         )
+
+    async def checks_shown(
+        self, *, subject: VoiceSubject, checks: Mapping[str, str], activity: Sequence[str]
+    ) -> ChecksShown | None:
+        """Which agreed checks the person's activity in the new version showed.
+
+        `None` while Jev is unavailable, which is logged.
+        """
+        bundle = await self._conversation(subject)
         try:
             return await judge_checks_shown(
                 self._database, self._jev, bundle=bundle, checks=checks, activity=activity
@@ -88,14 +92,7 @@ class VoiceJudge:
 
         False when Jev is unsure or unavailable, which is logged.
         """
-        bundle = await assemble_conversation_bundle(
-            self._database,
-            client_id=subject.client_id,
-            product_signal_id=subject.product_signal_id,
-            interview_session_id=subject.interview_session_id,
-            purpose=_ATTENTION_PURPOSE,
-            recent_fragment_limit=_CONVERSATION_FRAGMENTS,
-        )
+        bundle = await self._conversation(subject)
         try:
             judged = await judge_acknowledgement(
                 self._database, self._jev, bundle=bundle, activity=activity

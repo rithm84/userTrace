@@ -1,15 +1,4 @@
-export const AGENT_COLOURS = [
-  "coral",
-  "black",
-  "mint",
-  "sky",
-  "lilac",
-  "peach",
-  "aqua",
-] as const;
-export type AgentColour = (typeof AGENT_COLOURS)[number];
-
-export const AGENT_HEX: Readonly<Record<AgentColour, string>> = Object.freeze({
+export const AGENT_HEX = Object.freeze({
   coral: "#FCADA3",
   black: "#111111",
   mint: "#97D6A4",
@@ -17,4 +6,5 @@ export const AGENT_HEX: Readonly<Record<AgentColour, string>> = Object.freeze({
   lilac: "#CDB6F9",
   peach: "#F5B488",
   aqua: "#72D8D7",
-});
+} as const);
+export type AgentColour = keyof typeof AGENT_HEX;

@@ -16,7 +16,6 @@ from app.adapters.wire import install_ingestion_adapters
 from app.api.clients import router as clients_router
 from app.api.exception_handlers import install_exception_handlers
 from app.api.extension import router as extension_router
-from app.api.front_door import router as front_door_router
 from app.api.implementation import router as implementation_router
 from app.api.ingest import router as ingest_router
 from app.api.ingestion import router as ingestion_router
@@ -109,7 +108,6 @@ def create_app(settings: Settings, ports: PortRegistry) -> FastAPI:
     application.include_router(participant_router)
     application.include_router(sessions_router)
     application.include_router(extension_router)
-    application.include_router(front_door_router)
     application.include_router(preview_handoffs_router)
     application.include_router(preview_routes_router)
     application.include_router(ingest_router)

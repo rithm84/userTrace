@@ -26,14 +26,14 @@ export const ORB_KEY = "orb.v2";
 const PREFERENCES_KEY = "preferences";
 const CHECKPOINT_KEY = "checkpoint";
 
-export const installationRecordSchema = z.strictObject({
+const installationRecordSchema = z.strictObject({
   installation_id: uuidSchema,
   account_link_state: z.enum(["linked", "revoked"]),
   negotiated_protocol_version: protocolVersionSchema,
   registered_at: timestampSchema,
 });
 
-export const preferencesCacheSchema = z.strictObject({
+const preferencesCacheSchema = z.strictObject({
   preferences_revision: revisionSchema,
   visual_guidance_enabled: z.boolean(),
   agent_cursor_enabled: z.boolean(),
@@ -44,7 +44,7 @@ export const preferencesCacheSchema = z.strictObject({
  * replaying effects: the acknowledged control sequence and the commands whose
  * outcome is still unknown.
  */
-export const recoveryCheckpointSchema = z.strictObject({
+const recoveryCheckpointSchema = z.strictObject({
   acknowledged_sequence: z.int().min(0),
   session_id: uuidSchema.optional(),
   extension_binding_id: uuidSchema.optional(),
@@ -55,9 +55,9 @@ export const recoveryCheckpointSchema = z.strictObject({
 
 export type InstallationRecord = z.infer<typeof installationRecordSchema>;
 export type PreferencesCache = z.infer<typeof preferencesCacheSchema>;
-export type RecoveryCheckpoint = z.infer<typeof recoveryCheckpointSchema>;
+type RecoveryCheckpoint = z.infer<typeof recoveryCheckpointSchema>;
 
-export const EMPTY_CHECKPOINT: RecoveryCheckpoint = Object.freeze({
+const EMPTY_CHECKPOINT: RecoveryCheckpoint = Object.freeze({
   acknowledged_sequence: 0,
   pending_command_ids: [],
 });

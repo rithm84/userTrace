@@ -50,7 +50,6 @@ export function buildRouteContextClaims(params: {
   });
 }
 
-/** Sign route-context claims with the route's signing secret. */
 export function signRouteContext(params: {
   claims: RouteContextClaims;
   signingSecret: string;

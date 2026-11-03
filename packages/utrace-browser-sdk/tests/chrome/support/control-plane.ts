@@ -23,7 +23,7 @@ export interface EchoedRequest {
   readonly traceparent_count: number;
 }
 
-export interface ControlPlaneOptions {
+interface ControlPlaneOptions {
   readonly port: number;
   readonly fixtureDir: string;
   readonly bundleDir: string;

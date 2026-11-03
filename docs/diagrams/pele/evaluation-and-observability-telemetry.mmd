@@ -1,0 +1,28 @@
+---
+title: Operational observability · kept apart from product evidence
+---
+flowchart LR
+  subgraph web_ops ["Web surfaces · Vercel"]
+    direction TB
+    web[utrace-web]:::runtime
+    vo[Vercel Observability]:::external
+    web -->|traces · page views · Web Vitals| vo
+  end
+  subgraph preview_path ["Preview path"]
+    direction TB
+    door["`**Preview front door**
+    No instrumentation`"]:::runtime
+    sdk[Server SDK in the preview]:::observation
+    door -->|browser traceparent, untouched| sdk
+  end
+  subgraph cp_record ["uTrace backend"]
+    direction TB
+    cp[Control plane]:::runtime
+    logs[(Structured logs)]:::runtime
+    pg[("`**Durable events + evidence**
+    Authoritative audit path`")]:::outcome
+    cp -->|fixed messages + fields| logs
+    cp -->|commit| pg
+  end
+  sdk -->|product spans as evidence · OTLP| cp
+  web_ops ~~~ preview_path

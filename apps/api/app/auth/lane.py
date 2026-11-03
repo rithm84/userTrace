@@ -28,7 +28,6 @@ from app.db.pool import Database
 from app.db.rows import as_str, as_uuid
 from app.errors import LaneCredentialError
 from app.ids import uuid7
-from app.logging import get_logger
 
 __all__ = [
     "Lane",
@@ -39,7 +38,6 @@ __all__ = [
     "verify_lane_credential",
 ]
 
-_log = get_logger(__name__)
 
 _ISSUER = "https://utrace.dev/control-plane"
 _ALGORITHM = "HS256"

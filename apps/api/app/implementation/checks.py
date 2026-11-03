@@ -45,14 +45,10 @@ class CheckPhase(StrEnum):
 
 
 class CheckModel(BaseModel):
-    """Base for the check records: immutable and closed to extra fields."""
-
     model_config = ConfigDict(frozen=True, extra="forbid")
 
 
 class CheckRun(CheckModel):
-    """One required check, run once."""
-
     phase: CheckPhase
     name: str
     command: str
@@ -159,7 +155,6 @@ async def _run_check(
 
 
 async def _read_log(executor: WorkspaceShell, log_path: str) -> str:
-    """Read one captured log back out of the workspace."""
     result = await executor.execute(ReadFile(tool=ToolName.READ_FILE, path=log_path))
     return result.output
 

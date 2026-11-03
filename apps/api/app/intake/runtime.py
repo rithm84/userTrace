@@ -49,7 +49,7 @@ from app.db.rows import as_uuid
 from app.intake.settings import IntakeOutreachSettings
 from app.intake.worker import consume_watched_channels
 from app.logging import get_logger
-from app.settings import ConfigurationError
+from app.settings import ConfigurationError, _offending_variables
 
 __all__ = [
     "IntakeConsumerSettings",
@@ -93,16 +93,10 @@ class IntakeConsumerSettings(BaseSettings):
 
 @lru_cache(maxsize=1)
 def get_consumer_settings() -> IntakeConsumerSettings:
-    """Return the supervision settings, read once from the environment."""
     try:
         return IntakeConsumerSettings()  # type: ignore[call-arg]
     except ValidationError as error:
-        names: list[str] = []
-        for item in error.errors():
-            location = item["loc"]
-            if location:
-                names.append(str(location[0]))
-        raise ConfigurationError(tuple(dict.fromkeys(names))) from None
+        raise ConfigurationError(_offending_variables(error)) from None
 
 
 async def intake_client_ids(database: Database) -> tuple[UUID, ...]:

@@ -1,7 +1,3 @@
-/**
- * Document topology: instrumented child frames and dedicated worker capabilities.
- */
-
 import { describe, expect, it, vi } from "vitest";
 import { webCryptoRandom } from "../../src/core/ids.js";
 import { FrameCoordinator, FRAME_HELLO_KIND, connectToCoordinator } from "../../src/runtime/frames.js";

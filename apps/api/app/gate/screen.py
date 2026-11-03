@@ -346,7 +346,6 @@ def _base_revision(bundle: GateBundle) -> str:
 
 
 def _as_uuid(raw: str) -> UUID | None:
-    """Parse a cited identifier, or return `None` when it is not a UUID at all."""
     try:
         return UUID(raw)
     except ValueError:

@@ -7,7 +7,6 @@ freezing, promotion, or authorization.
 
 from tests.ingestion.conftest import (  # noqa: F401 - re-exported pytest fixtures
     artifacts,
-    ingest_base_url,
     ingest_server,
     ingest_websocket_url,
     keys,

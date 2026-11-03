@@ -5,6 +5,8 @@ Each test names the rule from the Jev decision contract that it holds in place.
 
 from __future__ import annotations
 
+import pytest
+
 from app.connectors.jev_acceptance import (
     AcceptanceRejection,
     ChoiceThreshold,
@@ -120,49 +122,28 @@ def test_noul_bands_separate_yes_no_and_unresolved() -> None:
     assert AcceptanceRejection.BELOW_THRESHOLD not in middle.rejections
 
 
-def test_a_no_match_choice_is_unresolved_rather_than_a_weak_answer() -> None:
+@pytest.mark.parametrize(
+    ("choice", "confidence", "rejection"),
+    [
+        # A no-match choice is unresolved rather than a weak answer.
+        ("unclear", 0.99, AcceptanceRejection.NO_MATCH_SELECTED),
+        ("support_question", 0.99, AcceptanceRejection.UNSUPPLIED_REFERENCE),
+        ("bugfix", 0.4, AcceptanceRejection.UNRESOLVED_DISTRIBUTION),
+        ("feature_request", 0.88, None),
+    ],
+)
+def test_choice_accepts_only_a_confident_supplied_option(
+    choice: str, confidence: float, rejection: AcceptanceRejection | None
+) -> None:
     outcome = check_choice(
         question_id="flow_type",
-        choice="unclear",
-        confidence=0.99,
+        choice=choice,
+        confidence=confidence,
         supplied_options=["bugfix", "feature_request", "unclear"],
         threshold=_FLOW_CHOICE,
     )
-    assert not outcome.accepted
-    assert outcome.rejections == (AcceptanceRejection.NO_MATCH_SELECTED,)
-
-
-def test_a_choice_outside_the_supplied_options_is_rejected() -> None:
-    outcome = check_choice(
-        question_id="flow_type",
-        choice="support_question",
-        confidence=0.99,
-        supplied_options=["bugfix", "feature_request", "unclear"],
-        threshold=_FLOW_CHOICE,
-    )
-    assert AcceptanceRejection.UNSUPPLIED_REFERENCE in outcome.rejections
-
-
-def test_low_choice_confidence_is_unresolved() -> None:
-    outcome = check_choice(
-        question_id="flow_type",
-        choice="bugfix",
-        confidence=0.4,
-        supplied_options=["bugfix", "feature_request", "unclear"],
-        threshold=_FLOW_CHOICE,
-    )
-    assert AcceptanceRejection.UNRESOLVED_DISTRIBUTION in outcome.rejections
-
-
-def test_choice_accepts_a_confident_supplied_option() -> None:
-    outcome = check_choice(
-        question_id="flow_type",
-        choice="feature_request",
-        confidence=0.88,
-        supplied_options=["bugfix", "feature_request", "unclear"],
-        threshold=_FLOW_CHOICE,
-    )
-    assert outcome.accepted
+    assert outcome.accepted is (rejection is None)
+    assert outcome.rejections == (() if rejection is None else (rejection,))
 
 
 def test_score_is_only_a_threshold_comparison() -> None:

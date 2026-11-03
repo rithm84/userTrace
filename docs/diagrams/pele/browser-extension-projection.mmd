@@ -1,0 +1,32 @@
+---
+title: Browser extension · committed state and commands pushed to the bound tab
+---
+sequenceDiagram
+  autonumber
+  participant proc as Control-plane process
+  participant pg as Postgres
+  participant sock as Socket holder
+  participant worker as Service worker
+  participant page as Content surface
+  participant sdk as Embedded SDK
+
+  Note over proc: An API request, the voice<br/>agent, or an ingestion Job.
+  proc->>pg: commit · record any command
+  pg-->>sock: notify extension_control
+  Note over sock: The API process holding the<br/>session's socket runs one<br/>projection pass.
+  sock->>worker: changed state frames
+  sock->>worker: claim once + route commands
+  Note over worker: Validates and checkpoints.
+  worker->>page: route to the exact surface
+  opt visual command
+    page->>sdk: resolve the target revision
+    sdk-->>page: current target geometry
+    Note over page: Cursor and scene
+  end
+  page-->>worker: command result
+  worker-->>sock: terminal outcome + reason
+  opt reconnect
+    worker->>sock: resume · last acknowledged sequence
+    Note over sock,worker: Frames above it are superseded, not replayed.
+    sock->>worker: first pass · full current state
+  end

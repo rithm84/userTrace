@@ -23,7 +23,6 @@ const PRODUCT_PATH_PREFIXES: readonly string[] = [
   "/auth",
 ];
 
-/** True when `pathname` is served by a product surface rather than the landing. */
 export function isProductPath(pathname: string): boolean {
   return PRODUCT_PATH_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
@@ -72,7 +71,6 @@ export function redactedPageUrl(url: string): string {
   return `${origin}${pathname}`;
 }
 
-/** Sign-in destination carrying the path the visitor asked for. */
 export function signInPath(signInRoute: string, nextPath: string): string {
   return `${signInRoute}?next=${encodeURIComponent(nextPath)}`;
 }

@@ -72,7 +72,6 @@ def test_a_bound_area_binds_every_one_of_its_schemas() -> None:
 
 
 def test_every_binding_has_a_schema() -> None:
-    """No binding claims a contract that has no schema document."""
     for area, names in area_bindings().items():
         for name in names:
             try:

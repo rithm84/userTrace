@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 const MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
-export type ReducedMotionPreference = Readonly<{
+type ReducedMotionPreference = Readonly<{
   reducedMotion: boolean;
   resolved: boolean;
 }>;

@@ -55,7 +55,6 @@ class DailyVoiceAdapter:
         self._agents = agents
 
     async def __aenter__(self) -> Self:
-        """Enter the connectors' HTTP scopes."""
         await self._rooms.__aenter__()
         return self
 
@@ -65,12 +64,10 @@ class DailyVoiceAdapter:
         exc: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
-        """Close the connectors' HTTP transports."""
         await self._rooms.__aexit__(exc_type, exc, traceback)
         await self._agents.aclose()
 
     async def start_agent(self, *, voice_agent_job_id: UUID) -> None:
-        """Start the voice agent for a connection's newly queued Job."""
         await self._agents.start(voice_agent_job_id=voice_agent_job_id)
 
     @property
@@ -124,7 +121,6 @@ class DailyVoiceAdapter:
 
 
 def build_daily_rooms(*, settings: VoiceSettings) -> DailyRooms:
-    """The connector over the configured Daily account."""
     return DailyRooms(
         api_key=settings.daily_api_key,
         base_url=DAILY_API_BASE_URL,
@@ -133,7 +129,6 @@ def build_daily_rooms(*, settings: VoiceSettings) -> DailyRooms:
 
 
 def build_voice_adapter(*, settings: VoiceSettings) -> DailyVoiceAdapter:
-    """Build the adapter over the configured Daily account and agent runtime."""
     rooms = build_daily_rooms(settings=settings)
     lifetime = timedelta(seconds=settings.room_lifetime_seconds)
     if settings.agent_runtime is VoiceAgentRuntime.PIPECAT_CLOUD:

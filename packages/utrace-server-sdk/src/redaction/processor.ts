@@ -24,7 +24,6 @@ export interface RedactedSpanSink {
   stop(): Promise<void>;
 }
 
-/** Applies the uTrace redaction pipeline to every finished span. */
 export class RedactionSpanProcessor implements SpanProcessor {
   private readonly policy: RedactionPolicy;
   private readonly sink: RedactedSpanSink;

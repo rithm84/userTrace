@@ -1,33 +1,35 @@
 ---
-title: Vercel Sandbox resources · base, workspace, and candidate stay separate
+title: Preview runtimes · pinned template and seed, one microVM per runtime
 ---
 flowchart TB
-  user(["`**Originating user**
-  Two tabs + extension`"]):::people
-  template@{ shape: doc, label: "**Approved template**<br/>Pinned application + SDKs<br/>Ready environment definition" }
-  seed@{ shape: doc, label: "**Seed manifest**<br/>Pinned synthetic dataset" }
-  subgraph sandbox ["Vercel Sandbox · one microVM per resource"]
-    base["`**Base allocation**
-    Full running product
-    Exclusive to one Interview Session`"]:::observation
-    candidate["`**Candidate allocation**
-    Immutable Preview Version
-    Never a modified base`"]:::observation
-    workspace["`**Implementation workspace**
-    Own snapshot; never holds the dataset
-    Exact repository revision
-    Attempt-scoped write lease`"]:::runtime
+  release@{ shape: doc, label: "Client configuration release" }
+  subgraph row_1 [" "]
+    direction LR
+    subgraph template ["Runtime template"]
+      direction LR
+      image[(Custom image)]:::runtime
+      snapshot[(Template snapshot)]:::runtime
+      image -->|install + build the product| snapshot
+    end
+    seed@{ shape: doc, label: "Seed manifest" }
+    template ~~~ seed
   end
-  validation["`**Validation**
-  Same user + exact candidate
-  Fresh correlated evidence`"]:::outcome
+  subgraph sandbox ["Vercel Sandbox · one microVM per runtime"]
+    direction LR
+    pool[Warm pool runtime]:::observation
+    base[Session base allocation]:::observation
+    candidate[Candidate allocation]:::observation
+    pool -->|claim| base
+    base ~~~ candidate
+  end
+  probes{{Every gating readiness probe}}:::gate
+  route([Route revision carries traffic]):::runtime
 
-  user -->|interview · demonstrates workflow| base
-  template -->|claim from warm pool| base
-  seed -->|install + verify| base
-  template -->|fresh runtime| candidate
-  seed -->|same seed, installed fresh| candidate
-  workspace -->|checked build| candidate
-  candidate -->|ready| validation
-  user -->|same participant| validation
-  class template,seed runtime
+  release -->|pins| template
+  release -->|pins by digest| seed
+  snapshot -->|boots every runtime| sandbox
+  seed -->|installed + verified in every runtime| sandbox
+  base --> probes
+  candidate --> probes
+  probes -->|all pass| route
+  class release,seed runtime

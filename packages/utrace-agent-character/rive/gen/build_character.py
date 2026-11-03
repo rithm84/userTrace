@@ -1,5 +1,5 @@
-"""uTrace agent character, version 2: fourteen official states, Grok-style motion (anticipation, overshoot, in/loop/out phases).
-Usage: python3 build_v2.py <colour> [--resume]   Builds into the OPEN, EMPTY Rive file through the MCP HTTP endpoint and exports the .riv."""
+"""uTrace agent character: fourteen official states, with anticipation, overshoot and in/loop/out phases.
+Usage: python3 build_character.py <colour> [--resume]   Builds into the OPEN, EMPTY Rive file through the MCP HTTP endpoint and exports the .riv."""
 import base64, json, re, sys, os, math
 from mcp import call
 import morph

@@ -20,7 +20,7 @@ import type {
   SignedServerInstrumentationManifest,
 } from "../../../packages/utrace-server-sdk/src/contracts/manifest.js";
 
-export interface ManifestSigner {
+interface ManifestSigner {
   readonly keyId: string;
   readonly privateKeyPem: string;
 }

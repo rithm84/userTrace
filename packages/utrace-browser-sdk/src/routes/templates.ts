@@ -51,7 +51,6 @@ export class RouteTemplates {
     return null;
   }
 
-  /** Produces the exported route state for a URL. */
   resolve(url: URL, redaction: RedactionPipeline): RouteState {
     const segments = splitPath(url.pathname);
     const matched = this.#match(segments);

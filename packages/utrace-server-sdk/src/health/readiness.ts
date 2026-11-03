@@ -8,8 +8,7 @@
  * propagation probe. Every required service reports this independently.
  */
 
-/** The facts a readiness decision is made from. */
-export interface ReadinessInputs {
+interface ReadinessInputs {
   readonly activationBound: boolean;
   readonly credentialValid: boolean;
   readonly providerInstalled: boolean;
@@ -18,11 +17,10 @@ export interface ReadinessInputs {
   readonly bufferAboveHighWater: boolean;
   readonly probePassed: boolean;
   readonly openFailures: number;
-  readonly paused: boolean;
 }
 
 /** The decision plus every blocker, in evaluation order. */
-export interface ReadinessDecision {
+interface ReadinessDecision {
   readonly ready: boolean;
   readonly blockers: readonly string[];
 }
@@ -53,9 +51,6 @@ export function evaluateReadiness(inputs: ReadinessInputs): ReadinessDecision {
   }
   if (inputs.openFailures > 0) {
     blockers.push('open_failures');
-  }
-  if (inputs.paused) {
-    blockers.push('paused_by_control_plane');
   }
   return { ready: blockers.length === 0, blockers };
 }

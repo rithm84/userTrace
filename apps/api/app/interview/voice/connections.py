@@ -38,7 +38,7 @@ from app.db.kernel import (
     apply_transition_on_connection,
 )
 from app.db.pool import Database
-from app.db.rows import as_optional_str, as_str, as_uuid
+from app.db.rows import as_int, as_optional_str, as_str, as_uuid
 from app.envelope import Actor, AuditIntent, EventAppend, JobIntent, JsonValue, StreamRef
 from app.errors import AggregateNotFoundError, GuardRejectedError
 from app.ids import uuid7
@@ -54,7 +54,6 @@ __all__ = [
     "CLOSE_PROVIDER_SESSION",
     "VOICE_AGENT",
     "OpenedVoiceConnection",
-    "agent_job_intent",
     "close_voice_connection",
     "open_voice_connection",
 ]
@@ -165,7 +164,7 @@ async def open_voice_connection(
         )
         raise
 
-    agent_job = agent_job_intent(
+    agent_job = _agent_job_intent(
         client_id=participant.client_id,
         interview_session_id=interview_session_id,
         connection_id=connection_id,
@@ -203,7 +202,7 @@ async def open_voice_connection(
                 client_id=participant.client_id,
                 aggregate_kind=AggregateKind.VOICE_CONNECTION,
                 aggregate_id=connection_id,
-                expected_revision=_revision(current),
+                expected_revision=as_int(current, "revision"),
                 state_column="state",
                 mutation={"provider_session_ref": result.provider_session_ref},
                 event=EventAppend(
@@ -321,7 +320,7 @@ async def close_voice_connection(
     )
 
 
-def agent_job_intent(
+def _agent_job_intent(
     *,
     client_id: UUID,
     interview_session_id: UUID,
@@ -606,7 +605,6 @@ def _close_request(
     jobs: Sequence[JobIntent],
     superseded: bool,
 ) -> TransitionRequest:
-    """Build the kernel transition that closes one voice connection."""
     mutation: dict[str, ColumnValue] = {"closed_at": datetime.now(tz=UTC)}
     payload: Mapping[str, JsonValue] = {"reason": reason, "superseded": superseded}
     actor = Actor(kind=ActorKind.SYSTEM, ref="interview.voice")
@@ -621,7 +619,7 @@ def _close_request(
         client_id=client_id,
         aggregate_kind=AggregateKind.VOICE_CONNECTION,
         aggregate_id=connection_id,
-        expected_revision=_revision(current),
+        expected_revision=as_int(current, "revision"),
         state_column="state",
         mutation=mutation,
         event=EventAppend(
@@ -653,7 +651,6 @@ def _close_request(
 async def _lock_session(
     conn: AsyncConnection[DictRow], interview_session_id: UUID
 ) -> DictRow:
-    """Lock the Interview Session a connection is being opened against."""
     async with conn.cursor() as cur:
         await cur.execute(
             "select id, state, revision from public.interview_sessions where id = %s for update",
@@ -670,7 +667,6 @@ async def _lock_session(
 async def _lock_connection(
     conn: AsyncConnection[DictRow], connection_id: UUID
 ) -> DictRow:
-    """Lock one voice connection row."""
     async with conn.cursor() as cur:
         await cur.execute(
             """
@@ -685,11 +681,3 @@ async def _lock_connection(
     if row is None:
         raise AggregateNotFoundError(table="voice_connections", row_id=connection_id)
     return row
-
-
-def _revision(row: DictRow) -> int:
-    """Return a locked row's revision, refusing a non-integer column."""
-    value = row["revision"]
-    if isinstance(value, bool) or not isinstance(value, int):
-        raise TypeError("voice_connections.revision is not an integer")
-    return value

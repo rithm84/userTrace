@@ -13,8 +13,7 @@ import type { AnnotationDefinition } from '../contracts/manifest.js';
 import type { ServerSdkFailureInput } from '../errors.js';
 import type { RedactionPolicy } from './policy.js';
 
-/** Result of validating the `utrace.*` attributes of one span. */
-export type UtraceAttributeOutcome =
+type UtraceAttributeOutcome =
   | { readonly kind: 'retain'; readonly attributes: Attributes }
   | { readonly kind: 'fail'; readonly failure: ServerSdkFailureInput };
 
@@ -65,7 +64,8 @@ function schemaFailure(detail: Record<string, string | number | boolean>): Serve
   };
 }
 
-function valueMatchesOutputClass(
+/** True when `value` lies inside the definition's declared output class. */
+export function valueMatchesOutputClass(
   definition: AnnotationDefinition,
   value: AttributeValue,
 ): boolean {

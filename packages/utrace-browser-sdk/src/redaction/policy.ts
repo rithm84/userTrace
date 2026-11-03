@@ -34,7 +34,7 @@ export interface RedactionPolicy {
 export const findSafeValueRule = (policy: RedactionPolicy, ruleId: string): SafeValueRule | null =>
   policy.safe_value_rules.find((rule) => rule.rule_id === ruleId) ?? null;
 
-export interface RuleCheck {
+interface RuleCheck {
   readonly accepted: boolean;
   readonly reason: "ok" | "kind_not_allowed" | "value_not_allowed" | "pattern_mismatch" | "too_long";
 }

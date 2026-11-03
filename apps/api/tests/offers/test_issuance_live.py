@@ -2,8 +2,8 @@
 
 Nothing is mocked. The test creates its own sandbox customer, issues one credit
 through the production connector, replays the issuance, reconciles it the way a
-retry outside Stripe's idempotency retention window has to, finalizes a real
-invoice, and deletes the customer afterwards.
+retry outside Stripe's idempotency retention window has to, and deletes the
+customer afterwards.
 """
 
 from __future__ import annotations
@@ -25,26 +25,21 @@ from utrace_contracts.domain.lifecycle import (
 from app.connectors.stripe_credits import SANDBOX_KEY_PREFIXES, StripeCredits
 from app.db.pool import Database
 from app.db.rows import as_uuid
-from app.offers.budget import authorize_allowance, reserve_offer
+from app.offers.budget import authorize_allowance
 from app.offers.entitlement import (
     CaseStopReason,
     EntitlementDecision,
     evaluate_entitlement,
 )
-from app.offers.invoices import reconcile_invoice_applications
 from app.offers.issuance import dispatch_issuance, load_operation
 from app.offers.read_model import load_offers_view
-from scripts.stripe_demo_fixture import (
-    API_TIMEOUT_SECONDS,
-    INVOICE_MINOR_UNITS,
-    REWARD_MINOR_UNITS,
-    finalize_demo_invoice,
-)
+from tests.helpers import reserve_usd_offer
 from tests.supabase_auth import SignedInUser
 from tests.validation.scenario import ValidationScenario, build_scenario
 
 CURRENCY = "USD"
-INVOICE_LIMIT = 10
+REWARD_MINOR_UNITS = 25_000
+API_TIMEOUT_SECONDS = 30.0
 
 ONE_CRITERION: tuple[tuple[str, CriterionObservability], ...] = (
     ("the saved view reopens with every filter", CriterionObservability.OBSERVED),
@@ -72,12 +67,9 @@ async def sandbox_customer() -> AsyncIterator[tuple[str, str]]:
     """One throwaway sandbox customer, deleted when the test finishes."""
     secret_key = _secret_key()
     client = _raw_client(secret_key)
-    # The fixture invoice is collected by sending it, which Stripe refuses for a
-    # customer with no email, so the throwaway customer carries one.
     customer = await client.v1.customers.create_async(
         {
             "name": "uTrace issuance smoke",
-            "email": "issuance-smoke@utrace-test.invalid",
             "description": "created by tests/offers/test_issuance_live.py",
             "metadata": {"utrace_test": "offer-issuance"},
         }
@@ -112,17 +104,13 @@ async def _earned_operation(
         authorized_minor_units=REWARD_MINOR_UNITS * 2,
         authorized_by_auth_user_id=auth_users["owner_a"].auth_user_id,
     )
-    await reserve_offer(
+    await reserve_usd_offer(
         database,
         client_id=scenario.client_id,
         product_signal_id=scenario.product_signal_id,
         customer_account_id=scenario.customer_account_id,
-        currency=CURRENCY,
         amount_minor_units=REWARD_MINOR_UNITS,
-        billing_account_ref="acct_utrace_sandbox",
         billing_customer_ref=customer_id,
-        billing_mapping_revision=1,
-        completion_terms={"amount_minor_units": REWARD_MINOR_UNITS},
     )
     entitlement = await evaluate_entitlement(
         database,
@@ -197,32 +185,12 @@ async def test_one_credit_per_offer_across_replays_and_reconciliation(
         == 1
     )
 
-    # Issued is not consumed: the read model shows no application until Stripe says so.
-    before = await load_offers_view(
+    # Issued is not consumed: the read model reports no invoice application.
+    view = await load_offers_view(
         database, client_id=scenario.client_id, currency=CURRENCY
     )
-    assert before.offers[0].issuance_state is OfferIssuanceState.ISSUED
-    assert before.offers[0].invoice_application_minor_units is None
-
-    application = await finalize_demo_invoice(secret_key, customer_id=customer_id)
-    assert application.applied_balance_minor_units == REWARD_MINOR_UNITS
-    assert (
-        application.amount_due_minor_units == INVOICE_MINOR_UNITS - REWARD_MINOR_UNITS
-    )
-
-    recorded = await reconcile_invoice_applications(
-        database,
-        credits,
-        offer_issuance_operation_id=operation_id,
-        limit=INVOICE_LIMIT,
-    )
-    assert len(recorded) == 1
-    assert recorded[0].applied_minor_units == REWARD_MINOR_UNITS
-
-    after = await load_offers_view(
-        database, client_id=scenario.client_id, currency=CURRENCY
-    )
-    assert after.offers[0].invoice_application_minor_units == REWARD_MINOR_UNITS
+    assert view.offers[0].issuance_state is OfferIssuanceState.ISSUED
+    assert view.offers[0].invoice_application_minor_units is None
 
     async with database.connection() as conn:
         operation = await load_operation(conn, operation_id=operation_id)

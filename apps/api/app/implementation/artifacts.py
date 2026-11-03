@@ -54,8 +54,6 @@ _TEXT = "text/plain; charset=utf-8"
 
 
 class ArtifactModel(BaseModel):
-    """Base for the extraction records: immutable and closed to extra fields."""
-
     model_config = ConfigDict(frozen=True, extra="forbid")
 
 

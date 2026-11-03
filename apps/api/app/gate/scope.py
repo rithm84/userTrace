@@ -145,7 +145,6 @@ class ApprovedScope(ScopeModel):
         required_checks: Mapping[str, object],
         budgets: Mapping[str, object],
     ) -> Self:
-        """Rebuild the object from the three stored columns."""
         return cls.model_validate(
             {
                 **approved_scope,

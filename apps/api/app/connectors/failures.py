@@ -23,7 +23,6 @@ from typing import Final
 from utrace_contracts.domain.lifecycle import EffectState, RetryAdvice, TechnicalCategory
 
 __all__ = [
-    "SECRET_PARAMETER_NAMES",
     "ConnectorFailure",
     "EffectState",
     "FailureDetail",
@@ -56,7 +55,7 @@ _DEFAULT_RETRY_ADVICE: Final[Mapping[TechnicalCategory, RetryAdvice]] = {
     TechnicalCategory.INTERNAL: RetryAdvice.NEVER,
 }
 
-SECRET_PARAMETER_NAMES: Final[frozenset[str]] = frozenset(
+_SECRET_PARAMETER_NAMES: Final[frozenset[str]] = frozenset(
     {
         "api_key",
         "apikey",
@@ -127,13 +126,13 @@ def redacted_parameters(parameters: Mapping[str, object]) -> dict[str, str]:
     """Render request parameters for a failure, replacing secret-named values.
 
     Values are stringified so a failure never holds a live provider object, and any key
-    whose lowercase name is in `SECRET_PARAMETER_NAMES` or ends with one of `_token`,
+    whose lowercase name is in `_SECRET_PARAMETER_NAMES` or ends with one of `_token`,
     `_key`, or `_secret` is replaced.
     """
     rendered: dict[str, str] = {}
     for name, value in parameters.items():
         lowered = name.lower()
-        is_secret = lowered in SECRET_PARAMETER_NAMES or lowered.endswith(
+        is_secret = lowered in _SECRET_PARAMETER_NAMES or lowered.endswith(
             ("_token", "_key", "_secret")
         )
         rendered[name] = _REDACTED if is_secret else str(value)

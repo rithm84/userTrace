@@ -19,8 +19,11 @@ from app.interview.voice.call_record import record_call_ended, subject_from_job
 from app.interview.voice.connections import VOICE_AGENT, open_voice_connection
 from tests.factories import CaseFixture, create_interview_session
 from tests.helpers import record_session_readiness
-from tests.interview.fixtures import create_preview_allocation
-from tests.interview.test_voice_runtime import participant_of, routed_case
+from tests.interview.fixtures import (
+    create_preview_allocation,
+    interviewing_case,
+    participant_of,
+)
 from tests.supabase_auth import SignedInUser
 
 
@@ -43,7 +46,7 @@ async def _lose_the_connection(database: Database, case: CaseFixture, session_id
 async def _live_session(
     database: Database, auth_users: dict[str, SignedInUser], name: str
 ) -> tuple[CaseFixture, UUID]:
-    case = await routed_case(database, auth_users, name)
+    case = await interviewing_case(database, auth_users, name)
     session_id = await create_interview_session(
         database, case=case, state=InterviewSessionState.LIVE, conversational_ready=True
     )

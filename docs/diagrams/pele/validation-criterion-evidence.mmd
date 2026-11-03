@@ -1,0 +1,31 @@
+---
+title: Validation · how one acceptance criterion is settled
+---
+flowchart TB
+  criterion([Agreed acceptance criterion]):::neutral
+  kind{Kind?}:::gate
+  run{Newest run?}:::gate
+  supported{Confirmed?}:::gate
+  contradicted{Confirmed?}:::gate
+  judged{Judged met?}:::gate
+  subgraph row_settled [" "]
+    direction LR
+    rerun[Agent asks for the check again]:::async
+    unmet([Criterion unconfirmed, failed, or unclear]):::external
+    proven([Criterion confirmed with affirmative proof]):::outcome
+    rerun ~~~ unmet ~~~ proven
+  end
+
+  criterion -->|observability fixed at agreement| kind
+  kind -->|observable behavior| run
+  kind -->|subjective| judged
+  run -->|check not set up| rerun
+  run -->|supports it| supported
+  run -->|contradicts it| contradicted
+  rerun async_1@-.->|participant runs it| run
+  supported -->|yes| proven
+  supported -->|no or unsure| unmet
+  contradicted -->|no| unmet
+  contradicted -->|yes · agent says what the preview showed| rerun
+  judged -->|yes, on an observed workflow| proven
+  judged -->|no or unsure| unmet

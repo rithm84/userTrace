@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="pele-doc" viewBox="0 0 937 596" width="937" height="596" style="max-width:100%;height:auto" role="img" aria-label="Readiness · activation projections answer a per-session evaluation"><title>Readiness · activation projections answer a per-session evaluation</title><style><![CDATA[
+/*
+  Shared uTrace diagram theme. docs/diagrams/render.mjs embeds this file in every
+  exported SVG, so a diagram source names roles (`:::runtime`) and edge kinds
+  (`async_1@-.->`) and never sets a color itself. Pick a role by what a node is,
+  never by how it should look. Colors follow the reader's light or dark scheme.
+*/
+
+.pele-doc {
+  --pele-bg: #ffffff;
+  --pele-fg: #24303a;
+  --pele-muted: #5c6770;
+  --pele-line: #596773;
+  --pele-surface: #f2f4f6;
+  --pele-surface-alt: #f7f8fa;
+  --pele-border: #5c6770;
+  --pele-accent: #1971c2;
+  --pele-critical: #c44d41;
+  --pele-radius: 6px;
+
+  --people-fill: #e7f5ff;      --people-stroke: #1971c2;
+  --runtime-fill: #eee8ff;     --runtime-stroke: #7048e8;
+  --reasoning-fill: #f8e7fc;   --reasoning-stroke: #9c36b5;
+  --observation-fill: #e3fafc; --observation-stroke: #0c8599;
+  --external-fill: #fff0ed;    --external-stroke: #c44d41;
+  --outcome-fill: #e5f5e8;     --outcome-stroke: #2f9e44;
+  --async-fill: #ffd8a8;       --async-stroke: #e8590c;
+  --gate-fill: #fff4d6;        --gate-stroke: #b37c00;
+  --neutral-fill: #f2f4f6;     --neutral-stroke: #5c6770;
+  --client-fill: #ffffff;      --client-stroke: #1e1e1e;
+
+  --edge-async: #e8590c;   --edge-async-text: #b3470a;
+  --edge-blocked: #c44d41; --edge-blocked-text: #a13a2f;
+  --edge-ok: #2f9e44;      --edge-ok-text: #23783a;
+}
+
+@media (prefers-color-scheme: dark) {
+  .pele-doc {
+    --pele-bg: #0d1117;
+    --pele-fg: #e6edf3;
+    --pele-muted: #9da7b3;
+    --pele-line: #9da7b3;
+    --pele-surface: #161b22;
+    --pele-surface-alt: #10151c;
+    --pele-border: #6e7781;
+    --pele-accent: #4dabf7;
+    --pele-critical: #ff8787;
+
+    --people-fill: #0c2a43;      --people-stroke: #4dabf7;
+    --runtime-fill: #241c49;     --runtime-stroke: #9775fa;
+    --reasoning-fill: #381640;   --reasoning-stroke: #da77f2;
+    --observation-fill: #0b3338; --observation-stroke: #3bc9db;
+    --external-fill: #3d1714;    --external-stroke: #ff8787;
+    --outcome-fill: #11321b;     --outcome-stroke: #51cf66;
+    --async-fill: #4a2508;       --async-stroke: #ff922b;
+    --gate-fill: #3d2e05;        --gate-stroke: #fcc419;
+    --neutral-fill: #21262d;     --neutral-stroke: #8b949e;
+    --client-fill: #161b22;      --client-stroke: #c9d1d9;
+
+    --edge-async: #ff922b;   --edge-async-text: #ffa94d;
+    --edge-blocked: #ff8787; --edge-blocked-text: #ffa8a8;
+    --edge-ok: #51cf66;      --edge-ok-text: #69db7c;
+  }
+}
+
+.pele-doc > .pele-doc-bg { fill: var(--pele-bg); }
+
+/* Roles: fill and stroke only; text stays the ink color. */
+.pele-node.people > :is(rect, path, polygon, circle, ellipse),
+.pele-node.people > g > path { fill: var(--people-fill); stroke: var(--people-stroke); }
+.pele-node.runtime > :is(rect, path, polygon, circle, ellipse),
+.pele-node.runtime > g > path { fill: var(--runtime-fill); stroke: var(--runtime-stroke); }
+.pele-node.reasoning > :is(rect, path, polygon, circle, ellipse),
+.pele-node.reasoning > g > path { fill: var(--reasoning-fill); stroke: var(--reasoning-stroke); }
+.pele-node.observation > :is(rect, path, polygon, circle, ellipse),
+.pele-node.observation > g > path { fill: var(--observation-fill); stroke: var(--observation-stroke); }
+.pele-node.external > :is(rect, path, polygon, circle, ellipse),
+.pele-node.external > g > path { fill: var(--external-fill); stroke: var(--external-stroke); }
+.pele-node.outcome > :is(rect, path, polygon, circle, ellipse),
+.pele-node.outcome > g > path { fill: var(--outcome-fill); stroke: var(--outcome-stroke); }
+.pele-node.async > :is(rect, path, polygon, circle, ellipse),
+.pele-node.async > g > path { fill: var(--async-fill); stroke: var(--async-stroke); }
+.pele-node.gate > :is(rect, path, polygon, circle, ellipse),
+.pele-node.gate > g > path { fill: var(--gate-fill); stroke: var(--gate-stroke); }
+.pele-node.neutral > :is(rect, path, polygon, circle, ellipse),
+.pele-node.neutral > g > path { fill: var(--neutral-fill); stroke: var(--neutral-stroke); }
+.pele-node.client > :is(rect, path, polygon, circle, ellipse),
+.pele-node.client > g > path { fill: var(--client-fill); stroke: var(--client-stroke); }
+
+/* Subgraphs are boundaries: a dashed outline, like a zone. Swimlanes share
+   their borders, so theirs stay solid; a sequence box is a shaded region with no
+   outline, because message labels have no background to hide a line behind. Its
+   opaque surface fill keeps the region visible on the dark background. */
+.pele-cluster > rect { stroke-dasharray: 5 4; }
+.pele-lane > rect { stroke-dasharray: none; }
+.pele-box > rect { stroke: none; fill: var(--pele-surface); fill-opacity: 1; }
+
+/* A `row_*` subgraph only arranges its nodes into a row; it draws nothing. */
+.pele-cluster[data-id^="row_"] { display: none; }
+
+/* Edge kinds, selected by the edge id prefix the source gives the edge. */
+.pele-edge[data-id^="async_"] > path { stroke: var(--edge-async); }
+.pele-edge[data-id^="async_"] > path.pele-marker { fill: var(--edge-async); stroke: none; }
+.pele-edge-label[data-id^="async_"] text { fill: var(--edge-async-text); }
+.pele-edge[data-id^="blocked_"] > path { stroke: var(--edge-blocked); }
+.pele-edge[data-id^="blocked_"] > path.pele-marker { fill: var(--edge-blocked); stroke: none; }
+.pele-edge-label[data-id^="blocked_"] text { fill: var(--edge-blocked-text); }
+.pele-edge[data-id^="ok_"] > path { stroke: var(--edge-ok); }
+.pele-edge[data-id^="ok_"] > path.pele-marker { fill: var(--edge-ok); stroke: none; }
+.pele-edge-label[data-id^="ok_"] text { fill: var(--edge-ok-text); }
+]]></style><rect class="pele-doc-bg" width="937" height="596" rx="8"/><svg x="0" y="0" class="pele pele-flowchart" viewBox="0 0 937 596" width="937" height="596" style="--_bg:var(--pele-bg,#fff);--_fg:var(--pele-fg,#1f1f1f);--_m:var(--pele-muted,#6e6e6e);--_l:var(--pele-line,#1f1f1f);--_s:var(--pele-surface,#f3f3f3);--_a:var(--pele-surface-alt,#e6e6e6);--_b:var(--pele-border,#8a8a8a);--_c:var(--pele-accent,#5b7bd5);color:var(--_fg);--_r:var(--pele-radius,4px);--_w:var(--pele-bold-weight,bold);--_fm:var(--pele-font-mono,monospace);font:16px sans-serif;letter-spacing:normal;word-spacing:normal;text-transform:none;direction:ltr;font-family:var(--pele-font,sans-serif)" fill="var(--_fg)" role="graphics-document document" aria-roledescription="flowchart"><g class="pele-clusters"><g class="pele-cluster" data-id="projections"><rect x="173.61" y="284" width="412.03" height="124.32" fill="var(--_a)" fill-opacity="0.5" stroke="var(--_b)" style="rx:var(--_r)"/></g></g><g class="pele-edges" fill="none" stroke="var(--_l)" stroke-linecap="round"><g class="pele-edge" data-id="L_trace_job_0"><path d="M148.7,72L148.7,117.5C148.7,123.03 319.81,127.35 319.81,132.88L319.81,138"/><path class="pele-marker" d="M319.81,145L316.45,137L323.17,137Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_health_job_0"><path d="M428.76,72L428.76,117.5C428.76,125.19 426.1,125.19 426.1,132.88L426.1,138"/><path class="pele-marker" d="M426.1,145L422.74,137L429.46,137Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="async_1"><path d="M691.05,72L691.05,117.5C691.05,121.34 442.1,129.03 442.1,132.88L442.1,138" stroke-dasharray="3 4"/><path class="pele-marker" d="M442.1,145L438.74,137L445.46,137Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_job_projections_0"><path d="M379.62,211L379.62,277"/><path class="pele-marker" d="M379.62,284L376.26,276L382.98,276Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_projections_record_0"><path d="M379.62,408.32L379.62,453.82C379.62,458.4 594.24,464.91 594.24,469.49L594.24,474.71"/><path class="pele-marker" d="M594.24,481.71L590.88,473.71L597.6,473.71Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_others_record_0"><path d="M769.03,370.16L769.03,453.82C769.03,461.65 652.69,461.65 652.69,469.49L652.69,474.71"/><path class="pele-marker" d="M652.69,481.71L649.33,473.71L656.05,473.71Z" fill="var(--_l)" stroke="none"/></g></g><g class="pele-cluster-titles"><g class="pele-cluster-title" data-id="projections"><text fill="none" stroke="color-mix(in srgb,var(--_a) 50%,var(--_bg))" stroke-width="5" stroke-linejoin="round" x="355.43" y="309.6" text-anchor="middle">Readiness projections · per activation and kind</text><text class="pele-cluster-label" fill="var(--_m)" x="355.43" y="309.6" text-anchor="middle">Readiness projections · per activation and kind</text></g></g><g class="pele-edge-labels" font-size="14"><g class="pele-edge-label" data-id="L_trace_job_0"><rect x="59.88" y="94.5" width="177.62" height="21" rx="3" fill="var(--_bg)"/><text x="148.7" y="109.9" text-anchor="middle">schedules while not current</text></g><g class="pele-edge-label" data-id="L_health_job_0"><rect x="399.48" y="94.5" width="58.57" height="21" rx="3" fill="var(--_bg)"/><text x="428.76" y="109.9" text-anchor="middle">prompts</text></g><g class="pele-edge-label" data-id="async_1"><rect x="664.88" y="94.5" width="52.34" height="21" rx="3" fill="var(--_bg)"/><text x="691.05" y="109.9" text-anchor="middle">re-runs</text></g><g class="pele-edge-label" data-id="L_job_projections_0"><rect x="311.03" y="233.5" width="137.18" height="21" rx="3" fill="var(--_bg)"/><text x="379.62" y="248.9" text-anchor="middle">append next revision</text></g><g class="pele-edge-label" data-id="L_projections_record_0"><rect x="290.24" y="430.82" width="178.76" height="21" rx="3" fill="var(--_bg)"/><text x="379.62" y="446.22" text-anchor="middle">open page's resources only</text></g><g class="pele-edge-label" data-id="L_others_record_0"><rect x="713.67" y="430.82" width="110.72" height="21" rx="3" fill="var(--_bg)"/><text x="769.03" y="446.22" text-anchor="middle">component facts</text></g></g><g class="pele-nodes"><g class="pele-node pele-shape-stadium observation" data-id="trace" transform="translate(148.7,48)"><rect x="-124.7" y="-24" width="249.39" height="48" rx="24" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Trace correlation completes</text></g><g class="pele-node pele-shape-stadium observation" data-id="health" transform="translate(428.76,48)"><rect x="-115.37" y="-24" width="230.74" height="48" rx="24" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Server SDK health report</text></g><g class="pele-node pele-shape-stadium async" data-id="sweep" transform="translate(691.05,48)"><rect x="-106.92" y="-24" width="213.84" height="48" rx="24" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Stale-projection sweep</text></g><g class="pele-node pele-shape-rect runtime" data-id="job" transform="translate(379.62,178)"><rect x="-111.82" y="-33" width="223.63" height="66" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" text-anchor="middle" xml:space="preserve"><tspan x="0" y="-4.9" font-weight="var(--_w)">Readiness Job</tspan><tspan x="0" y="16.1">One per Interview Session</tspan></text></g><g class="pele-node pele-shape-cyl outcome" data-id="browser" transform="translate(240.94,356.16)"><path d="M-47.34,-24A47.34,6.76 0 0 1 47.34,-24V24A47.34,6.76 0 0 1 -47.34,24Z" fill="var(--_s)" stroke="var(--_b)"/><path d="M-47.34,-24A47.34,6.76 0 0 0 47.34,-24" fill="none" stroke="var(--_b)"/><text class="pele-label" x="0" y="8.98" text-anchor="middle">Browser</text></g><g class="pele-node pele-shape-cyl outcome" data-id="server" transform="translate(369.84,356.16)"><path d="M-41.56,-24A41.56,6 0 0 1 41.56,-24V24A41.56,6 0 0 1 -41.56,24Z" fill="var(--_s)" stroke="var(--_b)"/><path d="M-41.56,-24A41.56,6 0 0 0 41.56,-24" fill="none" stroke="var(--_b)"/><text class="pele-label" x="0" y="8.6" text-anchor="middle">Server</text></g><g class="pele-node pele-shape-cyl outcome" data-id="correlation" transform="translate(508.52,356.16)"><path d="M-57.12,-24A57.12,8.16 0 0 1 57.12,-24V24A57.12,8.16 0 0 1 -57.12,24Z" fill="var(--_s)" stroke="var(--_b)"/><path d="M-57.12,-24A57.12,8.16 0 0 0 57.12,-24" fill="none" stroke="var(--_b)"/><text class="pele-label" x="0" y="9.68" text-anchor="middle">Correlation</text></g><g class="pele-node pele-shape-rect neutral" data-id="others" transform="translate(769.03,346.16)"><rect x="-143.39" y="-24" width="286.78" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Voice, preview, and extension facts</text></g><g class="pele-node pele-shape-cyl outcome" data-id="record" transform="translate(623.46,526.32)"><path d="M-115.38,-33A115.38,12 0 0 1 115.38,-33V33A115.38,12 0 0 1 -115.38,33Z" fill="var(--_s)" stroke="var(--_b)"/><path d="M-115.38,-33A115.38,12 0 0 0 115.38,-33" fill="none" stroke="var(--_b)"/><text class="pele-label" text-anchor="middle" xml:space="preserve"><tspan x="0" y="1.1" font-weight="var(--_w)">Session readiness record</tspan><tspan x="0" y="22.1">Control-plane combination</tspan></text></g></g></svg></svg>

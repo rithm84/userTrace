@@ -1,0 +1,33 @@
+---
+title: Preview runtimes and implementation workspaces · separate resources
+---
+flowchart TB
+  user([Originating user]):::people
+  door[Preview front door]:::runtime
+  gate{{Implementation Gate}}:::gate
+  subgraph product_access [Preview runtime · product access, no code authority]
+    pool["`**Warm pool**
+    Unclaimed runtimes from the pinned template`"]:::observation
+    base["`**Base Preview Runtime Allocation**
+    Pinned seed dataset
+    The user's scoped auth handoff`"]:::observation
+    candidate["`**Candidate allocation**
+    Immutable Preview Version
+    Same dataset identity`"]:::observation
+  end
+  subgraph code_authority [Implementation workspace · code authority, no client data]
+    workspace["`**Isolated code workspace**
+    Attempt-scoped fenced Environment Lease`"]:::runtime
+  end
+  ended(["`**Terminated, never reused**
+  Once required artifacts are durable`"]):::neutral
+
+  user -->|one stable uTrace origin| door
+  pool -->|claim for the Interview Session| base
+  door -->|routes to| base
+  gate -->|authorizes one attempt| workspace
+  workspace -->|checked change| candidate
+  door async_1@-.->|switches to when ready| candidate
+  base --> ended
+  candidate --> ended
+  workspace --> ended

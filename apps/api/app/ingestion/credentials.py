@@ -52,7 +52,6 @@ _TOKEN_BYTES = 32
 class IssuedCredential:
     """A freshly minted credential. The plaintext exists only in this object."""
 
-    telemetry_credential_id: UUID
     token: str
     expires_at: datetime
 
@@ -63,13 +62,9 @@ class ResolvedCredential:
 
     telemetry_credential_id: UUID
     activation_id: UUID
-    client_id: UUID
-    kind: str
-    expires_at: datetime
 
 
 def _digest(token: str) -> str:
-    """Return the stored digest of one credential."""
     return sha256(token.encode("ascii")).hexdigest()
 
 
@@ -103,9 +98,7 @@ async def issue_credential(
         kind=kind,
         expires_at=expires_at.isoformat(),
     )
-    return IssuedCredential(
-        telemetry_credential_id=credential_id, token=token, expires_at=expires_at
-    )
+    return IssuedCredential(token=token, expires_at=expires_at)
 
 
 async def resolve_credential(
@@ -121,7 +114,6 @@ async def resolve_credential(
         await cur.execute(
             """
             select credentials.id,
-                   credentials.client_id,
                    credentials.activation_id,
                    credentials.kind,
                    credentials.state,
@@ -155,9 +147,6 @@ async def resolve_credential(
     return ResolvedCredential(
         telemetry_credential_id=as_uuid(row, "id"),
         activation_id=as_uuid(row, "activation_id"),
-        client_id=as_uuid(row, "client_id"),
-        kind=kind,
-        expires_at=expires_at,
     )
 
 

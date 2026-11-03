@@ -66,7 +66,6 @@ __all__ = [
     "ValidationBinding",
     "abandon_validation_attempt",
     "begin_validation",
-    "interrupt_validation",
     "open_attempt_id",
     "open_validation_attempt",
     "record_departure",
@@ -496,24 +495,6 @@ async def _advance_signal_to_validating(
         additional_locks=(),
     )
     await apply_transition_on_connection(conn, request)
-
-
-async def interrupt_validation(
-    database: Database,
-    *,
-    attempt_id: UUID,
-    reason: str,
-    return_window_seconds: int,
-) -> datetime:
-    """Record an interruption and the case-level return-and-closure deadline.
-
-    Returns the deadline in force. A first interruption records it; a repeated
-    one reads the existing deadline back and never extends or resets it.
-    """
-    async with database.transaction() as conn:
-        return await _interrupt_on_connection(
-            conn, attempt_id=attempt_id, reason=reason, return_window_seconds=return_window_seconds
-        )
 
 
 async def record_departure(

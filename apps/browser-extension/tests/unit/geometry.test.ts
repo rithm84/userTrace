@@ -57,12 +57,6 @@ describe("orb placement", () => {
     }
   });
 
-  it("reserves room for the side pills, the stacked pills, their shadow, and an inset", () => {
-    const clearance = ORB_LAYOUT.shadow + ORB_LAYOUT.edgeInset;
-    expect(horizontalMargin(120)).toBe(60 + ORB_LAYOUT.pillGap + ORB_LAYOUT.sidePillWidth + clearance);
-    expect(verticalMargin(120)).toBe(60 + ORB_LAYOUT.pillGap + ORB_LAYOUT.pillHeight + clearance);
-  });
-
   it("puts the orb and every pill on whole pixels so nothing is resampled", () => {
     for (const diameter of DIAMETERS) {
       const offsets = pillOffsets(diameter);

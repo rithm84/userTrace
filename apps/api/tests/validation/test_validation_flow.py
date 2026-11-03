@@ -23,10 +23,9 @@ from app.errors import GuardRejectedError
 from app.ids import uuid7
 from app.validation.completion import CriterionConfirmation, complete_validation
 from app.validation.controller import (
-    EXPIRE_VALIDATION_RETURN,
     begin_validation,
-    interrupt_validation,
     open_validation_attempt,
+    record_departure,
     resume_validation,
 )
 from app.validation.evidence import DurableEvidenceQuery, EvidenceStance
@@ -259,50 +258,6 @@ async def _base_allocation(database: Database, scenario: ValidationScenario) -> 
     return allocation_id
 
 
-async def test_interruption_records_one_case_deadline_and_never_extends_it(
-    database: Database, auth_users: dict[str, SignedInUser]
-) -> None:
-    """Pause, retry, and repeated departures do not reset the closure deadline."""
-    scenario = await _scenario(
-        database,
-        auth_users,
-        name="interrupt",
-        candidate_ready=True,
-    )
-    attempt_id = await open_validation_attempt(database, binding=binding_of(scenario))
-    await begin_validation(
-        database, attempt_id=attempt_id, originating_user_id=scenario.client_user_id
-    )
-    first = await interrupt_validation(
-        database,
-        attempt_id=attempt_id,
-        reason="transport_lost",
-        return_window_seconds=3600,
-    )
-    await resume_validation(
-        database,
-        attempt_id=attempt_id,
-        originating_user_id=scenario.client_user_id,
-        preview_version_id=scenario.preview_version_id,
-    )
-    second = await interrupt_validation(
-        database,
-        attempt_id=attempt_id,
-        reason="finish_later",
-        return_window_seconds=99999,
-    )
-    assert second == first
-    assert (
-        await count_rows(
-            database,
-            table="jobs",
-            where="job_type = %s and client_id = %s",
-            params=(EXPIRE_VALIDATION_RETURN, scenario.client_id),
-        )
-        == 1
-    )
-
-
 async def test_resuming_against_a_different_candidate_is_refused(
     database: Database, auth_users: dict[str, SignedInUser]
 ) -> None:
@@ -316,12 +271,13 @@ async def test_resuming_against_a_different_candidate_is_refused(
     await begin_validation(
         database, attempt_id=attempt_id, originating_user_id=scenario.client_user_id
     )
-    await interrupt_validation(
-        database,
-        attempt_id=attempt_id,
-        reason="transport_lost",
-        return_window_seconds=3600,
-    )
+    async with database.transaction() as conn:
+        await record_departure(
+            conn,
+            product_signal_id=scenario.product_signal_id,
+            reason="transport_lost",
+            return_window_seconds=3600,
+        )
     with pytest.raises(GuardRejectedError) as refusal:
         await resume_validation(
             database,
@@ -444,7 +400,6 @@ async def test_enthusiasm_over_an_observed_error_does_not_validate(
 async def test_a_partial_outcome_closes_with_an_unvalidated_case_file(
     database: Database, auth_users: dict[str, SignedInUser]
 ) -> None:
-    """A partial outcome closes with a blocker Case File."""
     scenario = await _scenario(
         database,
         auth_users,

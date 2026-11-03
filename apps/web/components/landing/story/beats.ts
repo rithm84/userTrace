@@ -6,7 +6,7 @@ export type ChapterId = "request" | "interview" | "build" | "validate" | "iterat
 export type Surface = "discord" | "session" | "preview" | "workspace" | "casefile";
 export type BeatId = "request" | "signal" | "invite" | "greet" | "filters" | "reset" | "agree" | "build" | "ready" | "save" | "missing" | "followup" | "repair" | "validated" | "thanks" | "casefile";
 
-export type Chapter = Readonly<{ id: ChapterId; label: string; colour: AgentColour }>;
+type Chapter = Readonly<{ id: ChapterId; label: string; colour: AgentColour }>;
 
 /**
  * The one agent the product shows Maya, in every tab: the uTrace app's voice in Discord, the

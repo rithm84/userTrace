@@ -33,7 +33,6 @@ type JobHandler = Callable[[Database, ClaimedJob], Awaitable[None]]
 
 
 def interview_handlers() -> Mapping[str, JobHandler]:
-    """Return this workstream's Job handlers for the worker's registry."""
     return {
         CLOSE_PROVIDER_SESSION: close_provider_session,
         EXPIRE_RECONNECT_WINDOW: expire_reconnect_window,

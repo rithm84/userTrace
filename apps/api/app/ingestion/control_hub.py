@@ -74,7 +74,6 @@ class ServerControlHub:
             del self._connections[server_stream_id]
 
     def holds(self, server_stream_id: UUID) -> bool:
-        """Whether this process currently holds a socket for that stream."""
         return server_stream_id in self._connections
 
     async def deliver(self, server_stream_id: UUID, message: ServerMessage) -> None:

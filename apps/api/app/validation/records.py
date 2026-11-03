@@ -26,7 +26,6 @@ from app.db.rows import (
     as_datetime,
     as_int,
     as_optional_str,
-    as_optional_uuid,
     as_str,
     as_uuid,
 )
@@ -61,9 +60,7 @@ class ValidationAttemptRow:
     acceptance_criteria_revision: int
     authenticated_identity_ref: str
     workflow_ref: str
-    evidence_window_id: UUID | None
     outcome: ValidationOutcome | None
-    interrupted_at: datetime | None
     opened_at: datetime
     source_commit: str
     source_digest: str
@@ -104,8 +101,7 @@ _ATTEMPT_QUERY = """
            attempts.preview_runtime_allocation_id, attempts.interview_session_id,
            attempts.client_user_id, attempts.state, attempts.revision,
            attempts.dataset_manifest_digest, attempts.acceptance_criteria_revision,
-           attempts.authenticated_identity_ref, attempts.workflow_ref,
-           attempts.evidence_window_id, attempts.outcome, attempts.interrupted_at,
+           attempts.authenticated_identity_ref, attempts.workflow_ref, attempts.outcome,
            attempts.created_at as opened_at, versions.source_commit, versions.source_digest, versions.build_digest,
            versions.base_revision as candidate_base_revision,
            implementations.repository_ref
@@ -135,11 +131,7 @@ def _to_attempt(row: Mapping[str, object]) -> ValidationAttemptRow:
         acceptance_criteria_revision=as_int(row, "acceptance_criteria_revision"),
         authenticated_identity_ref=as_str(row, "authenticated_identity_ref"),
         workflow_ref=as_str(row, "workflow_ref"),
-        evidence_window_id=as_optional_uuid(row, "evidence_window_id"),
         outcome=None if outcome is None else ValidationOutcome(outcome),
-        interrupted_at=(
-            None if row["interrupted_at"] is None else as_datetime(row, "interrupted_at")
-        ),
         opened_at=as_datetime(row, "opened_at"),
         source_commit=as_str(row, "source_commit"),
         source_digest=as_str(row, "source_digest"),

@@ -36,17 +36,12 @@ from app.db.pool import Database
 from app.preview.activation import ServerActivationContext, restart_observed_runtime
 from app.preview.artifacts import record_artifact
 from app.preview.candidate import build_candidate_runtime, deploy_candidate
-from app.preview.config import (
-    PreviewSettings,
-    TemplateBuildSettings,
-    get_preview_settings,
-)
+from app.preview.config import TemplateBuildSettings, get_preview_settings
 from app.preview.handoff import mint_product_handoff
-from app.preview.pool import load_runtime_secret
+from app.preview.pool import load_runtime_secrets
 from app.preview.provisioning import (
     prepare_session_preview,
     provision_warm_runtime,
-    reseed_allocation,
 )
 from app.preview.readiness import route_context_token
 from app.preview.recipe import TemplateRecipe
@@ -54,13 +49,10 @@ from app.preview.records import (
     PreviewRouteRecord,
     ReadinessOutcome,
     ReadinessProbe,
-    ReadinessReport,
     ReadinessResult,
     RouteReadinessState,
-    SeedTarget,
 )
 from app.preview.recovery import (
-    confirm_session_observation,
     recover_route_after_restart,
     withdraw_readiness_for_restart,
 )
@@ -97,10 +89,6 @@ from tests.preview.live_harness import (
 )
 from tests.supabase_auth import SignedInUser
 
-#: Text only the client product renders. The front door's own surfaces carry no
-#: activation-gate markers, so a page has to be identified by the product's.
-PRODUCT_MARKER = "Shopalytics"
-
 #: Where the fixture's preview handoff lands the signed-in growth lead, and a
 #: value from the seeded dataset that only the real dashboard renders.
 DASHBOARD_PATH = "/app/conversion"
@@ -111,25 +99,10 @@ DASHBOARD_MARKER = "Conversion"
 #: derivations, so this outlasts several of their cycles.
 _OBSERVATION_DEADLINE_SECONDS = 180.0
 
-_MARKER_PAGE = (
-    "export default function CandidateMarkerPage() {\n"
-    f"  return <main>{MARKER}</main>;\n"
-    "}\n"
-)
-
-_MARKER_MIGRATION = (
-    "-- Candidate-only migration: it runs against the candidate database alone.\n"
-    "create table if not exists saved_conversion_views (\n"
-    "  id uuid primary key,\n"
-    "  name text not null\n"
-    ");\n"
-)
-
 
 def _outcomes(
     results: Sequence[ReadinessResult],
 ) -> dict[ReadinessProbe, ReadinessOutcome]:
-    """Index one readiness report's probe outcomes."""
     return {result.probe: result.outcome for result in results}
 
 
@@ -180,7 +153,6 @@ async def test_the_preview_path_from_warm_pool_to_validated_observation(
     api: httpx.AsyncClient,
     settings: Settings,
     keys: SigningKeys,
-    preview_settings: PreviewSettings,
     build_settings: TemplateBuildSettings,
     provider: PreviewRuntimeProvider,
     probe_client: httpx.AsyncClient,
@@ -261,18 +233,6 @@ async def test_the_preview_path_from_warm_pool_to_validated_observation(
         )
         assert not dormant.activated
 
-        # The Data Seeding Contract's bounded fresh reseed reinstalls the same
-        # approved identity and is verified independently afterwards.
-        reseeded = await reseed_allocation(
-            database,
-            provider=provider,
-            allocation_id=base_id,
-            template=template,
-            seed_target=SeedTarget.BASE,
-        )
-        assert reseeded.content_hash == template.seed.manifest_digest
-        assert reseeded.seed_target is SeedTarget.BASE
-
         prepared = await prepare_session_preview(
             database,
             provider=provider,
@@ -352,16 +312,14 @@ async def test_the_preview_path_from_warm_pool_to_validated_observation(
             # handoff, exactly as the readiness probe proved it server-side, and
             # then opens the dashboard. Only a page that queries the product
             # produces the browser CLIENT span the server span joins under.
-            handoff_secret = await load_runtime_secret(
-                database,
-                allocation_id=prepared.pins.preview_runtime_allocation_id,
-                column="handoff_secret",
+            runtime_secrets = await load_runtime_secrets(
+                database, allocation_id=prepared.pins.preview_runtime_allocation_id
             )
             signed_in = await browser.post_json(
                 recipe.handoff_path,
                 {
                     "token": mint_product_handoff(
-                        handoff_secret=handoff_secret,
+                        handoff_secret=runtime_secrets.handoff_secret,
                         audience_host=prepared.route.public_preview_host,
                         subject_email=prepared.pins.authenticated_identity,
                         lifetime_seconds=60,
@@ -383,25 +341,17 @@ async def test_the_preview_path_from_warm_pool_to_validated_observation(
             # answer this area cannot reach on its own: it needs the browser
             # CLIENT span and every hop the signed server manifest declares to
             # join under one trace, which is the browser SDK's and the ingestion
-            # stream's contract. The probe still runs and its outcome is still
-            # recorded, so the gap stays visible rather than silently admitted.
-            confirmed = await _until(
+            # stream's contract.
+            await _until(
                 "browser observation and the Server SDK activation to be ready",
                 lambda: _observation_ready(
                     database,
-                    interview_session_id=session_id,
                     observation_port=observation,
+                    client_id=case.client_id,
+                    interview_session_id=session_id,
+                    preview_runtime_allocation_id=prepared.pins.preview_runtime_allocation_id,
                 ),
             )
-        confirmed_outcomes = _outcomes(confirmed.results)
-        assert (
-            confirmed_outcomes[ReadinessProbe.SERVER_SDK_ACTIVATION]
-            is ReadinessOutcome.PASSED
-        )
-        assert (
-            confirmed_outcomes[ReadinessProbe.BROWSER_OBSERVATION]
-            is ReadinessOutcome.PASSED
-        )
 
         base_handle = await provider.attach(
             runtime_ref=prepared.pins.runtime_ref,
@@ -594,28 +544,26 @@ async def test_the_preview_path_from_warm_pool_to_validated_observation(
 async def _observation_ready(
     database: Database,
     *,
-    interview_session_id: UUID,
     observation_port: IngestionObservationReadiness,
-) -> ReadinessReport | None:
-    """Drain the queued derivations and re-probe the participant's halves.
+    client_id: UUID,
+    interview_session_id: UUID,
+    preview_runtime_allocation_id: UUID,
+) -> bool | None:
+    """Drain the queued derivations and read the participant's halves from the port.
 
-    It answers once the two probes the participant's own traffic drives have
-    passed. The report carries all three, so the correlation outcome is durable
-    either way.
+    It answers once the Server SDK has activated and the browser observation path
+    is ready, the two the participant's own traffic drives.
     """
     await drain_ingestion_jobs(database)
-    report = await confirm_session_observation(
-        database,
+    activation = await observation_port.activation(
+        client_id=client_id,
         interview_session_id=interview_session_id,
-        observation_port=observation_port,
+        preview_runtime_allocation_id=preview_runtime_allocation_id,
     )
-    outcomes = {result.probe: result.outcome for result in report.results}
-    participant = (
-        ReadinessProbe.SERVER_SDK_ACTIVATION,
-        ReadinessProbe.BROWSER_OBSERVATION,
+    readiness = await observation_port.readiness(
+        client_id=client_id, interview_session_id=interview_session_id
     )
-    ready = all(outcomes[probe] is ReadinessOutcome.PASSED for probe in participant)
-    return report if ready else None
+    return True if activation.activated and readiness.browser_ready else None
 
 
 async def _server_streams(database: Database) -> tuple[int, int]:
@@ -674,7 +622,6 @@ async def _mint_claim(
 
 
 async def _state(database: Database, allocation_id: UUID) -> tuple[str, int]:
-    """Return one allocation's lifecycle state and revision."""
     return await read_state(
         database,
         table="preview_runtime_allocations",

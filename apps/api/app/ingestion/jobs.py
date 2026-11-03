@@ -37,8 +37,6 @@ __all__ = [
     "CORRELATE_TRACE",
     "EVALUATE_READINESS",
     "build_ingestion_handlers",
-    "correlate_trace_job",
-    "evaluate_readiness_job",
     "refresh_session_readiness",
 ]
 
@@ -142,18 +140,15 @@ async def evaluate_readiness(
 ) -> tuple[str, ...]:
     """Evaluate every readiness kind for one activation's session.
 
-    Browser readiness requires a current baseline, a continuous accepted sequence,
-    bounded acknowledgement lag, and no unresolved critical delivery gap, all for
-    the current document: a document the participant navigated away from ended its
-    stream, and that is not a readiness failure. Server readiness requires every
-    manifest-required service stream of the current document's preview, or of the
-    session's own preview before the participant opens a document, with bounded
-    export lag: once the participant moves to a candidate, the base preview's streams
-    no longer describe what they see. Correlation readiness
-    requires a browser ``CLIENT`` span, server ``SERVER`` span, and every required
-    downstream hop to join under the current document's activation; a later trace
-    that needs fewer hops, such as a page load, does not undo that proof, while an
-    ambiguous trace does.
+    The per-kind requirements are in
+    docs/arch-components/telemetry-and-evidence.md#completeness-and-readiness; all
+    of them are judged for the current document. A document the participant
+    navigated away from ended its stream, which is not a readiness failure. Server
+    streams count for the current document's preview, or the session's own preview
+    before a document opens, because once the participant moves to a candidate the
+    base preview no longer describes what they see. A later trace that needs fewer
+    hops, such as a page load, does not undo a complete correlation; an ambiguous
+    trace does.
     """
     async with database.connection() as conn, conn.cursor() as cur:
         await cur.execute(

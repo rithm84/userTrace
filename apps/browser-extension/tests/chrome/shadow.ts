@@ -17,7 +17,7 @@ type CdpNode = Readonly<{
   contentDocument?: CdpNode;
 }>;
 
-export type Box = Readonly<{ x: number; y: number; width: number; height: number }>;
+type Box = Readonly<{ x: number; y: number; width: number; height: number }>;
 
 const TEST_ID_ATTRIBUTE = "data-utrace-testid";
 

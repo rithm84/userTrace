@@ -36,7 +36,6 @@ def _registry() -> Registry[object]:
 
 
 def _validator(area: str, name: str) -> Draft202012Validator:
-    """Return a validator for one published schema document."""
     document = json.loads(
         (SCHEMAS / area / f"{name}.v1.schema.json").read_text(encoding="utf-8")
     )
@@ -66,7 +65,6 @@ def _fixture_paths(directory: str, document: str) -> list[Path]:
 
 
 def _read(path: Path) -> dict[str, object]:
-    """Read one shared fixture."""
     decoded = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(decoded, dict):
         raise TypeError(f"fixture {path.name} is not an object")
@@ -84,7 +82,6 @@ def test_the_client_frame_model_accepts_every_canonical_frame_fixture() -> None:
 
 
 def test_the_envelope_model_accepts_every_canonical_observation_fixture() -> None:
-    """Every published observation-envelope fixture decodes into the model."""
     validator = _validator("browser-observation", "observation-envelope")
     for path in _fixture_paths("valid", "observation-envelope"):
         fixture = _read(path)
@@ -97,10 +94,18 @@ def test_the_envelope_model_accepts_every_canonical_observation_fixture() -> Non
 
 @pytest.mark.parametrize(
     "name",
-    sorted(path.name for path in (FIXTURES / "invalid").glob("*.json")),
+    sorted(
+        path.name
+        for path in (FIXTURES / "invalid").glob("*.json")
+        if _document_of(path.name) in {"ingest-client-frame", "observation-envelope"}
+    ),
 )
 def test_the_models_reject_every_invalid_fixture(name: str) -> None:
-    """An instance the schema rejects is an instance the model rejects."""
+    """An instance the schema rejects is an instance the model rejects.
+
+    Only the two documents these models mirror are replayed here; the contracts
+    package's own conformance suite holds every other fixture to its schema.
+    """
     fixture = _read(FIXTURES / "invalid" / name)
     document = _document_of(name)
     validator = _validator("browser-observation", document)
@@ -108,13 +113,12 @@ def test_the_models_reject_every_invalid_fixture(name: str) -> None:
     if document == "ingest-client-frame":
         with pytest.raises(SourceValidationError):
             decode_client_frame(json.dumps(fixture))
-    elif document == "observation-envelope":
+    else:
         with pytest.raises(ValueError):
             ObservationEnvelope.model_validate_json(json.dumps(fixture), strict=True)
 
 
 def _batch_fixture() -> dict[str, object]:
-    """Return the canonical observation batch fixture."""
     for path in _fixture_paths("valid", "ingest-client-frame"):
         fixture = _read(path)
         if fixture["kind"] == "observation.batch":
@@ -131,7 +135,6 @@ def test_a_string_never_becomes_an_integer_sequence() -> None:
 
 
 def test_an_unknown_field_fails_closed() -> None:
-    """Unknown record types, versions, attributes, and fields fail validation."""
     fixture = _batch_fixture()
     fixture["unexpected"] = True
     with pytest.raises(SourceValidationError):

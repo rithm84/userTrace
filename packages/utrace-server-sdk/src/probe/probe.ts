@@ -34,7 +34,6 @@ export class PropagationProbe {
     this.expectedServerSpanName = `${spec.method} ${spec.route_template}`;
   }
 
-  /** True once the probe has passed. */
   public get hasPassed(): boolean {
     return this.state === 'passed';
   }
@@ -117,7 +116,6 @@ export class PropagationProbe {
     this.fail(this.allHopsObserved() ? 'acknowledgement_timeout' : 'missing_hop');
   }
 
-  /** Fails the probe with an exact reason. */
   public fail(reason: ProbeFailureReason): void {
     this.state = 'failed';
     this.failureReason = reason;

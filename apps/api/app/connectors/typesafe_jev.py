@@ -216,7 +216,6 @@ class JevClient:
         )
 
     async def __aenter__(self) -> Self:
-        """Enter the HTTP client scope."""
         await self._client.__aenter__()
         return self
 

@@ -233,8 +233,8 @@ class StripeCredits:
     async def read_customer_ids(self, *, limit: int) -> tuple[str, ...]:
         """List customer ids in the billing account.
 
-        Used by readiness checks and the live smoke test to prove the sandbox grant works
-        without writing anything.
+        The live smoke test uses it to prove the sandbox grant works without writing
+        anything.
         """
         try:
             page = await self._client.v1.customers.list_async({"limit": limit})

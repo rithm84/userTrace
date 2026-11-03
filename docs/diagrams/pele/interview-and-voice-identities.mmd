@@ -1,0 +1,30 @@
+---
+title: Runtime identities · one case, its sessions, and their voice connections
+---
+erDiagram
+  user["Originating user"]
+  signal["Product Signal"]
+  session["Interview Session"]
+  readiness["Session readiness record"]
+  projection["Session projection"]
+  connection["Voice connection"]
+  room["Daily room"]
+  job["Voice agent Job"]
+  fragment["Transcript fragment"]
+
+  signal }o--|| user : "originated by"
+  signal ||--o{ session : "spans"
+  session }o--|| user : "admits only"
+  session ||--|| readiness : "owns"
+  session ||--|| projection : "renders"
+  session ||--o{ connection : "one current at a time"
+  connection ||--|| room : "binds one private"
+  connection ||--|| job : "queues"
+  connection ||--o{ fragment : "records"
+
+  class user people
+  class signal,readiness outcome
+  class session,projection,connection runtime
+  class room external
+  class job reasoning
+  class fragment outcome

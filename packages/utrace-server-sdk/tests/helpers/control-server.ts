@@ -42,7 +42,7 @@ export const TEST_LIMITS: ExportLimits = {
 };
 
 /** What the test wants the activation record to contain. */
-export interface ActivationTemplate {
+interface ActivationTemplate {
   readonly signedManifest: SignedServerInstrumentationManifest;
   readonly previewEntryToken: string;
   readonly requiredHops: ServerActivation['probe']['required_hops'];
@@ -54,7 +54,6 @@ export interface ActivationTemplate {
   readonly streamIdOverride?: string;
 }
 
-/** In-process control plane for tests. */
 export class TestControlPlane {
   private readonly httpServer: Server;
   private readonly wss: WebSocketServer;
@@ -89,7 +88,6 @@ export class TestControlPlane {
     return this.clientMessages;
   }
 
-  /** Frames of one type the SDK sent. */
   public messagesOfType<T extends ControlClientMessage['type']>(
     type: T,
   ): Extract<ControlClientMessage, { type: T }>[] {

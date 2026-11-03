@@ -54,8 +54,10 @@ import type { PreferencesUpdate } from "../shared/extensionMessages";
 import { API_AUDIENCE } from "../shared/buildConfig";
 import type { PreflightResultMessage } from "../shared/sessionTabMessages";
 import type { ProofOfPossession } from "../protocol/installation";
-import { newUuidV7, nowTimestamp } from "../shared/identifiers";
+import { encodeBase64Url, encodeUtf8, newUuidV7, nowTimestamp } from "../shared/identifiers";
 import { logWarning } from "../shared/log";
+import { delay } from "../shared/retry";
+import { HOST_PERMISSIONS } from "../build/buildOrigins";
 import {
   type CharacterProjectionMessage,
   type ControlsState,
@@ -73,12 +75,7 @@ const LOADED_TAB_PROBE_INTERVAL_MS = 500;
  * JSON document to verify.
  */
 function encodeProof(proof: ProofOfPossession): string {
-  const json = JSON.stringify(proof);
-  let binary = "";
-  for (const byte of new TextEncoder().encode(json)) {
-    binary += String.fromCharCode(byte);
-  }
-  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/u, "");
+  return encodeBase64Url(encodeUtf8(JSON.stringify(proof)));
 }
 
 const INITIAL_PROJECTION: CharacterProjectionMessage = Object.freeze({
@@ -99,7 +96,7 @@ const INITIAL_CONTROLS: ControlsState = Object.freeze({
   pendingAction: null,
 });
 
-export type OfferAnswer = Readonly<{ accepted: boolean; reason?: string }>;
+type OfferAnswer = Readonly<{ accepted: boolean; reason?: string }>;
 
 export type StatusSnapshot = Readonly<{
   installation: InstallationRecord | null;
@@ -228,7 +225,7 @@ export class SessionCoordinator {
   async preflight(): Promise<PreflightResultMessage> {
     const installation = this.installation;
     const hostPermission = await chrome.permissions
-      .contains({ origins: ["https://*/*", "http://*/*"] })
+      .contains({ origins: [...HOST_PERMISSIONS] })
       .catch(() => false);
     if (installation === null || installation.account_link_state !== "linked") {
       return {
@@ -258,7 +255,6 @@ export class SessionCoordinator {
     };
   }
 
-  /** Accepts a binding offer that arrived from a uTrace session tab. */
   async receiveOffer(offer: BindingOffer, sessionTabId: number | null): Promise<OfferAnswer> {
     const installation = this.installation;
     if (installation === null) {
@@ -296,7 +292,7 @@ export class SessionCoordinator {
       if (!shouldProbeFocusedTab(this.binding) || (await this.observePageProof(tabId))) {
         return;
       }
-      await new Promise((done) => setTimeout(done, LOADED_TAB_PROBE_INTERVAL_MS));
+      await delay(LOADED_TAB_PROBE_INTERVAL_MS);
     }
   }
 
@@ -462,11 +458,7 @@ export class SessionCoordinator {
         }
         return;
       case "preferences_state":
-        this.preferences = {
-          preferences_revision: frame.payload.preferences_revision,
-          visual_guidance_enabled: frame.payload.visual_guidance_enabled,
-          agent_cursor_enabled: frame.payload.agent_cursor_enabled,
-        };
+        this.preferences = frame.payload;
         await writePreferences(this.preferences);
         this.updateControls({ visualGuidanceEnabled: frame.payload.visual_guidance_enabled });
         return;
@@ -617,24 +609,15 @@ export class SessionCoordinator {
    */
   private async focusPreviewTab(): Promise<void> {
     const tabId = boundTabId(this.binding);
-    if (tabId === null) {
-      return;
-    }
-    const tab = await chrome.tabs.update(tabId, { active: true });
-    if (tab?.windowId !== undefined) {
-      await chrome.windows.update(tab.windowId, { focused: true });
+    if (tabId !== null) {
+      await bringForward(tabId);
     }
   }
 
   /** Return to session is browser-local and works without the connection. */
   private async focusSessionTab(): Promise<void> {
-    const sessionTabId = this.sessionTabId;
-    if (sessionTabId === null) {
-      return;
-    }
-    const tab = await chrome.tabs.update(sessionTabId, { active: true });
-    if (tab?.windowId !== undefined) {
-      await chrome.windows.update(tab.windowId, { focused: true });
+    if (this.sessionTabId !== null) {
+      await bringForward(this.sessionTabId);
     }
   }
 
@@ -794,6 +777,14 @@ export class SessionCoordinator {
       ...(tabId === null ? {} : { tab_id: tabId }),
       pending_command_ids: [...this.commands.pending.keys()],
     });
+  }
+}
+
+/** Activates a tab and focuses its window. */
+async function bringForward(tabId: number): Promise<void> {
+  const tab = await chrome.tabs.update(tabId, { active: true });
+  if (tab?.windowId !== undefined) {
+    await chrome.windows.update(tab.windowId, { focused: true });
   }
 }
 

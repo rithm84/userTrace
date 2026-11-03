@@ -27,8 +27,7 @@ import { redactUtraceAttributes } from './utrace-attributes.js';
 /** Event name a typed workflow milestone annotation produces. */
 export const MILESTONE_EVENT_NAME = 'utrace.milestone';
 
-/** What the pipeline decided about one span. */
-export type RedactionOutcome =
+type RedactionOutcome =
   | { readonly kind: 'export'; readonly span: ReadableSpan; readonly hop: ProbeHop | undefined }
   | { readonly kind: 'exclude'; readonly reason: string }
   | { readonly kind: 'fail'; readonly failure: ServerSdkFailureInput };
@@ -58,21 +57,11 @@ function normalizeValue(value: AttributeValue, maxLength: number): AttributeValu
 
 function scanForSensitiveValues(attributes: Attributes): string | undefined {
   for (const [key, value] of Object.entries(attributes)) {
-    if (typeof value === 'string') {
-      const detector = detectSensitiveValue(value);
+    const items: readonly unknown[] = Array.isArray(value) ? value : [value];
+    for (const item of items) {
+      const detector = typeof item === 'string' ? detectSensitiveValue(item) : undefined;
       if (detector !== undefined) {
         return `${key}:${detector}`;
-      }
-      continue;
-    }
-    if (Array.isArray(value)) {
-      for (const item of value) {
-        if (typeof item === 'string') {
-          const detector = detectSensitiveValue(item);
-          if (detector !== undefined) {
-            return `${key}:${detector}`;
-          }
-        }
       }
     }
   }

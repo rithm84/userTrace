@@ -13,7 +13,7 @@ authorized repository, which delivers the draft PR.
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -87,8 +87,6 @@ _GITHUB_TIMEOUT_SECONDS = 30.0
 CLOSE_CASE_AFTER_STOP = "control_plane.close_case_after_stop"
 """The kernel's job type for a client Stop that happened after participation."""
 
-type JobHandler = Callable[[Database, ClaimedJob], Awaitable[None]]
-
 
 @dataclass(frozen=True, slots=True)
 class AssemblyResult:
@@ -99,7 +97,6 @@ class AssemblyResult:
     stage: CaseFileStage
     core_digest: str | None
     delivery_id: UUID | None
-    delivery_state: DeliveryState | None
 
 
 def _optional_uuid(value: object) -> UUID | None:
@@ -316,7 +313,6 @@ async def assemble(
             stage=current.stage,
             core_digest=current.core_digest,
             delivery_id=current.delivery_id,
-            delivery_state=None,
         )
 
     window_id = await _freeze_window(
@@ -386,21 +382,13 @@ async def assemble(
                     validation_attempt_id=validation_attempt_id,
                     blocker_reason=delivery_blocker,
                 )
-            core = build_core(
-                bundle=bundle,
-                narrative=narrative,
-                comparison=comparison,
-                delivery=delivery,
-                narrative_source=narrative_source,
-            )
-        else:
-            core = build_core(
-                bundle=bundle,
-                narrative=narrative,
-                comparison=comparison,
-                delivery=delivery,
-                narrative_source=narrative_source,
-            )
+        core = build_core(
+            bundle=bundle,
+            narrative=narrative,
+            comparison=comparison,
+            delivery=delivery,
+            narrative_source=narrative_source,
+        )
         verify_core(core, bundle=bundle, forbidden_identifiers=forbidden)
 
     async with database.transaction() as conn:
@@ -440,7 +428,6 @@ async def assemble(
         stage=CaseFileStage.PUBLISHED,
         core_digest=digest,
         delivery_id=None if delivery is None else delivery.id,
-        delivery_state=None if delivery is None else delivery.state,
     )
 
 

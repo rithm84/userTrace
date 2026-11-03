@@ -10,12 +10,12 @@
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonArray = readonly JsonValue[];
 export type JsonValue = JsonPrimitive | JsonArray | JsonObject;
-export type JsonObject = { readonly [key: string]: JsonValue | undefined };
 /**
  * A member may be `undefined` because the contracts omit an optional value
  * rather than sending `null`, and `JSON.stringify` drops such a key. Decoded
  * data never produces one; only values the SDK builds for export do.
  */
+export type JsonObject = { readonly [key: string]: JsonValue | undefined };
 
 const isJsonObject = (value: JsonValue): value is JsonObject =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -57,7 +57,7 @@ export const asObject = (value: JsonValue | undefined, path: string): JsonObject
   return value;
 };
 
-export const asArray = (value: JsonValue | undefined, path: string): JsonArray => {
+const asArray = (value: JsonValue | undefined, path: string): JsonArray => {
   if (value === undefined || !isJsonArray(value)) throw new ContractViolationError(path, "array", describe(value));
   return value;
 };

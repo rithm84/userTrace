@@ -12,9 +12,9 @@ const { implementation, validation } = SHOPALYTICS;
 
 export type SheetId = "summary" | "evidence" | "frequency" | "trace" | "change" | "risk" | "next";
 
-export type SheetBodyProps = Readonly<{ show: (id: SheetId) => void }>;
+type SheetBodyProps = Readonly<{ show: (id: SheetId) => void }>;
 
-export type CaseFileSheet = Readonly<{
+type CaseFileSheet = Readonly<{
   id: SheetId;
   /** The word on the index divider. */
   tab: string;

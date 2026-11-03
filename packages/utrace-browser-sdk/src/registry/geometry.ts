@@ -12,7 +12,7 @@ import type { BrowserView } from "../core/dom.js";
 import type { TargetGeometry, TargetSemanticState } from "../observation/types.js";
 
 /** Attribute marking the extension's own top-layer host, excluded from occlusion. */
-export const EXTENSION_HOST_ATTRIBUTE = "data-utrace-extension-host";
+const EXTENSION_HOST_ATTRIBUTE = "data-utrace-extension-host";
 
 const isHidden = (element: Element, view: BrowserView): boolean => {
   const style = view.getComputedStyle(element);

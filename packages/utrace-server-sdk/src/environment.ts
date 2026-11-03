@@ -50,8 +50,7 @@ export interface BootstrapEnvironment {
   readonly manifestTrustAnchor: ManifestTrustAnchor;
 }
 
-/** Either a prepared-preview bootstrap, or dormancy. */
-export type EnvironmentResolution =
+type EnvironmentResolution =
   | { readonly kind: 'dormant' }
   | { readonly kind: 'prepared'; readonly environment: BootstrapEnvironment };
 
@@ -126,16 +125,11 @@ function parseTrustAnchor(value: string, now: Date): ManifestTrustAnchor {
       detail: { variable: ENVIRONMENT_VARIABLES.manifestTrustAnchor, reason },
     }, now);
 
-  let decoded: string;
-  try {
-    decoded = Buffer.from(value, 'base64url').toString('utf8');
-  } catch {
-    throw invalid('not_base64url');
-  }
-
+  // Node decodes base64url leniently and never throws; malformed input surfaces
+  // as the JSON parse failure below.
   let parsed: unknown;
   try {
-    parsed = JSON.parse(decoded);
+    parsed = JSON.parse(Buffer.from(value, 'base64url').toString('utf8'));
   } catch {
     throw invalid('not_json');
   }

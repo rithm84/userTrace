@@ -57,7 +57,6 @@ _log = structlog.get_logger(__name__)
 
 
 def _parser() -> argparse.ArgumentParser:
-    """Build the command parser."""
     parser = argparse.ArgumentParser(prog="demo", description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
 
@@ -213,7 +212,6 @@ async def _reset(confirmed: bool) -> int:
 
 
 async def _dispatch(arguments: argparse.Namespace) -> int:
-    """Run the selected command."""
     match arguments.command:
         case "prepare":
             return await _prepare()

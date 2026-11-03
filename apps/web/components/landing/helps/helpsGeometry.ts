@@ -4,9 +4,9 @@
  * clip and the ink stroke both read from here so they never disagree.
  */
 
-export type Point = readonly [number, number];
-export type Quad = readonly [Point, Point, Point, Point];
-export type Box = Readonly<{ left: number; top: number; width: number; height: number }>;
+type Point = readonly [number, number];
+type Quad = readonly [Point, Point, Point, Point];
+type Box = Readonly<{ left: number; top: number; width: number; height: number }>;
 
 export const HELPS_PAGE = Object.freeze({ width: 1180, height: 520, gutter: 12, lean: 36 });
 /** Where the gutter between the open case and the thumbnails meets the top edge. */

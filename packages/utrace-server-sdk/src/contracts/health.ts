@@ -29,7 +29,7 @@ export const serverSdkFailureSchema = z.strictObject({
   trace_id: z.string().regex(/^[0-9a-f]{32}$/u).optional(),
 });
 
-export const PROBE_STATES = [
+const PROBE_STATES = [
   'not_started',
   'awaiting_spans',
   'awaiting_acknowledgement',
@@ -37,7 +37,7 @@ export const PROBE_STATES = [
   'failed',
 ] as const;
 
-export const PROBE_FAILURE_REASONS = [
+const PROBE_FAILURE_REASONS = [
   'duplicate_server_span',
   'missing_hop',
   'rejected_field',
@@ -47,7 +47,7 @@ export const PROBE_FAILURE_REASONS = [
 
 export type ProbeFailureReason = (typeof PROBE_FAILURE_REASONS)[number];
 
-export const probeResultSchema = z.strictObject({
+const probeResultSchema = z.strictObject({
   state: z.enum(PROBE_STATES),
   probe_id: z.uuid().optional(),
   observed_hops: z.array(z.enum(PROBE_HOPS)).max(32),
@@ -55,14 +55,14 @@ export const probeResultSchema = z.strictObject({
   failure_reason: z.enum(PROBE_FAILURE_REASONS).optional(),
 });
 
-export const adapterStatusSchema = z.strictObject({
+const adapterStatusSchema = z.strictObject({
   adapter: z.enum(ADAPTERS),
   required: z.boolean(),
   installed: z.boolean(),
   module_version: z.string().max(40).optional(),
 });
 
-export const bufferStatusSchema = z.strictObject({
+const bufferStatusSchema = z.strictObject({
   queued_batches: z.int().min(0),
   queued_spans: z.int().min(0),
   max_queue_batches: z.int().min(1),

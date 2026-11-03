@@ -20,14 +20,12 @@ __all__ = [
     "CANONICAL_DISCORD_MESSAGE",
     "CLIENT_NAME",
     "CUSTOMER_ACCOUNT_KEY",
-    "CUSTOMER_ACCOUNT_NAME",
     "EXPECTED_INVOICE_DUE_MINOR_UNITS",
     "GATE_DECISION",
     "INITIAL_FLOW_TYPE",
     "INVOICE_MINOR_UNITS",
     "REWARD_CURRENCY",
     "REWARD_MINOR_UNITS",
-    "SAVED_VIEW_NAME",
     "TERMINAL_CASE_FILE_STAGE",
     "TERMINAL_CASE_FILE_VARIANT",
     "TERMINAL_VALIDATION_OUTCOME",
@@ -37,7 +35,6 @@ CLIENT_NAME: Final[str] = "Shopalytics"
 """The client product. Shopalytics is the client; Dudulemon is the customer."""
 
 CUSTOMER_ACCOUNT_KEY: Final[str] = "dudulemon"
-CUSTOMER_ACCOUNT_NAME: Final[str] = "Dudulemon"
 
 CANONICAL_DISCORD_MESSAGE: Final[str] = (
     "I keep rebuilding the same conversion filters every Monday. Can Shopalytics "
@@ -45,9 +42,6 @@ CANONICAL_DISCORD_MESSAGE: Final[str] = (
     "negative sizing reviews, then reopen it later?"
 )
 """The canonical Discord input, verbatim from the scenario."""
-
-SAVED_VIEW_NAME: Final[str] = "TikTok sizing drop-off"
-"""The saved-view name used during validation."""
 
 INITIAL_FLOW_TYPE: Final[FlowType] = FlowType.FEATURE_REQUEST_FLOW
 GATE_DECISION: Final[GateDecisionKind] = GateDecisionKind.APPROVED_LIVE

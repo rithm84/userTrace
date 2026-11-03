@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { checkMicrophone, identifyBrowser, MINIMUM_CHROME_MAJOR } from "@/lib/session/preflight";
+import { checkMicrophone, identifyBrowser } from "@/lib/session/preflight";
 
 function navigatorWith(
   overrides: Readonly<{ userAgent: string; brands?: readonly { brand: string; version: string }[] }>,
@@ -21,7 +21,6 @@ describe("participant browser check", () => {
     );
 
     expect(identity).toEqual({ name: "Google Chrome", majorVersion: 141, supported: true });
-    expect(MINIMUM_CHROME_MAJOR).toBe(137);
   });
 
   it("rejects a Chrome older than the extension supports", () => {

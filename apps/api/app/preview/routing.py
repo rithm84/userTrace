@@ -396,7 +396,6 @@ async def revoke_routes(
 
 
 def _as_record(row: object) -> PreviewRouteRecord:
-    """Narrow one route row into the contract-shaped record."""
     if not isinstance(row, dict):
         raise TypeError("expected a database row mapping")
     version = as_optional_uuid(row, "preview_version_id")

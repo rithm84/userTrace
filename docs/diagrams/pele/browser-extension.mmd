@@ -1,35 +1,31 @@
 ---
-title: Browser extension · authenticated binding before presentation
+title: Browser extension · processes and the channel between each pair
 ---
-sequenceDiagram
-  autonumber
-  box Participant's Chrome
-    participant tab as Session tab
-    participant worker as Extension service worker
-    participant surface as Bound preview surface
-    participant sdk as Embedded browser SDK
-  end
-  participant cp as Control plane
-
-  Note over tab: Voice and<br/>session controls
-  tab->>worker: single-use binding offer
-  Note over worker,sdk: The participant focuses the preview tab.
-  worker->>sdk: page-proof probe
-  sdk-->>worker: forwarded page proof
-  Note over sdk: Signed by telemetry ingestion.<br/>Client + session + allocation.<br/>Document + protocol identity.
-  worker->>cp: binding_offer + forwarded proof, on the control connection
-  Note right of cp: Checks the offer, proof,<br/>and device-key possession.<br/>Policy + user permissions.
-  cp-->>worker: one binding · extension_binding_id
-  worker->>surface: render Rive character + controls
-  loop each committed change
-    cp->>worker: pushed state + authorized Command, by revision
-    Note right of cp: Checks current target,<br/>phase, and budget
-    worker->>surface: route to the bound content surface
-    opt visual Command
-      surface->>sdk: validate target
-      sdk-->>surface: exact target · fresh geometry + revision
-      Note over surface: Cursor + overlays
-      surface-->>worker: Command result
-      worker-->>cp: terminal outcome
+flowchart TB
+  subgraph chrome [Participant's Chrome]
+    session([Session tab]):::people
+    worker["`**Extension service worker**
+    Bindings · routing · recovery
+    Device identity · checkpoints`"]:::observation
+    subgraph preview [Bound preview tab]
+      content["`**Content script**
+      Character · controls
+      Cursor · overlays`"]:::observation
+      subgraph main [Page main world]
+        bridge[Main-world bridge]:::observation
+        sdk["`**Embedded browser SDK**
+        Shared observation runtime`"]:::observation
+      end
     end
   end
+  subgraph utrace [uTrace]
+    cp[Control plane]:::runtime
+    ingest[Telemetry ingestion]:::runtime
+  end
+
+  session -->|binding offer · externally connectable messaging| worker
+  worker <-->|one authenticated WebSocket| cp
+  worker <-->|named runtime.Port| content
+  content <-->|fresh per-document MessageChannel| bridge
+  bridge <-->|joins the existing runtime| sdk
+  sdk -->|product telemetry · its own WebSocket| ingest

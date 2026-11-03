@@ -11,15 +11,16 @@
  */
 
 import { ROOT_CONTEXT, SpanKind, context, trace } from '@opentelemetry/api';
-import type { AttributeValue, Span, Tracer } from '@opentelemetry/api';
+import type { AttributeValue, Context, Span, Tracer } from '@opentelemetry/api';
 
 import { ANNOTATION_SCOPE_NAME, SDK_VERSION, UTRACE_ATTRIBUTES } from '../constants.js';
 import type { AnnotationDefinition } from '../contracts/manifest.js';
 import type { ServerSdkFailureInput } from '../errors.js';
 import { MILESTONE_EVENT_NAME } from '../redaction/span.js';
+import { valueMatchesOutputClass } from '../redaction/utrace-attributes.js';
 
 /** What an active runtime supplies to the annotation surface. */
-export interface AnnotationRuntime {
+interface AnnotationRuntime {
   readonly tracer: Tracer;
   readonly definitionsByName: ReadonlyMap<string, AnnotationDefinition>;
   readonly registeredOperations: ReadonlySet<string>;
@@ -67,70 +68,21 @@ function definition(
   return found;
 }
 
-function valueWithinOutputClass(
-  found: AnnotationDefinition,
-  value: AttributeValue,
-): boolean {
-  switch (found.output_class) {
-    case 'metadata_only':
-      return value === true;
-    case 'registered_reference':
-      return value === found.name;
-    case 'bounded_enum':
-      return typeof value === 'string' && (found.permitted_values ?? []).includes(value);
-    case 'bounded_integer':
-      return (
-        typeof value === 'number'
-        && Number.isInteger(value)
-        && found.value_bounds !== undefined
-        && value >= found.value_bounds.minimum
-        && value <= found.value_bounds.maximum
-      );
-    default:
-      return false;
-  }
-}
-
 function currentSpan(): Span | undefined {
   return trace.getSpan(context.active());
 }
 
-/** Runs `body` inside a registered product operation span. */
-export function withProductOperation<T>(name: string, body: () => T): T {
+function withOperationSpan<T>(
+  name: string,
+  kind: 'product_operation' | 'background_root',
+  parent: Context,
+  body: () => T,
+): T {
   const active = activeRuntime();
   if (active === undefined) {
     return body();
   }
-  const found = definition(active, name, 'product_operation');
-  if (found === undefined || !active.registeredOperations.has(name)) {
-    return body();
-  }
-  const span = active.tracer.startSpan(name, {
-    kind: SpanKind.INTERNAL,
-    attributes: {
-      [UTRACE_ATTRIBUTES.operationName]: found.name,
-      [UTRACE_ATTRIBUTES.operationDefinitionRef]: found.definition_ref,
-    },
-  });
-  try {
-    return context.with(trace.setSpan(context.active(), span), body);
-  } finally {
-    span.end();
-  }
-}
-
-/**
- * Runs `body` inside a registered background root span.
- *
- * A root background operation is eligible only while the observation window is
- * active; unregistered cron and maintenance work produces nothing.
- */
-export function withBackgroundRoot<T>(name: string, body: () => T): T {
-  const active = activeRuntime();
-  if (active === undefined) {
-    return body();
-  }
-  const found = definition(active, name, 'background_root');
+  const found = definition(active, name, kind);
   if (found === undefined || !active.registeredOperations.has(name)) {
     return body();
   }
@@ -143,13 +95,28 @@ export function withBackgroundRoot<T>(name: string, body: () => T): T {
         [UTRACE_ATTRIBUTES.operationDefinitionRef]: found.definition_ref,
       },
     },
-    ROOT_CONTEXT,
+    parent,
   );
   try {
-    return context.with(trace.setSpan(ROOT_CONTEXT, span), body);
+    return context.with(trace.setSpan(parent, span), body);
   } finally {
     span.end();
   }
+}
+
+/** Runs `body` inside a registered product operation span. */
+export function withProductOperation<T>(name: string, body: () => T): T {
+  return withOperationSpan(name, 'product_operation', context.active(), body);
+}
+
+/**
+ * Runs `body` inside a registered background root span.
+ *
+ * A root background operation is eligible only while the observation window is
+ * active; unregistered cron and maintenance work produces nothing.
+ */
+export function withBackgroundRoot<T>(name: string, body: () => T): T {
+  return withOperationSpan(name, 'background_root', ROOT_CONTEXT, body);
 }
 
 /** Records a registered workflow milestone on the active span. */
@@ -193,7 +160,7 @@ export function attachSafeValue(name: string, value: AttributeValue): void {
   if (found === undefined) {
     return;
   }
-  if (!valueWithinOutputClass(found, value)) {
+  if (!valueMatchesOutputClass(found, value)) {
     active.reportFailure({
       code: 'redaction_or_schema_failure',
       retry: 'never',

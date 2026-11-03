@@ -1,0 +1,25 @@
+---
+title: Browser SDK · activating one document before the preview boots
+---
+sequenceDiagram
+  autonumber
+  participant boot as Inert bootstrap
+  participant cp as Control plane
+  participant rt as Document runtime
+  participant ing as Browser ingestion
+
+  Note over boot,cp: Same-origin, through the reserved uTrace<br/>endpoint at the preview front door.
+  boot->>cp: activate · existing authenticated session context + new document nonce
+  cp-->>boot: signed document attestation + page proof
+  Note over boot: Verifies with the packaged<br/>uTrace public key.
+  boot->>cp: exchange the attestation once
+  cp-->>boot: short-lived, write-only telemetry credential
+  boot->>rt: start · pinned policy and manifest versions
+  rt->>ing: open the export WebSocket · credential
+  rt->>ing: initial baseline
+  ing-->>rt: acknowledgement
+  alt every readiness check passes
+    Note over rt: ready · the preview hydrates
+  else activation or readiness fails
+    Note over boot,rt: The preview reports the failure<br/>and never boots unobserved.
+  end

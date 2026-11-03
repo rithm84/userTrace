@@ -23,47 +23,18 @@ from uuid import UUID
 from psycopg import AsyncConnection
 from psycopg.rows import DictRow
 from psycopg.types.json import Jsonb
-from utrace_contracts.domain.lifecycle import OfferState
+from utrace_contracts.domain.lifecycle import OfferLedgerEntryKind, OfferState
 
 from app.clients.configuration import OutreachOfferPolicy
-from app.db.pool import Database
 from app.db.rows import as_int, as_str, as_uuid
-from app.envelope import JsonValue
 from app.errors import BudgetExhaustedError, GuardRejectedError
 from app.ids import uuid7
 from app.logging import get_logger
+from app.offers.ledger import lock_allowance, record_entry
 
-__all__ = [
-    "Allowance",
-    "ReservedOffer",
-    "release_reservation",
-    "remaining_allowance",
-    "reserve_offer",
-]
+__all__ = ["ReservedOffer", "release_reservation", "reserve_offer"]
 
 _log = get_logger(__name__)
-
-_ENTRY_RESERVATION_CREATED = "reservation_created"
-_ENTRY_RESERVATION_RELEASED = "reservation_released"
-
-
-@dataclass(frozen=True, slots=True)
-class Allowance:
-    """The client's authorized ceiling and what it has already committed."""
-
-    currency: str
-    authorized_minor_units: int
-    reserved_minor_units: int
-    earned_minor_units: int
-
-    @property
-    def remaining_minor_units(self) -> int:
-        """Return the face value still available for a new rewarded invitation."""
-        return (
-            self.authorized_minor_units
-            - self.reserved_minor_units
-            - self.earned_minor_units
-        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,98 +47,6 @@ class ReservedOffer:
     amount_minor_units: int
     billing_customer_ref: str
     already_reserved: bool
-
-
-async def _record_ledger_entry(
-    conn: AsyncConnection[DictRow],
-    *,
-    client_id: UUID,
-    currency: str,
-    entry_kind: str,
-    delta_minor_units: int,
-    outreach_offer_id: UUID | None,
-    causal_evidence: JsonValue,
-) -> None:
-    """Append one signed movement to the client and currency allowance record."""
-    async with conn.cursor() as cur:
-        await cur.execute(
-            """
-            insert into public.offer_ledger_entries (
-                id, client_id, currency, entry_kind, delta_minor_units,
-                outreach_offer_id, causal_evidence
-            )
-            values (%s, %s, %s, %s, %s, %s, %s)
-            """,
-            (
-                uuid7(),
-                client_id,
-                currency,
-                entry_kind,
-                delta_minor_units,
-                outreach_offer_id,
-                Jsonb(causal_evidence),
-            ),
-        )
-
-
-async def _allowance_on_connection(
-    conn: AsyncConnection[DictRow], *, client_id: UUID, currency: str
-) -> Allowance:
-    """Compute the allowance from the authorized ceiling and its commitments."""
-    async with conn.cursor() as cur:
-        await cur.execute(
-            """
-            select authorized_minor_units from public.offer_budgets
-            where client_id = %s and currency = %s
-            order by sequence_number desc limit 1
-            for update
-            """,
-            (client_id, currency),
-        )
-        budget = await cur.fetchone()
-        if budget is None:
-            raise GuardRejectedError(
-                machine="outreach_offer",
-                trigger="reserve",
-                reason=(
-                    f"client {client_id} has authorized no {currency} issuance budget"
-                ),
-            )
-        await cur.execute(
-            """
-            select coalesce(sum(amount_minor_units), 0)::bigint as reserved
-            from public.offer_reservations
-            where client_id = %s and currency = %s
-              and released_at is null and converted_at is null
-            """,
-            (client_id, currency),
-        )
-        reserved = await cur.fetchone()
-        await cur.execute(
-            """
-            select coalesce(sum(amount_minor_units), 0)::bigint as earned
-            from public.offer_entitlements
-            where client_id = %s and currency = %s
-            """,
-            (client_id, currency),
-        )
-        earned = await cur.fetchone()
-    return Allowance(
-        currency=currency,
-        authorized_minor_units=as_int(budget, "authorized_minor_units"),
-        reserved_minor_units=as_int(reserved, "reserved") if reserved is not None else 0,
-        earned_minor_units=as_int(earned, "earned") if earned is not None else 0,
-    )
-
-
-async def remaining_allowance(
-    database: Database, *, client_id: UUID, currency: str
-) -> Allowance:
-    """Return the client's allowance for one currency."""
-    async with database.transaction() as conn:
-        return await _allowance_on_connection(
-            conn, client_id=client_id, currency=currency
-        )
 
 
 async def reserve_offer(
@@ -210,9 +89,13 @@ async def reserve_offer(
             already_reserved=True,
         )
 
-    allowance = await _allowance_on_connection(
-        conn, client_id=client_id, currency=policy.currency
-    )
+    allowance = await lock_allowance(conn, client_id=client_id, currency=policy.currency)
+    if allowance.sequence_number == 0:
+        raise GuardRejectedError(
+            machine="outreach_offer",
+            trigger="reserve",
+            reason=f"client {client_id} has authorized no {policy.currency} issuance budget",
+        )
     amount = policy.fixed_amount_minor_units
     if allowance.remaining_minor_units < amount:
         raise BudgetExhaustedError(
@@ -261,13 +144,15 @@ async def reserve_offer(
             """,
             (reservation_id, client_id, offer_id, policy.currency, amount),
         )
-    await _record_ledger_entry(
+    await record_entry(
         conn,
         client_id=client_id,
         currency=policy.currency,
-        entry_kind=_ENTRY_RESERVATION_CREATED,
+        entry_kind=OfferLedgerEntryKind.RESERVATION_CREATED,
         delta_minor_units=-amount,
         outreach_offer_id=offer_id,
+        offer_entitlement_id=None,
+        offer_issuance_operation_id=None,
         causal_evidence={
             "product_signal_id": str(product_signal_id),
             "customer_account_id": str(customer_account_id),
@@ -336,13 +221,15 @@ async def release_reservation(
             ),
         )
     amount = as_int(released, "amount_minor_units")
-    await _record_ledger_entry(
+    await record_entry(
         conn,
         client_id=client_id,
         currency=as_str(released, "currency"),
-        entry_kind=_ENTRY_RESERVATION_RELEASED,
+        entry_kind=OfferLedgerEntryKind.RESERVATION_RELEASED,
         delta_minor_units=amount,
         outreach_offer_id=as_uuid(released, "offer_id"),
+        offer_entitlement_id=None,
+        offer_issuance_operation_id=None,
         causal_evidence={"product_signal_id": str(product_signal_id), "reason": reason},
     )
     _log.info(

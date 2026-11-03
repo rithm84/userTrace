@@ -2,410 +2,466 @@
 
 [Back to uTrace architecture](../ARCHITECTURE.md)
 
-The following diagram shows how the extension binds an authenticated session to one preview surface:
+This Manifest V3 Chrome extension presents the agent in the preview tab. It is
+required during product interviews and never owns durable workflow truth. The
+following diagram shows its processes and the channel between each pair:
 
-![A session offer, extension proof, and SDK attestation bind one preview surface before commands run.](../diagrams/svg/browser-extension.svg)
+![Extension processes in Chrome and the channel between each pair; the embedded SDK exports telemetry on its own socket.](../diagrams/svg/browser-extension.svg)
+
+<details><summary>Diagram key</summary>
+
+![Diagram key of the ten node roles: people and customer surfaces, uTrace control plane, reasoning models, SDKs and previews, external or blocked, validated or durable, async path, gates and checks, neutral or closed, and client product.](../diagrams/svg/_key.svg)
+
+</details>
+<p></p>
 
 ## Command boundary
 
-The extension supports the character, controls, observation, cursor, pointing,
-highlighting, overlays, and explicit scrolling for visual guidance. Clicking,
-typing, submission, and product navigation by the agent are deferred.
+The extension provides the character, controls, observation, and visual
+guidance: cursor, pointing, highlighting, overlays, and explicit scrolling.
+Agent clicking, typing, submission, and product navigation are not command
+capabilities.
 
 ## Component boundary
 
-- The initial browser companion is a Manifest V3 Chrome extension. It is a
-  required interactive surface during product interviews and never owns
-  durable workflow truth.
-- The extension service worker owns installation lifecycle, account-linked
-  device identity, authenticated tab bindings, the control-plane connection,
-  routing, compatibility checks, recovery, and temporary checkpoints.
-- A content script owns the extension-rendered character, controls, agent
-  cursor, and product overlays in the bound document.
-- A narrow main-world bridge connects the content script to the embedded SDK
-  and shared browser observation runtime. It owns no user interface, session
-  credential, authorization decision, or durable state.
-- The popup and settings pages own installation status, account-link status,
-  Chrome permission health, protocol compatibility, current connection and
-  binding status, global action preferences, device-local orb settings, sign
-  out, installation revocation, and troubleshooting. They cannot start an
-  interview, bind an arbitrary tab, configure one client, expose transcripts or
-  telemetry, or issue product commands.
+- **Service worker:** installation lifecycle, account-linked device identity,
+  authenticated tab bindings, the control-plane connection, routing,
+  compatibility checks, recovery, and temporary checkpoints.
+- **Content script:** the character, controls, agent cursor, and product
+  overlays.
+- **Main-world bridge:** no user interface, session credential, authorization
+  decision, or durable state; it only connects the content script to the SDK.
+- **Popup and settings pages:** installation and account-link status, Chrome
+  permission health, protocol compatibility, connection and binding status,
+  global action preferences, device-local orb settings, sign out, installation
+  revocation, and troubleshooting. They cannot start an interview,
+  bind an arbitrary tab, configure one client, expose transcripts or telemetry,
+  or issue product commands.
 
 ## Installation, identity, permissions, and packaging
 
-- Installation and setup happen once for the individual uTrace User, not once
-  per client or interview. The extension remains inert until an authenticated
-  live session supplies a valid binding offer and page proof.
-- Setup links the installation to the user's global `utrace_user_id` inside the
-  control plane and registers a device public key. The extension retains the
-  corresponding non-exportable private key. It proves possession of that key on
-  every control connection and preflight; no bearer or binding credential is
-  issued.
-- The control plane maps the authenticated person to the applicable
-  client-scoped `client_user_id`; the extension never receives the global
-  identity graph. A new browser or reinstall requires account linking again.
-  Signing out or revoking an installation blocks new bindings and revokes
-  active extension authority. An installation the control plane no longer
-  holds as linked, because it was revoked elsewhere or never existed there, is
-  refused on the control connection; the extension drops its local record and
-  device key and offers account linking again.
+A uTrace User sets up the extension once, not per client or interview. It stays
+inert until an authenticated live session supplies a valid binding offer and
+page proof.
+
+### Account linking and device identity
+
+- Setup links the installation to the global `utrace_user_id` and registers a
+  device public key. The extension keeps the non-exportable ECDSA P-256 private
+  key and proves possession on every control connection and preflight; no
+  bearer or binding credential is issued.
+- The control plane maps the person to the client-scoped `client_user_id`; the
+  extension never receives the global identity graph.
+- A new browser or a reinstall requires linking again; a reinstall also gets a
+  new installation identity.
+- Sign-out or revocation blocks new bindings and revokes active extension
+  authority. When the control connection refuses an installation no longer
+  linked (revoked elsewhere or unknown), the extension drops its local record
+  and device key and offers linking again.
+- A uTrace User has at most one active live interview across all
+  installations; a second session cannot take the extension and is rejected as
+  `user_already_in_live_session`.
+
+### Chrome permissions
+
 - The manifest requests `storage`, `scripting`, `identity`, and `alarms`. A
   one-minute alarm, created at install and update and never cleared, restarts a
-  suspended service worker so it reloads its state from storage. The wake-up
-  opens no connection and polls nothing; the control connection opens only for
-  a preflight or a session that needs it.
-- `https://*/*` and `http://*/*` are declared as optional host permissions and
-  requested together during one-time extension setup. uTrace does not use
-  `activeTab` or ask for host access per client, tab, or interview.
+  suspended service worker to reload state from storage, without connecting or
+  polling. The control connection opens only for a preflight or a session that
+  needs it.
+- Optional host permissions `https://*/*` and `http://*/*` are requested
+  together during one-time setup; uTrace never uses `activeTab` or asks for host
+  access per client, tab, or interview.
 - The extension does not request `tabs`, `webNavigation`, `webRequest`,
   `cookies`, `debugger`, `userScripts`, `tabCapture`, or `offscreen`.
-  `externally_connectable` lists only the session-tab origins: the uTrace-owned
-  production origin and `http://localhost:3100`, where the local web app serves
-  the session tab. Both are in the production build. The service worker checks
-  the sender's origin against the same list again.
-- The minimum supported Chrome version is 137, the first release that ships
-  Ed25519 in WebCrypto. The embedded browser SDK verifies control-plane signed
-  envelopes as detached Ed25519 over a base64url JSON payload, so an earlier
-  Chrome cannot verify a packaged signing key and fails the activation gate
-  instead of continuing with weaker proof. The extension's own device key is
-  ECDSA P-256 and it never verifies the page proof it forwards. Normal Chrome
-  profiles and ordinary HTTP and HTTPS pages are the supported contexts. Incognito, guest,
-  `file://`, `chrome://`, browser-internal, PDF-viewer, and other extension pages
-  are unsupported preview contexts.
-- Every executable dependency is bundled, including the Rive JavaScript and
-  WebAssembly runtime, animation assets, bridge code, and interface code. The
-  package loads no remote JavaScript or WebAssembly.
-- The extension CSP permits packaged WebAssembly only as required by Rive. It
-  does not permit ordinary `unsafe-eval`, inline scripts, or sandbox pages.
-  Network connections are restricted to uTrace authentication and control-plane
-  HTTPS and WSS origins.
-- Control-plane messages are schema-validated data. They cannot carry
-  executable code, arbitrary selectors, CSS, or expressions for the extension
-  to interpret. Interface styles, fonts, and images are packaged locally.
-- Production builds use signed Chrome Web Store distribution. Unpacked builds
+- `externally_connectable` lists only the session-tab origins, both in the
+  production build: the uTrace-owned production origin and the local web app's
+  `http://localhost:3100`. The service worker rechecks the sender's origin
+  against that list.
+
+### Supported browsers and contexts
+
+- Chrome 137, the first release with Ed25519 in WebCrypto, is the minimum. The
+  embedded SDK verifies control-plane signed envelopes as detached Ed25519 over
+  a base64url JSON payload, so an earlier Chrome fails the activation gate
+  rather than accept weaker proof. The extension never verifies the page proof
+  it forwards.
+- Only normal Chrome profiles and ordinary HTTP and HTTPS pages are supported
+  preview contexts; Incognito, guest, `file://`, `chrome://`, browser-internal,
+  PDF-viewer, and other extension pages are not.
+
+### Packaging and code integrity
+
+- Every executable dependency and interface asset is bundled: the Rive
+  JavaScript and WebAssembly runtime, animation, vector, and SVG assets, bridge
+  and interface code, styles, fonts, and images. No remote JavaScript or
+  WebAssembly loads.
+- The CSP allows packaged WebAssembly only as Rive requires and forbids ordinary
+  `unsafe-eval`, inline scripts, and sandbox pages. Network connections are
+  limited to uTrace authentication and control-plane HTTPS and WSS origins.
+- Control-plane messages are schema-validated data that cannot carry executable
+  code, arbitrary selectors, CSS, or expressions to interpret.
+- Production builds ship signed through the Chrome Web Store; unpacked builds
   are development-only. Updates cannot expand permissions or data collection
   for unimplemented future features.
-- The control plane accepts the current and previous supported major extension
-  protocol for new sessions. Older records remain historically decodable but an
-  obsolete installation cannot start a session.
+
+### Versions, updates, and removal
+
+- New sessions accept the current and previous major extension protocol. Older
+  records stay decodable, but an obsolete installation cannot start a session.
 - An update clears the extension's session storage, so the new service worker
   resumes no binding, recovery checkpoint, or command from the old runtime and
   renegotiates compatibility on its next control connection. Mixed or
-  incompatible contexts withdraw readiness until a clean compatible runtime is
-  established; they never continue with partial control.
+  incompatible contexts withdraw readiness until a clean compatible runtime
+  exists; they never continue with partial control.
 - Disablement or removal withdraws readiness and invalidates the active binding.
-  Re-enablement requires fresh authentication and handshake. A reinstall gets a
-  new installation identity.
-- One global uTrace User may have only one active live interview across all
-  installations. A second session cannot steal the extension from the active
-  session and is rejected as `user_already_in_live_session`.
+  Re-enablement requires fresh authentication and handshake.
 
-Before an Interview Session starts, the claimed invitation runs a participant compatibility preflight. It verifies a supported Chrome profile and version, an account-linked compatible extension, required host permission for the expected preview origin, control-plane connectivity (the extension opens its control connection to answer), and compatible protocol support. Setup help may occur before the interview, but interviewing and reward-eligible participation do not begin until this preflight succeeds. An unsupported corporate extension policy, unsupported browser context, denied required permission, or setup deadline expiry closes as `unsupported_participant_environment`, privately explains the requirement, and creates no Case File or earned reward. Passing preflight does not establish preview, SDK, or observation readiness; the active session must still complete the full runtime handshake.
+### Participant compatibility preflight
+
+Before an Interview Session starts, the claimed invitation runs a preflight that
+verifies:
+
+- a supported Chrome profile and version
+- an account-linked compatible extension
+- the required host permission for the expected preview origin
+- control-plane connectivity (the extension opens its control connection to
+  answer)
+- compatible protocol support
+
+Setup help may come first, but interviewing and reward-eligible participation
+begin only after preflight succeeds. An unsupported corporate extension policy
+or browser context, a denied required permission, or setup deadline expiry
+closes as `unsupported_participant_environment` with a private explanation and
+no Case File or earned reward. Passing preflight establishes no preview, SDK, or
+observation readiness; the session must still complete the full runtime
+handshake.
 
 ## Session anchor, binding, and handshake
 
-- The uTrace session tab is the mandatory anchor for the live interview. The
-  user may focus the preview tab or any other tab while it remains open.
-- Closing the session tab, navigating it away, or choosing **Finish later** ends
-  the current encounter without canceling the Product Signal. The control plane
-  checkpoints evidence and in-flight effects, revokes the document binding,
-  stops voice and observation, and pauses new live implementation until the same user
-  returns through a newly authenticated session before the fixed case-level deadline. Budgets do not reset. The dashboard return link, bounded private reminders, terminal expiry, and cleanup follow [Failure Recovery](./failure-recovery.md#bounded-return-and-terminal-expiry). Explicit
-  **End interview** confirmation is the separate cancellation action and revokes
-  every nonterminal descendant in the Product Signal's cancellation scope.
-- A reload, network drop, or recoverable browser interruption instead receives
-  the bounded reconnection window. Existing side effects and uncertain outcomes
-  are recorded rather than treated as rolled back.
-- The session tab obtains a single-use, short-lived binding offer scoped to the
-  client, user, session, preview runtime allocation, extension installation,
-  and protocol version. It delivers the offer only to the official extension
-  through externally connectable messaging.
-- Every page-proof handshake keeps its own channel to the SDK. The service
-  worker probes a bound tab whenever it gains focus, which every scene causes,
-  and closes its probe channel afterwards, so a probe never displaces the content
-  script's long-lived channel.
-- The embedded SDK supplies the signed page proof but does not issue it.
-  Telemetry ingestion issues it when the document activates, mints the
-  `document_attachment_id` inside it, and the SDK forwards the envelope verbatim.
-  Its claims are the client, session, preview environment, runtime allocation,
-  origin, document attachment, document nonce, protocol version, and validity
-  window; the SDK runtime is not among them, so no runtime identity can be
-  asserted as authority. The extension decodes the payload for its own state and
-  never treats it as authority. The control plane validates the binding offer, the
-  installation proof of possession, and the proof's signature over the exact
-  forwarded bytes before issuing an `extension_binding_id`, and the binding adopts
-  the attachment identity the proof already carries rather than minting a second
-  one.
+### Session tab anchor
+
+The session tab is the live interview's mandatory anchor; the user may focus
+any other tab while it stays open. Each way of leaving has its own effect:
+
+| Event | Effect |
+| --- | --- |
+| Session tab closed or navigated away, or **Finish later** | Ends the encounter without canceling the Product Signal. The control plane checkpoints evidence and in-flight effects, revokes the document binding, and stops voice and observation. |
+| **End interview** confirmed | Cancels, revoking every nonterminal descendant in the Product Signal's cancellation scope. |
+| A reload, network drop, or recoverable browser interruption | Opens the bounded reconnection window. Existing side effects and uncertain outcomes are recorded, not treated as rolled back. |
+| Preview tab closed | Revokes its readiness and pending commands. Another valid same-session tab may bind during the recovery window; otherwise the normal terminal recovery rule applies. |
+
+Live implementation after a leave follows the [implementation controller](./implementation.md#conversation-pause-and-interruption);
+the case-level deadline, return, reminders, expiry, and cleanup follow
+[Failure Recovery](./failure-recovery.md#bounded-return-and-terminal-expiry).
+
+### Binding handshake
+
+The following diagram shows how an offer and a page proof become one binding,
+including a candidate rebind:
+
+![An offer and a probed page proof yield one binding or leave the tab untouched; a candidate advance reloads the tab and rebinds.](../diagrams/svg/browser-extension-binding.svg)
+
+- The binding offer is single-use, short-lived, and scoped to the client, user,
+  session, preview runtime allocation, extension installation, and protocol
+  version. The session tab delivers it only to the official extension.
+- Telemetry ingestion signs the [page proof](./telemetry-and-evidence.md#page-proof)
+  and mints the `document_attachment_id` inside it. The SDK runtime is not a
+  claim, so no runtime identity can be asserted as authority.
+- The extension decodes the payload for its own state, never as authority.
+- Focusing a tab while an offer is pending triggers only a lightweight probe; a
+  tab without a matching proof gets no interface, telemetry, commands, or
+  product inspection.
+- The service worker also probes a bound tab on every focus, which every scene
+  causes, over its own short-lived channel, so a probe never displaces the
+  content script's long-lived one.
+
+### Trust and tab ownership
+
 - A session ID, Chrome tab ID, origin, or SDK presence never establishes trust
-  alone. The page proof is the authority for the client and environment, so
-  client product teams do not configure domain allowlists.
+  alone; the page proof is the authority for client and environment, so client
+  teams configure no domain allowlists.
 - One session has one authoritative preview-tab binding, and one tab belongs to
-  at most one active session. Chrome `tabId` is a local locator rather than a
-  durable product identity.
-- After the session tab creates a pending offer, focusing a product or preview
-  tab triggers only a lightweight SDK-proof probe. An exact valid proof binds
-  and renders automatically. A tab without a matching proof is left untouched:
-  no interface, telemetry, commands, or product inspection begin.
+  at most one active session. Chrome `tabId` is a local locator, not a durable
+  product identity.
 - Focusing another valid tab for the same session automatically revokes the old
-  binding before transferring authority. A tab belonging to another live
-  session cannot take over.
-- A same-document SPA transition preserves the document attachment while target
-  revisions change. Reload or full navigation preserves selection of the tab but
-  requires a new document proof and attachment. The absence of a compatible SDK
-  suspends readiness. Old documents and runtimes cannot receive commands for a
-  replacement attachment.
-- When the session origin advances to a candidate, the session tab obtains a
-  fresh offer, which names the candidate's runtime allocation. The extension
-  keeps its binding and reloads the bound tab, because the document there belongs
-  to the old runtime; the reloaded document's proof names the candidate, and the
-  extension rebinds to it. A rebind always names the allocation the session
-  origin currently serves.
-- Closing the preview tab revokes its readiness and pending commands. Another
-  valid same-session tab may bind during the recovery window; otherwise the
-  required-readiness failure follows the normal terminal recovery rule.
+  binding before transferring authority. A tab of another live session cannot
+  take over.
+
+### Navigation and rebinding
+
+- A same-document SPA transition keeps the document attachment while target
+  revisions change. Reload or full navigation keeps the tab selected but
+  requires a new document proof and attachment.
+- Without a compatible SDK, readiness is suspended. Old documents and runtimes
+  never receive commands for a replacement attachment.
+- On a candidate advance, the extension reloads the bound tab because its
+  document belongs to the old runtime. A rebind always names the allocation the
+  session origin currently serves.
 
 ## Transport and temporary state
 
-- The control plane communicates over one authenticated WebSocket owned by the
-  service worker. The service worker communicates with the bound content script
-  through a named `runtime.Port`; the content script communicates with the
-  main-world bridge through a fresh per-document `MessageChannel`.
 - Ports are accepted only when sender tab, frame, document, binding, and nonce
   match. Every boundary uses strict versioned schemas. Neither the device key
   nor a possession proof enters the content script or main world.
-- A service-worker WebSocket heartbeat keeps the connection alive only
-  while a session needs it. Reconnection resumes from the last acknowledged
-  control sequence rather than assuming missed delivery succeeded: frames above
-  that point are superseded, not replayed, and the new connection's first
-  projection pass, described next, sends the current state in full. Each
-  connection names the session the service worker serves when it opens.
-- The control plane pushes; it does not wait to be asked. Any control-plane
-  process, whether an API request, the voice agent, or an ingestion
-  Job, changes a session's binding, readiness, character state, controls, or
-  visual commands only by committing durable state. The commit notifies the
-  `extension_control` Postgres channel with the session, which wakes the API
-  process holding that session's socket. The socket then runs one projection
-  pass: it sends `preferences_state`, `binding_state`, `readiness`, and
-  `character_state` when their revision advanced since it last sent them, sends
-  `controls_state` when what the pills show changed, routes the pending
-  commands recorded for the current binding, and withdraws any routed command
-  the control plane canceled. A connection that has sent nothing sends
-  everything. A notification carries no state and grants no authority, and a
-  missed one is repaired by the next change or reconnect. The socket's database
-  session listens on that channel, so it needs a direct or session-mode pooled
-  Postgres connection.
-- High-volume product telemetry flows from the shared browser observation
-  runtime to telemetry ingestion. It does not traverse the extension WebSocket.
-  That socket carries binding, readiness, character state, controls,
-  preferences (`preferences_update` and `preferences_state`), commands, results,
-  cancellation, and recovery messages.
-- `chrome.storage.session` holds only the recovery checkpoint required across
-  service-worker suspension. Durable extension
-  storage holds only installation identity, device-local presentation settings,
-  protocol metadata, and a cache of control-plane-owned global preferences. It
-  never becomes workflow truth.
+- A WebSocket heartbeat keeps the connection alive only while a session needs
+  it. Each connection names its session when it opens.
+- The socket carries binding, readiness, character state, controls, preferences
+  (`preferences_update` and `preferences_state`), commands, results,
+  cancellation, and recovery messages, never product telemetry.
+- `chrome.storage.session` holds only the recovery checkpoint needed across
+  service-worker suspension. Durable extension storage holds only installation
+  identity, device-local presentation settings, protocol metadata, and a cache
+  of control-plane-owned global preferences, and never becomes workflow truth.
+
+### Control-plane push
+
+The following diagram shows how the control plane pushes, unasked, a committed
+change to the bound tab:
+
+![A commit wakes the session's socket holder, whose projection pass pushes changed state and routes commands to the bound surface.](../diagrams/svg/browser-extension-projection.svg)
+
+- A control-plane process changes a session's binding, readiness, character
+  state, controls, or visual commands only by committing durable state.
+- A projection pass sends `preferences_state`, `binding_state`, `readiness`,
+  and `character_state` whose revision advanced since last sent, and
+  `controls_state` when what the pills show changed. It routes pending commands
+  recorded for the current binding and withdraws routed commands the control
+  plane canceled. A connection that has sent nothing sends everything.
+- A notification carries no state and grants no authority; the next change or
+  reconnect repairs a missed one. Listening on `extension_control` requires a
+  direct or session-mode pooled Postgres connection for the socket's database
+  session.
 
 ## Readiness, foreground state, and recovery
 
+### Readiness requirements
+
 - Extension readiness is a revisioned control-plane record, not a local boolean.
   It requires an account-linked compatible installation, current host
-  permission, authenticated control-plane connection, exactly one valid
-  binding, current signed document handshake, and connected content surface,
-  page bridge, SDK, and shared runtime.
-- Active and visible document state is additionally required for cursor,
-  overlay and scroll execution. Character and command-state
-  revisions must be synchronized.
-- The control plane combines extension readiness with embedded SDK, shared
-  runtime, mandatory server SDK, and trace-correlation readiness. Only the
+  permission, an authenticated control-plane connection, exactly one valid
+  binding, a current signed document handshake, and a connected content
+  surface, page bridge, SDK, and shared runtime.
+- Cursor, overlay, and scroll execution also require active, visible document
+  state. Character and command-state revisions must be synchronized.
+- Extension readiness feeds the session's
+  [observation readiness](./interview-and-voice.md#readiness-has-two-boundaries)
+  with the SDK, shared runtime, Server SDK, and trace correlation; only that
   combined revision permits product-specific probing or browser commands.
-- An inactive preview tab remains associated with the session. A visual command
-  first brings the bound preview tab and its window to the front, because the
-  agent gestures while it talks, often while the user looks at the session tab;
-  one that still finds the tab inactive fails as `tab_not_active` and is not
-  queued for later execution. The voice interview may continue while the session
-  tab or an unrelated tab is active, but product-specific probing waits for the
-  user to return.
+
+### Inactive and hidden preview tabs
+
+- An inactive preview tab stays associated with the session. A visual command
+  first brings the tab and its window to the front, as the
+  [agent cursor](./interview-and-voice.md#agent-cursor) requires; if the tab is
+  still inactive, the command fails as `tab_not_active` and is never queued.
+- The voice interview may continue while another tab is active, but
+  product-specific probing waits for the user to return.
 - Legitimate correlated SDK events may continue from a hidden bound document,
-  but they carry visibility state so background activity is not mistaken for
-  visible user interaction.
-- Returning to the preview tab triggers document and readiness revalidation and
+  carrying visibility state so background activity is not mistaken for visible
+  user interaction.
+- Returning to the preview tab revalidates the document and readiness and
   projects the latest character state. Missed cursor scenes and animations are
-  not replayed after navigation, pause, or rebind, and the user's own
+  never replayed after navigation, pause, or rebind, and the user's own
   interaction supersedes any pending visual command.
-- Loss of the extension, control-plane connection, document proof, SDK, or
-  shared runtime immediately withdraws observation readiness, blocks browser
-  commands and observation-dependent claims, probing, and validation, and
-  begins bounded recovery. Authenticated voice conversation may continue about
-  already established facts while the path recovers. The character projects the
-  reconnecting or failure state; detailed status remains in the session tab.
-- Recovery requires a fresh handshake and the latest control-plane state. Old
-  scenes are cleared. An interrupted product action without a confirmed result
+
+### Loss and recovery
+
+- Losing the extension, control-plane connection, document proof, SDK, or
+  shared runtime immediately withdraws observation readiness, with the effects
+  [losing readiness](./interview-and-voice.md#losing-readiness) describes, and
+  begins bounded recovery. The character shows the reconnecting or failure
+  state; detailed status stays in the session tab.
+- Recovery requires a fresh handshake and the latest control-plane state, and
+  clears old scenes. An interrupted product action without a confirmed result
   becomes `outcome_unknown` and is never retried automatically.
 - Recovery has a preconfigured deadline that cannot be extended at runtime. If
   combined readiness does not return, the control plane preserves a resumable
   infrastructure blocker, checkpoints authorized work, and ends or pauses the
-  encounter with user-safe messaging. It never reports user cancellation or
-  accepts observation-dependent evidence from the incomplete interval.
+  encounter with user-safe messaging, never reporting user cancellation or
+  accepting observation-dependent evidence from the incomplete interval.
 
 ## Character and controls
 
+### Character
+
 - The control plane publishes a monotonically revisioned semantic character
-  state: idle, listening, thinking, speaking, acknowledgement, concern, paused,
-  reconnecting, or completion. Session tab and extension render the same
-  packaged Rive character and ignore older revisions. Neither surface infers
-  durable session state from local animation.
-- The collapsed extension character has no accompanying status text. Status text
-  appears only in the uTrace session tab.
-- The character occupies a small circular surface fixed to the viewport. Its
-  position and size are device-local and shared across clients. Layout changes,
-  scrolling, and SPA transitions do not move it, and it is clamped far enough
-  inside the viewport for expanded controls to remain visible.
-- Hovering the center circle expands four separate rounded control pills from
-  behind it: Return to session above, Mute or Unmute to the left, Pause or Resume
-  to the right, and End interview below. Clicking the center performs no action.
-- Pressing and dragging the center moves the orb and collapses the four controls
-  until release. Control pills invoke their controls rather than starting a
-  drag.
-- Mute or Unmute sends a control-plane command to the existing voice runtime;
-  the extension never captures microphone audio. Pause or Resume requests an
-  authoritative session transition. End shows local confirmation and then
-  requests control-plane closure. Buttons reflect the returned state revision
-  rather than assuming success, and duplicate clicks reuse the pending command.
-  The pills show the session's own mute and pause state, which the control plane
-  pushes (`controls_state`) whenever it changes, whichever surface changed it: a
-  change made in the session tab shows in the preview, and a new session's state
+  state: `idle`, `listening`, `thinking`, `speaking`, `acknowledgement`,
+  `concern`, `paused`, `reconnecting`, or `completion`. The session tab and the
+  extension render the same packaged Rive character, ignore older revisions,
+  and never infer durable session state from local animation.
+- The collapsed extension character shows no status text; only the session tab
+  does.
+- The character is a small circle fixed to the viewport, with a device-local
+  position and size shared across clients. Layout changes, scrolling, and SPA
+  transitions never move it, and clamping keeps its expanded controls visible.
+
+### Controls
+
+Hover and drag behave as the [PRD](../PRD.md#agent-character-and-controls)
+describes. Clicking the center does nothing, and pressing a pill invokes it
+rather than starting a drag.
+
+| Pill | Position | Effect |
+| --- | --- | --- |
+| Return to session | Above | Focuses the existing session tab. The only browser-local control, it works without the control-plane connection. |
+| Mute or Unmute | Left | Sends a control-plane command to the existing voice runtime. The extension never captures microphone audio. |
+| Pause or Resume | Right | Requests an authoritative session transition. |
+| End interview | Below | Shows local confirmation, then requests control-plane closure. |
+
+- Pills reflect the returned state revision rather than assuming success, and
+  duplicate clicks reuse the pending command. Without the control-plane
+  connection, state-changing controls fail explicitly.
+- The pills show the session's own mute and pause state, pushed as
+  `controls_state` on every change from either surface. A new session's state
   replaces whatever an earlier one left.
-- Return to session is the only browser-local control. It focuses the existing
-  mandatory session tab. If the control-plane connection is unavailable,
-  state-changing controls fail explicitly while Return to session continues to
-  work.
+
+### Pause and resume
+
 - Once pause is acknowledged, the extension clears the cursor scene and cancels
-  pending visual commands. The orb remains in its paused
-  state with Resume, Return to session, and End available.
-- The authoritative Pause transition also blocks new live implementation steps;
-  already-running operations may only reach a safe checkpoint. A spoken request
-  such as “give me a moment” quiets the voice agent without invoking this
-  transition and does not by itself pause authorized implementation.
-- The shared runtime emits no session-correlated browser telemetry while paused.
-  The user may continue using the product, but uTrace neither observes nor acts.
-  Resume requires fresh readiness and a new structured browser snapshot. Old
-  targets, revisions, commands, and assumptions cannot be reused, and activity
-  during the pause is not reconstructed.
+  pending visual commands. The orb stays paused with Resume, Return to session,
+  and End available.
+- Pause's effect on live implementation, and a spoken request for a quiet
+  moment, follow the [implementation controller](./implementation.md#conversation-pause-and-interruption).
+- While paused, the user may keep using the product, but uTrace neither
+  observes nor acts ([runtime pause](./browser-sdk.md#runtime-readiness-and-failure-reporting)).
+- Resume requires fresh readiness and a new structured browser snapshot; old
+  targets, revisions, commands, and assumptions are never reused.
 
 ## Visual commands and cursor choreography
+
+The extension owns browser-command lifecycle and visible choreography; the SDK
+owns structured target resolution. Commands address an exact registered target
+revision, never raw screen coordinates, arbitrary selectors, or JavaScript.
+
+### Command envelope and routing
 
 - Every browser command carries its command ID, client, session, binding,
   document attachment, target ID and revision where applicable, command type,
   typed arguments, authority references, expected lifecycle revision, and
   deadline.
-- The process that dispatches a command authorizes and records it; the socket
-  holding the bound installation's connection claims it once and routes it. A
+- The dispatching process authorizes and records each command before the
+  socket holder claims it once ([Control-plane push](#control-plane-push)). A
   command still unrouted when its binding is replaced or revoked is never
-  routed, and its cancellation records the effect as absent.
-- The control plane offers and rechecks targets from the bound document's
-  registry as ingestion recorded it: the newest baseline snapshot of the
-  document's stream with every later `target.registry_change` applied in export
-  order. A target that is missing there fails as `unknown_target`, and one at
-  another revision fails as `stale_target`.
-- The service worker validates and checkpoints the command before routing it to
-  the exact content surface. Duplicate command IDs cannot repeat an effect.
-  Rebind, pause, replacement, cancellation, or deadline expiry
-  invalidates incompatible pending commands.
+  routed; its cancellation records the effect as absent.
+- The control plane offers and rechecks targets against the bound document's
+  registry as ingestion recorded it: the stream's newest baseline snapshot plus
+  every later `target.registry_change` in export order. A missing target fails
+  as `unknown_target`; one at another revision fails as `stale_target`.
+- Duplicate command IDs cannot repeat an effect. Rebind, pause, replacement,
+  cancellation, or deadline expiry invalidates incompatible pending commands.
 - Browser-command terminal outcomes are `applied`, `rejected`, `failed`,
-  `stale_target`, `canceled`, or `timed_out`. A result records the actual binding,
-  document, target revision, completion time, and specific reason. Visual or
-  SDK dispatch success is separate from later telemetry about the product's
+  `stale_target`, `canceled`, or `timed_out`. A result records the actual
+  binding, document, target revision, completion time, and specific reason.
+  Dispatch success is separate from later telemetry about the product's
   observed effect.
-- The extension owns browser-command lifecycle and visible choreography. The SDK
-  owns structured target resolution. Commands address an exact registered target
-  revision, never raw screen coordinates, arbitrary selectors, or JavaScript.
-- The voice agent's model places each gesture with an inline mark before the
-  words that name its control, and the gesture is dispatched as the word after
-  the mark plays; speech never waits for cursor arrival. Cue IDs and ordering
-  prevent an older gesture from replacing a newer one.
-- Before execution, customer scrolling or a layout change that invalidates the
-  target revision cancels the visual command. uTrace never blocks customer input.
-- The agent cursor is command-only and hidden between uses: it fades a few
-  seconds after its last gesture. It appears just beside its first destination
-  and glides along a gentle curve whose duration grows with distance, from 250
-  to 600 milliseconds, easing in and out; with reduced motion requested it moves
-  without animation. It never follows,
-  replaces, or moves the customer's physical pointer. Physical pointer movement
-  alone does not cancel a visual scene, and the cursor surface remains
-  click-through.
-- Visual commands use SDK targets and revisions. Pointing and highlighting do
-  not auto-scroll; scrolling into view is a separate explicit command. That
-  command scrolls the window by the target's measured geometry and calls no
-  scroll method on product DOM, which keeps it inside the observe-only boundary.
-  A target held in a product scroll container that the window cannot reach fails
-  with `target_not_scrolled_into_view` rather than being reported as shown. Target
-  geometry updates through scroll, resize, and layout change. Missing,
+
+### Cursor choreography
+
+- A gesture dispatches as the word after its inline
+  [mark](./interview-and-voice.md#agent-cursor) plays, and speech
+  never waits for cursor arrival. Cue IDs and ordering keep an older gesture
+  from replacing a newer one.
+- Customer scrolling or a layout change that invalidates the target revision
+  before execution cancels the visual command. uTrace never blocks customer
+  input.
+- The command-only agent cursor fades a few seconds after its last gesture and
+  stays hidden between uses. It appears beside its first destination and glides
+  on a gentle eased curve over 250 to 600 milliseconds, scaled by distance;
+  reduced motion removes the animation.
+- The cursor never follows, replaces, or moves the customer's physical pointer.
+  Pointer movement alone does not cancel a visual scene, and the cursor surface
+  stays click-through.
+
+### Pointing and scrolling
+
+- Pointing and highlighting never auto-scroll; scrolling into view is a separate
+  explicit command. It scrolls the window by the target's measured geometry and
+  calls no scroll method on product DOM, staying inside the observe-only
+  boundary. A target in a product scroll container the window cannot reach
+  fails with `target_not_scrolled_into_view` rather than being reported as
+  shown.
+- Target geometry updates through scroll, resize, and layout change. Missing,
   ambiguous, or revision-changed targets fail rather than falling back to a
   guessed element or coordinate.
-- A visual scene is atomic and contains one agent cursor plus one or more ordered
-  target gestures and retained marks. Every initial target must validate or the
-  scene is rejected. The cursor may move, point, circle, trace, label,
-  and clear. Comparisons use the same cursor sequentially while earlier marks may
-  remain.
-- Circles, traces, underlines, and outlines are visibly drawn by the cursor. The
-  extension derives their paths from current structured target geometry; the
-  model never supplies freehand coordinates. A scene has one lifetime and clears
-  as a unit on explicit clear, replacement, expiry, cancellation, or stale
-  target. Customer interaction with an indicated target does not end the scene
-  early. A mark that is not retained fades a few seconds after it is drawn, and
-  the agent's conversational gestures never retain marks, so they accompany what
-  it says rather than accumulate. A newer scene stops any older animation.
+
+### Visual scenes
+
+- A visual scene is atomic: one agent cursor plus one or more ordered target
+  gestures and retained marks. If any initial target fails validation, the scene
+  is rejected. The cursor may `move`, `point`, `circle`, `trace`, `label`, and
+  `clear`. Comparisons reuse the same cursor sequentially while earlier marks
+  may remain.
+- The cursor visibly draws circles, traces, underlines, and outlines along
+  paths the extension derives from current structured target geometry; the
+  model never supplies freehand coordinates.
+- A scene has one lifetime and clears as a unit on explicit clear, replacement,
+  expiry, cancellation, or stale target. Customer interaction with an indicated
+  target does not end it early. A newer scene stops any older animation.
+- An unretained mark fades a few seconds after it is drawn. Conversational
+  gestures never retain marks, so they accompany speech rather than accumulate.
 
 ## Rendering and target boundaries
 
-- One extension-owned host element exists in the bound top document. It is
-  appended to the document element as a fixed, full-viewport layer with reset
-  inherited styles and the maximum stacking order, and a closed Shadow DOM
-  isolates product and extension styles. Character, cursor, and scene layers are
-  separate; only the orb and controls accept pointer input.
+### Overlay host
+
+- The bound top document holds one extension-owned host element, appended to
+  the document element as a fixed, full-viewport layer with reset inherited
+  styles and the maximum stacking order. A closed Shadow DOM isolates product
+  and extension styles. Character, cursor, and scene layers are separate; only
+  the orb and controls accept pointer input.
 - The main-world bridge cannot access the interface tree. If the product removes
   the host once, the extension reinjects it cleanly; repeated removal withdraws
-  readiness rather than fighting the page indefinitely.
-- The interface uses packaged vector, SVG, and Rive assets and renders above
-  ordinary product modals without altering product CSS or stacking contexts.
-  Because the surface is an ordinary stacked element, product content that the
-  browser promotes to its own top layer still paints above it.
-- There is one top-level visual surface even when a target belongs to a frame.
-  The shared runtime resolves targets to clipped top-level viewport geometry and
-  records the owning document, frame, SDK runtime, and target revision.
-- Portal targets resolve to their actual DOM. Open or closed shadow-root internals
-  are targetable only when the client component registers them through the SDK;
-  the extension never pierces an unregistered closed shadow root.
+  readiness rather than fighting the page.
+- The interface renders above ordinary product modals without altering product
+  CSS or stacking contexts. As an ordinary stacked element, it still paints
+  below product content the browser promotes to its own top layer.
+
+### Frames, portals, and shadow roots
+
+- One top-level visual surface serves targets in frames too. The shared runtime
+  resolves targets to clipped top-level viewport geometry and records the owning
+  document, frame, SDK runtime, and target revision.
+- Portal targets resolve to their actual DOM. Open or closed shadow-root
+  internals are targetable only when the client component registers them
+  through the SDK; the extension never pierces an unregistered closed shadow
+  root.
 - Same-origin and cross-origin iframe internals require a compatible
-  authenticated SDK runtime inside the owning frame. The top-level extension
-  routes a visual command to that frame's SDK and never uses translated raw
+  authenticated SDK runtime inside the owning frame, to which the top-level
+  extension routes the visual command; it never uses translated raw
   coordinates. Uninstrumented frames are unsupported targets.
+
+### Visibility checks
+
 - A visual command requires a sufficiently visible target region in the active
-  viewport. Offscreen targets require an explicit scroll command.
-  The extension's own surface is excluded from product-target occlusion checks.
-- Visibility, target revision, binding, policy, permission, and user-conflict
-  state are checked again immediately before a visual command. Failure prevents
+  viewport. The extension's own surface is excluded from product-target
+  occlusion checks.
+- Immediately before a visual command, visibility, target revision, binding,
+  policy, permission, and user-conflict state are rechecked. Failure prevents
   dispatch and returns a specific result such as `target_obscured` or
   `stale_target`.
 
 ## Retention, diagnostics, and cleanup
 
-- The extension may process target geometry, command arguments, character state,
-  and visual-command values transiently when required. It never persists raw DOM, page
+### Retention and diagnostics
+
+- The extension may process target geometry, command arguments, character
+  state, and visual-command values transiently, but never persists raw DOM, page
   text, form values, transcripts, screenshots, product telemetry, or
   visual-command values.
-- Extension diagnostics contain identifiers, revisions, timestamps, command
-  status, protocol version, and specific failure codes without customer content.
-  SDK and shared-runtime telemetry own product-data redaction before ingestion.
-- Terminal session state immediately revokes tab binding and command authority and
-  cancels pending visual and scroll commands, whichever surface ended the
-  session. The revocation is pushed to the extension, which detaches its surface.
-  A brief completion animation may finish without authority to execute anything.
+- Extension diagnostics hold identifiers, revisions, timestamps, command status,
+  protocol version, and specific failure codes, never customer content. SDK and
+  shared-runtime telemetry own product-data redaction before ingestion.
+
+### Session end and cleanup
+
+- Terminal session state, whichever surface ended the session, immediately
+  revokes tab binding and command authority and cancels pending visual and
+  scroll commands; the pushed revocation detaches the extension's surface. A
+  brief completion animation may finish without authority to execute anything.
 - Cleanup removes the orb, cursor, overlays, content connection, page bridge,
-  and temporary recovery state. The SDK remains embedded but
-  returns to an inert unbound state. Reloading the product afterward cannot
-  restore a revoked binding.
-- Cleanup retains the installation identity, global user preferences,
-  device-local orb position and size, and supported protocol metadata. It does
-  not retain session content or workflow state.
+  and temporary recovery state. The SDK stays embedded but returns to an inert
+  unbound state, and reloading the product cannot restore a revoked binding.
+- Cleanup keeps the installation identity, global user preferences, device-local
+  orb position and size, and supported protocol metadata, but no session content
+  or workflow state.

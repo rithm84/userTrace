@@ -299,4 +299,4 @@ registry variables are never part of the deployed computes.
 - [Project-scoped secrets and the reserved `SUPABASE_` prefix](../docs/arch-components/deployment.md#secrets-and-credentials)
 - [One worker instance](#the-worker-holds-the-discord-gateway)
 - [The API's prefixed base URL](../docs/arch-components/deployment.md#network-and-public-boundaries)
-- [The connection budget, including the voice agent's pooler connections](../docs/arch-components/deployment.md#deployment-scope)
+- [The connection budget, including the voice agent's pooler connections](../docs/arch-components/deployment.md#database-connections)

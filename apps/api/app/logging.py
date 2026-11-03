@@ -36,6 +36,5 @@ def configure_logging(level: int) -> None:
 
 
 def get_logger(name: str) -> FilteringBoundLogger:
-    """Return a bound logger for one module."""
     logger: FilteringBoundLogger = structlog.get_logger(name)
     return logger

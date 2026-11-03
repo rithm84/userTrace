@@ -26,7 +26,6 @@ session's state whenever a trigger says that state may have changed.
 import asyncio
 import difflib
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Final
 from uuid import UUID
@@ -57,6 +56,7 @@ from app.ingestion.target_registry import (
     load_registered_targets,
     screen_region,
 )
+from app.interview.controls import SET_INPUT_MUTED
 from app.interview.ports import RegisteredTarget
 from app.interview.voice.channel import AgentChannel, Floor, VoiceSubject
 from app.interview.voice.judge import VoiceJudge
@@ -74,12 +74,12 @@ __all__ = [
     "announce_validation_outcome",
     "apply_controls",
     "begin_validation_when_ready",
+    "implementation_progress",
     "prompt_open_preview",
 ]
 
 _log = get_logger(__name__)
 
-_SET_INPUT_MUTED: Final[str] = "voice.set_input_muted"
 _READY: Final[str] = ImplementationProgress.READY_FOR_VALIDATION.value
 _APPROVED: Final[str] = GateDecisionKind.APPROVED_LIVE.value
 #: The gate outcome the agent is only told about: an approved change being built.
@@ -221,7 +221,6 @@ _GATE_EVENTS: Final[tuple[str, ...]] = (
 _EARLIER_DOCUMENTS: Final[int] = 4
 #: How long the debrief waits for the new version's controls to be observed.
 _NEW_CONTROLS_WAIT_SECONDS: Final[float] = 6.0
-_TARGET_LIMIT: Final[int] = 48
 
 
 async def apply_controls(
@@ -232,7 +231,6 @@ async def apply_controls(
     interview_session_id: UUID,
     agent: AgentChannel,
 ) -> None:
-    """Apply each queued session-control Command to the call."""
     woken = changes.watch()
     while True:
         await woken.wait()
@@ -275,7 +273,7 @@ async def announce_ready_preview(
     while True:
         await woken.wait()
         woken.clear()
-        if await _implementation_progress(
+        if await implementation_progress(
             database, interview_session_id=subject.interview_session_id
         ) != _READY:
             continue
@@ -314,7 +312,7 @@ async def announce_ready_preview(
             _DEBRIEF_CUE.format(
                 changes=(
                     "What this version shows differently: "
-                    f"{'; '.join(control.line for control in new_controls)}."
+                    f"{'; '.join(new_controls)}."
                     if new_controls
                     else "It shows no new or moved controls, so say in a sentence what "
                     "now behaves differently."
@@ -528,7 +526,7 @@ async def begin_validation_when_ready(
     while True:
         await woken.wait()
         woken.clear()
-        if await _implementation_progress(
+        if await implementation_progress(
             database, interview_session_id=interview_session_id
         ) != _READY:
             continue
@@ -635,7 +633,7 @@ async def _preview_state(database: Database, *, interview_session_id: UUID) -> t
     return bool(row["preview_routed"]), bool(row["preview_open"])
 
 
-async def _implementation_progress(database: Database, *, interview_session_id: UUID) -> str:
+async def implementation_progress(database: Database, *, interview_session_id: UUID) -> str:
     """The session's current implementation progress, as its projection shows it."""
     async with database.connection() as conn, conn.cursor() as cur:
         await cur.execute(
@@ -687,7 +685,7 @@ async def _claim_control_commands(
             """,
             (
                 CommandState.DISPATCHING.value,
-                _SET_INPUT_MUTED,
+                SET_INPUT_MUTED,
                 interview_session_id,
                 CommandState.QUEUED.value,
             ),
@@ -738,21 +736,13 @@ async def _validating(
     return row is not None and bool(row["validating"])
 
 
-@dataclass(frozen=True, slots=True)
-class _ChangedControl:
-    """A control a new version added or moved: its declared identity and how to say it."""
-
-    identity: str
-    line: str
-
-
 async def _controls_once_observed(
     database: Database,
     woken: asyncio.Event,
     *,
     judge: VoiceJudge,
     subject: VoiceSubject,
-) -> tuple[_ChangedControl, ...]:
+) -> tuple[str, ...]:
     """The loaded version's changed controls, once its page has reported them.
 
     Validation can begin before the new document's registered controls arrive, so
@@ -774,7 +764,7 @@ async def _controls_once_observed(
 
 async def _new_controls(
     database: Database, *, judge: VoiceJudge, subject: VoiceSubject
-) -> tuple[_ChangedControl, ...]:
+) -> tuple[str, ...]:
     """What the loaded version shows differently: new controls first, then moved ones.
 
     A control is known by what the client declared it to be, not by the value it
@@ -803,26 +793,22 @@ async def _new_controls(
         earlier.update(control_identity(target.description) for target in targets)
         if position == 0:
             last_order = _reading_order(targets)
-    visible = [target for target in current[:_TARGET_LIMIT] if target.visible]
+    visible = [target for target in current if target.visible]
     order = _reading_order(visible)
     kept = _in_same_order(
         [identity for identity in last_order if identity in order],
         [identity for identity in order if identity in last_order],
     )
-    new: dict[str, _ChangedControl] = {}
-    moved: dict[str, _ChangedControl] = {}
+    new: dict[str, str] = {}
+    moved: dict[str, str] = {}
     for target in visible:
         identity = control_identity(target.description)
         name = identity.replace("_", " ")
         where = screen_region(target.placement)
         if identity not in earlier:
-            new.setdefault(
-                identity, _ChangedControl(identity=identity, line=f"new: {name} ({where})")
-            )
+            new.setdefault(identity, f"new: {name} ({where})")
         elif identity in last_order and identity not in kept:
-            moved.setdefault(
-                identity, _ChangedControl(identity=identity, line=f"moved: {name}, now {where}")
-            )
+            moved.setdefault(identity, f"moved: {name}, now {where}")
     return (*new.values(), *moved.values())
 
 

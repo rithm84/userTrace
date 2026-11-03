@@ -68,16 +68,8 @@ export interface ServerSdkFailure {
   readonly trace_id?: string | undefined;
 }
 
-/** Fields a caller supplies when raising a failure. */
-export interface ServerSdkFailureInput {
-  readonly code: FailureCode;
-  readonly retry: RetryAdvice;
-  readonly readiness_consequence: ReadinessConsequence;
-  readonly detail: Readonly<Record<string, FailureDetailValue>>;
-  readonly batch_id?: string | undefined;
-  readonly batch_sequence?: number | undefined;
-  readonly trace_id?: string | undefined;
-}
+/** Fields a caller supplies when raising a failure; `createFailure` stamps the time. */
+export type ServerSdkFailureInput = Omit<ServerSdkFailure, 'detected_at'>;
 
 /**
  * The only error type the SDK throws. It always carries a typed failure so the

@@ -130,8 +130,10 @@ export function digAt(ms: number): number {
   return ease(within(t, [7300, 7900])) - ease(within(t, [9500, 9950]));
 }
 
-/** Everything the page renders as state rather than per frame; it changes a few times a loop. */
-/** `digShown` is when any of aqua is above the manhole's rim (with a margin), so its rig only renders then. */
+/**
+ * Everything the page renders as state rather than per frame; it changes a few times a loop.
+ * `digShown` is when any of aqua is above the manhole's rim (with a margin), so its rig only renders then.
+ */
 export type Scene = Readonly<{ station: Station | null; speaking: boolean; customerTalks: boolean; painShown: boolean; thumbs: boolean; replyShown: boolean; digShown: boolean }>;
 
 export function sceneAt(ms: number): Scene {

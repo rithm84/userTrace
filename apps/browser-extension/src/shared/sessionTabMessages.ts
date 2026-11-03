@@ -20,23 +20,23 @@ import { parseWith, uuidSchema } from "../protocol/common";
 /** The protocol major the session tab and the extension agree on. */
 export const SESSION_TAB_PROTOCOL_MAJOR = "1";
 
-export const preflightRequestSchema = z.strictObject({
+const preflightRequestSchema = z.strictObject({
   type: z.literal("utrace_preflight_request"),
   protocol_version: z.string().min(1).max(8),
 });
 
-export const bindingOfferMessageSchema = z.strictObject({
+const bindingOfferMessageSchema = z.strictObject({
   type: z.literal("utrace_binding_offer"),
   session_id: uuidSchema,
   binding_offer: bindingOfferSchema,
 });
 
-export const sessionTabMessageSchema = z.discriminatedUnion("type", [
+const sessionTabMessageSchema = z.discriminatedUnion("type", [
   preflightRequestSchema,
   bindingOfferMessageSchema,
 ]);
 
-export type SessionTabMessage = z.infer<typeof sessionTabMessageSchema>;
+type SessionTabMessage = z.infer<typeof sessionTabMessageSchema>;
 
 /**
  * What the extension can prove about itself to the page. `installation_proof`
@@ -53,7 +53,7 @@ export type PreflightResultMessage = Readonly<{
   protocol_version: string;
 }>;
 
-export type BindingOfferAckMessage = Readonly<{
+type BindingOfferAckMessage = Readonly<{
   type: "utrace_binding_offer_ack";
   accepted: boolean;
   detail?: string;

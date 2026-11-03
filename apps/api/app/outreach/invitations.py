@@ -21,7 +21,6 @@ from uuid import UUID
 from psycopg import AsyncConnection
 from psycopg.rows import DictRow
 
-from app.db.rows import as_uuid
 from app.ids import uuid7
 from app.lifecycle.claims import invitation_token_digest
 from app.logging import get_logger
@@ -29,10 +28,8 @@ from app.logging import get_logger
 __all__ = [
     "MintedInvitation",
     "create_invitation",
-    "link_supersession",
     "mint_token",
     "revoke_invitations",
-    "revoke_live_invitation",
 ]
 
 _log = get_logger(__name__)
@@ -105,41 +102,6 @@ async def create_invitation(
     return MintedInvitation(
         invitation_id=invitation_id, token=token, expires_at=expires_at
     )
-
-
-async def revoke_live_invitation(
-    conn: AsyncConnection[DictRow], *, product_signal_id: UUID
-) -> UUID | None:
-    """Revoke the case's live invitation so a replacement can take its place.
-
-    Revoking first is what keeps exactly one live access link per case: the
-    replacement is created only after the previous link stops working.
-    """
-    async with conn.cursor() as cur:
-        await cur.execute(
-            """
-            update public.invitations
-            set revoked_at = now(), updated_at = now()
-            where product_signal_id = %s and revoked_at is null
-              and superseded_by_id is null
-            returning id
-            """,
-            (product_signal_id,),
-        )
-        row = await cur.fetchone()
-    return as_uuid(row, "id") if row is not None else None
-
-
-async def link_supersession(
-    conn: AsyncConnection[DictRow], *, previous_id: UUID, replacement_id: UUID
-) -> None:
-    """Record which invitation replaced a revoked one."""
-    async with conn.cursor() as cur:
-        await cur.execute(
-            "update public.invitations set superseded_by_id = %s, updated_at = now() "
-            "where id = %s",
-            (replacement_id, previous_id),
-        )
 
 
 async def revoke_invitations(

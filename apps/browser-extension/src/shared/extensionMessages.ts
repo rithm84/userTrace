@@ -13,13 +13,13 @@ import { parseWith, revisionSchema } from "../protocol/common";
 import { orbSettingsSchema } from "./portMessages";
 import type { StatusSnapshot } from "../background/session";
 
-export const preferencesUpdateSchema = z.strictObject({
+const preferencesUpdateSchema = z.strictObject({
   expected_preferences_revision: revisionSchema,
   visual_guidance_enabled: z.boolean(),
   agent_cursor_enabled: z.boolean(),
 });
 
-export const extensionRequestSchema = z.discriminatedUnion("kind", [
+const extensionRequestSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("status") }),
   z.strictObject({ kind: z.literal("link_account") }),
   z.strictObject({ kind: z.literal("revoke_installation") }),
@@ -30,7 +30,7 @@ export const extensionRequestSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("update_orb"), orb: orbSettingsSchema }),
 ]);
 
-export type ExtensionRequest = z.infer<typeof extensionRequestSchema>;
+type ExtensionRequest = z.infer<typeof extensionRequestSchema>;
 export type PreferencesUpdate = z.infer<typeof preferencesUpdateSchema>;
 
 export type ExtensionResponse =

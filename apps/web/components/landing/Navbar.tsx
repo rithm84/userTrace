@@ -1,7 +1,7 @@
 "use client";
 
 import { Menu } from "lucide-react";
-import { Link } from "@/lib/router";
+import Link from "next/link";
 import { Logo } from "@/components/brand/Logo";
 import { CONTACT_HREF, focusLandingWaitlist } from "./Waitlist";
 
@@ -36,7 +36,7 @@ export function Navbar() {
       >
         <Link
           className="v3-nav-brand flex items-center justify-self-start"
-          to="/"
+          href="/"
           aria-label="uTrace home"
           onClick={(event) => {
             // on the landing itself the mark is a way back to the hero, never a reload

@@ -202,7 +202,6 @@ async def expire_invitation_job(database: Database, claimed: ClaimedJob) -> None
 
 
 def intake_handlers() -> Mapping[str, JobHandler]:
-    """Return the Job handlers this workstream owns."""
     return {
         SEAL_INTAKE_BATCH: seal_job,
         ROUTE_INTAKE_ITEM: route_job,

@@ -1,0 +1,27 @@
+---
+title: Account model · global identity, client-scoped participation
+---
+erDiagram
+  utrace_user["uTrace User"]
+  global_memory["Global user memory"]
+  participation["Client-scoped participation"]
+  client_memory["Client-scoped memory"]
+  client["uTrace Client"]
+  staff["Owner and admins"]
+  surface["Discord Customer Surface"]
+  customer_org["Customer organization account"]
+
+  utrace_user ||--|| global_memory : keeps
+  utrace_user ||--o{ participation : "participates per client"
+  participation ||--|| client_memory : keeps
+  participation }o--|| client : "scoped to"
+  participation }o--|| customer_org : "belongs to"
+  client ||--o{ customer_org : "serves"
+  client ||--|{ staff : "one owner, any admins"
+  client ||--|| surface : "listens on"
+
+  class utrace_user,surface people
+  class global_memory,client_memory outcome
+  class participation observation
+  class client,customer_org client
+  class staff runtime

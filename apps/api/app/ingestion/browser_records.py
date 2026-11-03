@@ -12,7 +12,6 @@ source stream, and ingestion does not choose the later arrival.
 Contract: docs/arch-components/telemetry-and-evidence.md#duplicates-ordering-lateness-and-time
 """
 
-from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
@@ -28,27 +27,15 @@ from app.ingestion.normalize import CanonicalObservation, ObservationGap
 from app.logging import get_logger
 
 __all__ = [
-    "BrowserStreamState",
     "advance_accepted_through",
     "end_stream",
     "fail_stream",
     "open_stream",
-    "record_identity_conflict",
     "store_gap",
     "store_observation",
 ]
 
 _log = get_logger(__name__)
-
-
-@dataclass(frozen=True, slots=True)
-class BrowserStreamState:
-    """The durable position of one browser stream."""
-
-    browser_stream_id: UUID
-    state: str
-    accepted_through_export_sequence: int
-    highest_received_export_sequence: int
 
 
 async def open_stream(
@@ -58,8 +45,8 @@ async def open_stream(
     browser_stream_id: UUID,
     runtime_id: UUID,
     document_attachment_id: UUID,
-) -> BrowserStreamState:
-    """Open a new stream or resume a paused one, and return its durable position.
+) -> int:
+    """Open a new stream or resume a paused one, and return its acknowledgement watermark.
 
     A resume keeps the same ``browser_stream_id`` and its acknowledgement
     watermark. A new document creates a new stream that starts at sequence one.
@@ -78,8 +65,7 @@ async def open_stream(
                   end,
                   revision = public.browser_streams.revision + 1,
                   updated_at = now()
-            returning state, accepted_through_export_sequence,
-                      highest_received_export_sequence, activation_id, runtime_id
+            returning state, accepted_through_export_sequence, activation_id, runtime_id
             """,
             (
                 browser_stream_id,
@@ -115,12 +101,7 @@ async def open_stream(
             identity_value=str(browser_stream_id),
             reason=f"is {state} and cannot be resumed",
         )
-    return BrowserStreamState(
-        browser_stream_id=browser_stream_id,
-        state="open",
-        accepted_through_export_sequence=as_int(row, "accepted_through_export_sequence"),
-        highest_received_export_sequence=as_int(row, "highest_received_export_sequence"),
-    )
+    return as_int(row, "accepted_through_export_sequence")
 
 
 async def store_observation(
@@ -226,52 +207,6 @@ async def _confirm_exact_duplicate(
         conflicting_content_sha256=record.content_sha256,
         first_ingestion_receipt_id=UUID(str(existing["ingestion_receipt_id"])),
     )
-
-
-async def record_identity_conflict(
-    conn: AsyncConnection[DictRow],
-    *,
-    client_id: UUID,
-    activation_id: UUID,
-    producer_kind: str,
-    source_stream_id: UUID,
-    error: IdentityReuseError,
-) -> None:
-    """Keep both versions of a reused identity as non-authoritative diagnostics.
-
-    This runs in its own transaction, after the rejected batch has rolled back,
-    so the diagnostic survives while the conflicting record never becomes
-    evidence.
-    """
-    if error.first_ingestion_receipt_id is None:
-        raise IntegrityViolationError(
-            identity_kind=error.identity_kind,
-            identity_value=error.identity_value,
-            reason="has no first receipt to attribute the conflict to",
-        )
-    async with conn.cursor() as cur:
-        await cur.execute(
-            """
-            insert into public.telemetry_identity_conflicts (
-                id, client_id, activation_id, producer_kind, source_stream_id,
-                identity_kind, identity_value, first_content_sha256,
-                conflicting_content_sha256, first_ingestion_receipt_id
-            )
-            values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """,
-            (
-                uuid7(),
-                client_id,
-                activation_id,
-                producer_kind,
-                source_stream_id,
-                error.identity_kind,
-                error.identity_value,
-                error.first_content_sha256,
-                error.conflicting_content_sha256,
-                error.first_ingestion_receipt_id,
-            ),
-        )
 
 
 async def fail_stream(

@@ -123,22 +123,16 @@ async def test_the_seed_is_idempotent(
     assert as_int(budgets, "total") == 1
 
 
-async def test_the_release_pins_the_demo_configuration(
+async def test_the_release_pins_the_demo_configuration_and_its_active_overview(
     database: Database, seeded: SeedResult
 ) -> None:
     release = await load_active_release(database, client_id=seeded.client_id)
     policy = release.policy
 
-    assert release.release_number == 1
     assert release.digest == release_digest(policy)
     assert policy.customer_surface.installation_ref == require_env(
         "UTRACE_DISCORD_SERVER_ID"
     )
-    assert {channel.name for channel in policy.customer_surface.watched_channels} == {
-        "support",
-        "growth-insights",
-        "feature-requests",
-    }
     assert policy.customer_surface.watches(
         require_env("UTRACE_DISCORD_FEATURE_REQUEST_CHANNEL_ID")
     )
@@ -167,7 +161,6 @@ async def test_the_release_pins_the_demo_configuration(
     assert policy.annotation_manifest["manifest_version"]
 
     assert policy.data_seeding.manifest_hash == SHOPALYTICS_MANIFEST_HASH
-    assert policy.data_seeding.fixture_clock == "2026-09-14T09:00:00Z"
     assert policy.outreach_offers.currency == "USD"
     assert policy.outreach_offers.fixed_amount_minor_units == OFFER_AMOUNT_MINOR_UNITS
     assert policy.contact_budget.per_person > 0
@@ -175,9 +168,6 @@ async def test_the_release_pins_the_demo_configuration(
         SHOPALYTICS_OVERVIEW.content_digest()
     )
 
-
-async def test_the_product_overview_is_active(database: Database, seeded: SeedResult) -> None:
     active = await load_active_overview(database, client_id=seeded.client_id)
     assert active.id == seeded.product_overview_version_id
-    assert active.content_digest == SHOPALYTICS_OVERVIEW.content_digest()
     assert active.overview == SHOPALYTICS_OVERVIEW

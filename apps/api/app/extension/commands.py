@@ -43,14 +43,12 @@ from app.db.pool import Database
 from app.db.rows import as_bool, as_int, as_str, as_uuid
 from app.errors import AggregateNotFoundError
 from app.execution.commands import TerminalResult, record_terminal_result
-from app.extension.protocol import CommandResultFrame
+from app.extension.protocol import CommandResultFrame, OpaqueId, Revision
 from app.ids import uuid7
 from app.ingestion.target_registry import load_registered_targets
 from app.logging import get_logger
 
 __all__ = [
-    "OUTCOME_UNKNOWN",
-    "VISUAL_COMMAND_TYPE",
     "ClearSceneCommand",
     "DispatchOutcome",
     "Scene",
@@ -66,8 +64,8 @@ __all__ = [
 
 _log = get_logger(__name__)
 
-VISUAL_COMMAND_TYPE = "extension.visual_command"
-OUTCOME_UNKNOWN = "outcome_unknown"
+_VISUAL_COMMAND_TYPE = "extension.visual_command"
+_OUTCOME_UNKNOWN = "outcome_unknown"
 """What an interrupted command with no confirmed result is recorded as."""
 
 # The pilot's permitted classes, used when a configuration release does not
@@ -87,9 +85,6 @@ _DISPOSITION_BY_OUTCOME: Mapping[str, tuple[CommandDisposition, EffectState]] = 
     "timed_out": (CommandDisposition.EXPIRED, EffectState.INDETERMINATE),
 }
 
-_OPAQUE_ID = r"^[A-Za-z0-9_.:-]{1,128}$"
-
-
 class _Step(BaseModel):
     """Immutable, closed base for every scene step."""
 
@@ -100,16 +95,16 @@ class MoveStep(_Step):
     """Move the agent cursor to a registered target."""
 
     step: Literal["move"]
-    target_id: str = Field(pattern=_OPAQUE_ID)
-    target_revision: Annotated[int, Field(ge=0)]
+    target_id: OpaqueId
+    target_revision: Revision
 
 
 class PointStep(_Step):
     """Point at a registered target and dwell there."""
 
     step: Literal["point"]
-    target_id: str = Field(pattern=_OPAQUE_ID)
-    target_revision: Annotated[int, Field(ge=0)]
+    target_id: OpaqueId
+    target_revision: Revision
     dwell_ms: Annotated[int, Field(ge=0, le=5000)]
 
 
@@ -117,8 +112,8 @@ class CircleStep(_Step):
     """Circle a registered target, optionally retaining the mark."""
 
     step: Literal["circle"]
-    target_id: str = Field(pattern=_OPAQUE_ID)
-    target_revision: Annotated[int, Field(ge=0)]
+    target_id: OpaqueId
+    target_revision: Revision
     retain: bool
 
 
@@ -126,8 +121,8 @@ class TraceStep(_Step):
     """Trace one edge of a registered target."""
 
     step: Literal["trace"]
-    target_id: str = Field(pattern=_OPAQUE_ID)
-    target_revision: Annotated[int, Field(ge=0)]
+    target_id: OpaqueId
+    target_revision: Revision
     edge: Literal["top", "bottom", "leading", "trailing"]
     retain: bool
 
@@ -136,8 +131,8 @@ class LabelStep(_Step):
     """Label a registered target with short customer-language text."""
 
     step: Literal["label"]
-    target_id: str = Field(pattern=_OPAQUE_ID)
-    target_revision: Annotated[int, Field(ge=0)]
+    target_id: OpaqueId
+    target_revision: Revision
     text: str = Field(min_length=1, max_length=80)
     placement: Literal["above", "below", "leading", "trailing"]
     retain: bool
@@ -173,8 +168,8 @@ class ScrollIntoViewCommand(_Step):
     """Scrolling a registered target into view is its own command."""
 
     type: Literal["scroll_into_view"]
-    target_id: str = Field(pattern=_OPAQUE_ID)
-    target_revision: Annotated[int, Field(ge=0)]
+    target_id: OpaqueId
+    target_revision: Revision
     alignment: Literal["start", "center", "end", "nearest"]
 
 
@@ -266,7 +261,7 @@ async def dispatch_visual_command(
             (
                 command_id,
                 client_id,
-                VISUAL_COMMAND_TYPE,
+                _VISUAL_COMMAND_TYPE,
                 CommandState.QUEUED.value,
                 AggregateKind.INTERVIEW_SESSION.value,
                 interview_session_id,
@@ -439,9 +434,9 @@ async def settle_unknown_outcomes(
                 command_id=command_id,
                 disposition=CommandDisposition.FAILED,
                 effect_state=EffectState.INDETERMINATE,
-                technical_category=OUTCOME_UNKNOWN,
+                technical_category=_OUTCOME_UNKNOWN,
                 retry_advice=None,
-                payload={"outcome": "failed", "reason": OUTCOME_UNKNOWN},
+                payload={"outcome": "failed", "reason": _OUTCOME_UNKNOWN},
             ),
         )
         async with database.transaction() as conn, conn.cursor() as cur:
@@ -451,7 +446,7 @@ async def settle_unknown_outcomes(
                 set outcome = 'failed', outcome_reason = %s, completed_at = now()
                 where command_id = %s and outcome is null
                 """,
-                (OUTCOME_UNKNOWN, command_id),
+                (_OUTCOME_UNKNOWN, command_id),
             )
         settled.append(command_id)
     if settled:

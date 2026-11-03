@@ -6,7 +6,6 @@ a missing predicate cannot leak another client's rows.
 """
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
 from uuid import UUID
@@ -49,7 +48,6 @@ from app.errors import AggregateNotFoundError, AuthorizationError
 
 __all__ = [
     "CustomerAccountRecord",
-    "OfferAllowance",
     "ParticipantAccount",
     "ParticipantInterview",
     "StaffClientMembership",
@@ -62,7 +60,6 @@ __all__ = [
     "load_client",
     "load_customer_accounts",
     "load_members",
-    "load_offer_allowance",
     "load_offers",
     "load_participant_account",
     "load_session",
@@ -74,7 +71,6 @@ __all__ = [
 async def fetch_all(
     database: Database, statement: str, params: Sequence[object]
 ) -> list[DictRow]:
-    """Run one read statement and return every row."""
     async with database.connection() as conn, conn.cursor() as cur:
         await cur.execute(statement, tuple(params))
         return list(await cur.fetchall())
@@ -83,7 +79,6 @@ async def fetch_all(
 async def fetch_one(
     database: Database, statement: str, params: Sequence[object]
 ) -> DictRow | None:
-    """Run one read statement and return its first row, if any."""
     async with database.connection() as conn, conn.cursor() as cur:
         await cur.execute(statement, tuple(params))
         return await cur.fetchone()
@@ -105,7 +100,6 @@ async def load_client(database: Database, *, client_id: UUID) -> ClientRecord:
 async def load_members(
     database: Database, *, client_id: UUID
 ) -> list[ClientMemberRecord]:
-    """Return the client's staff membership rows."""
     rows = await fetch_all(
         database,
         "select id, client_id, role, status, created_at "
@@ -156,7 +150,6 @@ async def load_case(
 async def load_gate_decisions(
     database: Database, *, product_signal_id: UUID
 ) -> list[GateDecisionRecord]:
-    """Return the immutable gate decisions for one case."""
     rows = await fetch_all(
         database,
         """
@@ -191,7 +184,6 @@ async def load_attempts(
 async def load_validation_attempts(
     database: Database, *, product_signal_id: UUID
 ) -> list[ValidationAttemptRecord]:
-    """Return the Validation Attempts for one case."""
     rows = await fetch_all(
         database,
         """
@@ -281,69 +273,9 @@ async def load_offers(
     return [OutreachOfferRecord.model_validate(present(row)) for row in rows]
 
 
-@dataclass(frozen=True, slots=True)
-class OfferAllowance:
-    """The client's authorized, reserved, earned, and remaining issuance allowance."""
-
-    currency: str | None
-    authorized: int
-    reserved: int
-    earned: int
-
-    @property
-    def remaining(self) -> int:
-        """Allowance still available for a new rewarded invitation."""
-        return self.authorized - self.reserved - self.earned
-
-
-async def load_offer_allowance(
-    database: Database, *, client_id: UUID
-) -> OfferAllowance:
-    """Compute the client's remaining issuance allowance from the ledger."""
-    budget = await fetch_one(
-        database,
-        """
-        select currency, authorized_minor_units
-        from public.offer_budgets
-        where client_id = %s
-        order by sequence_number desc
-        limit 1
-        """,
-        (client_id,),
-    )
-    if budget is None:
-        return OfferAllowance(currency=None, authorized=0, reserved=0, earned=0)
-    currency = as_str(budget, "currency")
-    totals = await fetch_one(
-        database,
-        """
-        select
-          coalesce(sum(reservations.amount_minor_units)
-            filter (where reservations.released_at is null
-                      and reservations.converted_at is null), 0)::bigint as reserved,
-          coalesce((
-            select sum(amount_minor_units) from public.offer_entitlements
-            where client_id = %s and currency = %s
-          ), 0)::bigint as earned
-        from public.offer_reservations as reservations
-        where reservations.client_id = %s and reservations.currency = %s
-        """,
-        (client_id, currency, client_id, currency),
-    )
-    reserved = as_int(totals, "reserved") if totals is not None else 0
-    earned = as_int(totals, "earned") if totals is not None else 0
-    return OfferAllowance(
-        currency=currency,
-        authorized=as_int(budget, "authorized_minor_units"),
-        reserved=reserved,
-        earned=earned,
-    )
-
-
 async def load_session(
     database: Database, *, session_id: UUID
 ) -> InterviewSessionRecord:
-    """Return the durable Interview Session projection."""
     row = await fetch_one(
         database,
         """

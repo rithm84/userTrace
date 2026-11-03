@@ -119,7 +119,6 @@ class WorkspaceFilesystem:
 
 
     async def tracked_paths(self) -> tuple[str, ...]:
-        """Return the checkout-relative paths git tracks."""
         output = await self._search("git ls-files")
         return tuple(line for line in output.splitlines() if line)
 

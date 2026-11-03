@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="pele-doc" viewBox="0 0 1015 772" width="1015" height="772" style="max-width:100%;height:auto" role="img" aria-label="Stopping during live work · each reason has its own outcome"><title>Stopping during live work · each reason has its own outcome</title><style><![CDATA[
+/*
+  Shared uTrace diagram theme. docs/diagrams/render.mjs embeds this file in every
+  exported SVG, so a diagram source names roles (`:::runtime`) and edge kinds
+  (`async_1@-.->`) and never sets a color itself. Pick a role by what a node is,
+  never by how it should look. Colors follow the reader's light or dark scheme.
+*/
+
+.pele-doc {
+  --pele-bg: #ffffff;
+  --pele-fg: #24303a;
+  --pele-muted: #5c6770;
+  --pele-line: #596773;
+  --pele-surface: #f2f4f6;
+  --pele-surface-alt: #f7f8fa;
+  --pele-border: #5c6770;
+  --pele-accent: #1971c2;
+  --pele-critical: #c44d41;
+  --pele-radius: 6px;
+
+  --people-fill: #e7f5ff;      --people-stroke: #1971c2;
+  --runtime-fill: #eee8ff;     --runtime-stroke: #7048e8;
+  --reasoning-fill: #f8e7fc;   --reasoning-stroke: #9c36b5;
+  --observation-fill: #e3fafc; --observation-stroke: #0c8599;
+  --external-fill: #fff0ed;    --external-stroke: #c44d41;
+  --outcome-fill: #e5f5e8;     --outcome-stroke: #2f9e44;
+  --async-fill: #ffd8a8;       --async-stroke: #e8590c;
+  --gate-fill: #fff4d6;        --gate-stroke: #b37c00;
+  --neutral-fill: #f2f4f6;     --neutral-stroke: #5c6770;
+  --client-fill: #ffffff;      --client-stroke: #1e1e1e;
+
+  --edge-async: #e8590c;   --edge-async-text: #b3470a;
+  --edge-blocked: #c44d41; --edge-blocked-text: #a13a2f;
+  --edge-ok: #2f9e44;      --edge-ok-text: #23783a;
+}
+
+@media (prefers-color-scheme: dark) {
+  .pele-doc {
+    --pele-bg: #0d1117;
+    --pele-fg: #e6edf3;
+    --pele-muted: #9da7b3;
+    --pele-line: #9da7b3;
+    --pele-surface: #161b22;
+    --pele-surface-alt: #10151c;
+    --pele-border: #6e7781;
+    --pele-accent: #4dabf7;
+    --pele-critical: #ff8787;
+
+    --people-fill: #0c2a43;      --people-stroke: #4dabf7;
+    --runtime-fill: #241c49;     --runtime-stroke: #9775fa;
+    --reasoning-fill: #381640;   --reasoning-stroke: #da77f2;
+    --observation-fill: #0b3338; --observation-stroke: #3bc9db;
+    --external-fill: #3d1714;    --external-stroke: #ff8787;
+    --outcome-fill: #11321b;     --outcome-stroke: #51cf66;
+    --async-fill: #4a2508;       --async-stroke: #ff922b;
+    --gate-fill: #3d2e05;        --gate-stroke: #fcc419;
+    --neutral-fill: #21262d;     --neutral-stroke: #8b949e;
+    --client-fill: #161b22;      --client-stroke: #c9d1d9;
+
+    --edge-async: #ff922b;   --edge-async-text: #ffa94d;
+    --edge-blocked: #ff8787; --edge-blocked-text: #ffa8a8;
+    --edge-ok: #51cf66;      --edge-ok-text: #69db7c;
+  }
+}
+
+.pele-doc > .pele-doc-bg { fill: var(--pele-bg); }
+
+/* Roles: fill and stroke only; text stays the ink color. */
+.pele-node.people > :is(rect, path, polygon, circle, ellipse),
+.pele-node.people > g > path { fill: var(--people-fill); stroke: var(--people-stroke); }
+.pele-node.runtime > :is(rect, path, polygon, circle, ellipse),
+.pele-node.runtime > g > path { fill: var(--runtime-fill); stroke: var(--runtime-stroke); }
+.pele-node.reasoning > :is(rect, path, polygon, circle, ellipse),
+.pele-node.reasoning > g > path { fill: var(--reasoning-fill); stroke: var(--reasoning-stroke); }
+.pele-node.observation > :is(rect, path, polygon, circle, ellipse),
+.pele-node.observation > g > path { fill: var(--observation-fill); stroke: var(--observation-stroke); }
+.pele-node.external > :is(rect, path, polygon, circle, ellipse),
+.pele-node.external > g > path { fill: var(--external-fill); stroke: var(--external-stroke); }
+.pele-node.outcome > :is(rect, path, polygon, circle, ellipse),
+.pele-node.outcome > g > path { fill: var(--outcome-fill); stroke: var(--outcome-stroke); }
+.pele-node.async > :is(rect, path, polygon, circle, ellipse),
+.pele-node.async > g > path { fill: var(--async-fill); stroke: var(--async-stroke); }
+.pele-node.gate > :is(rect, path, polygon, circle, ellipse),
+.pele-node.gate > g > path { fill: var(--gate-fill); stroke: var(--gate-stroke); }
+.pele-node.neutral > :is(rect, path, polygon, circle, ellipse),
+.pele-node.neutral > g > path { fill: var(--neutral-fill); stroke: var(--neutral-stroke); }
+.pele-node.client > :is(rect, path, polygon, circle, ellipse),
+.pele-node.client > g > path { fill: var(--client-fill); stroke: var(--client-stroke); }
+
+/* Subgraphs are boundaries: a dashed outline, like a zone. Swimlanes share
+   their borders, so theirs stay solid; a sequence box is a shaded region with no
+   outline, because message labels have no background to hide a line behind. Its
+   opaque surface fill keeps the region visible on the dark background. */
+.pele-cluster > rect { stroke-dasharray: 5 4; }
+.pele-lane > rect { stroke-dasharray: none; }
+.pele-box > rect { stroke: none; fill: var(--pele-surface); fill-opacity: 1; }
+
+/* A `row_*` subgraph only arranges its nodes into a row; it draws nothing. */
+.pele-cluster[data-id^="row_"] { display: none; }
+
+/* Edge kinds, selected by the edge id prefix the source gives the edge. */
+.pele-edge[data-id^="async_"] > path { stroke: var(--edge-async); }
+.pele-edge[data-id^="async_"] > path.pele-marker { fill: var(--edge-async); stroke: none; }
+.pele-edge-label[data-id^="async_"] text { fill: var(--edge-async-text); }
+.pele-edge[data-id^="blocked_"] > path { stroke: var(--edge-blocked); }
+.pele-edge[data-id^="blocked_"] > path.pele-marker { fill: var(--edge-blocked); stroke: none; }
+.pele-edge-label[data-id^="blocked_"] text { fill: var(--edge-blocked-text); }
+.pele-edge[data-id^="ok_"] > path { stroke: var(--edge-ok); }
+.pele-edge[data-id^="ok_"] > path.pele-marker { fill: var(--edge-ok); stroke: none; }
+.pele-edge-label[data-id^="ok_"] text { fill: var(--edge-ok-text); }
+]]></style><rect class="pele-doc-bg" width="1015" height="772" rx="8"/><svg x="0" y="0" class="pele pele-flowchart" viewBox="0 0 1015 772" width="1015" height="772" style="--_bg:var(--pele-bg,#fff);--_fg:var(--pele-fg,#1f1f1f);--_m:var(--pele-muted,#6e6e6e);--_l:var(--pele-line,#1f1f1f);--_s:var(--pele-surface,#f3f3f3);--_a:var(--pele-surface-alt,#e6e6e6);--_b:var(--pele-border,#8a8a8a);--_c:var(--pele-accent,#5b7bd5);color:var(--_fg);--_r:var(--pele-radius,4px);--_w:var(--pele-bold-weight,bold);--_fm:var(--pele-font-mono,monospace);font:16px sans-serif;letter-spacing:normal;word-spacing:normal;text-transform:none;direction:ltr;font-family:var(--pele-font,sans-serif)" fill="var(--_fg)" role="graphics-document document" aria-roledescription="flowchart"><g class="pele-clusters"><g class="pele-cluster" data-id="reasons"><rect x="24" y="24" width="443.7" height="724" fill="var(--_a)" fill-opacity="0.5" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-cluster-label" fill="var(--_m)" x="103.8" y="49.6" text-anchor="middle">Why work stopped</text></g></g><g class="pele-edges" fill="none" stroke="var(--_l)" stroke-linecap="round"><g class="pele-edge" data-id="async_1"><path d="M427.7,88L711.82,88C744.06,88 763.82,118.88 763.82,169.25C763.82,219.63 769.81,250.5 779.57,250.5L784.82,250.5" stroke-dasharray="3 4"/><path class="pele-marker" d="M791.82,250.5L783.82,253.86L783.82,247.14Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="async_2"><path d="M427.7,176L711.82,176C736.62,176 751.82,192.82 751.82,220.25C751.82,247.69 762.08,264.5 778.82,264.5L784.82,264.5" stroke-dasharray="3 4"/><path class="pele-marker" d="M791.82,264.5L783.82,267.86L783.82,261.14Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="async_3"><path d="M426.32,256C437.01,256 437.01,224 447.7,224L711.82,224C745.32,224 745.32,278.5 778.82,278.5L784.82,278.5" stroke-dasharray="3 4"/><path class="pele-marker" d="M791.82,278.5L783.82,281.86L783.82,275.14Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="blocked_1"><path d="M426.32,272C437.01,272 437.01,300 447.7,300L711.82,300C740.34,300 757.82,326.6 757.82,370C757.82,413.4 765.8,440 778.82,440L784.82,440"/><path class="pele-marker" d="M791.82,440L783.82,443.36L783.82,436.64Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="async_4"><path d="M427.7,344C437.7,344 437.7,316 447.7,316L467.7,316C477.95,316 477.95,348 488.2,348L711.82,348C732.9,348 745.82,337.46 745.82,320.25C745.82,303.05 758.36,292.5 778.82,292.5L784.82,292.5" stroke-dasharray="3 4"/><path class="pele-marker" d="M791.82,292.5L783.82,295.86L783.82,289.14Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="blocked_2"><path d="M427.7,360C437.7,360 437.7,392 447.7,392L711.82,392C745.32,392 745.32,440 778.82,440L784.82,440"/><path class="pele-marker" d="M791.82,440L783.82,443.36L783.82,436.64Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="blocked_3"><path d="M427.7,520C437.7,520 437.7,488 447.7,488L467.7,488C477.95,488 477.95,481 488.2,481L711.82,481C745.32,481 745.32,440 778.82,440L784.82,440"/><path class="pele-marker" d="M791.82,440L783.82,443.36L783.82,436.64Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="blocked_4"><path d="M427.7,536C437.7,536 437.7,568 447.7,568L467.7,568C477.95,568 477.95,522 488.2,522L711.82,522C732.9,522 745.82,534.83 745.82,555.75C745.82,576.67 758.88,589.5 780.19,589.5L786.19,589.5"/><path class="pele-marker" d="M793.19,589.5L785.19,592.86L785.19,586.14Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="blocked_5"><path d="M427.7,440L784.82,440"/><path class="pele-marker" d="M791.82,440L783.82,443.36L783.82,436.64Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="blocked_6"><path d="M427.7,616L467.7,616C477.95,616 477.95,597.5 488.2,597.5L711.82,597.5C740.34,597.5 757.82,567.58 757.82,518.75C757.82,469.93 765.8,440 778.82,440L784.82,440"/><path class="pele-marker" d="M791.82,440L783.82,443.36L783.82,436.64Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="blocked_7"><path d="M427.7,704L711.82,704C746.01,704 746.01,605.5 780.19,605.5L786.19,605.5"/><path class="pele-marker" d="M793.19,605.5L785.19,608.86L785.19,602.14Z" fill="var(--_l)" stroke="none"/></g></g><g class="pele-edge-labels" font-size="14"><g class="pele-edge-label" data-id="async_1"><rect x="508.48" y="77.5" width="183.06" height="21" rx="3" fill="var(--_bg)"/><text x="600.01" y="92.9" text-anchor="middle">resume with fresh readiness</text></g><g class="pele-edge-label" data-id="async_2"><rect x="508.47" y="165.5" width="183.07" height="21" rx="3" fill="var(--_bg)"/><text x="600.01" y="180.9" text-anchor="middle">reconnect within the window</text></g><g class="pele-edge-label" data-id="async_3"><rect x="500.7" y="213.5" width="198.62" height="21" rx="3" fill="var(--_bg)"/><text x="600.01" y="228.9" text-anchor="middle">return within the return window</text></g><g class="pele-edge-label" data-id="blocked_1"><rect x="527.93" y="289.5" width="144.15" height="21" rx="3" fill="var(--_bg)"/><text x="600.01" y="304.9" text-anchor="middle">return window expires</text></g><g class="pele-edge-label" data-id="async_4"><rect x="508.47" y="337.5" width="183.08" height="21" rx="3" fill="var(--_bg)"/><text x="600.01" y="352.9" text-anchor="middle">bounded recovery succeeds</text></g><g class="pele-edge-label" data-id="blocked_2"><rect x="490.2" y="381.5" width="219.62" height="21" rx="3" fill="var(--_bg)"/><text x="600.01" y="396.9" text-anchor="middle">unrecoverable or recovery expires</text></g><g class="pele-edge-label" data-id="blocked_3"><rect x="542.32" y="470.5" width="115.38" height="21" rx="3" fill="var(--_bg)"/><text x="600.01" y="485.9" text-anchor="middle">after participation</text></g><g class="pele-edge-label" data-id="blocked_4"><rect x="536.48" y="511.5" width="127.06" height="21" rx="3" fill="var(--_bg)"/><text x="600.01" y="526.9" text-anchor="middle">before participation</text></g><g class="pele-edge-label" data-id="blocked_5"><rect x="562.55" y="429.5" width="74.92" height="21" rx="3" fill="var(--_bg)"/><text x="600.01" y="444.9" text-anchor="middle">checkpoint</text></g><g class="pele-edge-label" data-id="blocked_6"><rect x="508.09" y="587" width="183.84" height="21" rx="3" fill="var(--_bg)"/><text x="600.01" y="602.4" text-anchor="middle">unmet criteria as the blocker</text></g><g class="pele-edge-label" data-id="blocked_7"><rect x="532.97" y="693.5" width="134.07" height="21" rx="3" fill="var(--_bg)"/><text x="600.01" y="708.9" text-anchor="middle">revoke and clean up</text></g></g><g class="pele-nodes"><g class="pele-node pele-shape-stadium people" data-id="pause" transform="translate(352.78,88)"><rect x="-74.91" y="-24" width="149.82" height="48" rx="24" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Pause control</text></g><g class="pele-node pele-shape-stadium people" data-id="loss" transform="translate(275.43,176)"><rect x="-152.26" y="-24" width="304.53" height="48" rx="24" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Temporary connection or voice loss</text></g><g class="pele-node pele-shape-stadium people" data-id="away" transform="translate(316.78,264)"><rect x="-110.92" y="-24" width="221.84" height="48" rx="24" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Finish later or departure</text></g><g class="pele-node pele-shape-rect runtime" data-id="blocker" transform="translate(347.46,352)"><rect x="-80.24" y="-24" width="160.48" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Technical blocker</text></g><g class="pele-node pele-shape-stadium people" data-id="cancel" transform="translate(357.68,704)"><rect x="-70.02" y="-24" width="140.03" height="48" rx="24" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Cancellation</text></g><g class="pele-node pele-shape-rect client" data-id="client_stop" transform="translate(371.9,528)"><rect x="-55.79" y="-24" width="111.58" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Client stop</text></g><g class="pele-node pele-shape-rect gate" data-id="no_fit" transform="translate(235.85,440)"><rect x="-191.85" y="-24" width="383.7" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Work no longer fits the live session or its budgets</text></g><g class="pele-node pele-shape-hex gate" data-id="unsuccessful" transform="translate(314.11,616)"><polygon points="-101.58,-24 101.58,-24 113.58,0 101.58,24 -101.58,24 -113.58,0" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Unsuccessful validation</text></g><g class="pele-node pele-shape-rect async" data-id="continues" transform="translate(891.19,271.5)"><rect x="-99.37" y="-33" width="198.74" height="66" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" text-anchor="middle" xml:space="preserve"><tspan x="0" y="-4.9" font-weight="var(--_w)">Same case continues</tspan><tspan x="0" y="16.1">Budgets never reset</tspan></text></g><g class="pele-node pele-shape-doc external" data-id="blocker_case" transform="translate(876.52,440)"><path d="M-84.7,-38H84.7V28q-42.35,-12 -84.7,0t-84.7,0Z" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" text-anchor="middle" xml:space="preserve"><tspan x="0" y="-9.9" font-weight="var(--_w)">Blocker Case File</tspan><tspan x="0" y="11.1">No PR</tspan></text></g><g class="pele-node pele-shape-stadium external" data-id="no_output" transform="translate(886.72,597.5)"><rect x="-94.9" y="-24" width="189.81" height="48" rx="24" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">No Case File or PR</text></g></g></svg></svg>

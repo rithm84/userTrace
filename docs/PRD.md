@@ -54,19 +54,25 @@ production billing.
 
 ## Account model
 
-uTrace has two account classes.
+uTrace has two account classes:
+
+![A global uTrace User keeps global memory and participates per client; each participation keeps client-scoped memory and belongs to a customer organization the client serves.](./diagrams/svg/prd-account-model.svg)
+
+<details><summary>Diagram key</summary>
+
+![Diagram key of the ten node roles: people and customer surfaces, uTrace control plane, reasoning models, SDKs and previews, external or blocked, validated or durable, async path, gates and checks, neutral or closed, and client product.](./diagrams/svg/_key.svg)
+
+</details>
+<p></p>
 
 ### uTrace Client
 
-A uTrace Client is a company that uses uTrace to improve its product. One client organization represents one product and has exactly one owner and zero or more admins. A client has a Discord [Customer Surface](#customer-surfaces) (server), integrates both components of the [uTrace SDK](#utrace-sdk) into its normal application branch (usually `main`) for preview-only instrumentation, and receives [Case Files](#outputs) with potential PRs. In the demo, uTrace performs the client's configuration; see [Client configuration](#client-configuration).
+A uTrace Client is a company that uses uTrace to improve its product. One client organization represents one product. A client has a Discord [Customer Surface](#customer-surfaces) (server), integrates both components of the [uTrace SDK](#utrace-sdk) into its normal application branch (usually `main`) for preview-only instrumentation, and receives [Case Files](#outputs) with potential PRs. In the demo, uTrace performs the client's configuration; see [Client configuration](#client-configuration).
 
 ### uTrace User
 
 A uTrace User is a customer of one or more uTrace Clients who participates in
-agent-led interviews. Each participant belongs to a customer-organization account
-within the client product.
-
-uTrace User identity is global across uTrace, but participation and data are scoped per client. One client must not see another client's interview history, product telemetry, or customer context.
+agent-led interviews. One client must not see another client's interview history, product telemetry, or customer context.
 
 Global user memory may include communication preferences, participation count, and contact preferences. Client-scoped memory may include prior interviews, product-specific workflow context, frustrations, validation outcomes, and account metadata for that client only.
 
@@ -147,23 +153,23 @@ of multiple sessions. uTrace reserves the amount against the client-authorized
 issuance budget before sending an offer; the agent cannot negotiate or increase
 it. This budget is an allowance to issue credits, not money deposited with uTrace.
 
-One offered reward covers the case's required participation:
+One offered reward covers the case's required participation, and how the case
+ends decides whether it is earned:
 
-- A completed interview followed by the gate choosing no implementation earns
-  the reward.
-- A case with live implementation requires participation through validation.
-- If uTrace or the client ends the case, the reward is earned when the
-  participant fulfilled everything requested of them up to that point.
-  Client-initiated stops follow the same earning rules as technical blockers,
-  scope limits, and execution-budget exhaustion. Pre-participation stops earn
-  no reward.
-- Voluntary cancellation, declining a required continuation, or abandoning
-  outstanding participation before completion earns no reward. A temporary
-  interruption does not itself establish abandonment.
+![A reward is earned after a completed interview with no implementation, after participation through validation, or when uTrace or the client ends a case the participant had fulfilled; cancellation, declining, abandonment, and pre-participation stops earn nothing.](./diagrams/svg/prd-outreach-earning.svg)
 
-Honest negative feedback does not disqualify participation. Reward eligibility
-never depends on a favorable verdict, a PR, or a merge. Once earned, a reward
-remains owed even if credit issuance fails.
+<details><summary>Diagram key</summary>
+
+![Diagram key of the ten node roles: people and customer surfaces, uTrace control plane, reasoning models, SDKs and previews, external or blocked, validated or durable, async path, gates and checks, neutral or closed, and client product.](./diagrams/svg/_key.svg)
+
+</details>
+<p></p>
+
+Client-initiated stops follow the same earning rules as technical blockers, scope
+limits, and execution-budget exhaustion. A temporary interruption does not itself
+establish abandonment. Honest negative feedback does not disqualify
+participation: reward eligibility never depends on a favorable verdict, a PR, or
+a merge.
 
 uTrace's backend issues the earned credit to the organization's existing Stripe
 Customer as a customer balance adjustment. Stripe applies available credit
@@ -411,24 +417,25 @@ visual guidance.
 
 ## Preview Runtime Allocations, implementation workspaces, and session data
 
-A preview runtime and an implementation workspace are different resources.
+A preview runtime and an implementation workspace are different resources:
 
-A Preview Runtime Allocation gives an Interview Session or Preview Version exclusive access to a full running copy of the client's product: frontend, backend, database, embedded browser SDK, Server SDK, seeded data, authentication handoff, and telemetry path. It grants product access, not code-writing authority.
+![The preview front door routes the user's stable origin to a base allocation claimed from the warm pool, then to the candidate allocation an authorized workspace produces; the workspace holds code authority and no client data, and every resource is terminated rather than reused.](./diagrams/svg/prd-preview-resources.svg)
 
-An Implementation Attempt receives a separate isolated code workspace and an attempt-scoped fenced Environment Lease. Read-only investigation may inspect an authorized repository checkout before the gate; only an authorized Implementation Attempt may change code in its workspace. It contains no client data or production credentials and never becomes the customer-facing product runtime.
+<details><summary>Diagram key</summary>
 
-uTrace keeps a small warm pool of unclaimed full preview runtimes built from a pinned client template. At interview start:
+![Diagram key of the ten node roles: people and customer surfaces, uTrace control plane, reasoning models, SDKs and previews, external or blocked, validated or durable, async path, gates and checks, neutral or closed, and client product.](./diagrams/svg/_key.svg)
 
-1. uTrace claims one base Preview Runtime Allocation for the Interview Session.
-2. uTrace installs the dataset defined by the pinned seed manifest.
-3. The originating user's scoped authentication handoff is installed in the allocation.
-4. The preview front door gives the session one stable uTrace-owned origin routed to that allocation.
-5. The agent and user conduct the interview against the full product runtime.
+</details>
+<p></p>
 
-Each Product Signal has its own base allocation and candidate lineage. Every
-candidate binds an immutable Preview Version, dataset, and validation record.
+A Preview Runtime Allocation gives an Interview Session or Preview Version exclusive access to a full running copy of the client's product: frontend, backend, database, embedded browser SDK, Server SDK, seeded data, authentication handoff, and telemetry path.
 
-When an allocation containing seeded data is no longer needed and required artifacts have been extracted, uTrace terminates the instance outright. It is never reset and returned to the pool. Fresh provisioning replenishes the pool. An implementation workspace is likewise destroyed after its required artifacts are durable.
+Read-only investigation may inspect an authorized repository checkout before the gate; only an authorized Implementation Attempt may change code in its workspace. The workspace contains no production credentials and never becomes the customer-facing product runtime.
+
+Each Product Signal has its own base allocation and candidate lineage, and every
+candidate also binds a validation record. An allocation that held seeded data is
+terminated outright, never reset and returned to the pool; fresh provisioning
+replenishes the pool.
 
 ### Seed data
 
@@ -483,28 +490,32 @@ narrate tool calls or make unnecessary, repeated acknowledgments.
 
 Stopping is reason-specific:
 
+![Pause, temporary loss, departure, and recoverable blockers can continue the same case; expiry, unrecoverable blockers, client stops after participation, work that no longer fits, and unsuccessful validation produce a blocker Case File; cancellation and pre-participation client stops produce no Case File or PR.](./diagrams/svg/prd-stopping-reasons.svg)
+
+<details><summary>Diagram key</summary>
+
+![Diagram key of the ten node roles: people and customer surfaces, uTrace control plane, reasoning models, SDKs and previews, external or blocked, validated or durable, async path, gates and checks, neutral or closed, and client product.](./diagrams/svg/_key.svg)
+
+</details>
+<p></p>
+
+Each reason also governs the work in flight:
+
 - **Pause control (session tab or extension):** stop voice and observation, and
-  prevent new live implementation steps. Already-dispatched operations settle or checkpoint with their outcome
-  recorded. Resume requires fresh readiness.
+  prevent new live implementation steps. Already-dispatched operations settle or
+  checkpoint with their outcome recorded.
 - **Temporary connection or voice loss:** current authorized live implementation and
   checks may continue within the bounded reconnection window and pinned budget.
   Validation waits for the same user.
 - **“Finish later” or departure during live work:** checkpoint and stop new live
   implementation. The originating user can return through their dashboard or a
-  private return link within the pinned return window, with bounded reminders.
-  Expiry closes the case.
+  private return link, with bounded reminders.
 - **Cancellation:** stop the attempt, revoke authority, and clean up unneeded
-  previews. Deliver no Case File or PR.
+  previews.
 - **Technical blocker:** preserve evidence while bounded recovery remains possible.
-  An unrecoverable blocker or recovery expiry closes the case; it is not a
-  participant rejection.
+  Closing on a blocker is not a participant rejection.
 - **Client stop:** owners/admins stop further work and uTrace notifies the user.
-  After participation, deliver a blocker Case File; before participation, deliver
-  no Case File. Apply the existing Outreach Offers earning rules.
-- **Work no longer fits the live session or its budgets:** deliver a blocker Case
-  File.
-- **Unsuccessful validation:** deliver a Case File with the unmet criteria as the
-  blocker.
+  The existing Outreach Offers earning rules apply.
 
 Pause, departure, and recovery do not permit indefinite resumption or running
 resources. The [failure-recovery contract](./arch-components/failure-recovery.md)

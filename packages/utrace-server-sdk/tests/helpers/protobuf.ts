@@ -34,7 +34,7 @@ function readVarint(buffer: Buffer, offset: number): { value: bigint; next: numb
 }
 
 /** Decodes one protobuf message into its fields, keyed by field number. */
-export function decodeMessage(buffer: Buffer): Fields {
+function decodeMessage(buffer: Buffer): Fields {
   const fields: Fields = new Map();
   let offset = 0;
   while (offset < buffer.length) {
@@ -101,8 +101,7 @@ function firstFixed64(fields: Fields, fieldNumber: number): bigint | undefined {
   return entry !== undefined && entry.kind === 'fixed64' ? entry.value : undefined;
 }
 
-/** A decoded OTLP attribute value. */
-export type DecodedAttributeValue = string | boolean | number | readonly string[];
+type DecodedAttributeValue = string | boolean | number | readonly string[];
 
 function decodeAnyValue(buffer: Buffer): DecodedAttributeValue | undefined {
   const fields = decodeMessage(buffer);
@@ -145,13 +144,11 @@ function decodeAttributes(entries: Buffer[]): Record<string, DecodedAttributeVal
   return attributes;
 }
 
-/** One decoded span event. */
-export interface DecodedEvent {
+interface DecodedEvent {
   readonly name: string;
   readonly attributes: Record<string, DecodedAttributeValue>;
 }
 
-/** One decoded span. */
 export interface DecodedSpan {
   readonly traceId: string;
   readonly spanId: string;
@@ -167,8 +164,7 @@ export interface DecodedSpan {
   readonly scopeName: string;
 }
 
-/** One decoded resource group. */
-export interface DecodedResourceSpans {
+interface DecodedResourceSpans {
   readonly resourceAttributes: Record<string, DecodedAttributeValue>;
   readonly spans: readonly DecodedSpan[];
 }

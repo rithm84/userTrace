@@ -49,7 +49,6 @@
 
 .pr-h1 { font: 800 34px/1.05 var(--display); font-stretch: 92%; letter-spacing: -0.03em; margin: 0; }
 .pr-h2 { font: 800 22px/1.1 var(--display); font-stretch: 94%; letter-spacing: -0.025em; margin: 0; }
-.pr-h3 { font: 700 16px/1.2 var(--body); margin: 0; }
 .pr-lede { font: 400 16px/1.5 var(--body); color: var(--ink-2); margin: 0; }
 .pr-note { font: 400 13px/1.5 var(--body); color: var(--ink-3); margin: 0; }
 .pr-label { font: 700 13px/1.3 var(--body); color: var(--ink-2); margin: 0; }
@@ -84,14 +83,12 @@
 .pr-head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; }
 .pr-head-end { margin-left: auto; display: flex; gap: 10px; }
 .pr-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
-.pr-split { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
 
 /* ---------------------------------------------------------------- panels */
 
 .pr-panel { border: 2px solid var(--ink); background: var(--paper); padding: 20px; }
 .pr-panel--raised { box-shadow: 3px 3px 0 0 var(--ink); }
 .pr-panel--core { border-width: 3px; box-shadow: 6px 6px 0 0 var(--ink); }
-.pr-panel--mutable { border-width: 1px; border-style: dashed; border-color: var(--ink-3); box-shadow: none; background: var(--paper-2); }
 .pr-panel-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; margin-bottom: 14px; }
 .pr-panel-head .pr-note { margin-left: auto; }
 
