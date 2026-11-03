@@ -67,6 +67,7 @@ from app.gate.job_types import (
     GateFailureOutcome,
 )
 from app.gate.policy import ImplementationPolicy, load_implementation_policy
+from app.gate.prepared import prepared_gate_proposal
 from app.gate.proposal import request_gate_proposal
 from app.ids import uuid7
 from app.implementation.budgets import ConsumedBudgets
@@ -172,15 +173,24 @@ async def run_gate(database: Database, claimed: ClaimedJob) -> None:
 async def _decide(
     database: Database, *, client_id: UUID, product_signal_id: UUID, policy: ImplementationPolicy
 ) -> GateOutcome:
-    """Assemble the gate bundle now, ask for a proposal over it, and decide against it."""
+    """Assemble the gate bundle now, ask for a proposal over it, and decide against it.
+
+    A proposal prepared while the agent proposed the change is used instead of asking
+    again when the agreement records that change and every decision input is the
+    same (`app.gate.prepared`); the decision is validated and committed either way.
+    """
     now = datetime.now(tz=UTC)
     bundle = await assemble_gate_bundle(
         database, client_id=client_id, product_signal_id=product_signal_id, now=now
     )
-    async with openai_gateway_for(OpenAIRole.GATE_PROPOSAL) as gateway:
-        proposal = await request_gate_proposal(
-            gateway, bundle=bundle, max_output_tokens=_PROPOSAL_MAX_OUTPUT_TOKENS
-        )
+    proposal = await prepared_gate_proposal(database, bundle=bundle)
+    if proposal is None:
+        async with openai_gateway_for(OpenAIRole.GATE_PROPOSAL) as gateway:
+            proposal = await request_gate_proposal(
+                gateway, bundle=bundle, max_output_tokens=_PROPOSAL_MAX_OUTPUT_TOKENS
+            )
+    else:
+        _log.info("gate_used_prepared_proposal", product_signal_id=str(product_signal_id))
     return await decide_gate(
         database, bundle=bundle, proposal=proposal, base_revision=policy.base_revision, now=now
     )

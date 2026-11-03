@@ -557,6 +557,7 @@ export const fixtureSessionProjection: SessionProjection = {
   controls: { microphone: "unmuted", available: ["mute", "pause", "finish_later", "end_confirm"] },
   implementation_progress: null,
   preview_available: true,
+  preview_route_revision: 1,
   end_reason: null,
 };
 

@@ -52,6 +52,18 @@ async def _session_progress(database: Database, session_id: UUID) -> str:
     return as_str(row, "implementation_progress")
 
 
+async def _published_projection(database: Database, session_id: UUID) -> dict[str, object]:
+    """The projection document the session tab last received."""
+    async with database.connection() as conn, conn.cursor() as cur:
+        await cur.execute(
+            "select revision, projection from public.session_projections where session_id = %s",
+            (session_id,),
+        )
+        row = await cur.fetchone()
+    assert row is not None
+    return {"revision": row["revision"], **row["projection"]}
+
+
 async def _attempt_progress(database: Database, attempt_id: UUID) -> str:
     async with database.connection() as conn, conn.cursor() as cur:
         await cur.execute(
@@ -81,6 +93,7 @@ async def test_live_progress_reaches_the_session_tab_projection(
     assert await _session_progress(database, session_id) == (
         ImplementationProgress.NOT_STARTED.value
     )
+    revisions: list[int] = []
     for progress in LIVE_SEQUENCE:
         await record_progress(
             database,
@@ -92,7 +105,12 @@ async def test_live_progress_reaches_the_session_tab_projection(
         )
         assert await _session_progress(database, session_id) == progress.value
         assert await _attempt_progress(database, attempt_id) == progress.value
+        # The tab hears each step in the same transaction, with the route it shows.
+        published = await _published_projection(database, session_id)
+        revisions.append(as_int(published, "revision"))
+        assert "preview_route_revision" in published
 
+    assert revisions == sorted(set(revisions)) and len(revisions) == len(LIVE_SEQUENCE)
     sequences = await event_sequences(
         database, stream_kind=AggregateKind.IMPLEMENTATION_ATTEMPT, stream_id=attempt_id
     )

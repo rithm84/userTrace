@@ -34,14 +34,16 @@ from app.implementation.ports import (
     BuildRecipe,
     CandidateHandoff,
     DependencyLockIdentity,
-    PrebuiltCandidate,
     PreviewRuntimeAcceptance,
     PreviewRuntimePort,
     SourceManifest,
+    StagedCandidate,
 )
 from app.implementation.scope_check import ScopeCheckResult
 from app.implementation.specification import AttemptSpecification
 from app.implementation.tools import require_active_lease
+from app.interview.voice.session_changes import wake_voice_agents
+from app.validation.controller import abandon_validation_attempt, open_attempt_id
 
 __all__ = [
     "PublicationRefusal",
@@ -49,6 +51,8 @@ __all__ = [
     "RefusalKind",
     "previous_version",
     "publish_preview_version",
+    "record_full_checks",
+    "replace_validated_version",
     "scan_for_secrets",
 ]
 
@@ -131,12 +135,15 @@ async def publish_preview_version(
     build: BuildRecipe,
     dependencies: DependencyLockIdentity,
     runtime: PreviewRuntimePort,
-    prebuilt: PrebuiltCandidate | None,
+    staged: StagedCandidate | None,
     published_at: datetime,
+    preview_version_id: UUID | None = None,
 ) -> tuple[CandidateHandoff, PreviewRuntimeAcceptance]:
     """Verify, create the immutable Preview Version, and hand it to the runtime.
 
-    A refusal leaves the prebuilt runtime with the caller; a handoff passes it on.
+    The staged candidate, when there is one, is the spare the runtime serves it from.
+    `preview_version_id` is the identifier a prepared draft minted when it proved its
+    spare ready for this version; without one, the version gets a new identifier.
     """
     await require_active_lease(
         database, specification=specification, fencing_token=specification.lease.fencing_token
@@ -156,7 +163,7 @@ async def publish_preview_version(
         )
         raise PublicationRefusedError(refusals)
 
-    preview_version_id = uuid7()
+    preview_version_id = preview_version_id or uuid7()
     build_digest = _build_digest(build=build, dependencies=dependencies)
     handoff = CandidateHandoff(
         preview_version_id=preview_version_id,
@@ -187,7 +194,7 @@ async def publish_preview_version(
         comparison=comparison,
         published_at=published_at,
     )
-    acceptance = await runtime.deploy_candidate(handoff=handoff, prebuilt=prebuilt)
+    acceptance = await runtime.deploy_candidate(handoff=handoff, staged=staged)
     _logger.info(
         "implementation.preview_version.published",
         attempt_id=str(specification.implementation_attempt_id),
@@ -293,9 +300,10 @@ async def _insert_preview_version(
             insert into public.preview_versions (
                 id, client_id, product_signal_id, implementation_attempt_id, state,
                 source_commit, source_digest, build_digest, base_revision,
-                artifact_manifest_digest, build_recipe, check_summary, ready_at
+                artifact_manifest_digest, build_recipe, check_summary, ready_at,
+                full_checks_state
             )
-            values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'running')
             """,
             (
                 handoff.preview_version_id,
@@ -330,6 +338,73 @@ async def _insert_preview_version(
                 PreviewVersionState.READY.value,
             ),
         )
+
+
+async def record_full_checks(
+    database: Database,
+    *,
+    preview_version_id: UUID,
+    runs: Sequence[CheckRun],
+    passed: bool,
+    source_digest: str,
+) -> None:
+    """Record a published version's full checks, which decide whether it can be delivered.
+
+    They run in the workspace that produced the version's files, and `source_digest`
+    is the tree that workspace held when they ran, which delivery compares with the
+    version's own.
+    """
+    async with database.transaction() as conn, conn.cursor() as cur:
+        await cur.execute(
+            """
+            update public.preview_versions
+            set full_checks_state = %s, full_checks = %s,
+                full_checks_source_digest = %s,
+                full_checks_recorded_at = now(), revision = revision + 1, updated_at = now()
+            where id = %s and full_checks_state = 'running'
+            returning product_signal_id
+            """,
+            (
+                "passed" if passed else "failed",
+                Jsonb([run.model_dump(mode="json") for run in runs]),
+                source_digest,
+                preview_version_id,
+            ),
+        )
+        row = await cur.fetchone()
+        # The participant's session hears a version's full checks settle, since an
+        # outcome waits for them.
+        if row is not None:
+            await wake_voice_agents(conn, product_signal_id=as_uuid(row, "product_signal_id"))
+    _logger.info(
+        "implementation.preview_version.full_checks",
+        preview_version_id=str(preview_version_id),
+        passed=passed,
+        failed=[run.name for run in runs if not run.passed],
+    )
+
+
+async def replace_validated_version(
+    database: Database, *, product_signal_id: UUID, preview_version_id: UUID
+) -> None:
+    """Abandon the open Validation Attempt of the version a corrected one replaced.
+
+    The participant validates the corrected version afresh; nothing they said about
+    the replaced one is a verdict on it.
+    """
+    async with database.transaction() as conn:
+        open_validation = await open_attempt_id(conn, product_signal_id=product_signal_id)
+        if open_validation is not None:
+            await abandon_validation_attempt(
+                conn, attempt_id=open_validation, reason="version_corrected"
+            )
+        await wake_voice_agents(conn, product_signal_id=product_signal_id)
+    _logger.info(
+        "implementation.preview_version.corrected",
+        product_signal_id=str(product_signal_id),
+        preview_version_id=str(preview_version_id),
+        abandoned_validation=None if open_validation is None else str(open_validation),
+    )
 
 
 async def previous_version(

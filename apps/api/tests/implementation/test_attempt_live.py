@@ -120,6 +120,7 @@ def _runner(
             artifacts=artifact_store,
             preview_runtime=runtime,
             change_author=author,  # type: ignore[arg-type]
+            candidate_ready=runtime.candidate_ready,
         ),
         specification=attempt.specification,
         build_recipe=SHOPALYTICS_BUILD_RECIPE,
@@ -168,12 +169,11 @@ async def test_the_fixed_patch_reaches_a_candidate_ready_preview_version(
     assert result.outcome is ImplementationAttemptState.CANDIDATE_READY, result.reason
     assert result.workspace_destroyed is True
     assert author.cycles == 1
-    # The preview built the staged files while the checks ran, and the deployment
-    # adopted exactly that build.
-    assert len(runtime.prebuilt) == 1
-    assert runtime.adopted == runtime.prebuilt
-    assert runtime.discarded == []
-    assert set(runtime.prebuilt[0].file_digests) == set(SAVED_VIEWS_PATCH)
+    # The staged files reached the session's spare while the checks ran, and the
+    # deployment served exactly that staging.
+    assert len(runtime.staged) == 1
+    assert runtime.adopted == runtime.staged
+    assert set(runtime.staged[0].file_digests) == set(SAVED_VIEWS_PATCH)
 
     # The baseline ran on the clean base and the candidate introduced no new failure.
     async with database.connection() as conn, conn.cursor() as cur:
@@ -192,6 +192,7 @@ async def test_the_fixed_patch_reaches_a_candidate_ready_preview_version(
     for name in ("lint", "typecheck", "test", "build"):
         assert by_phase[("baseline", name)] == 0, f"the clean base failed {name}"
         assert by_phase[("candidate", name)] == 0, f"the candidate failed {name}"
+    assert by_phase[("candidate", "render")] == 0
 
     async with database.connection() as conn, conn.cursor() as cur:
         await cur.execute(
@@ -359,7 +360,7 @@ async def test_the_attempt_claims_the_workspace_prepared_during_the_interview(
         claimed = await cur.fetchone()
         await cur.execute(
             "select phase, check_name, exit_code from public.implementation_check_runs "
-            "where implementation_attempt_id = %s order by phase",
+            "where implementation_attempt_id = %s order by phase, check_name",
             (attempt.implementation_attempt_id,),
         )
         runs = await cur.fetchall()
@@ -370,6 +371,7 @@ async def test_the_attempt_claims_the_workspace_prepared_during_the_interview(
     # The baseline the preparation ran is the attempt's baseline.
     assert [(as_str(row, "phase"), as_str(row, "check_name"), row["exit_code"]) for row in runs] == [
         ("baseline", "toolchain", 0),
+        ("candidate", "render", 0),
         ("candidate", "toolchain", 0),
     ]
 
@@ -473,19 +475,20 @@ async def test_the_repository_formatter_tidies_a_change_before_its_checks(
 
     assert result.outcome is ImplementationAttemptState.CANDIDATE_READY, result.reason
     assert author.cycles == 1
-    assert runtime.prebuilt[0].file_digests == {
+    assert runtime.staged[0].file_digests == {
         path: f"sha256:{sha256(formatted.encode('utf-8')).hexdigest()}"
     }
     async with database.connection() as conn, conn.cursor() as cur:
         await cur.execute(
             "select phase, check_name, exit_code from public.implementation_check_runs "
-            "where implementation_attempt_id = %s order by phase",
+            "where implementation_attempt_id = %s order by phase, check_name",
             (attempt.implementation_attempt_id,),
         )
         runs = await cur.fetchall()
     assert [(as_str(row, "phase"), as_str(row, "check_name"), row["exit_code"]) for row in runs] == [
         ("baseline", "lint", 0),
         ("candidate", "lint", 0),
+        ("candidate", "render", 0),
     ]
 
 

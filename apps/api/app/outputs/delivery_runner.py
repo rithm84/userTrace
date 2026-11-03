@@ -182,6 +182,37 @@ async def _validation_is_frozen(database: Database, delivery: DeliveryRow) -> bo
     return bool(row is not None and row["frozen"])
 
 
+async def _full_checks_refusal(database: Database, delivery: DeliveryRow) -> str | None:
+    """Why the validated version may not be delivered, judged by its full checks.
+
+    Its full checks ran while the participant validated it; a PR carries the
+    validated files only when those checks passed on exactly those files.
+    """
+    async with database.connection() as conn, conn.cursor() as cur:
+        await cur.execute(
+            """
+            select versions.full_checks_state, versions.full_checks_source_digest,
+                   versions.source_digest
+            from public.validation_attempts as attempts
+            join public.preview_versions as versions on versions.id = attempts.preview_version_id
+            where attempts.id = %s
+            """,
+            (delivery.validation_attempt_id,),
+        )
+        row = await cur.fetchone()
+    if row is None:
+        return "the validated version is not on record"
+    if row["full_checks_state"] is None:
+        # A version published before full checks ran after the swap passed every
+        # required check before it was shown.
+        return None
+    if row["full_checks_state"] != "passed":
+        return f"the validated version's full checks are {row['full_checks_state']}"
+    if row["full_checks_source_digest"] != row["source_digest"]:
+        return "the validated version's full checks ran on other files"
+    return None
+
+
 async def _adopt(
     database: Database,
     repository: DeliveryRepositoryPort,
@@ -278,6 +309,8 @@ async def run_delivery(
             delivery.id,
             reason=f"preflight could not read the repository: {failure.detail.message}",
         )
+    if refusal is None:
+        refusal = await _full_checks_refusal(database, delivery)
     if refusal is not None:
         return await _block(database, delivery.id, reason=refusal)
 

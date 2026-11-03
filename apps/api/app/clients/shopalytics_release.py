@@ -47,24 +47,32 @@ SHOPALYTICS_REQUIRED_CHECKS: Final[tuple[RequiredCheck, ...]] = (
     RequiredCheck(
         name="lint", command="npm run lint", working_directory=".", timeout_seconds=900, after=()
     ),
+    # The type check is fast and incremental, so it runs before the participant sees
+    # the candidate, as the build does; the lint and tests run while they validate it.
     RequiredCheck(
         name="typecheck",
         command="npm run typecheck",
         working_directory=".",
         timeout_seconds=900,
         after=(),
+        fast=True,
     ),
     RequiredCheck(
         name="test", command="npm test", working_directory=".", timeout_seconds=900, after=()
     ),
-    # `next build` writes the route types under `.next/types` that `tsc` includes, so
-    # the build starts only once the type check has read the tree.
+    # The candidate runtime builds the staged files for production before the
+    # participant sees them, and that build is this check's run. In the workspace,
+    # where only the clean base's baseline builds, `next build` writes the route
+    # types under `.next/types` that `tsc` includes, so it starts once the type
+    # check has read the tree.
     RequiredCheck(
         name="build",
         command="npm run build",
         working_directory=".",
         timeout_seconds=1800,
         after=("typecheck",),
+        fast=True,
+        runs_in_candidate_runtime=True,
     ),
 )
 """The checks the workspace runs on the clean base and again on the candidate, in order."""

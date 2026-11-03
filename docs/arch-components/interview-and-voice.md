@@ -155,6 +155,7 @@ GPT-6.1 Sol's other roles run at these tiers and efforts:
 | Role | Runs through | Service tier | Reasoning effort |
 | --- | --- | --- | --- |
 | Pre-gate code investigation | [Codex harness](./implementation.md#agent-harness) | Fast | low |
+| Prepared drafts | Codex harness | Ultrafast | low |
 | Implementation Attempts | Codex harness | Ultrafast | low |
 | Implementation Gate proposals | Responses API | Ultrafast | low |
 | Intake assistance | Responses API | Fast | medium |
@@ -254,6 +255,9 @@ These cues track the call and the preview:
 
 These cues track the agreed change and its validation:
 
+- **Proposal recorded:** once `propose_change` succeeds, the coding agent starts
+  [drafting the change](./implementation.md#prepared-draft); the participant hears
+  nothing about it, because nothing is agreed yet.
 - **Agreement recorded:** once `record_acceptance_criteria` or
   `record_requested_change` succeeds, the application says, in the agent's voice,
   that the agent will get the change started and say when it is ready to try,
@@ -280,6 +284,10 @@ These cues track the agreed change and its validation:
   criteria. When the participant tries several at once, the agent judges from
   their activity which checks the new version already showed and asks them to
   confirm those rather than repeat them.
+- **Second look:** when a corrected version replaces one whose
+  [full checks](./implementation.md#fast-and-full-checks) failed, the agent says it
+  made a small fix and, once the corrected version's page has loaded, asks for a
+  quick look at it rather than repeating the debrief.
 - **Validation outcome:** once the outcome is recorded and nobody has the floor,
   the agent closes the conversation, and the session closes after its goodbye
   plays out. A goodbye the participant talks over does not count: the agent's
@@ -400,6 +408,14 @@ newer than its revision. Realtime is transport for speed, not a second contract:
 re-reading the route repairs a missed notification. A control action's narrow
 acknowledgement, reporting the revision and control state it produced, is not the
 projection either.
+
+Each implementation progress step republishes the projection in the transaction
+that records it, and the document names the session's current preview route
+revision. A new revision is how the session tab learns that the preview origin now
+serves another version, and it
+[hands the extension a fresh offer](./browser-extension.md#navigation-and-rebinding)
+at once, so the preview tab reloads into the new version without waiting for a
+later update.
 
 ### Live captions
 
@@ -599,10 +615,11 @@ control plane's authority, against a context bundle assembled for that call:
 | --- | --- | --- |
 | `review_observed_activity` | Returns plain summaries of what uTrace recently observed in the participant's product session | Carries on |
 | `record_evidence_claim` | Appends a claim the participant established, citing the conversation and the call's bundle | Speaks again only if the calling answer said nothing, so the participant is never left in silence or answered twice |
-| `record_acceptance_criteria` | Records the agreed scope and its observable acceptance criteria once the participant agrees to them out loud | Says nothing; the application speaks the [agreement line](#application-cues) |
+| `propose_change` | Records the change and checks the agent is proposing, in the reply that proposes them, so the coding agent drafts it before the participant answers | Speaks again only if the calling answer said nothing |
+| `record_acceptance_criteria` | Records the agreed scope and its observable acceptance criteria once the participant agrees to them out loud; `as_proposed` records the last proposal unchanged, which lets the change's draft be used | Says nothing; the application speaks the [agreement line](#application-cues) |
 | `record_requested_change` | Records a change asked for while trying a new version, with the checks that now apply | Says nothing; the application speaks the agreement line |
 | `begin_validation` | Begins or resumes validating the ready preview when it has not begun by itself | Carries on |
-| `record_validation_outcome` | Records the participant's answer for every criterion, each with the observations showing what the product did, cited beforehand so recording is one step | Stops; the application's closing cue follows at once |
+| `record_validation_outcome` | Records the participant's answer for every criterion, each with the observations showing what the product did, cited beforehand so recording is one step; waits, within a bound, for the version's full checks | Stops; the application's closing cue follows at once |
 | `implementation_status` | Returns the change's current user-facing progress | Carries on |
 
 Carrying on means speaking from the result or taking the next step; the model also
@@ -620,6 +637,8 @@ The application checks each tool call before acting:
   the bundle the call was assembled against.
 - A requested change is accepted only while a new version is being validated and
   within the case's pinned implementation limit.
+- A proposal is accepted only while a change could still be agreed: before the
+  first agreement, or while a new version is being validated within that limit.
 - The validation tools pass the
   [validation controller's](./validation.md#attempt-lifecycle) own guards.
 

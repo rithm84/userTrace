@@ -1,61 +1,50 @@
-"""Candidate deployment: one Preview Version, one fresh runtime, one advance.
+"""Candidate deployment: one Preview Version, one spare runtime, one advance.
 
-An accepted candidate is installed in a fresh runtime created from the same
-pinned template the base allocation came from. Its files are installed and built
-before the runtime first starts, so it starts once, on the candidate build. That
-build may already have run while the workspace checked the same files
-(`build_candidate_runtime`): the deployment adopts it only when every file digest
-matches the artifact, and builds afresh otherwise. Its dataset is installed
-independently with the same approved seed identity when it starts, its migrations
-run only against its own database, and the base allocation is never mutated.
+Contract: docs/arch-components/preview-build.md#spare-candidate-runtimes
+
+An accepted candidate runs in the session's spare candidate runtime
+(`app.preview.spare`): a runtime started from the same pinned template the base
+allocation came from, with its own dataset and its Server SDK already activated for
+it, serving a production build of the candidate's files. The files are usually
+staged and built there already, while its checks ran or before the participant
+answered; the deployment proves the staged bytes are the artifact's and stages and
+builds them itself otherwise. Migrations run only against the spare's own
+database, and the base allocation is never mutated.
 
 The session origin advances only after the candidate has passed every gating
 probe. The probes run against the exact claims the next route revision will
 carry, so the advance itself is one committed transaction rather than a window in
-which an unproven candidate is already public.
+which an unproven candidate is already public. Once a spare serves a version, the
+session is given its next spare.
 """
 
 from __future__ import annotations
 
-import asyncio
-import hashlib
 import shlex
-from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from pathlib import PurePosixPath
 from uuid import UUID
 
 import httpx
+from psycopg.types.json import Jsonb
 
 from app.db.pool import Database
 from app.errors import GuardRejectedError
 from app.logging import get_logger
-from app.preview.activation import (
-    ServerActivationContext,
-    install_server_activation,
-    restart_observed_runtime,
-)
+from app.preview.activation import ServerActivationContext, restart_observed_runtime
 from app.preview.artifacts import (
     fail_preview_version,
     publish_preview_version,
 )
 from app.preview.config import PreviewSettings
 from app.preview.machines import PreviewRuntimeAllocationFacts
-from app.preview.pool import (
-    acquire_allocation,
-    commit_allocation_transition,
-    insert_allocation,
-    mint_secret,
-)
+from app.preview.pool import acquire_allocation, commit_allocation_transition, load_pins
 from app.preview.ports import ObservationReadinessPort
 from app.preview.provisioning import wait_for_health
 from app.preview.readiness import record_readiness, run_session_readiness
 from app.preview.recipe import TemplateRecipe
 from app.preview.records import (
     CandidateArtifact,
-    CandidateFile,
-    PoolRole,
     PreviewRouteRecord,
     ReadinessReport,
     RuntimeTemplate,
@@ -64,41 +53,33 @@ from app.preview.records import (
 from app.preview.routing import advance_route, draft_route_record, route_for_session
 from app.preview.runtime import PreviewRuntimeHandle, PreviewRuntimeProvider
 from app.preview.seeding import verify_dataset
-from app.preview.teardown import tear_down_allocation
-from app.preview.template import (
-    build_runtime_env,
-    candidate_build_network_policy,
-    mint_runtime_ref,
+from app.preview.spare import (
+    SpareRuntime,
+    StagedFiles,
+    decoded_original,
+    request_spare_candidate,
+    serve_staged,
+    settle_standby_spares,
+    stage_files,
+    start_spare_candidate,
+    take_spare_candidate,
 )
+from app.preview.teardown import tear_down_allocation
 
 __all__ = [
-    "BuiltCandidateRuntime",
+    "PREPARED_READINESS_SECONDS",
     "DeployedCandidate",
-    "build_candidate_runtime",
     "deploy_candidate",
+    "prepared_readiness",
+    "prove_candidate",
+    "session_spare",
 ]
 
 _log = get_logger(__name__)
 
-_BUILD_TIMEOUT_SECONDS = 1800
-_BUILD_WINDOW_SECONDS = 1200
-"""A built runtime's execution limit until a deployment adopts it and extends it.
-
-A runtime built ahead of its checks has no allocation row yet, so a worker that
-dies before adopting it leaves it to stop at this limit."""
 _MIGRATION_TIMEOUT_SECONDS = 600
-_DIRECTORY_TIMEOUT_SECONDS = 60
-
-
-@dataclass(frozen=True, slots=True)
-class BuiltCandidateRuntime:
-    """A candidate runtime with its files installed and built, never started or routed."""
-
-    handle: PreviewRuntimeHandle
-    handoff_secret: str
-    route_secret: str
-    file_digests: Mapping[str, str]
-    build_commands: tuple[str, ...]
+PREPARED_READINESS_SECONDS = 90
+"""How long a spare's readiness, proven before the gate decided, stands for its swap."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,87 +92,160 @@ class DeployedCandidate:
     report: ReadinessReport
 
 
-async def _install_files(
+async def session_spare(
+    database: Database,
     *,
     provider: PreviewRuntimeProvider,
-    handle: PreviewRuntimeHandle,
+    client: httpx.AsyncClient,
+    settings: PreviewSettings,
+    template: RuntimeTemplate,
     recipe: TemplateRecipe,
-    files: Sequence[CandidateFile],
-) -> None:
-    """Write the candidate's files and prove the installed bytes match their digests."""
-    directories = sorted(
-        {
-            str(PurePosixPath(candidate.path).parent)
-            for candidate in files
-            if str(PurePosixPath(candidate.path).parent) != "."
-        }
+    interview_session_id: UUID,
+    activation: ServerActivationContext,
+    runtime_ref: str | None,
+) -> SpareRuntime:
+    """The session's ready spare, waiting for one still starting, else a new one.
+
+    With `runtime_ref`, the spare that ref names, when it is still unbound.
+    """
+    spare = await take_spare_candidate(
+        database,
+        provider=provider,
+        interview_session_id=interview_session_id,
+        runtime_ref=runtime_ref,
     )
-    if directories:
-        created = await provider.execute(
-            handle=handle,
-            script="mkdir -p " + " ".join(shlex.quote(name) for name in directories),
-            working_directory=recipe.application_directory,
-            timeout_seconds=_DIRECTORY_TIMEOUT_SECONDS,
+    if spare is not None:
+        return spare
+    if runtime_ref is not None:
+        spare = await take_spare_candidate(
+            database, provider=provider, interview_session_id=interview_session_id
         )
-        if created.exit_code != 0:
-            raise GuardRejectedError(
-                machine="preview_version",
-                trigger="install_files",
-                reason=(
-                    "the candidate runtime refused to create the patch's directories: "
-                    f"{created.stdout[-500:]}"
-                ),
-            )
-    # Each file is its own provider call, so the writes go out together and the
-    # read-backs after them; the digest check is the same for every file.
-    targets = [
-        f"{recipe.application_directory.rstrip('/')}/{candidate.path}" for candidate in files
-    ]
-    await asyncio.gather(
-        *(
-            provider.write_file(handle=handle, path=target, content=candidate.content.encode("utf-8"))
-            for candidate, target in zip(files, targets, strict=True)
-        )
+        if spare is not None:
+            return spare
+    _log.warning("preview_spare_candidate_missing", interview_session_id=str(interview_session_id))
+    return await start_spare_candidate(
+        database,
+        provider=provider,
+        client=client,
+        settings=settings,
+        template=template,
+        recipe=recipe,
+        interview_session_id=interview_session_id,
+        activation=activation,
     )
-    installed_files = await asyncio.gather(
-        *(provider.read_file(handle=handle, path=target) for target in targets)
-    )
-    for candidate, installed in zip(files, installed_files, strict=True):
-        digest = f"sha256:{hashlib.sha256(installed).hexdigest()}"
-        if digest != candidate.digest:
-            raise GuardRejectedError(
-                machine="preview_version",
-                trigger="install_files",
-                reason=(
-                    f"{candidate.path} installed as {digest}, not the approved "
-                    f"{candidate.digest}"
-                ),
-            )
 
 
-async def _run_build_recipe(
+async def prove_candidate(
+    database: Database,
     *,
     provider: PreviewRuntimeProvider,
-    handle: PreviewRuntimeHandle,
+    client: httpx.AsyncClient,
+    settings: PreviewSettings,
+    template: RuntimeTemplate,
     recipe: TemplateRecipe,
-    commands: Sequence[str],
-) -> None:
-    for command in commands:
-        result = await provider.execute(
-            handle=handle,
-            script=command,
-            working_directory=recipe.application_directory,
-            timeout_seconds=_BUILD_TIMEOUT_SECONDS,
+    spare: SpareRuntime,
+    interview_session_id: UUID,
+    preview_version_id: UUID,
+    observation_port: ObservationReadinessPort,
+) -> ReadinessReport:
+    """Prove a staged spare ready for the version and route revision it would serve.
+
+    The dataset and the gating probes are checked against the exact claims the
+    session's next route revision would carry for that version, and a passing proof
+    is recorded on the spare. A swap within `PREPARED_READINESS_SECONDS`, for the same
+    version and the same next revision, uses it instead of proving again, and records
+    its results then: the version does not exist until the swap publishes it.
+    """
+    current = await route_for_session(database, interview_session_id=interview_session_id)
+    if current is None:
+        raise GuardRejectedError(
+            machine="preview_route",
+            trigger="prove_candidate",
+            reason="the Interview Session has no committed route",
         )
-        if result.exit_code != 0:
-            raise GuardRejectedError(
-                machine="preview_version",
-                trigger="build_candidate",
-                reason=(
-                    f"build command {command!r} failed with exit {result.exit_code}: "
-                    f"{result.stdout[-2000:]}"
+    pins = await load_pins(database, allocation_id=spare.preview_runtime_allocation_id)
+    await verify_dataset(
+        provider=provider,
+        handle=spare.handle,
+        recipe=recipe,
+        seed=template.seed,
+        expected_target=SeedTarget.CANDIDATE,
+    )
+    draft = draft_route_record(
+        current=current,
+        preview_runtime_allocation_id=spare.preview_runtime_allocation_id,
+        preview_version_id=preview_version_id,
+        upstream_port_url=spare.upstream_url,
+        application_port=pins.application_port,
+        route_context_signing_secret=spare.route_secret,
+        preview_entry_token=None,
+        expires_at=datetime.now(tz=UTC) + timedelta(seconds=settings.route_ttl_seconds),
+    )
+    report = await run_session_readiness(
+        client=client,
+        record=draft,
+        recipe=recipe,
+        pins=pins,
+        seed_target=SeedTarget.CANDIDATE,
+        handoff_secret=spare.handoff_secret,
+        gating_probes=template.gating_probes,
+        observation_port=observation_port,
+        door_claim=None,
+    )
+    async with database.transaction() as conn, conn.cursor() as cur:
+        await cur.execute(
+            """
+            update public.preview_runtime_allocations
+            set prepared_route = %s, prepared_readiness = %s, prepared_at = %s,
+                updated_at = now()
+            where id = %s and preview_version_id is null
+            """,
+            (
+                Jsonb(
+                    {
+                        "preview_version_id": str(preview_version_id),
+                        "route_revision": draft.route_revision,
+                    }
                 ),
-            )
+                Jsonb(report.model_dump(mode="json")) if report.ready else None,
+                datetime.now(tz=UTC) if report.ready else None,
+                spare.preview_runtime_allocation_id,
+            ),
+        )
+    _log.info(
+        "preview_candidate_proven",
+        preview_runtime_allocation_id=str(spare.preview_runtime_allocation_id),
+        preview_version_id=str(preview_version_id),
+        route_revision=draft.route_revision,
+        ready=report.ready,
+    )
+    return report
+
+
+async def prepared_readiness(
+    database: Database, *, allocation_id: UUID, preview_version_id: UUID, route_revision: int
+) -> ReadinessReport | None:
+    """The spare's recorded proof, when it is fresh and for exactly this swap."""
+    async with database.connection() as conn, conn.cursor() as cur:
+        await cur.execute(
+            """
+            select prepared_route, prepared_readiness from public.preview_runtime_allocations
+            where id = %s and prepared_at > now() - make_interval(secs => %s)
+            """,
+            (allocation_id, PREPARED_READINESS_SECONDS),
+        )
+        row = await cur.fetchone()
+    if row is None or not isinstance(row["prepared_route"], dict):
+        return None
+    route = row["prepared_route"]
+    if (
+        route.get("preview_version_id") != str(preview_version_id)
+        or route.get("route_revision") != route_revision
+        or not isinstance(row["prepared_readiness"], dict)
+    ):
+        return None
+    report = ReadinessReport.model_validate(row["prepared_readiness"])
+    return report if report.ready else None
 
 
 async def _run_migrations(
@@ -230,52 +284,6 @@ async def _run_migrations(
             )
 
 
-async def build_candidate_runtime(
-    *,
-    provider: PreviewRuntimeProvider,
-    template: RuntimeTemplate,
-    recipe: TemplateRecipe,
-    files: Sequence[CandidateFile],
-    build_commands: Sequence[str],
-    activation: ServerActivationContext,
-) -> BuiltCandidateRuntime:
-    """Create a candidate runtime from the pinned template, install the files, and build.
-
-    Nothing is started or routed, so this may run before the workspace's checks
-    have passed. A runtime whose build fails is destroyed here.
-    """
-    handoff_secret = mint_secret()
-    route_secret = mint_secret()
-    handle = await provider.create_idle_runtime(
-        runtime_ref=mint_runtime_ref(purpose="candidate"),
-        snapshot_id=template.snapshot_id,
-        application_port=template.application_port,
-        env_vars=build_runtime_env(
-            seed_target=SeedTarget.CANDIDATE,
-            handoff_secret=handoff_secret,
-            route_context_signing_secret=route_secret,
-        ),
-        egress=candidate_build_network_policy(observation_hosts=activation.endpoints.hosts()),
-        execution_time_limit_seconds=_BUILD_WINDOW_SECONDS,
-        vcpus=recipe.vcpus,
-    )
-    try:
-        await _install_files(provider=provider, handle=handle, recipe=recipe, files=files)
-        await _run_build_recipe(
-            provider=provider, handle=handle, recipe=recipe, commands=build_commands
-        )
-    except BaseException:
-        await provider.delete_runtime(handle=handle)
-        raise
-    return BuiltCandidateRuntime(
-        handle=handle,
-        handoff_secret=handoff_secret,
-        route_secret=route_secret,
-        file_digests={candidate.path: candidate.digest for candidate in files},
-        build_commands=tuple(build_commands),
-    )
-
-
 async def deploy_candidate(
     database: Database,
     *,
@@ -288,14 +296,18 @@ async def deploy_candidate(
     interview_session_id: UUID,
     activation: ServerActivationContext,
     observation_port: ObservationReadinessPort,
-    built: BuiltCandidateRuntime | None,
+    spare: SpareRuntime,
 ) -> DeployedCandidate:
-    """Start one candidate runtime built from a frozen artifact and advance the route.
+    """Serve one frozen artifact from a spare and advance the session's route to it.
 
     A candidate is a separate allocation serving the same session origin, so it
-    needs its own activation: the server streams bind the exact allocation, and
-    the base runtime's credential can never speak for it. A runtime built ahead of
-    the checks is adopted only when its files and build match the artifact exactly.
+    carries its own activation: the server streams bind the exact allocation, and
+    the base runtime's credential can never speak for it. Files staged into the
+    spare are kept only when their digests are the artifact's, and the spare serves
+    a production build of exactly them, with its database following the artifact's
+    schema file, before anything is proven, so the dataset the version binds is the
+    approved seed with exactly that schema change. A spare a draft already built and
+    proved serves as it is.
     """
     current = await route_for_session(
         database, interview_session_id=interview_session_id
@@ -316,115 +328,58 @@ async def deploy_candidate(
                 "conditions"
             ),
         )
-
-    expected_digests = {candidate.path: candidate.digest for candidate in artifact.files}
-    if built is not None and (
-        built.file_digests != expected_digests or built.build_commands != artifact.build_recipe
-    ):
-        _log.warning(
-            "preview_candidate_prebuild_mismatch",
-            preview_version_id=str(artifact.preview_version_id),
-            runtime_ref=built.handle.runtime_ref,
-        )
-        await provider.delete_runtime(handle=built.handle)
-        built = None
-    if built is None:
-        built = await build_candidate_runtime(
-            provider=provider,
-            template=template,
-            recipe=recipe,
-            files=artifact.files,
-            build_commands=artifact.build_recipe,
-            activation=activation,
-        )
-    handle = built.handle
-    handoff_secret = built.handoff_secret
-    route_secret = built.route_secret
-    runtime_expires_at = datetime.now(tz=UTC) + timedelta(
-        seconds=settings.execution_time_limit_seconds
-    )
-    await provider.keep_alive(handle=handle, planned_end=runtime_expires_at)
-    allocation_id = await insert_allocation(
-        database,
-        template=template,
-        pool_role=PoolRole.CANDIDATE,
-        allocation_kind="candidate",
-        product_signal_id=artifact.product_signal_id,
-        preview_version_id=artifact.preview_version_id,
-        runtime_ref=handle.runtime_ref,
-        origin_host=None,
-        handoff_secret=handoff_secret,
-        runtime_expires_at=runtime_expires_at,
-    )
-    async with database.transaction() as conn, conn.cursor() as cur:
-        await cur.execute(
-            """
-            update public.preview_runtime_allocations
-            set route_context_signing_secret = %s, interview_session_id = %s,
-                updated_at = now()
-            where id = %s
-            """,
-            (route_secret, interview_session_id, allocation_id),
-        )
-
+    allocation_id = spare.preview_runtime_allocation_id
+    handle = spare.handle
     try:
-        pins, fencing_token = await acquire_allocation(database, allocation_id=allocation_id)
-        async with database.transaction() as conn:
-            await commit_allocation_transition(
-                conn,
-                client_id=template.client_id,
-                allocation_id=allocation_id,
-                fencing_token=fencing_token,
-                trigger="begin_seeding",
-                facts=PreviewRuntimeAllocationFacts(
-                    runtime_reachable=True,
-                    seed_manifest_matches=False,
-                    readiness_admits_traffic=False,
-                    routes_revoked=False,
-                    evidence_extracted=False,
-                ),
-                mutation={},
-                event_type="preview_candidate_seeding",
-                payload={
-                    "preview_version_id": str(artifact.preview_version_id),
-                    "runtime_ref": handle.runtime_ref,
-                },
-                reason_code="candidate_deployment",
-                correlation_id=artifact.product_signal_id,
-                additional_locks=(),
+        expected = {candidate.path: candidate.digest for candidate in artifact.files}
+        staged = await _staged(database, allocation_id=allocation_id)
+        if staged.file_digests != expected:
+            _log.info(
+                "preview_candidate_restaged",
+                preview_version_id=str(artifact.preview_version_id),
+                runtime_ref=handle.runtime_ref,
             )
-
-        upstream_url = provider.upstream_url(handle=handle)
-
-        # The template's supervisor serves whatever build is on disk and installs the
-        # candidate dataset as it starts, so its first start serves the candidate
-        # build on the candidate's data. The activation is installed first, so that
-        # one start also activates the Server SDK bound to this allocation.
-        await install_server_activation(
+            staged = await stage_files(
+                database, provider=provider, recipe=recipe, spare=spare, files=artifact.files
+            )
+        schema, build = await serve_staged(
+            database,
             provider=provider,
-            handle=handle,
-            endpoints=activation.endpoints,
-            application_directory=recipe.application_directory,
-            lane_signing_key=activation.lane_signing_key,
+            client=client,
+            recipe=recipe,
+            spare=spare,
+            staged=staged,
+            files=artifact.files,
+            activation=activation,
+            observation_port=observation_port,
             client_id=template.client_id,
             interview_session_id=interview_session_id,
-            preview_runtime_allocation_id=allocation_id,
             public_preview_host=current.public_preview_host,
         )
-        await provider.start_runtime(
-            handle,
-            supervisor_command=recipe.supervisor_command,
-            application_directory=recipe.application_directory,
+        if not build.passed:
+            raise GuardRejectedError(
+                machine="preview_version",
+                trigger="build_candidate",
+                reason=f"the candidate's production build failed: {build.output_tail[-1000:]}",
+            )
+        pins, fencing_token = await acquire_allocation(database, allocation_id=allocation_id)
+        runtime_expires_at = datetime.now(tz=UTC) + timedelta(
+            seconds=settings.execution_time_limit_seconds
         )
-        await wait_for_health(
-            client=client,
-            upstream_url=upstream_url,
-            recipe=recipe,
-            public_preview_host=current.public_preview_host,
+        await provider.keep_alive(handle=handle, planned_end=runtime_expires_at)
+        proven = (
+            None
+            if artifact.migrations
+            else await prepared_readiness(
+                database,
+                allocation_id=allocation_id,
+                preview_version_id=artifact.preview_version_id,
+                route_revision=current.route_revision + 1,
+            )
         )
         if artifact.migrations:
-            # Migrations need the candidate's own Postgres, which the supervisor
-            # starts, so the product restarts afterwards to serve the migrated schema.
+            # Migrations need the spare's own Postgres, which its supervisor runs, so
+            # the product restarts afterwards to serve the migrated schema.
             await _run_migrations(
                 provider=provider, handle=handle, recipe=recipe, artifact=artifact
             )
@@ -440,46 +395,53 @@ async def deploy_candidate(
             )
             await wait_for_health(
                 client=client,
-                upstream_url=upstream_url,
+                upstream_url=spare.upstream_url,
                 recipe=recipe,
                 public_preview_host=current.public_preview_host,
             )
-        await verify_dataset(
-            provider=provider,
-            handle=handle,
-            recipe=recipe,
-            seed=template.seed,
-            expected_target=SeedTarget.CANDIDATE,
-        )
-
-        draft = draft_route_record(
-            current=current,
-            preview_runtime_allocation_id=allocation_id,
-            preview_version_id=artifact.preview_version_id,
-            upstream_port_url=upstream_url,
-            application_port=pins.application_port,
-            route_context_signing_secret=route_secret,
-            preview_entry_token=None,
-            expires_at=datetime.now(tz=UTC)
-            + timedelta(seconds=settings.route_ttl_seconds),
-        )
-        report = await run_session_readiness(
-            client=client,
-            record=draft,
-            recipe=recipe,
-            pins=pins,
-            seed_target=SeedTarget.CANDIDATE,
-            handoff_secret=handoff_secret,
-            gating_probes=template.gating_probes,
-            observation_port=observation_port,
-            door_claim=None,
-        )
-        await record_readiness(
-            database,
-            client_id=template.client_id,
-            report=report,
-            preview_route_id=None,
-        )
+        if proven is not None:
+            # Proven before the gate decided, for this version and this revision,
+            # and recorded now that the version exists.
+            report = proven
+            await record_readiness(
+                database, client_id=template.client_id, report=report, preview_route_id=None
+            )
+        else:
+            await verify_dataset(
+                provider=provider,
+                handle=handle,
+                recipe=recipe,
+                seed=template.seed,
+                expected_target=SeedTarget.CANDIDATE,
+            )
+            draft = draft_route_record(
+                current=current,
+                preview_runtime_allocation_id=allocation_id,
+                preview_version_id=artifact.preview_version_id,
+                upstream_port_url=spare.upstream_url,
+                application_port=pins.application_port,
+                route_context_signing_secret=spare.route_secret,
+                preview_entry_token=None,
+                expires_at=datetime.now(tz=UTC)
+                + timedelta(seconds=settings.route_ttl_seconds),
+            )
+            report = await run_session_readiness(
+                client=client,
+                record=draft,
+                recipe=recipe,
+                pins=pins,
+                seed_target=SeedTarget.CANDIDATE,
+                handoff_secret=spare.handoff_secret,
+                gating_probes=template.gating_probes,
+                observation_port=observation_port,
+                door_claim=None,
+            )
+            await record_readiness(
+                database,
+                client_id=template.client_id,
+                report=report,
+                preview_route_id=None,
+            )
         if not report.ready:
             raise GuardRejectedError(
                 machine="preview_version",
@@ -504,9 +466,21 @@ async def deploy_candidate(
                     routes_revoked=False,
                     evidence_extracted=False,
                 ),
-                mutation={"claimed_at": datetime.now(tz=UTC)},
+                mutation={
+                    "claimed_at": datetime.now(tz=UTC),
+                    "preview_version_id": artifact.preview_version_id,
+                    "runtime_expires_at": runtime_expires_at,
+                },
                 event_type="preview_candidate_bound",
-                payload={"preview_version_id": str(artifact.preview_version_id)},
+                payload={
+                    "preview_version_id": str(artifact.preview_version_id),
+                    "readiness_proven_before_the_gate": proven is not None,
+                    # The dataset the version binds: the approved seed, with the
+                    # schema change its spare's database followed.
+                    "seed_manifest_digest": template.seed.manifest_digest,
+                    "schema_mode": schema.mode.value,
+                    "schema_digest": schema.digest,
+                },
                 reason_code="candidate_ready",
                 correlation_id=artifact.product_signal_id,
                 additional_locks=(),
@@ -516,9 +490,9 @@ async def deploy_candidate(
             interview_session_id=interview_session_id,
             preview_runtime_allocation_id=allocation_id,
             preview_version_id=artifact.preview_version_id,
-            upstream_port_url=upstream_url,
+            upstream_port_url=spare.upstream_url,
             application_port=pins.application_port,
-            route_context_signing_secret=route_secret,
+            route_context_signing_secret=spare.route_secret,
             ttl_seconds=settings.route_ttl_seconds,
         )
         await publish_preview_version(
@@ -539,6 +513,23 @@ async def deploy_candidate(
         )
         raise
 
+    # A standby that already built this version becomes the session's next spare;
+    # without one, a new spare starts and builds it.
+    if not await settle_standby_spares(
+        database,
+        provider=provider,
+        activation=activation,
+        client_id=template.client_id,
+        interview_session_id=interview_session_id,
+        served_files={candidate.path: candidate.digest for candidate in artifact.files},
+    ):
+        async with database.transaction() as conn:
+            await request_spare_candidate(
+                conn,
+                client_id=template.client_id,
+                product_signal_id=artifact.product_signal_id,
+                interview_session_id=interview_session_id,
+            )
     _log.info(
         "preview_candidate_deployed",
         client_id=str(template.client_id),
@@ -551,4 +542,31 @@ async def deploy_candidate(
         preview_runtime_allocation_id=allocation_id,
         route=route,
         report=report,
+    )
+
+
+async def _staged(database: Database, *, allocation_id: UUID) -> StagedFiles:
+    """The files last staged into a spare, with the base files they replaced."""
+    async with database.connection() as conn, conn.cursor() as cur:
+        await cur.execute(
+            """
+            select staged_files, staged_originals from public.preview_runtime_allocations
+            where id = %s
+            """,
+            (allocation_id,),
+        )
+        row = await cur.fetchone()
+    digests = None if row is None else row["staged_files"]
+    originals = None if row is None else row["staged_originals"]
+    return StagedFiles(
+        file_digests=(
+            {str(path): str(digest) for path, digest in digests.items()}
+            if isinstance(digests, dict)
+            else {}
+        ),
+        originals=(
+            {str(path): decoded_original(value) for path, value in originals.items()}
+            if isinstance(originals, dict)
+            else {}
+        ),
     )

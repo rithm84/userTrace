@@ -19,6 +19,8 @@ naming the one that is missing.
 from __future__ import annotations
 
 import asyncio
+import json
+import time
 from collections.abc import Awaitable, Callable, Sequence
 from uuid import UUID
 
@@ -34,8 +36,8 @@ from app.adapters.observation_readiness import IngestionObservationReadiness
 from app.connectors.failures import ConnectorFailure
 from app.db.pool import Database
 from app.preview.activation import ServerActivationContext, restart_observed_runtime
-from app.preview.artifacts import record_artifact
-from app.preview.candidate import build_candidate_runtime, deploy_candidate
+from app.preview.artifacts import patch_digest_for, record_artifact
+from app.preview.candidate import deploy_candidate
 from app.preview.config import TemplateBuildSettings, get_preview_settings
 from app.preview.handoff import mint_product_handoff
 from app.preview.pool import load_runtime_secrets
@@ -62,6 +64,7 @@ from app.preview.runtime import (
     PreviewRuntimeProvider,
 )
 from app.preview.seeding import read_installed_dataset
+from app.preview.spare import render_spare, serve_staged, stage_files, start_spare_candidate
 from app.preview.teardown import tear_down_allocation
 from app.preview.template import load_recipe
 from app.settings import Settings
@@ -77,8 +80,10 @@ from tests.preview.live_fixtures import (
     MARKER,
     ORIGIN_SUFFIX,
     artifact_for,
+    digest_of,
     publish_release,
     require_committed_template,
+    start_corrected_version,
     start_preview_version,
 )
 from tests.preview.live_harness import (
@@ -430,17 +435,60 @@ async def test_the_preview_path_from_warm_pool_to_validated_observation(
             template=template,
         )
         await record_artifact(database, artifact=artifact)
-        # The candidate is built ahead, as it is while an attempt's checks run, and
-        # the deployment adopts that build because its files match the artifact.
+        # The session's spare starts beside the interview, and the candidate's files
+        # are staged into it as they are while an attempt's checks run; the
+        # deployment serves that staging because its files match the artifact.
         candidate_recipe = await load_recipe(database, template_id=template.id)
-        built = await build_candidate_runtime(
+        spare_started = time.monotonic()
+        spare = await start_spare_candidate(
+            database,
             provider=provider,
+            client=probe_client,
+            settings=live_settings,
             template=template,
             recipe=candidate_recipe,
-            files=artifact.files,
-            build_commands=artifact.build_recipe,
+            interview_session_id=session_id,
             activation=activation,
         )
+        created.append(spare.preview_runtime_allocation_id)
+        spare_ready = time.monotonic()
+        staged = await stage_files(
+            database,
+            provider=provider,
+            recipe=candidate_recipe,
+            spare=spare,
+            files=artifact.files,
+        )
+        assert staged.file_digests == {item.path: item.digest for item in artifact.files}
+        route_now = await route_for_session(database, interview_session_id=session_id)
+        assert route_now is not None
+        staged_at = time.monotonic()
+        _, build = await serve_staged(
+            database,
+            provider=provider,
+            client=probe_client,
+            recipe=candidate_recipe,
+            spare=spare,
+            staged=staged,
+            files=artifact.files,
+            activation=activation,
+            observation_port=observation,
+            client_id=case.client_id,
+            interview_session_id=session_id,
+            public_preview_host=route_now.public_preview_host,
+        )
+        assert build.passed, build.output_tail
+        built_at = time.monotonic()
+        spare_render = await render_spare(
+            client=probe_client,
+            recipe=candidate_recipe,
+            spare=spare,
+            current=route_now,
+            pages=("/candidate-marker",),
+            expected_targets=frozenset(),
+        )
+        assert spare_render.passed, spare_render.failures
+        rendered_at = time.monotonic()
         deployed = await deploy_candidate(
             database,
             provider=provider,
@@ -452,12 +500,23 @@ async def test_the_preview_path_from_warm_pool_to_validated_observation(
             interview_session_id=session_id,
             activation=activation,
             observation_port=observation,
-            built=built,
+            spare=spare,
         )
-        assert await _runtime_ref(database, deployed.preview_runtime_allocation_id) == (
-            built.handle.runtime_ref
+        assert deployed.preview_runtime_allocation_id == spare.preview_runtime_allocation_id
+        print(
+            "BUILD_SPEED_TIMINGS "
+            + json.dumps(
+                {
+                    "spare_start_seconds": round(spare_ready - spare_started, 1),
+                    "stage_seconds": round(staged_at - spare_ready, 1),
+                    "build_seconds": round(build.seconds, 1),
+                    "restart_seconds": round(build.restart_seconds, 1),
+                    "render_check_seconds": round(rendered_at - built_at, 1),
+                    "deploy_and_swap_seconds": round(time.monotonic() - rendered_at, 1),
+                    "migrations": len(artifact.migrations),
+                }
+            )
         )
-        created.append(deployed.preview_runtime_allocation_id)
         assert deployed.route.route_revision == 3
         assert deployed.route.public_preview_host == prepared.route.public_preview_host
         assert deployed.route.preview_version_id == version_id
@@ -516,6 +575,106 @@ async def test_the_preview_path_from_warm_pool_to_validated_observation(
             },
         )
         assert stale.status_code == 401
+
+        # A corrected version swaps in from the session's next spare. It carries no
+        # migration, so its swap costs what an ordinary candidate's does.
+        corrected_id = await start_corrected_version(database, case=case, attempt_id=attempt_id)
+        first = artifact_for(
+            case=case,
+            preview_version_id=corrected_id,
+            attempt_id=attempt_id,
+            template=template,
+        )
+        page = first.files[0].model_copy(
+            update={
+                "content": first.files[0].content.replace("</main>", " corrected</main>"),
+                "digest": digest_of(first.files[0].content.replace("</main>", " corrected</main>")),
+            }
+        )
+        corrected = first.model_copy(
+            update={
+                "files": (page,),
+                "migrations": (),
+                "source_manifest": {page.path: page.digest},
+                "patch_digest": patch_digest_for({page.path: page.digest}),
+            }
+        )
+        await record_artifact(database, artifact=corrected)
+        next_started = time.monotonic()
+        next_spare = await start_spare_candidate(
+            database,
+            provider=provider,
+            client=probe_client,
+            settings=live_settings,
+            template=template,
+            recipe=candidate_recipe,
+            interview_session_id=session_id,
+            activation=activation,
+        )
+        created.append(next_spare.preview_runtime_allocation_id)
+        next_ready = time.monotonic()
+        next_staged_files = await stage_files(
+            database,
+            provider=provider,
+            recipe=candidate_recipe,
+            spare=next_spare,
+            files=corrected.files,
+        )
+        route_now = await route_for_session(database, interview_session_id=session_id)
+        assert route_now is not None
+        _, next_build = await serve_staged(
+            database,
+            provider=provider,
+            client=probe_client,
+            recipe=candidate_recipe,
+            spare=next_spare,
+            staged=next_staged_files,
+            files=corrected.files,
+            activation=activation,
+            observation_port=observation,
+            client_id=case.client_id,
+            interview_session_id=session_id,
+            public_preview_host=route_now.public_preview_host,
+        )
+        assert next_build.passed, next_build.output_tail
+        next_staged = time.monotonic()
+        next_render = await render_spare(
+            client=probe_client,
+            recipe=candidate_recipe,
+            spare=next_spare,
+            current=route_now,
+            pages=("/candidate-marker",),
+            expected_targets=frozenset(),
+        )
+        assert next_render.passed, next_render.failures
+        next_rendered = time.monotonic()
+        swapped = await deploy_candidate(
+            database,
+            provider=provider,
+            client=probe_client,
+            settings=live_settings,
+            template=template,
+            recipe=candidate_recipe,
+            artifact=corrected,
+            interview_session_id=session_id,
+            activation=activation,
+            observation_port=observation,
+            spare=next_spare,
+        )
+        print(
+            "BUILD_SPEED_TIMINGS "
+            + json.dumps(
+                {
+                    "next_spare_start_seconds": round(next_ready - next_started, 1),
+                    "stage_seconds": round(next_staged - next_ready, 1),
+                    "render_check_seconds": round(next_rendered - next_staged, 1),
+                    "deploy_and_swap_seconds": round(time.monotonic() - next_rendered, 1),
+                    "migrations": 0,
+                }
+            )
+        )
+        assert swapped.route.route_revision == 4
+        assert swapped.route.preview_version_id == corrected_id
     finally:
         for allocation_id in created:
             await tear_down_allocation(

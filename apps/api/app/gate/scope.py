@@ -67,6 +67,13 @@ class RequiredCheck(ScopeModel):
     timeout_seconds: Annotated[int, Field(ge=1)]
     after: tuple[str, ...]
     """Earlier checks that must finish before this one starts; the rest run concurrently."""
+    fast: bool = False
+    """Whether it runs before the participant sees the candidate. The other checks run
+    while they validate it, and a version is delivered only once all of them passed."""
+    runs_in_candidate_runtime: bool = False
+    """Whether the candidate runtime runs it, on the staged files, instead of the
+    workspace. The production build is such a check: the build the participant is
+    served is that check's run, so it is never built twice."""
 
 
 class PermittedDependency(ScopeModel):

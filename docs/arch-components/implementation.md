@@ -2,11 +2,15 @@
 
 [Back to uTrace architecture](../ARCHITECTURE.md)
 
-One Implementation Gate approval yields one Implementation Attempt and, if its
-checks pass, a candidate that [Preview Build](./preview-build.md) publishes as an
-immutable Preview Version:
+The coding agent drafts the requested feature as soon as the case's workspace is
+ready, and adjusts that draft to the change the voice agent proposes, before the
+participant agrees to it. One Implementation Gate approval then yields one
+Implementation Attempt, which adopts that draft when it is the change the gate
+approved. The draft has already passed its fast checks, so
+[Preview Build](./preview-build.md) publishes it as an immutable Preview Version at
+once, and its full checks run while the participant validates it:
 
-![After the Implementation Gate approves live work, the controller commits the attempt, claims the prepared workspace under the lease, and runs Codex cycles whose output it formats, checks, and builds in parallel until it accepts a candidate.](../diagrams/svg/implementation.svg)
+![The coding agent drafts the original request, then adjusts the draft to the voice agent's proposal while the gate prepares its evaluation; the intake draft and then the proposal's revision are built for production in the spare candidate runtime, whose schema, render check, and readiness finish before the answer; after the participant agrees and the gate approves, the controller adopts the recorded draft, publishes it from its record and switches the route, confirms the workspace holds the published tree and runs the lint and tests, with a failure starting a correction cycle, and hands the workspace over for the next change.](../diagrams/svg/implementation.svg)
 
 ## Supported implementation mode
 
@@ -21,10 +25,12 @@ implementation and iteration after unsuccessful validation are outside the demo.
 ## Enforcement model
 
 The coding agent, GPT-6.1 Sol in Codex, works inside a Vercel Sandbox workspace.
-The voice agent's tools (which read observed activity and record agreements) and
-Jev (typed semantic-attention results) cannot write code or authorize an effect.
-Only the control plane approves the Implementation Attempt, grants its fenced
-Environment Lease, accepts artifacts, and advances durable state.
+The voice agent's tools (which read observed activity, propose changes, and record
+agreements) and Jev (typed semantic-attention results) cannot write code or
+authorize an effect. Only the control plane approves the Implementation Attempt,
+grants its fenced Environment Lease, accepts artifacts, and advances durable state.
+A [prepared draft](#prepared-draft) holds no lease and no authority: only an
+attempt that adopts it can turn its files into a Preview Version.
 
 The workspace, separate from preview runtimes as the
 [PRD](../PRD.md#preview-runtime-allocations-implementation-workspaces-and-session-data)
@@ -72,7 +78,8 @@ see [Codex non-interactive mode](https://developers.openai.com/codex/noninteract
 A Codex home written for each run pins:
 
 - Model `gpt-6.1-sol` at low reasoning effort, on the Ultrafast service tier for
-  an Implementation Attempt and the Fast tier for code investigation. On the
+  a prepared draft and an Implementation Attempt and the Fast tier for code
+  investigation. On the
   demo's change, Fast-tier Sol matched Fast-tier GPT-6 Astra at a sixth of the
   cost and ran about 30 seconds behind Ultrafast-tier Astra at a seventeenth.
   Codex requests only the tiers a model's catalog entry lists, so the template's
@@ -93,8 +100,11 @@ A Codex home written for each run pins:
 
 An attempt's task carries the frozen scope, acceptance criteria, required checks,
 budgets, the gate's cited code findings, and the cited files in full at the base
-revision; an investigation's carries the repository's tracked files instead. It
-tells the agent that the participant is waiting, and to:
+revision. A draft's carries the proposed change and its checks in place of the
+frozen scope, with the policy's paths, checks, and budgets and the findings of the
+investigation that ran during the interview. An investigation's carries the
+repository's tracked files instead. It tells the agent that the participant is
+waiting, and to:
 
 - write no progress commentary
 - batch its reads
@@ -152,9 +162,32 @@ The harness runs in the case's [prepared workspace](#prepared-workspace) or one
 the attempt creates, and writes logs and artifacts through uTrace-controlled
 storage.
 
-The case's first attempt starts from the clean base; a later attempt's fresh
-workspace is checked out at the same base revision, so its candidate holds both
-changes.
+The case's first attempt starts from the clean base; a later attempt's workspace
+is checked out at the same base revision and starts from the previous version's
+files, so its candidate holds both changes.
+
+A later attempt that claims the workspace the previous version's attempt
+[handed over](#prepared-workspace) finds those files already in the checkout.
+
+An attempt adopts the workspace's [prepared draft](#prepared-draft) as its first
+cycle's authored change when the agreement its gate decision approved records that
+draft and the draft started from the files the attempt starts from. It waits for a
+draft still being written, charges the draft's agent turns, cost, processes, and
+bytes to its own budgets, adds the draft's commands to its journal, so the network
+scan covers them, and checks the draft's patch against the frozen scope like any
+other cycle. The draft was written before the gate's exclusions existed, so the
+scope check is what holds it to them. A draft the agreement does not record is
+removed from the checkout, and the attempt authors its first cycle itself.
+
+An adopted draft's record holds everything publication needs: its files and their
+git tree, its patch, its dependency identity, its fast-check and render results on
+exactly those files, the artifacts it stored, and a spare candidate runtime proven
+ready for the Preview Version identifier it minted. So the attempt publishes the
+draft from its record while it is still attaching the claimed sandbox, and the
+participant's preview switches before the workspace is open. A record that does
+not hold, such as fast checks that are not the scope's or a refused publication,
+leaves the first cycle to check the draft in the workspace as it would its own
+change.
 
 ### Retries and scope changes
 
@@ -169,9 +202,9 @@ gate.
 ## Prepared workspace
 
 The control plane prepares the case's workspace beside the base preview, so the
-coding agent can start the moment the participant agrees:
+coding agent can draft a change while the voice agent proposes it:
 
-![A prepared workspace is built when the participant claims the invitation, records its baseline, and is either claimed by an approved attempt with matching pins or released when its case ends or its one-hour window passes.](../diagrams/svg/implementation-prepared-workspace.svg)
+![A prepared workspace is built when the participant claims the invitation and records its baseline; a proposal drafts in it and a newer proposal starts the draft over; an approved attempt with matching pins claims it, or it is released when its case ends or its one-hour window passes.](../diagrams/svg/implementation-prepared-workspace.svg)
 
 <details><summary>Diagram key</summary>
 
@@ -180,10 +213,21 @@ coding agent can start the moment the participant agrees:
 </details>
 <p></p>
 
-It is built from the case's pinned release alone and never reaches the OpenAI API
-before a claim. The claim binds the sandbox to the attempt and its fencing token
-in the same row update that takes it, and the first cycle starts with the
-recorded baseline.
+It is built from the case's pinned release alone and reaches the OpenAI API only
+for a prepared draft. Preparation also runs the type check in the checkout itself,
+so a draft's type check is incremental. The claim binds the sandbox to the attempt
+and its fencing token in the same row update that takes it, and the first cycle
+starts with the recorded baseline.
+
+Each workspace is one generation of the case's, and a case holds at most one open
+generation at a time. An attempt whose version passed its full checks hands its
+sandbox over as the case's next generation while the pinned `implementation_limit`
+allows another attempt. That generation holds the version's files, the installed
+dependencies, and the warm caches, records the version and its git tree as the
+files a draft starts from, and holds no lease or authority. A change asked for
+while the participant tries the version is drafted in it at once; a draft proposed
+while the attempt still holds the workspace waits for the hand-over. An attempt
+that destroys its workspace instead marks the claim `released`.
 
 An attempt claims only a workspace prepared from its own specification's pins:
 template snapshot, clone URL, base revision, install command, required checks,
@@ -195,6 +239,83 @@ Until release, the sandbox runs on a short
 [sandbox deadline](./preview-runtime-and-seeding.md#sandbox-deadlines) extended
 toward the end of the one-hour window, so a workspace uTrace loses track of stops
 within minutes.
+
+### Prepared draft
+
+A draft is one of two kinds, `intake` or `proposal`, with one record and one Job:
+
+- **Intake draft:** once the case's first workspace is ready, the requested
+  feature is drafted from the original request and the concern intake recorded,
+  so code exists before the call does. It is queued once, before any proposal.
+- **Proposal draft:** when the voice agent proposes a change, its `propose_change`
+  tool records the proposal and queues a draft. It revises a finished intake
+  draft in the workspace into exactly the proposed change, keeping what fits,
+  and starts over from the workspace's starting files otherwise.
+
+The Job:
+
+1. Takes the case's newest prepared workspace, waiting while it is still being
+   prepared or an attempt still holds it, and resets the checkout to the
+   workspace's starting files when an earlier draft it does not revise wrote in
+   it.
+2. Opens the workspace's egress to the model, waits a bounded time for an early
+   code investigation still running, and runs one Codex cycle on the
+   [draft task](#task), which carries that investigation's findings and the files
+   they cite.
+3. Formats, stages, and diffs the change, as an attempt's cycle does.
+4. Runs the workspace's [fast checks](#fast-and-full-checks) on the draft's files,
+   and at the same time stages them in the session's spare candidate runtime,
+   which builds them for production and serves the build, as
+   [Preview Build](./preview-build.md#spare-candidate-runtimes) describes. The
+   intake draft is built there too, so a proposal that revises it rebuilds only
+   the files it changes, and the session's standby spare follows each draft that
+   builds, so it already serves the next version when that version swaps in.
+5. For a proposal draft, at the same time:
+   - stores the draft's large artifacts, the patch and the candidate files, which
+     the adopting attempt then references by digest;
+   - mints the Preview Version identifier, and the spare is rendered and proven
+     ready for it.
+6. Records the draft: its files and their digest, git tree, and patch, its
+   dependency identity, its fast-check results, the artifacts, and what it
+   consumed.
+
+Beside a proposal draft's Codex run, the Implementation Gate
+[prepares its evaluation](#gate-preparation) of the proposed change.
+
+A draft moves `proposed` → `drafting` → `drafted`, or to `failed`; `adopted` and
+`discarded` end it. A newer proposal discards the older draft, and so does an
+agreement that records a different change. The agreement records the draft it
+agreed to when the voice agent records the change as proposed, or the same change
+up to case and spacing, so adoption never judges free text; it never records an
+intake draft. A draft that is discarded while its Codex run is still writing
+finishes that run, so the next holder of the workspace waits until the draft
+settles.
+
+Every draft records what it spent, whatever became of it, so a case's drafting
+cost is what its draft records add up to, including the drafts of a case that ends
+with no implementation.
+
+### Gate preparation
+
+While a proposal is drafted, the gate confirms the interview-established flow
+classification and asks its proposal model for a proposal over the bundle the
+agreement would produce: today's records with the proposed criteria in place of
+the agreed ones. It records that proposal on the draft with a digest of every
+input the decision depends on: the pinned policy and release, the flow types, the
+criteria's text, the confirmed evidence, the telemetry citations, the code
+findings, readiness, and the case's attempt count.
+
+Once the participant agrees, the gate assembles the real bundle as always. Only
+when the agreement records that draft and the digests are equal does it use the
+prepared proposal instead of asking the model again; the deterministic controller
+then validates and commits it exactly as it would a fresh one. Any difference,
+and any failure of the preparation, leaves the gate to ask afresh.
+
+A draft is prepared, not authorized. Neither the participant nor the voice agent
+hears of it. It runs without a lease, and its files run only in an unrouted spare
+candidate runtime, never on the participant's preview. It reaches a Preview
+Version only through an adopting attempt, which holds the lease and the gate's
+frozen scope.
 
 ## Conversation, pause, and interruption
 
@@ -256,6 +377,32 @@ its policy entry names in `after`, such as a build that writes files the type
 check reads. Pre-existing failures are reported as integration health; the
 candidate must not introduce new ones.
 
+### Fast and full checks
+
+A candidate's checks run in two stages, both on the same files, identified by
+their digest:
+
+- **Fast checks** decide whether the participant sees the candidate. The required
+  checks the policy marks `fast` run before the swap. The Shopalytics type check
+  runs incrementally in the workspace, whose preparation ran it once in the
+  checkout to warm its cache. The production build is marked
+  `runs_in_candidate_runtime` as well: the spare candidate runtime builds the
+  staged files with the build cache its image's own build left, serves that build,
+  and passes the [render check](./preview-build.md#fast-checks-before-the-swap) on
+  it, and that build is the check's run. A draft's fast-check results carry over
+  to the attempt that adopts it when the files are unchanged.
+- **Full checks** decide whether the version can be delivered. The remaining
+  required checks, the Shopalytics lint and tests, run after the swap, while the
+  participant validates; nothing builds again. They start only once the
+  workspace's own git tree is shown to be the published version's, and each
+  result is recorded on the Preview Version with the tree it ran on.
+
+A full check that introduces a new failure starts a correction cycle within the
+same attempt, under the same lease and budgets. The corrected change passes its
+fast checks in another spare candidate runtime and becomes a new Preview Version,
+which the participant validates afresh; the version they were trying is never
+changed in place.
+
 ### Scope verification
 
 After every correction cycle, the controller verifies files, repositories,
@@ -279,13 +426,21 @@ Attempt outcomes are `candidate_ready`, `scope_change_required`, `checks_failed`
 `budget_exhausted`. Each result identifies completed side effects, retained
 artifacts, and whether resumption is legal.
 
+An attempt reaches `candidate_ready` once its first Preview Version serves the
+participant. Its Job keeps the workspace and lease until that version's full
+checks settle, and a correction cycle after a failed full check publishes the next
+version from the same state. Full checks that still fail when the correction-cycle
+budget ends leave the participant validating a version that cannot be delivered,
+so the case closes with a blocker Case File.
+
 An attempt that no longer fits the live session, needs a changed scope, or
 exhausts its budgets closes the case with a blocked Case File explaining the
 evidence, work attempted, and blocker, and opens no PR.
 
 ## Artifact extraction and cleanup
 
-Before workspace destruction, uTrace extracts:
+Once the newest version's full checks settle, and before workspace destruction,
+uTrace extracts:
 
 - the final diff
 - file and process logs

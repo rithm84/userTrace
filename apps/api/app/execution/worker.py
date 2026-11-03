@@ -25,11 +25,12 @@ from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from logging import INFO
 
-from psycopg import AsyncConnection
+from psycopg import AsyncConnection, OperationalError
 from psycopg.rows import DictRow
 from utrace_contracts.domain.lifecycle import RetryAdvice, TechnicalCategory
 
 from app.connectors.failures import ConnectorFailure
+from app.db.kernel import JOBS_READY_CHANNEL
 from app.db.pool import Database
 from app.envelope import Failure, JsonValue
 from app.errors import GuardRejectedError
@@ -89,6 +90,7 @@ class Worker:
         self._handlers = handlers
         self._exhausted_handlers = exhausted_handlers
         self._stopping = asyncio.Event()
+        self._jobs_ready = asyncio.Event()
 
     def request_stop(self) -> None:
         """Ask the loop to let its running Jobs finish and exit."""
@@ -112,6 +114,7 @@ class Worker:
         # than wait behind it.
         running: set[asyncio.Task[None]] = set()
         crashed: list[BaseException] = []
+        listening = asyncio.create_task(self._listen_for_jobs())
 
         def settle(task: asyncio.Task[None]) -> None:
             # `execute` records handler failures itself, so an exception here is
@@ -135,6 +138,7 @@ class Worker:
                 running.add(task)
                 task.add_done_callback(settle)
         finally:
+            listening.cancel()
             if running:
                 await asyncio.wait(running)
         if crashed:
@@ -263,18 +267,37 @@ class Worker:
             )
 
     async def _idle(self, running: set[asyncio.Task[None]]) -> None:
-        """Idle for one poll interval, waking early on a stop request or a finished Job.
+        """Idle for one poll interval, waking early on a stop, a finished Job, or a new one.
 
-        A finished Job has usually just committed the next step of its chain, so the
-        loop claims that step at once instead of a poll interval later.
+        A finished Job has usually just committed the next step of its chain, and a
+        Job another process commits notifies `JOBS_READY_CHANNEL`, so the loop
+        claims either at once instead of a poll interval later.
         """
         stop_wait = asyncio.create_task(self._stopping.wait())
+        ready_wait = asyncio.create_task(self._jobs_ready.wait())
         await asyncio.wait(
-            {stop_wait, *running},
+            {stop_wait, ready_wait, *running},
             timeout=self._config.poll_interval_seconds,
             return_when=asyncio.FIRST_COMPLETED,
         )
         stop_wait.cancel()
+        ready_wait.cancel()
+        self._jobs_ready.clear()
+
+    async def _listen_for_jobs(self) -> None:
+        """Wake the idle loop whenever any process commits a ready Job.
+
+        A lost listener only costs the poll interval, so it is reopened after a
+        pause rather than stopping the worker.
+        """
+        while not self._stopping.is_set():
+            try:
+                async with self._database.listener(JOBS_READY_CHANNEL) as listener:
+                    async for _ in listener.notifies():
+                        self._jobs_ready.set()
+            except OperationalError as error:
+                _log.warning("worker_job_listener_lost", detail=str(error))
+                await asyncio.sleep(self._config.poll_interval_seconds)
 
 
 def _bound(handler: ExhaustedHandler, claimed: ClaimedJob, failure: Failure) -> ExhaustionHook:

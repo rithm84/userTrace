@@ -859,3 +859,47 @@ def test_a_job_cannot_list_a_category_no_failure_carries() -> None:
 async def _always_fails(database: Database, claimed: object) -> None:
     """A handler that always fails, proving the worker records typed failures."""
     raise RuntimeError("this handler always fails")
+
+
+async def test_an_idle_worker_claims_a_job_another_process_commits_without_waiting_to_poll(
+    database: Database, auth_users: dict[str, SignedInUser]
+) -> None:
+    """The Job a participant's agreement commits starts at once, not a poll interval later."""
+    case = await _case(database, auth_users["owner_a"], "exec-notified")
+    ran = asyncio.Event()
+
+    async def handler(database: Database, claimed: ClaimedJob) -> None:
+        ran.set()
+
+    worker = Worker(
+        database,
+        WorkerConfig(
+            worker_id="integration-worker",
+            lease_seconds=60,
+            heartbeat_seconds=30,
+            poll_interval_seconds=30.0,
+            wakeup_batch_size=10,
+            outbox_scan_limit=100,
+            stale_outbox_seconds=300,
+            stale_dispatch_seconds=900,
+            concurrency=2,
+        ),
+        {"test.notified": handler},
+        {},
+    )
+    running = asyncio.create_task(worker.run())
+    # Let the worker find nothing and settle into its long idle wait.
+    await asyncio.sleep(1.0)
+    job = make_job(
+        job_type="test.notified",
+        input={},
+        concurrency_key=None,
+        cancellation_scope_id=None,
+        max_runs=1,
+        retryable_categories=[],
+        not_before_seconds=0,
+    )
+    await _commit_with(database, case, jobs=(job,))
+    await asyncio.wait_for(ran.wait(), timeout=5)
+    worker.request_stop()
+    await asyncio.wait_for(running, timeout=60)

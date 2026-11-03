@@ -30,8 +30,8 @@ from app.ids import uuid7
 from app.implementation.agent_author import AuthoredCycle, CycleFeedback
 from app.implementation.ports import (
     CandidateHandoff,
-    PrebuiltCandidate,
     PreviewRuntimeAcceptance,
+    StagedCandidate,
 )
 from app.implementation.specification import AttemptSpecification
 from app.implementation.tools import ReadFile, ToolExecutor, ToolName, WriteFile
@@ -151,38 +151,64 @@ class ScopeChangeAuthor:
 
 
 class RecordingPreviewRuntime:
-    """Records the prebuilds and the handoff, and creates the candidate allocation row."""
+    """Records the staged files and the handoff, and creates the candidate allocation row.
 
-    def __init__(self, database: Database) -> None:
+    `render_passes` scripts the render check: each staging takes the next answer, and
+    every staging after the scripted ones passes.
+    """
+
+    def __init__(self, database: Database, *, render_passes: Sequence[bool] = ()) -> None:
         self._database = database
+        self._render_passes = list(render_passes)
         self.handoffs: list[CandidateHandoff] = []
-        self.prebuilt: list[PrebuiltCandidate] = []
-        self.discarded: list[PrebuiltCandidate] = []
-        self.adopted: list[PrebuiltCandidate | None] = []
+        self.staged: list[StagedCandidate] = []
+        self.adopted: list[StagedCandidate | None] = []
+        self.ready: list[CandidateHandoff] = []
+        self.proven_for: list[UUID | None] = []
 
-    async def prebuild_candidate(
-        self, *, client_id: UUID, files: Mapping[str, str], build_command: str
-    ) -> PrebuiltCandidate:
-        """Record the staged files a prebuild would build."""
-        prebuilt = PrebuiltCandidate(
+    async def candidate_ready(self, handoff: CandidateHandoff) -> None:
+        """Record that the attempt's first version began serving the participant."""
+        self.ready.append(handoff)
+
+    async def stage_candidate(
+        self,
+        *,
+        client_id: UUID,
+        files: Mapping[str, str],
+        preview_version_id: UUID | None = None,
+    ) -> StagedCandidate:
+        """Record the files the spare would serve, and the scripted render check.
+
+        A staging for a minted version identifier is recorded as proven for it.
+        """
+        passed = self._render_passes.pop(0) if self._render_passes else True
+        self.proven_for.append(preview_version_id)
+        staged = StagedCandidate(
             runtime_ref=f"recorded-{uuid7().hex}",
             file_digests={
                 path: f"sha256:{hashlib.sha256(body.encode('utf-8')).hexdigest()}"
                 for path, body in files.items()
             },
+            render_passed=passed,
+            render={"passed": passed, "failures": [] if passed else ["/app/conversion answered 500"]},
+            build={
+                "exit_code": 0,
+                "seconds": 9.5,
+                "reused": False,
+                "restart": "application",
+                "restart_seconds": 2.0,
+                "output_tail": "Compiled successfully",
+            },
         )
-        self.prebuilt.append(prebuilt)
-        return prebuilt
-
-    async def discard_prebuilt(self, prebuilt: PrebuiltCandidate) -> None:
-        self.discarded.append(prebuilt)
+        self.staged.append(staged)
+        return staged
 
     async def deploy_candidate(
-        self, *, handoff: CandidateHandoff, prebuilt: PrebuiltCandidate | None
+        self, *, handoff: CandidateHandoff, staged: StagedCandidate | None
     ) -> PreviewRuntimeAcceptance:
         """Record the exact handoff this workstream produced and accept it."""
         self.handoffs.append(handoff)
-        self.adopted.append(prebuilt)
+        self.adopted.append(staged)
         allocation_id = uuid7()
         async with self._database.transaction() as conn, conn.cursor() as cur:
             await cur.execute(

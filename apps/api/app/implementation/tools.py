@@ -14,7 +14,7 @@ read — it may emit evidence — but it can write nothing and start nothing.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -161,7 +161,13 @@ class ToolExecutor:
         budgets: BudgetLedger,
         workspace_root: str,
         journal: list[ToolJournalEntry],
+        authority: Callable[[], Awaitable[None]] | None = None,
     ) -> None:
+        """`authority`, when given, replaces the lease check before every mutating call.
+
+        A prepared draft runs before any attempt or lease exists, so it is fenced by
+        its own record instead (`app.implementation.drafts`).
+        """
         self._database = database
         self._sandboxes = sandboxes
         self._handle = handle
@@ -171,6 +177,7 @@ class ToolExecutor:
         self._fencing_token = fencing_token
         self._budgets = budgets
         self._journal = journal
+        self._authority = authority
 
     def at_root(self, workspace_root: str) -> ToolExecutor:
         """An executor for another directory of the same sandbox.
@@ -188,6 +195,7 @@ class ToolExecutor:
             budgets=self._budgets,
             workspace_root=workspace_root,
             journal=self._journal,
+            authority=self._authority,
         )
 
     @property
@@ -277,6 +285,9 @@ class ToolExecutor:
 
     async def _require_current_lease(self, tool: ToolName) -> None:
         """Refuse a mutating call whose run no longer holds the attempt's lease."""
+        if self._authority is not None:
+            await self._authority()
+            return
         try:
             await require_active_lease(
                 self._database,

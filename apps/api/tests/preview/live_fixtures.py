@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping
 from uuid import UUID
 
 import pytest
@@ -140,6 +141,7 @@ async def publish_release(
     build_settings: TemplateBuildSettings,
     keys: SigningKeys,
     authorizing_auth_user_id: UUID,
+    implementation: Mapping[str, object] | None = None,
 ) -> UUID:
     """Publish the client release both SDKs are pinned to, and pin it.
 
@@ -147,6 +149,7 @@ async def publish_release(
     manifest is the client's declaration of what its release instruments. Only
     the signature is this run's: uTrace holds the release keys, so the journey
     signs with the ephemeral key the control plane was configured to trust.
+    `implementation` is the implementation policy a journey that implements pins.
     """
     compiled = build_settings.fixture_repository_path / "build" / "utrace"
     annotation_path = compiled / "annotation-manifest.json"
@@ -163,11 +166,13 @@ async def publish_release(
     server["client_id"] = str(case.client_id)
 
     release_id = uuid7()
-    policy = {
+    policy: dict[str, object] = {
         "live_implementation_allowed": True,
         "annotation_manifest": annotation,
         "server_instrumentation_manifest": sign_server_manifest(server, keys),
     }
+    if implementation is not None:
+        policy["implementation"] = dict(implementation)
     async with database.transaction() as conn, conn.cursor() as cur:
         await cur.execute(
             """
@@ -243,3 +248,30 @@ async def start_preview_version(
             ),
         )
     return version_id, attempt_id
+
+
+async def start_corrected_version(
+    database: Database, *, case: CaseFixture, attempt_id: UUID
+) -> UUID:
+    """Insert the building Preview Version a correction under the same attempt publishes."""
+    version_id = uuid7()
+    async with database.transaction() as conn, conn.cursor() as cur:
+        await cur.execute(
+            """
+            insert into public.preview_versions (
+                id, client_id, product_signal_id, implementation_attempt_id, state,
+                source_commit, source_digest, build_digest, base_revision
+            )
+            values (%s, %s, %s, %s, %s, 'live-test-candidate', %s, %s, 'live-test-base')
+            """,
+            (
+                version_id,
+                case.client_id,
+                case.product_signal_id,
+                attempt_id,
+                PreviewVersionState.BUILDING.value,
+                digest_of(_MARKER_PAGE + " corrected"),
+                digest_of(_MARKER_PAGE + " corrected"),
+            ),
+        )
+    return version_id

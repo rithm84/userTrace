@@ -53,6 +53,13 @@ from app.preview.session_recovery import (
     recovery_open,
     schedule_recovery,
 )
+from app.preview.spare import (
+    PREPARE_SPARE_CANDIDATE,
+    prepare_standby_spare,
+    request_spare_candidate,
+    session_needs_spare,
+    start_spare_candidate,
+)
 from app.preview.teardown import tear_down_allocation
 from app.preview.template import load_current_template, load_recipe
 from app.settings import get_settings
@@ -143,6 +150,15 @@ async def prepare_session_preview_job(database: Database, claimed: ClaimedJob) -
                 failure=str(failure),
             )
             raise
+    # The session's first candidate will run in a spare that starts now, beside the
+    # interview, so it is warm long before a change is agreed.
+    async with database.transaction() as conn:
+        await request_spare_candidate(
+            conn,
+            client_id=claimed.client_id,
+            product_signal_id=product_signal_id,
+            interview_session_id=interview_session_id,
+        )
     _log.info(
         "preview_session_preparation_completed",
         client_id=str(claimed.client_id),
@@ -292,6 +308,48 @@ async def tear_down_allocation_job(database: Database, claimed: ClaimedJob) -> N
         )
 
 
+async def prepare_spare_candidate_job(database: Database, claimed: ClaimedJob) -> None:
+    """Start the spare candidate runtime one session asked for, unless it needs none.
+
+    A standby request instead brings the session's standby spare to its newest built
+    draft (`prepare_standby_spare`).
+    """
+    interview_session_id = UUID(str(claimed.input["interview_session_id"]))
+    if claimed.input.get("standby") is True:
+        async with preview_session(database) as session:
+            template = await load_current_template(database, client_id=claimed.client_id)
+            await prepare_standby_spare(
+                database,
+                provider=session.provider,
+                client=session.http,
+                settings=session.settings,
+                template=template,
+                recipe=await load_recipe(database, template_id=template.id),
+                interview_session_id=interview_session_id,
+                activation=session.activation,
+                observation_port=session.observation,
+            )
+        return
+    if not await session_needs_spare(database, interview_session_id=interview_session_id):
+        _log.info(
+            "preview_spare_candidate_skipped", interview_session_id=str(interview_session_id)
+        )
+        return
+    async with preview_session(database) as session:
+        template = await load_current_template(database, client_id=claimed.client_id)
+        await start_spare_candidate(
+            database,
+            provider=session.provider,
+            client=session.http,
+            settings=session.settings,
+            template=template,
+            recipe=await load_recipe(database, template_id=template.id),
+            interview_session_id=interview_session_id,
+            activation=session.activation,
+            observation_port=session.observation,
+        )
+
+
 def build_preview_handlers() -> Mapping[
     str, Callable[[Database, ClaimedJob], Awaitable[None]]
 ]:
@@ -300,4 +358,5 @@ def build_preview_handlers() -> Mapping[
         RECOVER_SESSION_PREVIEW: recover_session_preview_job,
         MAINTAIN_WARM_POOL: maintain_warm_pool_job,
         TEAR_DOWN_ALLOCATION: tear_down_allocation_job,
+        PREPARE_SPARE_CANDIDATE: prepare_spare_candidate_job,
     }

@@ -22,11 +22,11 @@ swimlane-beta TB
     gate{{"`**Implementation Gate**
     Scope · policy · budgets`"}}:::gate
     attempt["`**Implementation Attempt**
-    Runs while the conversation continues
-    Isolated files + required checks`"]:::runtime
+    Adopts the draft prepared during the proposal
+    Isolated files + fast checks`"]:::runtime
     preview["`**Preview Version**
-    Immutable checked candidate
-    Agreed dataset conditions`"]:::observation
+    Immutable, swapped in whole
+    Full checks while validated`"]:::observation
     none["`**No implementation**
     Participated, not approved
     Evidence + reason retained`"]:::external
@@ -46,7 +46,7 @@ swimlane-beta TB
   preview -->|live handoff| validate
   validate async_1@-.->|change asked in validation| gate
   validate -->|any outcome| casefile
-  validate ok_1@-->|validated| pr
+  validate ok_1@-->|validated + full checks passed| pr
   none -->|no PR| casefile
   pr -->|links| casefile
   class casefile,pr outcome

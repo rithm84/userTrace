@@ -642,6 +642,166 @@ probes and the session's claim, which warm and cold starts share, so a
 [warm runtime](./preview-runtime-and-seeding.md#allocation-lifecycle) saves only
 these seconds, which overlap participant setup and the greeting.
 
+### Agreement to a new version
+
+Before [prepared drafts and spare runtimes](./implementation.md#prepared-draft),
+the 2026-11-01 production run took 53.9 seconds from `acceptance_criteria_agreed`
+to `preview_candidate_bound` for the first version and 61.3 seconds for the
+second. Of the first version's time, 1.7 seconds passed before the gate decided
+and 4.4 more before `implementation_attempt_authorized`, but
+`implementation_gate_decided` takes its time from before the gate's proposal
+model runs, so those 4.4 seconds are mostly that model, not dispatch. Codex took
+about 13 seconds, formatting and the diff 2.4, the required checks 18.5, and the
+candidate preview 13.
+
+On 2026-11-02 each new stage ran live from a workstation's local stack, against
+Vercel Sandbox and Codex running GPT-6.1 Sol on the Ultrafast tier, with the
+Shopalytics policy and template revisions 18 and 19 (2 vCPU). Those spares served
+the product's development server, which the end-to-end run below then showed never
+completes the browser SDK's activation behind the front door, so candidates now
+serve production builds instead and the spare rows describe a retired runtime:
+
+| Stage | Median (range) | Runs | When |
+| --- | --- | --- | --- |
+| Prepared workspace, with the warmed type check | 35.5 s (33.6–49.9) | 3 | During the interview |
+| Spare candidate runtime on the development server, started and its landing page compiled | 21.0 s (18.7–25.0) | 6 | During the interview |
+| Prepared draft, from the proposal to its recorded fast checks | 25.0 s (23.7–29.0) | 3 | From the proposal |
+| Its Codex run alone | 17.0 s (16.5–19.3) | 3 | From the proposal |
+| Staging a candidate's files in a spare | 1.5 s (1.5–2.2) | 6 | Before the swap |
+| Render check on the development server | 1.6 s (1.4–1.7) | 5 | Before the swap |
+| The attempt alone, adopting the draft, from its start to publication; the gate and the swap are not in it | 4.7 s | 1 | After the gate |
+| Deploying into the spare and swapping the route, no migration | 3.2 s (3.1–3.2) | 2 | After the gate |
+| The same with a candidate migration, which restarts the server | 16.7 s (13.9–17.0) | 4 | After the gate |
+| Full checks after the swap: lint, tests, production build | 17.5 s | 1 | While the participant validates |
+
+Each draft cost about 0.80 USD in model spend (0.78–0.82), whether or not the
+participant then agrees: its task carried no early-investigation findings, so
+Codex read the files itself in 10 or 11 steps. A sixth render check, on template
+revision 18, took 29.5 seconds: that revision's Server SDK activated in every
+process the development server started, up to six per runtime, and revision 19
+activates it once, in the server process. The full checks ran in parallel, the
+production build longest at 14.0 seconds, and passed. The committed live tests
+`apps/api/tests/preview/test_live_preview.py` and
+`apps/api/tests/implementation/test_draft_live.py` print these stage timings.
+
+### Agreement to the page in a browser
+
+Later on 2026-11-02 the whole path ran as one journey, five times, in the committed
+live test `apps/api/tests/preview/test_live_agreement_to_page.py`, on template
+revision 20, whose candidates serve production builds:
+
+- The code investigation, the workspace, the intake draft, the proposal draft, the
+  gate, and the attempt ran as deployed, with a real worker claiming their Jobs.
+- The base preview, a spare, the real preview front door, and a headless Chrome
+  ran on the participant's session origin.
+- The clock ran from the committed agreement until Chrome, through the door,
+  showed the dashboard with a control the change adds and the browser SDK active.
+- The session tab's Realtime notification was stood in for by reading the
+  projection's row every 50 milliseconds.
+
+| Run | Answer after the proposal | The proposal changed the intake draft's files | Draft proven after the proposal | Yes to page up |
+| --- | --- | --- | --- | --- |
+| 1 | When proven, 28.2 s | Yes, 2 files, with the earlier task | 28.2 s | 3.1 s |
+| 2 | 16.5 s | No | 11.3 s | 3.4 s |
+| 3 | 16.5 s | No | 12.0 s | 3.0 s |
+| 4 | 16.5 s | No | 10.4 s | 3.1 s |
+| 5 | When proven, 21.7 s | Yes, 3 files, for an added criterion | 21.5 s | 2.9 s |
+
+The median from the yes to the page up was 3.05 seconds (2.9–3.4):
+
+- The gate decided 0.02 seconds after the agreement, on the proposal it had
+  prepared.
+- The version was published at 0.15 seconds and the route switched at about 0.45
+  (0.35–0.66).
+- Chrome then had the page up with the SDK active in 2.6 seconds (2.5–2.7),
+  signed in again by the door into the new runtime.
+
+The lint and tests passed 6.6–10.2 seconds after the page was up.
+
+On the participant's 2026-11-01 timing, an answer 15.5–18 seconds after the
+proposal started, the page is up about 3 seconds after the yes whenever the
+proposal leaves the intake draft's files as they are: the proposal's draft was
+proven 10.4–12.0 seconds after the proposal. The draft of a proposal that changes
+files was proven after 21.5 seconds, so an answer at 16.5 seconds would see the
+page about 8 seconds after the yes.
+
+Run 1 used the earlier proposal task, and a spare that ended its server stream
+only after the build and proved only after rendering. In runs 2 to 5, the proposal's task carried
+the intake draft's diff, so Codex did not read those files back first: its run took
+3.9–5.1 seconds, against 8.2 in run 1. With that task, the canonical proposal
+changed no file in 3 runs of 3, and the spare served the intake draft's build
+again. The proposal that added a criterion changed 3 files. Run 5's draft spent:
+
+- 5.1 seconds in Codex;
+- about 2 seconds formatting, staging, and writing the changed files;
+- 7.6 seconds building them for production;
+- 1.5 seconds restarting the application;
+- about 3 seconds rendering and proving the spare.
+
+The intake draft was built 67–81 seconds after the interview started. Each intake
+draft cost 0.68–0.76 USD in model spend, and each proposal draft 0.32–0.53 USD.
+
+#### A change asked for during validation
+
+The same journey, run on 2026-11-03 with `UTRACE_LIVE_CHANGE_DURING_VALIDATION`,
+then asks for a change: a criterion that each saved view shows the day it was
+saved. On the participant's 2026-11-01 timing it is proposed about 31 seconds
+after the first version's page is up, and agreed 15.5 seconds after the proposal
+started; one run asks for it after 15 seconds instead. Each column is one run, and
+the columns follow the order of the changes:
+
+1. The next spare started empty after the swap.
+2. It started after the swap and built the served version first.
+3. The standby spare, which builds the newest draft before the swap, with the
+   change asked at 31 seconds.
+4. The standby spare, with the change asked at 15 seconds.
+
+| Measure | 1 | 2 | 3 | 4 |
+| --- | --- | --- | --- | --- |
+| The first version, from the yes to its page up | 3.0 s | 3.0 s | 2.9 s | 3.3 s |
+| Next spare ready, against the swap | 11.6 s after | 28.6 s after | 4.6 s before | 4.2 s before |
+| Next workspace generation ready after the swap | 10.8 s | 9.7 s | 13.0 s | 10.5 s |
+| Change proposed after the swap | 33.6 s | 33.6 s | 33.6 s | 17.6 s |
+| Change's draft proven after the proposal | 25.5 s | 21.2 s | 22.4 s | 24.9 s |
+| Its rebuild in the spare, then the restart | 10.1 s, 1.7 s | 7.4 s, 1.6 s | 7.1 s, 1.7 s | 10.0 s, 2.0 s |
+| From the yes to the changed version's page up | 13.2 s | 9.0 s | 10.0 s | 12.5 s |
+
+Both runs with the standby used the workspace the first attempt handed over, with
+the first version's files already in it. Run 2's spare took 28.6 seconds after the
+swap because it built the served version's 8 files once it had started.
+
+The standby spare started when the intake draft built and was ready 26–31 seconds
+later. These runs waited for it before the proposal, as an interview of any length
+would; it started 42–46 seconds before the swap. Its cost is one more 2-vCPU sandbox
+from the intake draft's build until the first swap. After the swap it is the next
+spare, which ran anyway before, and it is torn down when its session closes or the
+case ends. An earlier run of the same path, at 31 seconds, took 8.5 seconds from
+the yes to the page.
+
+With the next spare ready at the swap, the wait after the yes is the change's own
+draft: 22–25 seconds from the proposal, made of these steps:
+
+- Codex, 5–8 seconds;
+- formatting and staging;
+- the incremental rebuild, 7–10 seconds;
+- the restart;
+- the render check and the proof.
+
+An answer 15.5 seconds after the proposal therefore waits 7–10 seconds before the
+version can swap.
+
+A spare rebuilds from the build cache its image's own build left in `.next/cache`.
+Rebuilding a seven-file change in a spare of template revision 20:
+
+| Rebuild | 2 vCPU | 4 vCPU |
+| --- | --- | --- |
+| With the image's build cache | 6.5 s | 6.3 s |
+| A second change after it | 6.1 s | 6.2 s |
+| Without the cache | 19.8 s | 16.1 s |
+| Unchanged files, which a spare skips | 7.5 s | 7.7 s |
+
+A candidate keeps 2 vCPUs, since 4 save almost nothing once the cache is warm.
+
 ## Jev in the live interview
 
 Taken on 2026-11-02, these test whether Jev's interview judgments earn their place

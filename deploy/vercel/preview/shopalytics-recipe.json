@@ -1,9 +1,9 @@
 {
   "schema_version": "utrace-preview-template-recipe-v1",
   "template_id": "shopalytics-dudulemon-preview",
-  "template_revision": 16,
+  "template_revision": 20,
   "image_repository": "shopalytics-preview",
-  "fixture_revision": "696397f3bda12d9457fb25d771d7cca4e4e6edc4",
+  "fixture_revision": "d9409a0b202adaf2f43d9e09c60453d65668edb6",
   "dockerfile_path": "deploy/vercel/Dockerfile",
   "supervisor_path": "deploy/vercel/supervisor.sh",
   "supervisor_command": "/usr/local/bin/shopalytics-supervisor",
@@ -16,12 +16,17 @@
   },
   "data_api_path": "/api/shopalytics",
   "application_directory": "/srv/shopalytics",
+  "rebuild_command": "/usr/local/bin/shopalytics-rebuild",
+  "restart_application_command": "/usr/local/bin/shopalytics-restart-app",
+  "schema_path": "db/schema.sql",
+  "schema_command": "psql -v ON_ERROR_STOP=1 -1 -h 127.0.0.1 -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\" -c \"set search_path to \\\"$SHOPALYTICS_DATABASE_SCHEMA\\\"\" -f {file}",
   "dockerfile_build_args": {
     "UTRACE_PROFILE": "preview",
     "UTRACE_SDK_INSTALLATION_ID": "shopalytics-browser-sdk",
     "UTRACE_CLIENT_RELEASE_ID": "shopalytics-utrace-sdk-integration"
   },
   "vcpus": 2,
+  "candidate_vcpus": 2,
   "gating_probes": [
     "service_health",
     "data_identity",

@@ -1,33 +1,39 @@
 ---
-title: Implementation Attempt · one gate approval, fenced code cycles, one candidate
+title: Implementation Attempt · a draft finished before the answer, one gate approval, a swap, full checks
 ---
 sequenceDiagram
   autonumber
+  participant voice as Voice agent
   participant gate as Implementation Gate
   participant cp as Implementation controller
-  box Vercel Sandbox · fenced by the lease
+  box Vercel Sandbox · prepared workspace
     participant codex as Codex · GPT-6.1 Sol
     participant ws as Workspace checkout
   end
-  participant build as Candidate build
+  participant spare as Spare candidate runtime
 
-  gate->>cp: approved_live · frozen scope + budgets
-  cp->>cp: lock the Product Signal, recheck, commit<br/>attempt + dispatch intent atomically
-  cp->>ws: claim the prepared workspace under the lease
-  Note over ws: A later attempt uses a fresh workspace holding<br/>the newest ready Preview Version's files.
-  loop Each cycle, within scope + budgets
-    cp->>codex: codex exec · task + cited files
+  cp->>codex: intake draft · the original request + investigation findings
+  cp->>spare: build the intake draft for production
+  voice->>cp: propose_change · proposed change + checks
+  par The gate prepares its evaluation
+    cp->>gate: confirm the flow · propose over the predicted bundle
+  and The draft adjusts to the proposal
+    cp->>codex: codex exec · adjust the draft to exactly the proposal
     codex->>ws: scoped search, exact reads, bounded edits
-    codex-->>cp: final report · event stream read after the run
-    cp->>ws: format the changed files
-    par Checks
-      cp->>ws: required checks against the baseline · scope check
-    and Build
-      cp->>build: build from the same staged files
-    end
-    opt New failure or mechanical violation
-      cp-->>codex: correction cycle
-    end
   end
-  cp->>build: accept the candidate, collected under the lease
-  Note over build: Preview Build publishes<br/>the Preview Version.
+  cp->>ws: format, stage, and diff the draft
+  par Finish the candidate before the answer
+    cp->>ws: incremental type check
+  and
+    cp->>spare: rebuild what changed · follow the schema · render check · readiness
+  end
+  Note over ws,spare: Prepared, not authorized: nothing is routed.
+  voice->>gate: record_acceptance_criteria · the change as proposed
+  gate->>cp: approved_live · the prepared proposal, when nothing changed
+  cp->>cp: adopt the recorded draft · scope check against the frozen scope
+  cp->>spare: publish the Preview Version from the draft's record · switch the route
+  cp->>ws: confirm the published tree · full checks · lint and tests
+  opt A full check fails
+    cp-->>codex: correction cycle · its version swaps in from the next spare runtime
+  end
+  cp->>ws: hand the workspace over · the next change drafts from this version

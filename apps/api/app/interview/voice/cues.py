@@ -125,6 +125,25 @@ _READY_CUE: Final[str] = (
     "tells you what changed once it has loaded."
 )
 
+#: Speakable context sent when a corrected version replaces the one the person was
+#: trying, because a final check found a problem in it.
+_CORRECTED_CUE: Final[str] = (
+    "A final check found a small problem in the version the person is trying, so a "
+    "corrected version is loading in their preview tab, which refreshes by itself. "
+    "Tell them in one short sentence that you made a small fix and it is loading. "
+    "Do not ask them to try it yet."
+)
+
+#: Sent once a corrected version has loaded: a quick second look, not a new walkthrough.
+_SECOND_LOOK_CUE: Final[str] = (
+    "The corrected version has loaded in their preview. It is the change you agreed, "
+    "with a small fix, so do not walk them through it again. In one short sentence, ask "
+    "them for a quick look: to run the agreed checks once more. If they try several at "
+    "once, judge from what the application tells you they did which checks the new "
+    "version showed; ask them to confirm those rather than repeat them. The agreed "
+    "checks: {checks}"
+)
+
 #: Sent once the new version has loaded, so the agent walks the participant through
 #: what changed, control by control, before they try it. The agreed change and its
 #: recorded checks travel with it, so the walkthrough serves exactly what was agreed.
@@ -292,9 +311,12 @@ async def announce_ready_preview(
                 await _floor_free(floor)
                 await agent.say(_DECLINED_CUE.format(reason=reason))
             continue
+        corrected = announced is not None and await _same_attempt(
+            database, earlier=announced, later=version
+        )
         announced = version
         await _floor_free(floor)
-        await agent.say(_READY_CUE)
+        await agent.say(_CORRECTED_CUE if corrected else _READY_CUE)
         _log.info(
             "voice_ready_preview_announced",
             interview_session_id=str(subject.interview_session_id),
@@ -305,8 +327,23 @@ async def announce_ready_preview(
         ):
             await woken.wait()
             woken.clear()
-        new_controls = await _controls_once_observed(database, woken, judge=judge, subject=subject)
         checks = await agreed_checks(database, product_signal_id=subject.product_signal_id)
+        if corrected:
+            await _floor_free(floor)
+            await agent.say(
+                _SECOND_LOOK_CUE.format(
+                    checks=" ".join(
+                        f"{number}. {check}" for number, check in enumerate(checks, start=1)
+                    )
+                )
+            )
+            _log.info(
+                "voice_second_look_cued",
+                interview_session_id=str(subject.interview_session_id),
+                preview_version_id=str(version),
+            )
+            continue
+        new_controls = await _controls_once_observed(database, woken, judge=judge, subject=subject)
         outcome = await _agreed_outcome(database, subject=subject)
         await _floor_free(floor)
         await agent.say(
@@ -716,6 +753,20 @@ async def _ready_preview_version(database: Database, *, product_signal_id: UUID)
         )
         row = await cur.fetchone()
     return None if row is None else as_uuid(row, "id")
+
+
+async def _same_attempt(database: Database, *, earlier: UUID, later: UUID) -> bool:
+    """Whether a later version corrects an earlier one rather than changing what was agreed."""
+    async with database.connection() as conn, conn.cursor() as cur:
+        await cur.execute(
+            """
+            select count(distinct implementation_attempt_id) = 1 as same
+            from public.preview_versions where id = any(%s)
+            """,
+            ([earlier, later],),
+        )
+        row = await cur.fetchone()
+    return row is not None and bool(row["same"])
 
 
 async def _validating(
