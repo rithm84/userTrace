@@ -42,6 +42,7 @@ from app.connectors.openai_models import (
 from app.connectors.typesafe_jev import JevBatchResult, JevClient
 from app.interview import attention
 from app.interview.voice.instructions import _DISCOVERY_BY_FLOW, _INSTRUCTIONS
+from app.interview.voice.pipeline import LISTENING_MARK
 from tests.evals.jev import measured
 
 __all__ = [
@@ -408,6 +409,7 @@ def agent_instructions() -> str:
         preview_date=f"{preview:%A}, {preview:%B} {preview.day}, {preview.year}",
         preview_day=f"{preview:%B} {preview.day}",
         implementation_limit=3,
+        listening_mark=LISTENING_MARK,
         product_knowledge=_PRODUCT_KNOWLEDGE,
     )
 

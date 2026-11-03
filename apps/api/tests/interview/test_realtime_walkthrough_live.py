@@ -132,6 +132,10 @@ async def test_the_agent_listens_through_a_walkthrough_and_recaps_it_after(
     spoken_during = " | ".join(said)
     print("\nwalkthrough report")
     print(f"  agent said during the walkthrough: {spoken_during.strip()!r}")
+    print(
+        "  agent words per walkthrough step: "
+        f"{sum(len(utterance.split()) for utterance in said) / len(_STEPS):.2f}"
+    )
     print(f"  gestures during the walkthrough: {[(d['step'], d['targets']) for d in during]}")
     print(f"  recap began {recap[0] - ask_end:.2f}s after the ask: {recap[1]!r}")
     print(f"  gestures after the ask: {[(d['step'], d['targets']) for d in after]}")

@@ -50,7 +50,7 @@ extension neither captures nor relays it.
 
 Audio and text pass through these stages in order:
 
-![The participant's audio passes the microphone gate, Flux, and turn aggregation to the screen state and GPT-6.1 Sol; the answer follower and the words-and-gestures stage feed ElevenLabs, and the playback tap circles controls in the preview tab and gives turn aggregation the agent's recent words.](../diagrams/svg/interview-and-voice-pipeline.svg)
+![The participant's audio passes the microphone gate, Flux, and turn aggregation to the screen state and GPT-6.1 Sol; Sol's answers pass the listening gate, the answer follower, and the words-and-gestures stage to ElevenLabs, and the playback tap circles controls in the preview tab and gives turn aggregation the agent's recent words.](../diagrams/svg/interview-and-voice-pipeline.svg)
 
 <details><summary>Diagram key</summary>
 
@@ -87,14 +87,29 @@ Each stage's contract:
   changed. It runs at reasoning effort `low`, the lowest Sol accepts, keeps
   reasoning out of speech, makes at most one
   [tool call](#tools-and-customer-language) per answer, and writes spoken text with
-  inline gesture marks.
+  inline gesture marks, or only the listening mark (`<listen/>`) to
+  [keep listening](#listening-and-backchannels). The API finishes an answer a
+  barge-in cancelled, so the socket carries its rest before the next answer; one
+  not finished within half a second has its connection replaced instead, so it
+  never arrives as the next answer.
+- **Listening:** holds the start of each answer until it can tell what the answer
+  is. An answer of only the listening mark, or of nothing that can be spoken, is
+  not spoken, and the mark enters the agent's context so the model sees that it
+  listened; an answer cut off before it wrote one leaves nothing there. A
+  backchannel, an answer of at most four listening words such as "mm-hmm",
+  "okay", or "go ahead", is spoken unless the agent's last spoken answer was a
+  backchannel too or its last backchannel was under 8 seconds ago; then it is
+  withheld and recorded as listening. A question the participant asked since the
+  agent last spoke is always answered. Any other answer passes on from the word
+  that shows it is more.
 - **Answer follower:** follows each answer and its tool calls in model order and
   decides whether the agent speaks again once a tool's result arrives. The agent
   holds the floor from a request to speak until that answer's audio has played,
   and while its tools run.
 - **Words and gestures:** splits each mark (`<c id="T3"/>`) out of the text,
-  passes the rest to the speech engine a whole word at a time, and flushes each
-  reply's first clause so speech starts without waiting for more text.
+  drops a stray listening mark, passes the rest to the speech engine a whole word
+  at a time, and flushes each reply's first clause so speech starts without
+  waiting for more text.
 - **ElevenLabs** Eleven v4 Turbo (`eleven_v4_turbo`) over the Text to Dialogue
   WebSocket, in the premade Jessica voice.
 - **Playback tap:** as each word plays, records the model's text for it as an
@@ -112,6 +127,26 @@ started over their sentence could not be interrupted: their barge-in began befor
 its audio. The
 [application cues](#application-cues) are the messages the application sends on
 its own.
+
+### Listening and backchannels
+
+The pipeline asks the model for an answer at every end of the participant's turn,
+and people speak in fragments while they work: "Sure.", "Let me try.", the filter
+they are setting. While the participant walks through their workflow or tries a
+new version, the agent's default answer to such a fragment is the listening mark,
+so it stays silent and never names or narrates their steps. It gives a short
+backchannel only where a listener naturally would: when the participant checks
+that it is still there or asks whether to carry on, offers to show something
+("go ahead"), or has talked a long while with nothing from it. It fits the words
+to the moment and, when unsure, listens. It never answers a question, or an
+application message asking it to speak, with the mark. While the participant
+tries a new version, the agent waits for them to say how it went, because naming
+even their last step means they are looking at the result; it asks only once they
+say they are done.
+
+Whatever the model writes, the [listening stage](#voice-pipeline) spaces its
+backchannels. An answer that is not spoken releases the floor and leaves the
+character `listening`, as any silent turn does.
 
 ### Backend reasoning roles
 

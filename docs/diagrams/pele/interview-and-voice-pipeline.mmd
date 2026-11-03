@@ -15,9 +15,10 @@ flowchart LR
     direction BT
     screen[Screen state]:::runtime
     sol[GPT-6.1 Sol]:::reasoning
+    listening{{Listening}}:::gate
     follower[Answer follower]:::runtime
     words[Words and gestures]:::runtime
-    screen -->|turn + application block| sol -->|text + tool calls| follower -->|answer to speak| words
+    screen -->|turn + application block| sol -->|text + tool calls| listening -->|words to speak + tool calls| follower -->|answer to speak| words
   end
 
   subgraph row_speak [" "]

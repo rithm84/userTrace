@@ -9,8 +9,13 @@ in the context. These are the pieces uTrace adds:
 - `BargeInStrategy`: while the agent talks, a backchannel ("mm-hmm", "yeah") or the
   agent's own voice leaking back into the microphone does not interrupt it; other
   words do.
+- `ResponsesLLM`: the Responses API over WebSocket, never answering one request
+  with the rest of an answer a barge-in cancelled.
 - `ScreenState`: the controls on the participant's screen and the change's
   progress, appended to each request as an `<application>` block.
+- `Listening`: an answer that is only the listening mark (`<listen/>`) is never
+  spoken, and nor is a backchannel of the agent's that would follow its last one too
+  soon or straight after it.
 - `WordsAndGestures`: splits the agent's gesture marks (`<c id="T5"/>`) out of its
   text and passes the rest to the speech engine a whole word at a time.
 - `ClauseStartTTS`: starts each reply's speech at its first clause.
@@ -24,12 +29,13 @@ The measurements behind these choices are in the
 """
 
 import array
+import asyncio
 import difflib
 import math
 import re
 import time
 from collections import deque
-from collections.abc import AsyncIterator, Awaitable, Callable, Coroutine
+from collections.abc import AsyncIterator, Awaitable, Callable, Coroutine, Sequence
 from dataclasses import dataclass, field
 from typing import Final
 
@@ -39,12 +45,18 @@ from pipecat.frames.frames import (
     BotStoppedSpeakingFrame,
     EagerTranscriptionFrame,
     Frame,
+    FunctionCallsStartedFrame,
     InputAudioRawFrame,
     InterimTranscriptionFrame,
     InterruptionFrame,
     LLMContextFrame,
+    LLMFullResponseEndFrame,
+    LLMFullResponseStartFrame,
+    LLMMarkerFrame,
+    LLMTextFrame,
     ProposedUserStartedSpeakingFrame,
     ProposedUserStoppedSpeakingFrame,
+    SystemFrame,
     TranscriptionFrame,
     TTSTextFrame,
 )
@@ -55,6 +67,7 @@ from pipecat.services.elevenlabs.dialogue.tts import (
     ElevenLabsDialogueTTSService,
     ElevenLabsDialogueTTSSettings,
 )
+from pipecat.services.openai.responses.llm import OpenAIResponsesLLMService
 from pipecat.turns.types import ProcessFrameResult
 from pipecat.turns.user_start import ExternalUserTurnStartStrategy
 from pipecat.turns.user_stop import EagerUserTurnStopStrategy
@@ -71,13 +84,16 @@ from app.interview.voice.pointing import target_option
 from app.logging import get_logger
 
 __all__ = [
+    "LISTENING_MARK",
     "BargeInStrategy",
     "ClauseStartTTS",
     "FluxSTT",
+    "Listening",
     "MicGate",
     "NearEnd",
     "OneSpeculation",
     "PlaybackTap",
+    "ResponsesLLM",
     "Screen",
     "ScreenState",
     "ScreenView",
@@ -123,11 +139,27 @@ _ECHO_SHARE: Final[float] = 0.6
 #: Flux proposes a turn a few hundred ms into speech; how far back to look for the
 #: participant's own speech-level audio.
 _NEAR_END_LEAD_SECONDS: Final[float] = 1.0
-_MARK: Final[re.Pattern[str]] = re.compile(r'<c id="[^"]*"/>')
+#: What the agent answers with to keep listening without a word; it is never spoken.
+LISTENING_MARK: Final[str] = "<listen/>"
+#: The listening mark as the model may space it.
+_LISTENING: Final[re.Pattern[str]] = re.compile(r"<listen\s*/?>", re.IGNORECASE)
+_MARK: Final[re.Pattern[str]] = re.compile(r'<c id="[^"]*"/>|' + _LISTENING.pattern, re.IGNORECASE)
+#: Words the agent listens with: the participant's backchannel words, and those of
+#: "go ahead", "I see", "take your time", "sounds good", "great", and "perfect".
+_LISTENING_WORDS: Final[frozenset[str]] = _BACKCHANNEL_WORDS | frozenset(
+    ["go", "ahead", "i", "see", "take", "your", "time", "sounds", "good", "great", "perfect"]
+)
+#: The most words an answer of the agent's has and still only backchannels.
+_BACKCHANNEL_MAX_WORDS: Final[int] = 4
+#: The least time between two backchannels of the agent's; closer, they sound like a
+#: reflex rather than listening.
+_BACKCHANNEL_SPACING_SECONDS: Final[float] = 8.0
+#: How long a cancelled answer may take to finish before its connection is replaced.
+_CANCELLED_ANSWER_SECONDS: Final[float] = 0.5
 
 
 def strip_marks(text: str) -> str:
-    """The agent's words without its gesture marks, as the participant heard them."""
+    """The agent's words without its gesture and listening marks, as the participant heard them."""
     return " ".join(_MARK.sub(" ", text).split())
 
 
@@ -255,6 +287,28 @@ class OneSpeculation(EagerUserTurnStopStrategy):
             await self._take_speculation()
             await self.trigger_user_turn_speculation_cancelled()
         return await super().process_frame(frame)
+
+
+class ResponsesLLM(OpenAIResponsesLLMService):
+    """The Responses API over one WebSocket, never answering a request with a cancelled answer.
+
+    A barge-in cancels the answer being generated, but the API finishes it anyway, and
+    the socket carries the rest of it before the next answer. Pipecat reads that rest
+    off the socket before sending the next request, for up to five seconds; past that,
+    the cancelled answer's remaining text arrives as the next request's answer. In the
+    live acknowledgement check, the listening mark meant for one walkthrough step
+    answered the participant's request that way. A cancelled answer here gets
+    `_CANCELLED_ANSWER_SECONDS` to finish; after that, the connection is replaced,
+    which discards it and costs a reconnect instead of the wait.
+    """
+
+    async def _drain_cancelled_response(self) -> None:
+        try:
+            async with asyncio.timeout(_CANCELLED_ANSWER_SECONDS):
+                await super()._drain_cancelled_response()
+        except TimeoutError:
+            _log.info("voice_cancelled_answer_dropped", waited_seconds=_CANCELLED_ANSWER_SECONDS)
+            await self._disconnect_websocket()
 
 
 class BargeInStrategy(ExternalUserTurnStartStrategy):
@@ -447,13 +501,199 @@ def _with_block(context: LLMContext, block: str) -> LLMContext:
     return LLMContext(messages=messages, tools=context.tools, tool_choice=context.tool_choice)
 
 
+def _is_listening_word(word: str) -> bool:
+    return word in _LISTENING_WORDS or _HUM.match(word) is not None
+
+
+def _may_become_listening_word(word: str) -> bool:
+    """Whether a word still being written ("Mm-h", "Ok") could end as a listening word."""
+    return re.fullmatch(r"[mhu]+(-[mhu]*)*", word) is not None or any(
+        listening.startswith(word) for listening in _LISTENING_WORDS
+    )
+
+
+def _reading(text: str, *, complete: bool) -> str:
+    """What an answer's text amounts to, once it can be told.
+
+    "listening" for the listening mark, or for nothing that can be spoken;
+    "backchannel" for a few listening words and nothing else; "speech" for anything
+    more; "undecided" while `text` is still arriving and could become either of the
+    first two. An answer that begins with the listening mark is listening, whatever
+    follows it.
+    """
+    stripped = text.strip()
+    if _LISTENING.match(stripped):
+        return "listening"
+    if not stripped or (stripped.startswith("<") and ">" not in stripped):
+        # Nothing yet, or a mark still being written.
+        return "listening" if complete else "undecided"
+    words = _words_of(strip_marks(stripped))
+    if not words:
+        return "listening" if complete else "undecided"
+    if '<c id="' in stripped or "?" in stripped or len(words) > _BACKCHANNEL_MAX_WORDS:
+        return "speech"
+    # A word the model is still writing ("Ok" of "Okay") is judged only once it ends.
+    writing = not complete and stripped[-1].isalnum()
+    ended = words[:-1] if writing else words
+    if not all(_is_listening_word(word) for word in ended):
+        return "speech"
+    if writing and not _may_become_listening_word(words[-1]):
+        return "speech"
+    return "backchannel" if complete else "undecided"
+
+
+def _since_last_reply(messages: Sequence[LLMContextMessage]) -> tuple[str | None, bool]:
+    """The agent's last spoken answer, and whether the participant asked it something since.
+
+    The agent's context holds what it said as played, and its listening marks;
+    `<application>` messages are the application's, not the participant's.
+    """
+    asked = False
+    for message in reversed(messages):
+        if not isinstance(message, dict) or not isinstance(message.get("content"), str):
+            continue
+        content = str(message["content"])
+        if message.get("role") == "assistant" and strip_marks(content):
+            return content, asked
+        if message.get("role") == "user" and not content.startswith("<application>"):
+            asked = asked or content.rstrip().endswith("?")
+    return None, asked
+
+
+class Listening(FrameProcessor):
+    """Keeps the agent quiet when its answer is to listen, and spaces its backchannels.
+
+    The pipeline asks the model for an answer at every end of the participant's
+    turn, and people speak in fragments while they work, so the model may answer
+    with the listening mark instead of words. This sits just after the model and
+    holds the start of each answer until it can tell what the answer is:
+
+    - The listening mark, or nothing that can be spoken: nothing is spoken. The mark
+      is written to the agent's context, so it sees that it listened; an answer
+      with no mark, such as one a barge-in cut off, leaves nothing there.
+    - A backchannel, a few listening words such as "Mm-hmm." or "Okay, go ahead.":
+      spoken, unless the agent's last spoken answer was a backchannel too or its last
+      backchannel was under `_BACKCHANNEL_SPACING_SECONDS` ago, when it is withheld
+      and recorded as listening. A question the participant asked since the agent
+      last spoke is answered, however briefly.
+    - Anything more: passed on as it streams, from the word that shows it.
+
+    `Answering`, after this, sees no words in an answer that is not spoken, so the
+    agent's floor is released as for any silent answer. Any frame other than text
+    inside an answer, such as its tool call, first passes on what is held, so the
+    answer's words stay ahead of its calls.
+    """
+
+    def __init__(self, *, context: LLMContext, clock: Callable[[], float] = time.monotonic) -> None:
+        super().__init__()
+        self._context = context
+        self._clock = clock
+        self._last_backchannel: float | None = None
+        # Set by the answer's calls, which Pipecat sends ahead of its other frames.
+        self._calls_tools = False
+        self._begin(holding=False)
+
+    def _begin(self, *, holding: bool) -> None:
+        self._holding = holding
+        self._held: list[Frame] = []
+        self._text = ""
+        self._held_since: float | None = None
+
+    async def process_frame(self, frame: Frame, direction: FrameDirection) -> None:
+        await super().process_frame(frame, direction)
+        if direction == FrameDirection.DOWNSTREAM:
+            if isinstance(frame, LLMFullResponseStartFrame):
+                self._begin(holding=True)
+            elif isinstance(frame, LLMTextFrame) and self._holding:
+                if self._held_since is None:
+                    self._held_since = self._clock()
+                self._held.append(frame)
+                self._text += frame.text
+                if _reading(self._text, complete=False) == "speech":
+                    if len(self._held) > 1:
+                        _log.info(
+                            "voice_answer_held",
+                            held=self._text.strip(),
+                            held_ms=self._held_ms(),
+                        )
+                    await self._pass_held()
+                return
+            elif isinstance(frame, LLMFullResponseEndFrame):
+                if self._holding:
+                    await self._settle()
+                self._calls_tools = False
+            elif isinstance(frame, InterruptionFrame):
+                self._begin(holding=False)
+                self._calls_tools = False
+            elif isinstance(frame, FunctionCallsStartedFrame):
+                self._calls_tools = True
+            elif self._held and not isinstance(frame, SystemFrame):
+                if _reading(self._text, complete=True) == "listening":
+                    self._begin(holding=False)
+                else:
+                    await self._pass_held()
+        await self.push_frame(frame, direction)
+
+    async def _settle(self) -> None:
+        """Decide, as the answer ends, whether what is held is spoken."""
+        said = self._text.strip()
+        reading = _reading(self._text, complete=True)
+        withheld = self._withheld() if reading == "backchannel" else None
+        if reading == "listening" or withheld is not None:
+            self._begin(holding=False)
+            # Only a choice to listen enters the context: an answer a barge-in cut off
+            # before its first word chose nothing.
+            if not self._calls_tools and (withheld is not None or _LISTENING.match(said)):
+                await self.push_frame(LLMMarkerFrame(marker=LISTENING_MARK))
+                _log.info("voice_answer_unspoken", reason=withheld or "listening", said=said)
+            return
+        if reading == "backchannel":
+            now = self._clock()
+            _log.info(
+                "voice_backchannel_spoken",
+                said=said,
+                held_ms=self._held_ms(),
+                seconds_since_last=(
+                    None
+                    if self._last_backchannel is None
+                    else round(now - self._last_backchannel, 1)
+                ),
+            )
+            self._last_backchannel = now
+        await self._pass_held()
+
+    def _held_ms(self) -> int:
+        return 0 if self._held_since is None else round((self._clock() - self._held_since) * 1000)
+
+    def _withheld(self) -> str | None:
+        """Why a backchannel is not spoken now, if it is not."""
+        last_reply, asked = _since_last_reply(self._context.get_messages())
+        if asked:
+            return None
+        if last_reply is not None and _reading(last_reply, complete=True) == "backchannel":
+            return "backchannel_in_a_row"
+        if (
+            self._last_backchannel is not None
+            and self._clock() - self._last_backchannel < _BACKCHANNEL_SPACING_SECONDS
+        ):
+            return "backchannel_too_soon"
+        return None
+
+    async def _pass_held(self) -> None:
+        held = self._held
+        self._begin(holding=False)
+        for frame in held:
+            await self.push_frame(frame, FrameDirection.DOWNSTREAM)
+
+
 class WordsAndGestures(PatternPairAggregator):
     """Splits `<c id="T5"/>` marks out of the agent's text as "gesture" aggregations, and
     passes the rest on a whole word at a time.
 
     Token mode sends text to the speech engine as the model writes it instead of
     holding each sentence; releasing only up to the last space keeps the engine from
-    splitting a word.
+    splitting a word. A listening mark inside spoken text (`Listening` keeps an
+    answer that is only one) is removed, so it is never read out.
     """
 
     TEXT: Final[str] = "words"
@@ -466,6 +706,12 @@ class WordsAndGestures(PatternPairAggregator):
             start_pattern='<c id="',
             end_pattern='"/>',
             action=MatchAction.AGGREGATE,
+        )
+        self.add_pattern(
+            type="listening",
+            start_pattern=LISTENING_MARK.removesuffix("/>"),
+            end_pattern="/>",
+            action=MatchAction.REMOVE,
         )
         self._words = ""
 

@@ -3,7 +3,8 @@
 The agent joins the connection's private Daily room from its session on Pipecat
 Cloud (`app.interview.voice.cloud_session`) and runs the
 conversation as a Pipecat pipeline: Deepgram Flux hears the participant, GPT-6.1
-Sol writes the agent's words with gesture marks inline, and ElevenLabs speaks them
+Sol writes the agent's words with gesture marks inline, or a listening mark when it
+keeps listening instead, and ElevenLabs speaks them
 (`app.interview.voice.pipeline` holds the pieces uTrace adds). The model calls the
 application's tools itself (`app.interview.voice.tools`), and the application adds
 what the agent should know or say to its conversation through `AgentChannel`: the
@@ -43,7 +44,6 @@ from pipecat.processors.aggregators.llm_response_universal import (
 from pipecat.processors.aggregators.llm_text_processor import LLMTextProcessor
 from pipecat.processors.frameworks.rtvi import RTVIFunctionCallReportLevel, RTVIObserverParams
 from pipecat.services.llm_service import FunctionCallParams
-from pipecat.services.openai.responses.llm import OpenAIResponsesLLMService
 from pipecat.transports.daily.transport import DailyParams, DailyTransport
 from pipecat.turns.user_turn_strategies import EagerUserTurnStrategies
 from pipecat.workers.runner import WorkerRunner
@@ -90,10 +90,12 @@ from app.interview.voice.pipeline import (
     BargeInStrategy,
     ClauseStartTTS,
     FluxSTT,
+    Listening,
     MicGate,
     NearEnd,
     OneSpeculation,
     PlaybackTap,
+    ResponsesLLM,
     Screen,
     ScreenState,
     ScreenView,
@@ -232,17 +234,17 @@ async def run_voice_agent(
     )
     # The Responses API over one WebSocket for the call, which sends each answer only
     # what changed since the last one.
-    llm = OpenAIResponsesLLMService(
+    llm = ResponsesLLM(
         api_key=voice.openai_api_key,
         service_tier=voice.text_service_tier.value,
-        settings=OpenAIResponsesLLMService.Settings(
+        settings=ResponsesLLM.Settings(
             model=voice.text_model,
             system_instruction=await session_instructions(
                 database, interview_session_id=subject.interview_session_id
             ),
             max_completion_tokens=2000,
             # Pinned, because Pipecat otherwise asks for no reasoning, which Sol rejects.
-            reasoning=OpenAIResponsesLLMService.ReasoningConfig(effort=voice.text_effort.value),
+            reasoning=ResponsesLLM.ReasoningConfig(effort=voice.text_effort.value),
             # `AgentTurn` settles one tool result per answer, so each answer makes at
             # most one call.
             extra={"parallel_tool_calls": False},
@@ -360,6 +362,7 @@ async def run_voice_agent(
             aggregators.user(),
             ScreenState(read=read_screen, view=view),
             llm,
+            Listening(context=context),
             Answering(turn=turn),
             LLMTextProcessor(text_aggregator=WordsAndGestures()),
             tts,

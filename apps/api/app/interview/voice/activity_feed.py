@@ -56,9 +56,9 @@ _READ_LIMIT: Final[int] = 30
 _MAX_CHARACTERS: Final[int] = 1600
 _PREFIX: Final[str] = "In the preview, the person just did this, oldest first: "
 _ACKNOWLEDGE: Final[str] = (
-    "Acknowledge it out loud now in a few words, the way someone watching would, "
-    "without describing or listing what they did, and not in words you have already "
-    'used to acknowledge them, such as "There it is." once and "Nice." the next time.'
+    "Acknowledge it out loud now in a few natural words, the way someone watching "
+    "would, without describing or listing what they did and without repeating words "
+    "you have already used to acknowledge them."
 )
 
 
