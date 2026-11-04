@@ -19,7 +19,7 @@ validated implementation work.
 ```
 uTrace/
 ├── docs/
-│   ├── PRD.md                     # Demo product requirements — scope + vocabulary source of truth
+│   ├── PRD.md                     # Product requirements — the product story, demo scope, and vocabulary source of truth
 │   ├── ARCHITECTURE.md            # Demo architecture + active-provider lookup
 │   ├── SCENARIO.md                # The Shopalytics demo journey
 │   ├── DESIGN.md                  # Design system: register, tokens, cast, devices, motion, page map
@@ -53,9 +53,11 @@ uTrace/
 └── AGENTS.md                      # This file (CLAUDE.md symlinks here)
 ```
 
-`docs/` specifies the demo: the Shopalytics journey and the product and
-architecture it needs. The docs describe the system to build: where the code
-differs, the docs are the target.
+`docs/` specifies the product and its demo: the PRD tells the product's story and
+closes with what the demo narrows, `docs/SCENARIO.md` is the Shopalytics journey
+the demo runs and its acceptance, and the architecture docs describe the system
+behind both. The docs describe the system to build: where the code differs, the
+docs are the target.
 
 The landing page is a marketing surface for the broader product vision. Its
 claims and illustrations need not match the current build or demo scope; do not
@@ -78,10 +80,11 @@ disagreement to the user even when it is adjacent to the task.
 
 ## Domain Language
 
-Use the PRD's vocabulary exactly, in every doc, diagram, commit, and comment.
-Canonical terms, capitalized as shown: Product Signal, Intake Item,
-Implementation Gate, Implementation Attempt, Preview Version, Case File,
-Sensitive Account, Interview Session, Customer Surface, Outreach Offers, originating user.
+Use the vocabulary of the PRD and the architecture docs exactly, in every doc,
+diagram, commit, and comment. Canonical terms, capitalized as shown: Product
+Signal, Intake Item, Implementation Gate, Implementation Attempt, Preview Version,
+Case File, Interview Session, Customer Surface, Outreach Offers, originating user,
+iteration budget.
 
 - Good: "the Implementation Gate approves an async Implementation Attempt"
 - Bad: "the ticket is approved and becomes a dev task"
@@ -178,8 +181,17 @@ hide nested skills.
   of reproducing them.
 
 - Put product architecture in `docs/ARCHITECTURE.md`; keep `docs/SCENARIO.md`
-  to the scenario itself (journey, fixture, and acceptance) without
-  implementation detail.
+  to the scenario itself (journey, fixture, acceptance, success criteria, and
+  verification) without implementation detail.
+- Write `docs/PRD.md` as the product's whole story for someone joining the
+  uTrace team: say what uTrace does in general, with concrete examples, and keep
+  what the demo narrows in its closing Demo scope section. Leave mechanisms,
+  providers, and internals to `docs/ARCHITECTURE.md` and the component docs. Stay
+  specific enough to act on; holistic is not vague.
+  - Good: "A Customer Surface is any place where a client's users give feedback,
+    such as a Discord server or a Zendesk helpdesk."
+  - Bad: "The client's one Discord server is the demo's Customer Surface," in
+    the PRD's body.
 - Keep the lean active-provider lookup in `docs/ARCHITECTURE.md`; put detailed
   provider boundaries in the owning file under `docs/arch-components/`.
 - One source of truth per fact. A diagram owns the relationships and flows it
@@ -205,7 +217,7 @@ hide nested skills.
 
 - Never commit or push unless the user explicitly asks. Uncommitted changes
   are the user's review state — keep the diff clean and reviewable.
-- Prefer `git merge` over squash unless the user asks otherwise.
+- Prefer squash merges over `git merge` unless the user asks otherwise.
 - Subjects: short, imperative, focused on user impact. An area prefix in the
   style already used in history (`docs:`, `chore:`) is fine.
   - Good: `docs: standardize diagram label binding`
@@ -229,3 +241,6 @@ hide nested skills.
 - Hand-edit generated files when a generation workflow exists
 - Skip deterministic local checks in favor of live service calls when a local
   check can answer the question
+- Run `apps/api` database tests against anything but a local Supabase stack: they
+  truncate every table in `UTRACE_DATABASE_URL`, and `.env.local` points at
+  production (see `apps/api/README.md`)

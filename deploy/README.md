@@ -170,6 +170,41 @@ Pipecat Cloud build it, and points the agent at the build with the secret set, t
 `agent-2x` profile, one to ten instances, and a two-hour session limit. It returns
 once the agent's new deployment is ready.
 
+### Pin a new preview template
+
+A new Shopalytics preview template, for example after the fixture re-vendors the
+uTrace SDKs, is pinned in this order:
+
+1. Push the fixture commits, so implementation workspaces can check out the
+   pinned revision from GitHub.
+2. In `deploy/vercel/preview/shopalytics-recipe.json`, set `fixture_revision` to
+   the fixture commit and raise `template_revision`.
+3. Build, snapshot, and verify the template without pinning it:
+
+   ```sh
+   uv run --project apps/api python apps/api/scripts/build_preview_template.py
+   ```
+
+4. Publish a new configuration release, which pins the recipe's fixture revision
+   as the implementation base:
+
+   ```sh
+   uv run --project apps/api python apps/api/scripts/seed_shopalytics_client.py
+   ```
+
+5. Pin the built template to that release, reusing the image and snapshot from
+   step 3:
+
+   ```sh
+   uv run --project apps/api python apps/api/scripts/build_preview_template.py \
+     --client-id <client> --configuration-release-id <release> \
+     --warm-pool-target 0 --image-reference <image> --snapshot-id <snapshot>
+   ```
+
+6. Set `UTRACE_PREVIEW_TEMPLATE_SNAPSHOT_ID` and `UTRACE_PREVIEW_TEMPLATE_IMAGE`
+   in `.env.local` to the new snapshot and image. The live preview tests boot
+   their runtimes from these values and fail against an older template.
+
 ### Inspect and read logs
 
 ```sh
