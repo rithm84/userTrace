@@ -204,7 +204,7 @@ gate.
 The control plane prepares the case's workspace beside the base preview, so the
 coding agent can draft a change while the voice agent proposes it:
 
-![A prepared workspace is built when the participant claims the invitation and records its baseline; a proposal drafts in it and a newer proposal starts the draft over; an approved attempt with matching pins claims it, or it is released when its case ends or its one-hour window passes.](../diagrams/svg/implementation-prepared-workspace.svg)
+![A prepared workspace is built when the participant claims the invitation and records its baseline; a proposal drafts in it and a newer proposal adjusts that draft or starts it over; an approved attempt with matching pins claims it, or it is released when its case ends or its one-hour window passes.](../diagrams/svg/implementation-prepared-workspace.svg)
 
 <details><summary>Diagram key</summary>
 
@@ -248,11 +248,15 @@ A draft is one of two kinds, `intake` or `proposal`, with one record and one Job
   feature is drafted from the original request and the concern intake recorded,
   so code exists before the call does. It is queued once, before any proposal.
 - **Proposal draft:** when the voice agent proposes a change, its `propose_change`
-  tool records the proposal and queues a draft. It revises the intake draft in
-  the workspace into exactly the proposed change, keeping what fits, and starts
-  over from the workspace's starting files otherwise. An intake draft still being
-  written when the proposal arrives is left to finish, so the proposal revises it
-  instead of starting over, and retires it once it takes the workspace.
+  tool records the proposal and queues a draft. It revises the finished draft the
+  workspace holds, the intake draft or an earlier proposal, into exactly the
+  proposed change, keeping what fits, and starts over from the workspace's
+  starting files when none finished. An intake draft still being written when the
+  proposal arrives is left to finish, so the proposal revises it instead of
+  starting over, and retires it once it takes the workspace. An agreement that
+  names no recorded proposal, because the voice agent proposed without recording
+  it or the person agreed to something else, queues a proposal draft of the agreed
+  change itself, which revises the workspace's draft the same way.
 
 The Job:
 
@@ -291,8 +295,10 @@ proposal discards the older proposal draft, and so does an agreement that record
 a different change; neither discards an intake draft still being written while a
 proposal remains to revise it. The agreement records the draft it
 agreed to when the voice agent records the change as proposed, or the same change
-up to case and spacing, so adoption never judges free text; it never records an
-intake draft. A draft that is discarded while its Codex run is still writing
+up to case and spacing, so adoption never judges free text; otherwise it records
+the draft it queued for the agreed change, and it never records an intake draft.
+A draft an agreement already records prepares no gate evaluation, because the gate
+is deciding that agreement. A draft that is discarded while its Codex run is still writing
 finishes that run, so the next holder of the workspace waits until the draft
 settles. An approved attempt whose agreed draft has yet to take the workspace
 waits a bounded time for it, so it adopts that draft instead of authoring the

@@ -125,6 +125,7 @@ __all__ = [
     "draft_change",
     "files_digest",
     "prepare_draft",
+    "record_agreed_change_draft",
     "record_change_proposal",
     "record_intake_draft",
     "wait_until_settled",
@@ -154,9 +155,10 @@ _POLL_SECONDS: Final[float] = 0.5
 _DRAFT_JOB_TIMEOUT_SECONDS: Final[int] = 900
 _INTAKE_WORKFLOW: Final[str] = "requested_feature"
 _ADJUSTMENT: Final[str] = (
-    "The workspace already holds a draft written from the customer's original "
-    "request, before the interview agreed on a change. Its whole change against the "
-    "base revision is the diff below, so the files it touched need no reading first. "
+    "The workspace already holds an earlier draft, written from the customer's "
+    "original request or from an earlier proposal, before this change was settled. "
+    "Its whole change against the base revision is the diff below, so the files it "
+    "touched need no reading first. "
     "Revise it so it makes exactly the change above and meets exactly those "
     "criteria: keep what fits, change what differs, and remove what the agreed change "
     "does not need. When it already does, change nothing.\n<draft-diff>\n{patch}\n</draft-diff>"
@@ -242,6 +244,40 @@ async def record_change_proposal(
             product_signal_id=bundle.product_signal_id,
             interview_session_id=interview_session_id,
         )
+    return draft_id
+
+
+async def record_agreed_change_draft(
+    conn: AsyncConnection[DictRow], *, bundle: AssembledBundle, change: ProposedChange
+) -> UUID:
+    """Queue a draft of an agreed change that no recorded proposal drafted.
+
+    The voice agent records each proposal with `propose_change`, but an agreement
+    can still name a change no proposal drafted: the agent skipped the call, or the
+    person agreed to something other than its last proposal. The agreed change is
+    then drafted as a proposal from the moment of the agreement, revising the draft
+    the workspace holds, so the attempt adopts it instead of writing the change from
+    nothing. The caller has discarded the case's other open proposal.
+    """
+    interview_session_id = bundle.interview_session_id
+    if interview_session_id is None:
+        raise ValueError("an agreed change is drafted only in an Interview Session")
+    draft_id = await _insert_draft(
+        conn,
+        client_id=bundle.client_id,
+        product_signal_id=bundle.product_signal_id,
+        interview_session_id=interview_session_id,
+        change=change,
+        kind=DraftKind.PROPOSAL,
+        request=None,
+        pinned_configuration_release_id=bundle.dependencies.pinned_configuration_release_id,
+    )
+    await request_spare_candidate(
+        conn,
+        client_id=bundle.client_id,
+        product_signal_id=bundle.product_signal_id,
+        interview_session_id=interview_session_id,
+    )
     return draft_id
 
 
@@ -468,7 +504,13 @@ async def draft_change(
     release_id = await _pinned_release(database, draft=draft)
     policy = await load_implementation_policy(database, configuration_release_id=release_id)
     gate: asyncio.Task[None] | None = None
-    if prepare_gate and kind == DraftKind.PROPOSAL:
+    # A draft the person already agreed to is not evaluated ahead: the gate decides
+    # the agreement itself.
+    if (
+        prepare_gate
+        and kind == DraftKind.PROPOSAL
+        and not await _already_agreed(database, draft_id=draft_id)
+    ):
         change = change_from_row(draft)
         gate = asyncio.create_task(
             prepare_gate_proposal(
@@ -523,7 +565,7 @@ async def draft_change(
             journal=[],
             authority=authority,
         )
-        earlier_patch = await _intake_patch(database, earlier=taken.earlier_draft_id)
+        earlier_patch = await _earlier_patch(database, earlier=taken.earlier_draft_id)
         adjust = earlier_patch is not None
         if taken.earlier_draft_id is not None and not adjust:
             await reset_to_base(executor, tree=taken.starting_tree)
@@ -631,7 +673,7 @@ async def draft_change(
         "implementation.draft.finished",
         prepared_draft_id=str(draft_id),
         kind=kind,
-        revised_intake_draft=adjust,
+        revised_earlier_draft=adjust,
         seconds=round(time.monotonic() - started, 1),
     )
 
@@ -821,22 +863,36 @@ async def _log_revision(
         path for path in set(before) | set(files) if before.get(path) != files.get(path)
     )
     _logger.info(
-        "implementation.draft.revised_intake_draft",
+        "implementation.draft.revised_earlier_draft",
         prepared_draft_id=str(draft_id),
-        intake_draft_id=str(earlier),
+        earlier_draft_id=str(earlier),
         files_changed=bool(changed),
         changed_paths=changed,
     )
 
 
-async def _intake_patch(database: Database, *, earlier: UUID | None) -> str | None:
-    """The patch of a finished intake draft the workspace holds, which this draft revises."""
+async def _earlier_patch(database: Database, *, earlier: UUID | None) -> str | None:
+    """The patch of the finished draft the workspace holds, which this draft revises.
+
+    It is the intake draft or an earlier proposal; one that never finished left no
+    files to revise, and the workspace is reset instead.
+    """
     if earlier is None:
         return None
     row = await _draft_row(database, draft_id=earlier)
-    if as_str(row, "kind") != DraftKind.INTAKE or row["files_digest"] is None:
+    if row["files_digest"] is None:
         return None
     return as_optional_str(row, "patch")
+
+
+async def _already_agreed(database: Database, *, draft_id: UUID) -> bool:
+    """Whether an agreement records this draft, so the gate is already deciding it."""
+    async with database.connection() as conn, conn.cursor() as cur:
+        await cur.execute(
+            "select 1 from public.acceptance_criteria_agreements where prepared_draft_id = %s",
+            (draft_id,),
+        )
+        return await cur.fetchone() is not None
 
 
 async def _await_investigation(database: Database, *, product_signal_id: UUID) -> None:

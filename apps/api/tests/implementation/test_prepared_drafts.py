@@ -31,7 +31,8 @@ from app.implementation import prepared as prepared_module
 from app.implementation.draft_records import ProposedChange, ProposedCriterion
 from app.implementation.drafts import (
     PREPARE_DRAFT,
-    _intake_patch,
+    _already_agreed,
+    _earlier_patch,
     _take_workspace,
     adoptable_draft,
     files_digest,
@@ -156,7 +157,7 @@ async def test_a_proposal_queues_its_draft_and_a_newer_one_replaces_it(
     assert (signal["state"], signal["acceptance_criteria_revision"]) == ("interviewing", 0)
 
 
-async def test_an_agreement_as_proposed_records_the_draft_and_a_different_one_discards_it(
+async def test_an_agreement_as_proposed_records_the_draft_and_a_different_one_drafts_anew(
     database: Database, auth_users: dict[str, SignedInUser]
 ) -> None:
     case = await interviewing_case(database, auth_users, "drafts-agreed")
@@ -204,9 +205,12 @@ async def test_an_agreement_as_proposed_records_the_draft_and_a_different_one_di
             "select prepared_draft_id from public.acceptance_criteria_agreements where product_signal_id = %s",
             (other.product_signal_id,),
         )
-        unlinked = await cur.fetchone()
-    assert unlinked is not None and unlinked["prepared_draft_id"] is None
-    assert [row["state"] for row in await _drafts(database, other)] == ["discarded"]
+        linked = await cur.fetchone()
+    # The proposal it differs from is discarded, and the agreed change is drafted
+    # from the agreement, so the attempt still adopts a draft.
+    drafts = await _drafts(database, other)
+    assert [row["state"] for row in drafts] == ["discarded", "proposed"]
+    assert linked is not None and linked["prepared_draft_id"] == drafts[1]["id"]
 
 
 async def test_an_agreement_that_repeats_the_proposal_records_its_draft_without_the_flag(
@@ -464,7 +468,7 @@ async def test_a_proposal_revises_an_intake_draft_still_being_written(
     taken = await _take_workspace(database, draft_id=agreed, draft=row)
     assert taken is not None and taken.prepared_workspace_id == workspace_id
     assert taken.earlier_draft_id == intake_id
-    assert await _intake_patch(database, earlier=intake_id) == "diff"
+    assert await _earlier_patch(database, earlier=intake_id) == "diff"
     assert [draft["state"] for draft in await _drafts(database, case)] == [
         "discarded",
         "discarded",
@@ -478,6 +482,91 @@ async def test_a_proposal_revises_an_intake_draft_still_being_written(
         bound = await cur.fetchone()
     assert bound is not None and bound["prepared_draft_id"] == agreed
     assert await _agreed_draft_waiting(database, specification=_approved_for(case, 1)) is None
+
+
+async def test_an_agreement_no_proposal_drafted_drafts_the_agreed_change_on_the_intake(
+    database: Database, auth_users: dict[str, SignedInUser]
+) -> None:
+    """The agent proposed out loud but never called propose_change before the yes."""
+    case = await interviewing_case(database, auth_users, "drafts-unproposed-agreement")
+    session_id = await create_live_session(database, case=case, phase=InterviewPhase.DISCOVERY)
+    await _record_concern(database, case)
+    intake_id = await record_intake_draft(
+        database, client_id=case.client_id, product_signal_id=case.product_signal_id
+    )
+    assert intake_id is not None
+    async with database.transaction() as conn, conn.cursor() as cur:
+        await cur.execute(
+            "update public.prepared_drafts set state = 'drafting' where id = %s", (intake_id,)
+        )
+
+    recorded = json.loads(
+        await execute_tool(
+            await _context(database, case=case, session_id=session_id),
+            name="record_acceptance_criteria",
+            arguments={
+                "agreed_outcome": OUTCOME,
+                "workflow": "saved_conversion_views",
+                "criteria": CRITERIA,
+                "as_proposed": True,
+            },
+        )
+    )
+    assert recorded["acceptance_criteria_revision"] == 1
+
+    # The running intake draft is left to finish, and the agreed change is drafted
+    # as a proposal that revises it; the agreement records that draft.
+    drafts = await _drafts(database, case)
+    assert [row["state"] for row in drafts] == ["drafting", "proposed"]
+    agreed = drafts[1]["id"]
+    assert isinstance(agreed, UUID)
+    async with database.connection() as conn, conn.cursor() as cur:
+        await cur.execute(
+            "select kind, criteria from public.prepared_drafts where id = %s", (agreed,)
+        )
+        draft = await cur.fetchone()
+        await cur.execute(
+            "select prepared_draft_id from public.acceptance_criteria_agreements "
+            "where product_signal_id = %s",
+            (case.product_signal_id,),
+        )
+        agreement = await cur.fetchone()
+        await cur.execute(
+            "select count(*) as queued from public.jobs "
+            "where job_type = %s and input->>'prepared_draft_id' = %s",
+            (PREPARE_DRAFT, str(agreed)),
+        )
+        job = await cur.fetchone()
+    assert draft is not None and draft["kind"] == "proposal"
+    assert [criterion["statement"] for criterion in draft["criteria"]] == [
+        criterion["statement"] for criterion in CRITERIA
+    ]
+    assert agreement is not None and agreement["prepared_draft_id"] == agreed
+    assert job is not None and job["queued"] == 1
+    # The gate is already deciding the agreement, so the draft prepares no
+    # evaluation of its own, and the attempt's claim waits for it.
+    assert await _already_agreed(database, draft_id=agreed)
+    assert await _agreed_draft_waiting(database, specification=_approved_for(case, 1)) == agreed
+
+
+async def test_a_draft_revises_an_earlier_proposal_the_workspace_holds(
+    database: Database, auth_users: dict[str, SignedInUser]
+) -> None:
+    case = await interviewing_case(database, auth_users, "drafts-earlier-proposal")
+    session_id = await create_live_session(database, case=case, phase=InterviewPhase.DISCOVERY)
+    await _propose(await _context(database, case=case, session_id=session_id))
+    earlier = (await _drafts(database, case))[0]["id"]
+    assert isinstance(earlier, UUID)
+    await _drafted_in_workspace(database, case, earlier)
+    await _propose(
+        await _context(database, case=case, session_id=session_id),
+        outcome=OUTCOME + ", and rename it",
+    )
+
+    # The newer proposal discarded the earlier one, whose finished files it revises.
+    assert [row["state"] for row in await _drafts(database, case)] == ["discarded", "proposed"]
+    assert await _earlier_patch(database, earlier=earlier) == "diff"
+    assert not await _already_agreed(database, draft_id=earlier)
 
 
 async def test_a_proposal_discarded_while_it_waits_leaves_the_workspace_as_it_was(
