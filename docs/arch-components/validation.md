@@ -165,8 +165,11 @@ Case File, any pull request, and cleanup finish after the participant leaves.
 
 ### Changes asked during validation
 
-Before the verdict, while trying a new version, the originating user may ask for
-something to be different. Once they agree it out loud:
+A version the originating user finds partially validated, not validated, or
+unclear is why they would want it changed, so before recording that verdict the
+agent asks whether they would like a change, while the case's iteration budget
+(`implementation_limit`) allows another attempt. A verdict is recorded only once they
+want no change or no attempt is left. Once they agree a change out loud:
 
 - The whole change as it now stands and the checks that now apply freeze at a
   new criteria revision.
@@ -176,8 +179,8 @@ something to be different. Once they agree it out loud:
   the case's pinned `implementation_limit`.
 
 The next version is validated afresh. If the gate refuses the change, the case
-returns to `awaiting_validation` (`revision_declined`) with the criteria that
-version was approved for, and the agent says so. Cancellation and other terminal
+closes without a PR: its Case File records the refusal as the blocker, and the agent
+says the change will not be built. Cancellation and other terminal
 outcomes take precedence. Feedback never licenses a code revision directly.
 Preview Versions and validation outcomes remain immutable.
 

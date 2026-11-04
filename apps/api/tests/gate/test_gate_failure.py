@@ -38,7 +38,12 @@ from app.interview.voice.channel import Floor
 from app.interview.voice.cues import announce_gate_outcome
 from app.interview.voice.session_changes import SessionChanges
 from app.outputs.job_types import ASSEMBLE_CASE_FILE
-from tests.factories import CaseFixture, create_case, create_interview_session
+from tests.factories import (
+    CaseFixture,
+    create_case,
+    create_interview_session,
+    create_ready_version,
+)
 from tests.gate.factories import approve_agreed_change
 from tests.interview.recording_agent import RecordingAgent
 from tests.supabase_auth import SignedInUser
@@ -257,6 +262,42 @@ async def test_a_gate_that_chooses_no_implementation_tells_the_agent(
             (case.product_signal_id, GATE_NO_IMPLEMENTATION_EVENT),
         )
         assert await cur.fetchone() is not None
+
+
+async def test_a_change_the_gate_refuses_while_a_version_is_tried_ends_the_case(
+    database: Database, auth_users: dict[str, SignedInUser]
+) -> None:
+    """A change asked for while trying a version means that version fell short, so a
+    refused change closes the case without a PR instead of returning to validation."""
+    case, session_id = await _gate_pending_case(database, auth_users)
+    await create_ready_version(database, case=case)
+
+    async def refuse() -> None:
+        await _decline(database, case)
+
+    (cue,) = (
+        await _cue_heard_after(
+            database, case, session_id, refuse, agent=RecordingAgent(), floor=_free_floor()
+        )
+    ).said
+
+    assert "will not be built" in cue
+    async with database.connection() as conn, conn.cursor() as cur:
+        await cur.execute(
+            "select input from public.jobs where job_type = %s", (ASSEMBLE_CASE_FILE,)
+        )
+        case_file_job = await cur.fetchone()
+        await cur.execute(
+            "select state::text as state from public.product_signals where id = %s",
+            (case.product_signal_id,),
+        )
+        signal = await cur.fetchone()
+    assert case_file_job is not None
+    assert case_file_job["input"]["variant"] == "blocked"
+    assert case_file_job["input"]["closure_trigger"] == "close_blocked"
+    assert "refused the requested change" in case_file_job["input"]["blocker_reason"]
+    # The Case File closes the case once it is published; nothing returns to validation.
+    assert signal is not None and signal["state"] == ProductSignalState.GATE_PENDING.value
 
 
 async def test_an_approved_gate_tells_the_agent_without_a_second_line(

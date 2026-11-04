@@ -35,7 +35,6 @@ from utrace_contracts.domain.lifecycle import (
     CommandDisposition,
     CommandState,
     EffectState,
-    GateDecisionKind,
     ImplementationProgress,
     ProductSignalState,
 )
@@ -81,7 +80,6 @@ __all__ = [
 _log = get_logger(__name__)
 
 _READY: Final[str] = ImplementationProgress.READY_FOR_VALIDATION.value
-_APPROVED: Final[str] = GateDecisionKind.APPROVED_LIVE.value
 #: The gate outcome the agent is only told about: an approved change being built.
 _BUILDING: Final[str] = "building"
 
@@ -159,14 +157,6 @@ _DEBRIEF_CUE: Final[str] = (
     "tells you they did which checks the new version showed; ask them to confirm "
     "those rather than repeat "
     "them. The agreed checks, in order: {checks}"
-)
-
-#: Sent when the gate refused a change the participant asked for, so the agent says
-#: so and validation of the version they have carries on.
-_DECLINED_CUE: Final[str] = (
-    "The change they asked for cannot be made in this session ({reason}). Tell them "
-    "so in one short sentence, without technical detail, then carry on checking the "
-    "version they have."
 )
 
 #: Sent when the Implementation Gate failed before any work on the agreed change
@@ -289,7 +279,6 @@ async def announce_ready_preview(
     """Announce each new version: that it is loading, then what changed once it loads."""
     woken = changes.watch()
     announced: UUID | None = None
-    declined: UUID | None = None
     while True:
         await woken.wait()
         woken.clear()
@@ -303,13 +292,6 @@ async def announce_ready_preview(
         if version is None:
             continue
         if version == announced:
-            refusal = await _declined_change(
-                database, product_signal_id=subject.product_signal_id, after=declined
-            )
-            if refusal is not None:
-                declined, reason = refusal
-                await _floor_free(floor)
-                await agent.say(_DECLINED_CUE.format(reason=reason))
             continue
         corrected = announced is not None and await _same_attempt(
             database, earlier=announced, later=version
@@ -385,8 +367,8 @@ async def announce_gate_outcome(
     heard the agent will get it started. The gate stops a change by failing or by
     choosing no implementation, and that is spoken. Each outcome is
     announced while it is the case's latest, so a new connection hears it too and a
-    later change request is never answered with an old one. A declined change keeps
-    the version the person has, so they go on checking it.
+    later change request is never answered with an old one. A change the gate stops
+    while the person tries a version ends the case, as any other stopped change does.
     """
     woken = changes.watch()
     announced: UUID | None = None
@@ -539,12 +521,7 @@ async def _gate_outcome(
     if event_type != GATE_FAILED_EVENT:
         return None
     outcome = GateFailureOutcome(as_str(row, "outcome"))
-    cue = (
-        _GATE_FAILED_CUE
-        if outcome is GateFailureOutcome.CASE_BLOCKED
-        else _DECLINED_CUE.format(reason="a technical problem on our side stopped it")
-    )
-    return as_uuid(row, "id"), cue, outcome.value
+    return as_uuid(row, "id"), _GATE_FAILED_CUE, outcome.value
 
 
 async def begin_validation_when_ready(
@@ -937,21 +914,3 @@ async def agreed_change(database: Database, *, interview_session_id: UUID) -> st
     return as_str(row, "intended_outcome")
 
 
-async def _declined_change(
-    database: Database, *, product_signal_id: UUID, after: UUID | None
-) -> tuple[UUID, str] | None:
-    """The gate's newest refusal of a change, when it is newer than ``after`` and latest."""
-    async with database.connection() as conn, conn.cursor() as cur:
-        await cur.execute(
-            """
-            select id, decision, blocker_reason from public.gate_decisions
-            where product_signal_id = %s
-            order by decided_at desc
-            limit 1
-            """,
-            (product_signal_id,),
-        )
-        row = await cur.fetchone()
-    if row is None or as_str(row, "decision") == _APPROVED or as_uuid(row, "id") == after:
-        return None
-    return as_uuid(row, "id"), str(row["blocker_reason"] or "the change was not approved")

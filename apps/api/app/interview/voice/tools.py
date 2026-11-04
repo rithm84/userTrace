@@ -268,7 +268,9 @@ TOOL_DEFINITIONS: tuple[FunctionSchema, ...] = (
             "review_observed_activity that show what the product did for it. Never "
             "record an answer they did not give; use `unsure` when they did not "
             "settle it. Cite an observation as contradicting a criterion only when "
-            "the product did something other than it says for what they actually did."
+            "the product did something other than it says for what they actually did. "
+            "When their answers do not confirm every criterion, record them only once "
+            "they have said they want no change, or no further version can be made."
         ),
         properties={
             "answers": {

@@ -196,29 +196,6 @@ async def return_to_implementation_on_connection(
     )
 
 
-async def return_to_validation_on_connection(
-    conn: AsyncConnection[DictRow], *, interview_session_id: UUID
-) -> None:
-    """Send a session back to validating the version it has, after a change was refused."""
-    async with conn.cursor() as cur:
-        await cur.execute(
-            """
-            update public.interview_sessions
-            set phase = %s, implementation_progress = %s, revision = revision + 1,
-                updated_at = now()
-            where id = %s and state = %s and phase = %s
-            """,
-            (
-                InterviewPhase.VALIDATION.value,
-                ImplementationProgress.READY_FOR_VALIDATION.value,
-                interview_session_id,
-                InterviewSessionState.LIVE.value,
-                InterviewPhase.IMPLEMENTATION.value,
-            ),
-        )
-    await publish_projection_on_connection(conn, interview_session_id=interview_session_id)
-
-
 async def publish_projection(
     database: Database, *, interview_session_id: UUID
 ) -> SessionProjection:
