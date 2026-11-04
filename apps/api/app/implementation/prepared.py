@@ -64,7 +64,8 @@ from app.implementation.workspace_setup import (
     exclude_check_logs,
     export_clean_base,
     install_dependencies,
-    run_baseline,
+    link_baseline_dependencies,
+    run_baseline_checks,
     warm_fast_checks,
 )
 
@@ -206,7 +207,13 @@ async def prepare_case_workspace(
     policy: ImplementationPolicy,
     repository_token: str,
 ) -> None:
-    """Prepare one case's workspace from its policy, unless one already finished."""
+    """Prepare one case's workspace from its policy, unless one already finished.
+
+    Once the checkout is installed and its fast checks are warm, the workspace is
+    open to drafting and the original request is drafted at once; the baseline runs
+    beside the draft, in its own copy of the base, and is recorded when it finishes.
+    Only an attempt reads the baseline, and its claim waits for it.
+    """
     pins = _pins_for_policy(policy)
     sandbox_name = await _begin(
         database, client_id=client_id, product_signal_id=product_signal_id, pins=pins
@@ -244,22 +251,45 @@ async def prepare_case_workspace(
         await exclude_check_logs(shell)
         await export_clean_base(shell)
         await install_dependencies(shell, install_command=pins.install_command)
-        baseline, _ = await asyncio.gather(
-            run_baseline(shell, checks=pins.required_checks),
-            warm_fast_checks(shell, checks=pins.required_checks),
+        await link_baseline_dependencies(shell)
+        baseline_run = asyncio.create_task(
+            run_baseline_checks(shell, checks=pins.required_checks)
         )
+        try:
+            await warm_fast_checks(shell, checks=pins.required_checks)
+        except BaseException:
+            baseline_run.cancel()
+            raise
     except Exception as error:
         await _fail(database, product_signal_id=product_signal_id, detail=repr(error))
         await sandboxes.delete(handle)
         raise
-    if not await _mark_ready(database, product_signal_id=product_signal_id, baseline=baseline):
+    if not await _mark_draftable(database, product_signal_id=product_signal_id):
         # The case ended while the workspace was prepared, and the release
         # already took the row: nothing will claim this sandbox.
+        baseline_run.cancel()
         await sandboxes.delete(handle)
         return
     # The requested feature is drafted from the original request at once, so code
     # exists before the call does; a proposal later revises it.
     await record_intake_draft(database, client_id=client_id, product_signal_id=product_signal_id)
+    _logger.info(
+        "implementation.prepared_workspace.draftable",
+        product_signal_id=str(product_signal_id),
+        sandbox=sandbox_name,
+        seconds=round(time.monotonic() - started, 1),
+    )
+    try:
+        baseline = await baseline_run
+    except Exception as error:
+        await _fail(database, product_signal_id=product_signal_id, detail=repr(error))
+        await sandboxes.delete(handle)
+        raise
+    if not await _record_baseline(
+        database, product_signal_id=product_signal_id, baseline=baseline
+    ):
+        # The case ended while the baseline ran; its release removes the sandbox.
+        return
     _logger.info(
         "implementation.prepared_workspace.ready",
         product_signal_id=str(product_signal_id),
@@ -277,7 +307,8 @@ async def claim_prepared_workspace(
 ) -> ClaimedWorkspace | None:
     """Bind the case's prepared workspace to this attempt's lease, or return `None`.
 
-    A preparation still running is waited for, and so is the draft the agreement
+    A preparation still running is waited for, and so is its baseline, which the
+    workspace records after drafting has begun. So is the draft the agreement
     recorded while it waits for an earlier draft to finish before it takes the
     workspace, so the attempt can adopt it. A workspace prepared from other pins,
     failed, released, or about to be released is left alone. The sandbox is not
@@ -311,6 +342,9 @@ async def claim_prepared_workspace(
                 and bool(row["fresh"])
                 and (
                     state == "preparing"
+                    # Drafting starts before the baseline is recorded; an attempt
+                    # needs it, so it waits for it as for the preparation.
+                    or (state in ("ready", "drafting") and row["baseline_checks"] is None)
                     or (
                         agreed_waiting is not None
                         and as_optional_uuid(row, "prepared_draft_id") != agreed_waiting
@@ -553,15 +587,31 @@ async def _begin(
     return None if row is None else as_str(row, "sandbox_name")
 
 
-async def _mark_ready(
-    database: Database, *, product_signal_id: UUID, baseline: tuple[CheckRun, ...]
-) -> bool:
+async def _mark_draftable(database: Database, *, product_signal_id: UUID) -> bool:
+    """Open the prepared checkout to drafting while its baseline still runs."""
     async with database.transaction() as conn, conn.cursor() as cur:
         await cur.execute(
             """
             update public.prepared_workspaces
-            set state = 'ready', baseline_checks = %s, updated_at = now()
+            set state = 'ready', updated_at = now()
             where product_signal_id = %s and state = 'preparing'
+            """,
+            (product_signal_id,),
+        )
+        return cur.rowcount == 1
+
+
+async def _record_baseline(
+    database: Database, *, product_signal_id: UUID, baseline: tuple[CheckRun, ...]
+) -> bool:
+    """Record the baseline on the case's open workspace, which a draft may hold."""
+    async with database.transaction() as conn, conn.cursor() as cur:
+        await cur.execute(
+            """
+            update public.prepared_workspaces
+            set baseline_checks = %s, updated_at = now()
+            where product_signal_id = %s and state in ('ready', 'drafting')
+              and baseline_checks is null
             """,
             (Jsonb([run.model_dump(mode="json") for run in baseline]), product_signal_id),
         )
@@ -569,12 +619,15 @@ async def _mark_ready(
 
 
 async def _fail(database: Database, *, product_signal_id: UUID, detail: str) -> None:
+    """Fail the preparation, or an open workspace whose baseline never finished."""
     async with database.transaction() as conn, conn.cursor() as cur:
         await cur.execute(
             """
             update public.prepared_workspaces
             set state = 'failed', failure_detail = %s, updated_at = now()
-            where product_signal_id = %s and state = 'preparing'
+            where product_signal_id = %s
+              and (state = 'preparing'
+                   or (state in ('ready', 'drafting') and baseline_checks is null))
             """,
             (detail[:2000], product_signal_id),
         )

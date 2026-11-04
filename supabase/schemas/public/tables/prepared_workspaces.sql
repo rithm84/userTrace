@@ -17,7 +17,7 @@ CREATE TABLE "public"."prepared_workspaces" (
   "created_at"                timestamp with time zone NOT NULL DEFAULT now(),
   "updated_at"                timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT "prepared_workspaces_check1" CHECK (((state <> 'claimed'::text) OR ((implementation_attempt_id IS NOT NULL) AND (lease_fencing_token IS NOT NULL)))),
-  CONSTRAINT "prepared_workspaces_check" CHECK (((state <> ALL (ARRAY['ready'::text, 'drafting'::text])) OR (baseline_checks IS NOT NULL))),
+  CONSTRAINT "prepared_workspaces_check" CHECK (((state <> 'claimed'::text) OR (baseline_checks IS NOT NULL))),
   CONSTRAINT "prepared_workspaces_check2" CHECK (((state <> 'drafting'::text) OR (prepared_draft_id IS NOT NULL))),
   CONSTRAINT "prepared_workspaces_client_id_fkey" FOREIGN KEY (client_id) REFERENCES public.clients(id),
   CONSTRAINT "prepared_workspaces_implementation_attempt_id_fkey" FOREIGN KEY (implementation_attempt_id) REFERENCES public.implementation_attempts(id),

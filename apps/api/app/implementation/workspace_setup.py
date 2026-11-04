@@ -36,7 +36,9 @@ __all__ = [
     "exclude_check_logs",
     "export_clean_base",
     "install_dependencies",
+    "link_baseline_dependencies",
     "run_baseline",
+    "run_baseline_checks",
     "warm_fast_checks",
 ]
 
@@ -143,12 +145,28 @@ async def run_baseline(
     shell: WorkspaceShell, *, checks: Sequence[RequiredCheck]
 ) -> tuple[CheckRun, ...]:
     """Link the installed dependencies into the clean base and run the checks there."""
+    await link_baseline_dependencies(shell)
+    return await run_baseline_checks(shell, checks=checks)
+
+
+async def link_baseline_dependencies(shell: WorkspaceShell) -> None:
+    """Link the checkout's installed dependencies into the clean base beside it."""
     await _require_success(
         shell,
         operation="link_baseline_dependencies",
         command=f"cp -al node_modules {BASELINE_ROOT}/node_modules",
         timeout_seconds=_COPY_TIMEOUT_SECONDS,
     )
+
+
+async def run_baseline_checks(
+    shell: WorkspaceShell, *, checks: Sequence[RequiredCheck]
+) -> tuple[CheckRun, ...]:
+    """Run the checks in the clean base, once its dependencies are linked.
+
+    The clean base is its own copy of the base revision, so the checks run there
+    while a change is written in the checkout.
+    """
     return await run_required_checks(
         shell.at_root(BASELINE_ROOT), checks=checks, phase=CheckPhase.BASELINE, cycle_index=0
     )
