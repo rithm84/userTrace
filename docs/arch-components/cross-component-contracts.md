@@ -8,7 +8,7 @@ Each message family carries distinct authority and ordering:
 
 ## Shared-contract responsibility
 
-Within the [demo scope](../PRD.md#product-scope), these contracts own
+Within the [demo scope](../PRD.md#demo-scope), these contracts own
 cross-component identity, message, ordering, evidence, compatibility, and failure
 semantics.
 

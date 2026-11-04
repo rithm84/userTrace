@@ -1,27 +1,37 @@
 ---
-title: Account model · global identity, client-scoped participation
+title: Account model · one person across clients, memory kept per client
 ---
-erDiagram
-  utrace_user["uTrace User"]
-  global_memory["Global user memory"]
-  participation["Client-scoped participation"]
-  client_memory["Client-scoped memory"]
-  client["uTrace Client"]
-  staff["Owner and admins"]
-  surface["Discord Customer Surface"]
-  customer_org["Customer organization account"]
-
-  utrace_user ||--|| global_memory : keeps
-  utrace_user ||--o{ participation : "participates per client"
-  participation ||--|| client_memory : keeps
-  participation }o--|| client : "scoped to"
-  participation }o--|| customer_org : "belongs to"
-  client ||--o{ customer_org : "serves"
-  client ||--|{ staff : "one owner, any admins"
-  client ||--|| surface : "listens on"
-
-  class utrace_user,surface people
-  class global_memory,client_memory outcome
-  class participation observation
-  class client,customer_org client
-  class staff runtime
+flowchart TB
+  subgraph row_1 [ ]
+    direction LR
+    user(["`**uTrace User**
+    Uses a client's product`"]):::people
+    global[("`**Global memory**
+    Contact preferences · participation count`")]:::outcome
+  end
+  subgraph row_2 [ ]
+    direction LR
+    subgraph client_a [A uTrace Client]
+      direction TB
+      team_a["`**Product team**
+      Owner and admins`"]:::client
+      account_a["`**Customer account**
+      A business (B2B) or a person (B2C)`"]:::client
+      memory_a[("`**Client-scoped memory**
+      Interviews · workflow context`")]:::outcome
+    end
+    subgraph client_b [Another uTrace Client]
+      direction TB
+      team_b["`**Product team**`"]:::client
+      account_b["`**Customer account**`"]:::client
+      memory_b[("`**Client-scoped memory**`")]:::outcome
+    end
+  end
+  user -->|keeps| global
+  user -->|belongs to| account_a
+  user -->|belongs to| account_b
+  team_a -->|serves| account_a
+  team_b -->|serves| account_b
+  account_a -->|per-user history| memory_a
+  account_b -->|per-user history| memory_b
+  memory_a blocked_1@<-->|never shared| memory_b

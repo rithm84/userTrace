@@ -25,7 +25,7 @@ is the journey this system exists to run.
 
 ### Demo scope
 
-The system supports exactly what the [PRD's product scope](./PRD.md#product-scope)
+The system supports exactly what the [PRD's demo scope](./PRD.md#demo-scope)
 names, and the [scenario's acceptance boundary](./SCENARIO.md#acceptance-boundary)
 defines when it works. Nothing beyond that boundary is authorized runtime
 behavior.
