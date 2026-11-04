@@ -13,6 +13,9 @@ in the context. These are the pieces uTrace adds:
   with the rest of an answer a barge-in cancelled.
 - `ScreenState`: the controls on the participant's screen and the change's
   progress, appended to each request as an `<application>` block.
+- `ProposalMarks`: takes the change the agent proposes out of what it says, from
+  its proposal mark (`<proposal>{...}</proposal>`), and records it as the reply is
+  written.
 - `Listening`: an answer that is only the listening mark (`<listen/>`) is never
   spoken, and nor is a backchannel of the agent's that would follow its last one too
   soon or straight after it.
@@ -31,13 +34,14 @@ The measurements behind these choices are in the
 import array
 import asyncio
 import difflib
+import json
 import math
 import re
 import time
 from collections import deque
-from collections.abc import AsyncIterator, Awaitable, Callable, Coroutine, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Coroutine, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Final
+from typing import Final, Literal
 
 from pipecat.frames.frames import (
     AggregatedTextFrame,
@@ -85,6 +89,8 @@ from app.logging import get_logger
 
 __all__ = [
     "LISTENING_MARK",
+    "PROPOSAL_CLOSE",
+    "PROPOSAL_OPEN",
     "BargeInStrategy",
     "ClauseStartTTS",
     "FluxSTT",
@@ -93,6 +99,7 @@ __all__ = [
     "NearEnd",
     "OneSpeculation",
     "PlaybackTap",
+    "ProposalMarks",
     "ResponsesLLM",
     "Screen",
     "ScreenState",
@@ -143,7 +150,16 @@ _NEAR_END_LEAD_SECONDS: Final[float] = 1.0
 LISTENING_MARK: Final[str] = "<listen/>"
 #: The listening mark as the model may space it.
 _LISTENING: Final[re.Pattern[str]] = re.compile(r"<listen\s*/?>", re.IGNORECASE)
-_MARK: Final[re.Pattern[str]] = re.compile(r'<c id="[^"]*"/>|' + _LISTENING.pattern, re.IGNORECASE)
+#: Where the agent writes each change it proposes, with its checks, as the JSON
+#: arguments `propose_change` takes; it is never spoken.
+PROPOSAL_OPEN: Final[str] = "<proposal>"
+PROPOSAL_CLOSE: Final[str] = "</proposal>"
+#: A proposal mark's body longer than this is not one: what follows is spoken again.
+_PROPOSAL_MAX_CHARS: Final[int] = 6000
+_MARK: Final[re.Pattern[str]] = re.compile(
+    r'<c id="[^"]*"/>|<proposal>.*?(?:</proposal>|$)|' + _LISTENING.pattern,
+    re.IGNORECASE | re.DOTALL,
+)
 #: Words the agent listens with: the participant's backchannel words, and those of
 #: "go ahead", "I see", "take your time", "sounds good", "great", and "perfect".
 _LISTENING_WORDS: Final[frozenset[str]] = _BACKCHANNEL_WORDS | frozenset(
@@ -159,7 +175,7 @@ _CANCELLED_ANSWER_SECONDS: Final[float] = 0.5
 
 
 def strip_marks(text: str) -> str:
-    """The agent's words without its gesture and listening marks, as the participant heard them."""
+    """The agent's words without its marks, as the participant heard them."""
     return " ".join(_MARK.sub(" ", text).split())
 
 
@@ -558,6 +574,203 @@ def _since_last_reply(messages: Sequence[LLMContextMessage]) -> tuple[str | None
         if message.get("role") == "user" and not content.startswith("<application>"):
             asked = asked or content.rstrip().endswith("?")
     return None, asked
+
+
+def _json_object_end(text: str) -> int | None:
+    """The index just past the JSON object `text` begins with, once it is complete.
+
+    `text` starts at the object's opening brace. Braces inside strings do not count.
+    """
+    depth = 0
+    in_string = False
+    escaped = False
+    for index, character in enumerate(text):
+        if in_string:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == '"':
+                in_string = False
+        elif character == '"':
+            in_string = True
+        elif character == "{":
+            depth += 1
+        elif character == "}":
+            depth -= 1
+            if depth == 0:
+                return index + 1
+    return None
+
+
+def _partial_suffix(text: str, mark: str) -> int:
+    """How many trailing characters of `text` could begin `mark`."""
+    for size in range(min(len(mark) - 1, len(text)), 0, -1):
+        if mark.startswith(text[-size:]):
+            return size
+    return 0
+
+
+class ProposalMarks(FrameProcessor):
+    """Takes the agent's proposal mark out of what it says, and records the proposal.
+
+    The agent writes each change it proposes, with its checks, as a mark in the reply
+    that proposes them: `<proposal>{...}</proposal>`, the arguments `propose_change`
+    takes as one JSON object. Being part of the reply's own text, the mark cannot be
+    left off the way a tool call after a question can. This sits just after the
+    model:
+
+    - Text that could begin a mark is held until it cannot; a mark is never spoken.
+    - The mark ends where its JSON object does, so a missing closing tag does not
+      swallow the words after it; the closing tag, when written, is dropped too.
+    - Once the object is complete, `record` runs with it in the background, so the
+      change is drafted while the reply is still written and spoken, and the reply
+      waits for nothing.
+    - Each recorded mark is kept for the agent's context (`take_marks`), which the
+      agent writes once the reply's turn ends, as the tool call it replaces was, so
+      it sees what it proposed. The speech engine times the reply's other frames to
+      its audio, so the mark is not sent down the pipeline to the context.
+
+    A mark a barge-in cuts off records nothing; one whose body is not a JSON object,
+    or runs past `_PROPOSAL_MAX_CHARS`, records nothing and is never spoken.
+    """
+
+    def __init__(
+        self, *, record: Callable[[Mapping[str, object]], Coroutine[object, object, None]]
+    ) -> None:
+        super().__init__()
+        self._record = record
+        self._recording: set[asyncio.Task[None]] = set()
+        self._recorded_marks: list[str] = []
+        self._reset()
+
+    def take_marks(self) -> list[str]:
+        """The marks recorded since this was last asked, for the agent's context."""
+        marks, self._recorded_marks = self._recorded_marks, []
+        return marks
+
+    def _reset(self) -> None:
+        # Where the reply's text is: spoken, inside a mark's body, just after a mark's
+        # object (its closing tag may follow), or skipping a mark that is not readable.
+        self._state: Literal["spoken", "body", "closing", "skipping"] = "spoken"
+        # Text held because it may begin a tag.
+        self._pending = ""
+        # A mark's body while it is written, from just after its opening tag.
+        self._body = ""
+        # How much of an unreadable mark was skipped.
+        self._skipped = 0
+
+    async def process_frame(self, frame: Frame, direction: FrameDirection) -> None:
+        await super().process_frame(frame, direction)
+        if direction == FrameDirection.DOWNSTREAM:
+            if isinstance(frame, LLMTextFrame):
+                spoken = self._take(frame.text)
+                if spoken:
+                    frame.text = spoken
+                    await self.push_frame(frame, direction)
+                return
+            if isinstance(frame, (LLMFullResponseStartFrame, InterruptionFrame)):
+                if self._state == "body":
+                    _log.info("voice_proposal_mark_cut_off", written=len(self._body))
+                self._reset()
+            elif isinstance(frame, LLMFullResponseEndFrame):
+                if self._state == "body":
+                    _log.info("voice_proposal_mark_unfinished", written=len(self._body))
+                self._reset()
+        await self.push_frame(frame, direction)
+
+    def _take(self, text: str) -> str:
+        """What of `text` is spoken; a mark in it is kept back, and recorded once whole."""
+        spoken: list[str] = []
+        rest = self._pending + text
+        self._pending = ""
+        while rest:
+            if self._state == "spoken":
+                start = rest.find(PROPOSAL_OPEN)
+                if start >= 0:
+                    spoken.append(rest[:start])
+                    self._state, self._body = "body", ""
+                    rest = rest[start + len(PROPOSAL_OPEN) :]
+                    continue
+                keep = _partial_suffix(rest, PROPOSAL_OPEN)
+                spoken.append(rest[: len(rest) - keep])
+                self._pending = rest[len(rest) - keep :]
+                break
+            if self._state == "body":
+                self._body += rest
+                rest = self._finish_mark()
+                continue
+            if self._state == "closing":
+                stripped = rest.lstrip()
+                if stripped.startswith(PROPOSAL_CLOSE):
+                    rest = stripped[len(PROPOSAL_CLOSE) :]
+                    self._state = "spoken"
+                elif PROPOSAL_CLOSE.startswith(stripped):
+                    self._pending = rest  # the closing tag may still be arriving
+                    break
+                else:
+                    self._state = "spoken"  # no closing tag: what follows is spoken
+                continue
+            # Skipping an unreadable mark, up to its closing tag.
+            close = rest.find(PROPOSAL_CLOSE)
+            if close >= 0:
+                rest = rest[close + len(PROPOSAL_CLOSE) :]
+                self._state = "spoken"
+                continue
+            keep = _partial_suffix(rest, PROPOSAL_CLOSE)
+            self._skipped += len(rest) - keep
+            self._pending = rest[len(rest) - keep :]
+            if self._skipped > _PROPOSAL_MAX_CHARS:
+                _log.info("voice_proposal_mark_unreadable", reason="no closing tag")
+                self._state, self._pending = "spoken", ""
+            break
+        return "".join(spoken)
+
+    def _finish_mark(self) -> str:
+        """End the mark being written once its object is whole; return the text after it."""
+        body = self._body.lstrip()
+        if not body:
+            return ""
+        if not body.startswith("{"):
+            _log.info("voice_proposal_mark_unreadable", reason="not an object")
+            return self._skip(body)
+        end = _json_object_end(body)
+        if end is None:
+            if len(body) > _PROPOSAL_MAX_CHARS:
+                _log.info("voice_proposal_mark_unreadable", reason="too long")
+                self._state, self._body = "spoken", ""
+            return ""
+        self._body = ""
+        if self._recorded(body[:end]):
+            self._state = "closing"
+            return body[end:]
+        return self._skip(body[end:])
+
+    def _skip(self, rest: str) -> str:
+        """Skip an unreadable mark to its closing tag; `rest` is what follows."""
+        self._state, self._body, self._skipped = "skipping", "", 0
+        return rest
+
+    def _recorded(self, payload: str) -> bool:
+        """Record the proposal `payload` holds; `False` when it is not a JSON object."""
+        try:
+            arguments = json.loads(payload)
+        except json.JSONDecodeError as error:
+            _log.info("voice_proposal_mark_unreadable", reason=str(error))
+            return False
+        if not isinstance(arguments, dict):
+            _log.info("voice_proposal_mark_unreadable", reason="not an object")
+            return False
+        self._recorded_marks.append(f"{PROPOSAL_OPEN}{payload}{PROPOSAL_CLOSE}")
+        task = asyncio.create_task(self._record(arguments))
+        self._recording.add(task)
+        task.add_done_callback(self._recorded_done)
+        return True
+
+    def _recorded_done(self, task: asyncio.Task[None]) -> None:
+        self._recording.discard(task)
+        if not task.cancelled() and task.exception() is not None:
+            _log.warning("voice_proposal_record_failed", error=repr(task.exception()))
 
 
 class Listening(FrameProcessor):

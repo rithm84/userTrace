@@ -247,15 +247,16 @@ A draft is one of two kinds, `intake` or `proposal`, with one record and one Job
 - **Intake draft:** once the case's first workspace is ready, the requested
   feature is drafted from the original request and the concern intake recorded,
   so code exists before the call does. It is queued once, before any proposal.
-- **Proposal draft:** when the voice agent proposes a change, its `propose_change`
-  tool records the proposal and queues a draft. It revises the finished draft the
+- **Proposal draft:** when the voice agent proposes a change, its
+  [proposal mark](./interview-and-voice.md#proposal-mark) records the proposal and
+  queues a draft; the same change proposed again keeps the draft under way. It revises the finished draft the
   workspace holds, the intake draft or an earlier proposal, into exactly the
   proposed change, keeping what fits, and starts over from the workspace's
   starting files when none finished. An intake draft still being written when the
   proposal arrives is left to finish, so the proposal revises it instead of
   starting over, and retires it once it takes the workspace. An agreement that
-  names no recorded proposal, because the voice agent proposed without recording
-  it or the person agreed to something else, queues a proposal draft of the agreed
+  names no recorded proposal, because the voice agent proposed without its mark
+  or the person agreed to something else, queues a proposal draft of the agreed
   change itself, which revises the workspace's draft the same way.
 
 The Job:

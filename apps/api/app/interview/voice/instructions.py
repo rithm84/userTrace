@@ -13,7 +13,7 @@ from app.db.pool import Database
 from app.db.rows import as_optional_str, as_str, as_uuid
 from app.errors import AggregateNotFoundError
 from app.interview.settings import get_interview_settings
-from app.interview.voice.pipeline import LISTENING_MARK
+from app.interview.voice.pipeline import LISTENING_MARK, PROPOSAL_CLOSE, PROPOSAL_OPEN
 
 __all__ = ["session_instructions"]
 
@@ -128,9 +128,15 @@ The interview has five steps:
    controls and values the way their screen shows them. If they add to it before agreeing, say in one
    sentence how the change takes in what they added and ask whether that works;
    never restate the checks. Every time you propose the change and its checks,
-   including when you take in what they added, record what you proposed with
-   propose_change in that same reply, after your words, so it is prepared while
-   they decide. When they agree out loud to the change and its
+   including when you take in what they added, write the proposal mark in that
+   same reply, right after the checks and before your question:
+   {proposal_open}{{"proposed_outcome": "the change in one sentence", "workflow":
+   "a_short_snake_case_workflow_name", "criteria": [{{"statement": "one check, as
+   what they will see it do", "observability": "observed"}}]}}{proposal_close}, with
+   every check you proposed, each "observed" when the product's own activity can
+   show it happening, or "subjective" when only they can judge it, such as where a
+   control sits. The mark is never spoken: it prepares the change while they
+   decide. When they agree out loud to the change and its
    checks, record it with record_acceptance_criteria at once, saying nothing
    yourself, marked as proposed when they agreed to exactly what you last
    proposed: once it is recorded, the application tells them it is agreed and that
@@ -178,8 +184,9 @@ The interview has five steps:
    check they confirmed, tell them plainly what the preview showed and ask them to
    run that check again.
 5. Change it if they want. When the new version does not fully do what they need
-   and they want it changed, agree out loud what changes and which checks now apply, recording
-   each proposal with propose_change as you did the first. Once they
+   and they want it changed, agree out loud what changes and which checks now apply,
+   writing each proposal's mark as you did the first, with the whole change as it
+   now stands and every check that now applies. Once they
    agree, record it with record_requested_change at once, saying nothing yourself,
    as you did the first change: the whole change as it now stands, and the checks,
    earlier ones included unless the change replaces them. While the next
@@ -265,6 +272,8 @@ async def session_instructions(database: Database, *, interview_session_id: UUID
         preview_date=_spoken_date(preview_day),
         preview_day=_spoken_day(preview_day),
         listening_mark=LISTENING_MARK,
+        proposal_open=PROPOSAL_OPEN,
+        proposal_close=PROPOSAL_CLOSE,
         implementation_limit=int(implementation_limit),
         agent_name=interview.agent_display_name,
         client_name=as_str(row, "name"),

@@ -87,11 +87,15 @@ Each stage's contract:
   changed. It runs at reasoning effort `low`, the lowest Sol accepts, keeps
   reasoning out of speech, makes at most one
   [tool call](#tools-and-customer-language) per answer, and writes spoken text with
-  inline gesture marks, or only the listening mark (`<listen/>`) to
+  inline gesture marks and, in a reply that proposes a change, its
+  [proposal mark](#proposal-mark), or only the listening mark (`<listen/>`) to
   [keep listening](#listening-and-backchannels). The API finishes an answer a
   barge-in cancelled, so the socket carries its rest before the next answer; one
   not finished within half a second has its connection replaced instead, so it
   never arrives as the next answer.
+- **Proposal marks:** takes each proposal mark out of the reply as the model writes
+  it, so it is never spoken, and records the proposal once the mark is whole,
+  while the reply is still written and spoken; see [Proposal mark](#proposal-mark).
 - **Listening:** holds the start of each answer until it can tell what the answer
   is. An answer of only the listening mark, or of nothing that can be spoken, is
   not spoken, and the mark enters the agent's context so the model sees that it
@@ -255,9 +259,9 @@ These cues track the call and the preview:
 
 These cues track the agreed change and its validation:
 
-- **Proposal recorded:** once `propose_change` succeeds, the coding agent starts
-  [drafting the change](./implementation.md#prepared-draft); the participant hears
-  nothing about it, because nothing is agreed yet.
+- **Proposal recorded:** once a [proposal mark](#proposal-mark) is recorded, the
+  coding agent starts [drafting the change](./implementation.md#prepared-draft); the
+  participant hears nothing about it, because nothing is agreed yet.
 - **Agreement recorded:** once `record_acceptance_criteria` or
   `record_requested_change` succeeds, the application says, in the agent's voice,
   that the agent will get the change started and say when it is ready to try,
@@ -615,7 +619,6 @@ control plane's authority, against a context bundle assembled for that call:
 | --- | --- | --- |
 | `review_observed_activity` | Returns plain summaries of what uTrace recently observed in the participant's product session | Carries on |
 | `record_evidence_claim` | Appends a claim the participant established, citing the conversation and the call's bundle | Speaks again only if the calling answer said nothing, so the participant is never left in silence or answered twice |
-| `propose_change` | Records the change and checks the agent is proposing, in the reply that proposes them, so the coding agent drafts it before the participant answers | Speaks again only if the calling answer said nothing |
 | `record_acceptance_criteria` | Records the agreed scope and its observable acceptance criteria once the participant agrees to them out loud; `as_proposed` records the last proposal unchanged, which lets the change's draft be used | Says nothing; the application speaks the [agreement line](#application-cues) |
 | `record_requested_change` | Records a change asked for while trying a new version, with the checks that now apply | Says nothing; the application speaks the agreement line |
 | `begin_validation` | Begins or resumes validating the ready preview when it has not begun by itself | Carries on |
@@ -624,6 +627,30 @@ control plane's authority, against a context bundle assembled for that call:
 
 Carrying on means speaking from the result or taking the next step; the model also
 carries on after a refused call. There is no pointing tool: pointing is the [inline mark](#agent-cursor).
+There is no proposing tool either: a proposal is the [proposal mark](#proposal-mark).
+
+### Proposal mark
+
+The agent proposes each change, for the first version and for every change asked
+for while trying one, in words, and in the same reply, right after it names the
+checks and before its question, writes the change and its checks as a mark:
+`<proposal>{...}</proposal>`, one JSON object with the proposed outcome, the
+workflow name, and the criteria. Because the mark is part of the reply's own text,
+the model cannot end its turn at the question without it, as it could a tool call
+written after its words. As the reply streams, the pipeline holds back anything
+that could begin a mark, so a mark is never spoken however the model splits it into
+tokens, and ends a mark where its JSON object does, so a missing closing tag
+never silences the words after it. Once the object is whole, the proposal is
+recorded in the background, so its draft starts while the reply is still written
+and spoken, and the reply waits for nothing. Once the reply's turn ends, the mark
+is written to the agent's context after its words, as the tool call it replaced
+was, so the agent sees what it proposed and can record the agreement as proposed.
+
+A mark a barge-in cuts off records nothing, and one that is not a JSON object is
+dropped without being spoken. The same change proposed again keeps the draft
+already under way, so a reply that is withdrawn and written again does not start it
+over. When an agreement still names a change no proposal drafted, the agreement
+[drafts it itself](./implementation.md#prepared-draft).
 
 ### Tool authority
 

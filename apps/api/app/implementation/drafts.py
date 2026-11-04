@@ -203,8 +203,10 @@ async def record_change_proposal(
     """Record the change the voice agent is proposing and queue its draft.
 
     A newer proposal discards any open draft for the case, except an intake draft
-    still being written, which it revises once that finishes. Nothing about the case's
-    lifecycle moves: a proposal is not an agreement.
+    still being written, which it revises once that finishes. The same change
+    proposed again, up to case and spacing, keeps the draft already under way, so a
+    reply that is withdrawn and written again does not start it over. Nothing about
+    the case's lifecycle moves: a proposal is not an agreement.
     """
     interview_session_id = bundle.interview_session_id
     if interview_session_id is None:
@@ -221,6 +223,25 @@ async def record_change_proposal(
                 trigger="propose_change",
                 reason=f"a change cannot be proposed while the case is {state}",
             )
+        async with conn.cursor() as cur:
+            await cur.execute(
+                """
+                select id, proposal_digest from public.prepared_drafts
+                where product_signal_id = %s and interview_session_id = %s
+                  and kind = %s and state = any(%s)
+                order by proposed_at desc
+                limit 1
+                """,
+                (
+                    bundle.product_signal_id,
+                    interview_session_id,
+                    DraftKind.PROPOSAL,
+                    list(OPEN_DRAFT_STATES),
+                ),
+            )
+            open_proposal = await cur.fetchone()
+        if open_proposal is not None and as_str(open_proposal, "proposal_digest") == change.digest():
+            return as_uuid(open_proposal, "id")
         await discard_open_drafts(
             conn,
             product_signal_id=bundle.product_signal_id,
@@ -252,8 +273,8 @@ async def record_agreed_change_draft(
 ) -> UUID:
     """Queue a draft of an agreed change that no recorded proposal drafted.
 
-    The voice agent records each proposal with `propose_change`, but an agreement
-    can still name a change no proposal drafted: the agent skipped the call, or the
+    The voice agent marks each proposal in the reply that makes it, but an agreement
+    can still name a change no proposal drafted: the agent left the mark off, or the
     person agreed to something other than its last proposal. The agreed change is
     then drafted as a proposal from the moment of the agreement, revising the draft
     the workspace holds, so the attempt adopts it instead of writing the change from

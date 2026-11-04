@@ -41,6 +41,10 @@ _PURPOSE = (
 )
 #: Fits "does that work?", "anything else?", and "shall we go ahead?" alike.
 _AGREE = "That works for me, nothing to add. Go ahead."
+#: With `UTRACE_REALTIME_BARGE_IN_PROPOSAL=1`, said over the agent as it starts to
+#: propose: the proposal it was writing must still be the one the agreement adopts.
+_BARGE_IN = "Sorry, can you say that again?"
+_BARGE_IN_AFTER_SECONDS: Final[float] = 0.8
 #: How many times the participant answers the agent before the agreement must be recorded.
 _AGREEMENT_TURNS: Final[int] = 4
 _CUE_DEADLINE_SECONDS: Final[float] = 30.0
@@ -71,13 +75,35 @@ async def _proposal(database: Database, product_signal_id: UUID) -> dict[str, ob
                   and d.proposed_at <= a.recorded_at) as proposals_before_agreement,
               (select prepared_draft_id from public.acceptance_criteria_agreements
                 where product_signal_id = %(signal)s
-                order by acceptance_criteria_revision limit 1) as agreed_draft
+                order by acceptance_criteria_revision limit 1) as agreed_draft,
+              (select extract(epoch from a.recorded_at - d.proposed_at)
+                 from public.acceptance_criteria_agreements a
+                 join public.prepared_drafts d on d.id = a.prepared_draft_id
+                where a.product_signal_id = %(signal)s
+                order by a.acceptance_criteria_revision limit 1) as agreed_draft_lead_seconds
             """,
             {"signal": product_signal_id},
         )
         row = await cur.fetchone()
     assert row is not None
     return dict(row)
+
+
+async def _agent_began(database: Database, session_id: UUID, *, after: float) -> float | None:
+    """When the agent's first word after `after` played, within a bound."""
+    deadline = time.monotonic() + 15.0
+    while time.monotonic() < deadline:
+        spoken = [
+            at
+            for at, speaker, _ in await harness.words(
+                database, session_id, after=after, before=time.time()
+            )
+            if speaker == "agent"
+        ]
+        if spoken:
+            return spoken[0]
+        await asyncio.sleep(0.05)
+    return None
 
 
 async def _watch_idle_transactions(maximum: list[float], database: Database) -> None:
@@ -132,15 +158,17 @@ async def test_one_interview_from_greeting_to_a_ready_version(
     api_key = require_env("OPENAI_API_KEY")
     report = harness.Report()
     async with AsyncOpenAI(api_key=api_key) as client:
-        opening, ask, purpose, agree, *steps = await asyncio.gather(
+        opening, ask, purpose, agree, barge_in, *steps = await asyncio.gather(
             harness.speech(client, _OPENING),
             harness.speech(client, _ASK),
             harness.speech(client, _PURPOSE),
             harness.speech(client, _AGREE),
+            harness.speech(client, _BARGE_IN),
             *(harness.speech(client, step[0]) for step in _STEPS),
         )
 
     idle = [0.0]
+    barged_in_at: float | None = None
     async with harness.live_call(
         database, auth_users, report=report, monkeypatch=monkeypatch
     ) as call:
@@ -183,6 +211,13 @@ async def test_one_interview_from_greeting_to_a_ready_version(
                 if await _agreed(database, signal_id):
                     break
                 _, after = await harness.say(call.microphone, purpose if turn == 0 else agree)
+                if turn == 0 and os.environ.get("UTRACE_REALTIME_BARGE_IN_PROPOSAL") == "1":
+                    # They cut in as soon as the agent starts proposing.
+                    began = await _agent_began(database, call.session_id, after=after)
+                    assert began is not None, "the agent never started proposing"
+                    await asyncio.sleep(_BARGE_IN_AFTER_SECONDS)
+                    _, after = await harness.say(call.microphone, barge_in)
+                    barged_in_at = time.time()
                 for _ in range(100):
                     if await _agreed(database, signal_id):
                         break
@@ -254,6 +289,8 @@ async def test_one_interview_from_greeting_to_a_ready_version(
     print(f"  ready announcement: {ready_reply[1]!r}")
     print(f"  health: {health}, longest idle transaction {idle[0]:.1f}s over {elapsed:.0f}s")
     print(f"  proposal: {proposal}")
+    if barged_in_at is not None:
+        print(f"  barged in at +{barged_in_at - call.connected_at:.2f}s")
     print("  character:", [(round(at - call.connected_at, 1), state) for at, state in report.character])
     print("  timeline (seconds after connect):")
     for at, speaker, text in words:
@@ -266,6 +303,19 @@ async def test_one_interview_from_greeting_to_a_ready_version(
         "the agent never recorded its proposal before the agreement"
     )
     assert proposal["agreed_draft"] is not None, "the agreement names no proposal's draft"
+    # The agreed draft is the one the proposal started, not one the agreement had to
+    # start itself because no proposal was recorded.
+    assert float(str(proposal["agreed_draft_lead_seconds"])) > 0, (
+        "the agreement drafted the change itself: the proposal was not recorded"
+    )
+    # The proposal mark is never spoken.
+    leaked = [
+        text
+        for _, speaker, text in words
+        if speaker == "agent"
+        and any(part in text for part in ("<proposal", "proposed_outcome", "{", "</"))
+    ]
+    assert not leaked, f"the agent spoke its proposal mark: {leaked!r}"
     assert not any(word in agreement_answer.lower() for word in _BUILD_WORDS), (
         f"the agent promised a build before the gate approved it: {agreement_answer!r}"
     )
