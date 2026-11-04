@@ -54,6 +54,13 @@ _REPORT = (
 )
 _DECLINE = "No, that's okay, I'll leave it as it is."
 _ACCEPT = "Yes please, it should keep the last thirty days rolling."
+#: A change to the page itself: only the person can judge it, so its check must be
+#: subjective, or validation could never find the observation an observed check needs.
+_ACCEPT_DROPDOWN = (
+    "Yes please, keep the last thirty days rolling, and keep the saved views "
+    "dropdown disabled until there is a saved view."
+)
+_UI_STATE_WORDS: Final[tuple[str, ...]] = ("disabled", "enabled", "disable", "enable")
 _AGREE = "Yes, that works."
 #: How long the agent has to propose the change once they ask for it.
 _PROPOSE_DEADLINE_SECONDS: Final[float] = 20.0
@@ -148,8 +155,14 @@ async def test_a_version_that_falls_short_gets_a_change_offered_before_any_resul
     assert recorded != "validated", f"a version that fell short was recorded as {recorded!r}"
 
 
+@pytest.mark.parametrize(
+    "asked", [_ACCEPT, _ACCEPT_DROPDOWN], ids=["filter_behavior", "control_state"]
+)
 async def test_a_change_asked_for_in_the_new_version_is_drafted_from_the_agents_proposal(
-    database: Database, auth_users: dict[str, SignedInUser], monkeypatch: pytest.MonkeyPatch
+    database: Database,
+    auth_users: dict[str, SignedInUser],
+    monkeypatch: pytest.MonkeyPatch,
+    asked: str,
 ) -> None:
     if os.environ.get("UTRACE_REALTIME_E2E") != "1":
         pytest.skip("set UTRACE_REALTIME_E2E=1 to run the live realtime voice check")
@@ -170,7 +183,7 @@ async def test_a_change_asked_for_in_the_new_version_is_drafted_from_the_agents_
     async with AsyncOpenAI(api_key=api_key) as client:
         answer, accept, agree, *spoken = await asyncio.gather(
             harness.speech(client, _REPORT),
-            harness.speech(client, _ACCEPT),
+            harness.speech(client, asked),
             harness.speech(client, _AGREE),
             *(harness.speech(client, line) for line in lines),
         )
@@ -214,12 +227,14 @@ async def test_a_change_asked_for_in_the_new_version_is_drafted_from_the_agents_
             await asyncio.sleep(1.0)
             requested = await _requested_change(database, signal_id)
         words = await harness.words(database, session_id, after=call.connected_at, before=time.time())
+        checks = await _agreed_checks(database, signal_id)
 
     print("\nchange-in-validation report")
     print(f"  offer: {offer!r}")
     print(f"  proposal turn: {proposal_turn!r}")
     print(f"  proposal draft: {drafted!r}")
     print(f"  requested change: {requested!r}")
+    print(f"  agreed checks: {checks!r}")
     print("  timeline (seconds after connect):")
     for at, speaker, text in words:
         print(f"    +{at - call.connected_at:6.2f}  {speaker}: {text!r}")
@@ -238,6 +253,48 @@ async def test_a_change_asked_for_in_the_new_version_is_drafted_from_the_agents_
         and any(part in text for part in ("<proposal", "proposed_outcome", "{", "</"))
     ]
     assert not leaked, f"the agent spoke its proposal mark: {leaked!r}"
+    # A check on what the product does and shows is observed; one on whether a
+    # control is enabled is about the page itself, which only the person can judge.
+    rolling = [
+        statement
+        for statement, _ in checks
+        if "rolling" in statement.lower() or "relative" in statement.lower()
+    ]
+    assert rolling, f"no agreed check covers the rolling date range: {checks!r}"
+    assert all(
+        observability == "observed"
+        for statement, observability in checks
+        if statement in rolling and not any(word in statement.lower() for word in _UI_STATE_WORDS)
+    ), checks
+    if asked == _ACCEPT_DROPDOWN:
+        state_checks = [
+            (statement, observability)
+            for statement, observability in checks
+            if any(word in statement.lower() for word in _UI_STATE_WORDS)
+        ]
+        assert state_checks, f"no agreed check covers the dropdown's state: {checks!r}"
+        assert all(observability == "subjective" for _, observability in state_checks), (
+            f"a check on a control's state was frozen as observed: {state_checks!r}"
+        )
+
+
+async def _agreed_checks(database: Database, product_signal_id: UUID) -> list[tuple[str, str]]:
+    """The newest agreed checks, each with how it is validated."""
+    async with database.connection() as conn, conn.cursor() as cur:
+        await cur.execute(
+            """
+            select statement, observability::text as observability
+            from public.validation_criteria
+            where product_signal_id = %s
+              and criteria_revision = (
+                select max(criteria_revision) from public.validation_criteria
+                where product_signal_id = %s
+              )
+            order by ordinal
+            """,
+            (product_signal_id, product_signal_id),
+        )
+        return [(str(row["statement"]), str(row["observability"])) for row in await cur.fetchall()]
 
 
 async def _proposal_draft(

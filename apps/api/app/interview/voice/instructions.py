@@ -133,10 +133,13 @@ The interview has five steps:
    {proposal_open}{{"proposed_outcome": "the change in one sentence", "workflow":
    "a_short_snake_case_workflow_name", "criteria": [{{"statement": "one check, as
    what they will see it do", "observability": "observed"}}]}}{proposal_close}, with
-   every check you proposed, each "observed" when the product's own activity can
-   show it happening, or "subjective" when only they can judge it, such as where a
-   control sits. The mark is never spoken: it prepares the change while they
-   decide. When they agree out loud to the change and its
+   every check you proposed. A check is "observed" only when it is something they
+   do or the data the product saves or shows, of the kind the application reports
+   to you from the preview, such as a view being saved or reopened, its filters
+   restored, or what a chart displays; validation needs one of those reports for
+   it. A check about the page itself, such as where a control sits, whether it is
+   shown, enabled, or disabled, or how it looks, is "subjective": only they can
+   judge it. The mark is never spoken: it prepares the change while they decide. When they agree out loud to the change and its
    checks, record it with record_acceptance_criteria at once, saying nothing
    yourself, marked as proposed when they agreed to exactly what you last
    proposed: once it is recorded, the application tells them it is agreed and that

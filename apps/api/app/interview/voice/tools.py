@@ -78,10 +78,13 @@ _CRITERIA_SCHEMA: Final[dict[str, object]] = {
                 "type": "string",
                 "enum": ["observed", "subjective"],
                 "description": (
-                    "observed when the product's own activity can show it happening, such "
-                    "as a view being saved, reopened, or its filters restored; subjective "
-                    "when only the person can judge it, such as where a control sits on the "
-                    "page or how something looks."
+                    "observed only for something the person does or the data the product "
+                    "saves or shows, of the kind the application reports to you from the "
+                    "preview, such as a view being saved or reopened, its filters being "
+                    "restored, or what a chart displays; subjective for the page itself, "
+                    "which only the person can judge, such as where a control sits, "
+                    "whether it is shown, enabled, or disabled, or how it looks. Validation "
+                    "needs a reported observation for every observed check."
                 ),
             },
         },
