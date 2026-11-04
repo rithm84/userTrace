@@ -24,6 +24,10 @@ evaluation prepared, which is when an answer needs no wait at all.
 `UTRACE_LIVE_PROPOSE_WHILE_INTAKE_DRAFTS=1` proposes while the intake draft is
 still being written, as a short interview does: the proposal must then revise
 that draft once it finishes rather than start over.
+
+`UTRACE_LIVE_AGREE_WITHOUT_PROPOSAL=1` records the agreement with no proposal
+before it, as when the voice agent proposes out loud but skips `propose_change`:
+the agreed change is then drafted from the agreement, revising the intake draft.
 """
 
 from __future__ import annotations
@@ -470,6 +474,7 @@ async def test_from_the_agreement_to_the_agreed_change_on_screen(
     )
     answer_after = os.environ.get("UTRACE_LIVE_ANSWER_AFTER_SECONDS")
     propose_early = os.environ.get("UTRACE_LIVE_PROPOSE_WHILE_INTAKE_DRAFTS") == "1"
+    skip_proposal = os.environ.get("UTRACE_LIVE_AGREE_WITHOUT_PROPOSAL") == "1"
     criteria = (
         [*CRITERIA, ADDED_CRITERION]
         if os.environ.get("UTRACE_LIVE_PROPOSAL_ADDS_CRITERION") == "1"
@@ -687,13 +692,22 @@ async def test_from_the_agreement_to_the_agreed_change_on_screen(
                     time.monotonic() - intake_drafted_at, 1
                 )
 
-            # The voice agent proposes the change, and the draft starts at once.
-            proposed = await _tool(
-                database,
-                case=gated,
-                session_id=session_id,
-                name="propose_change",
-                arguments={"proposed_outcome": OUTCOME, "workflow": WORKFLOW, "criteria": criteria},
+            # The voice agent proposes the change, and the draft starts at once;
+            # unless it only proposed out loud, and the agreement comes first.
+            proposed = (
+                None
+                if skip_proposal
+                else await _tool(
+                    database,
+                    case=gated,
+                    session_id=session_id,
+                    name="propose_change",
+                    arguments={
+                        "proposed_outcome": OUTCOME,
+                        "workflow": WORKFLOW,
+                        "criteria": criteria,
+                    },
+                )
             )
             proposed_at = time.monotonic()
             proposed_clock = await _row(database, "select clock_timestamp() as now")
@@ -710,8 +724,8 @@ async def test_from_the_agreement_to_the_agreed_change_on_screen(
                 "and kind = 'proposal' order by proposed_at desc limit 1",
                 case.product_signal_id,
             )
-            assert draft is not None, proposed
-            draft_id = draft["id"]
+            assert skip_proposal or draft is not None, proposed
+            draft_id = None if draft is None else draft["id"]
 
             async def drafted() -> dict[str, object] | None:
                 row = await _row(
@@ -724,7 +738,9 @@ async def test_from_the_agreement_to_the_agreed_change_on_screen(
                 assert row["state"] not in ("failed", "discarded"), row["failure_detail"]
                 return row if row["state"] == "drafted" and row["settled_at"] is not None else None
 
-            if answer_after is None:
+            if skip_proposal:
+                pass
+            elif answer_after is None:
                 ready = await _until("the draft to be proven", drafted)
                 timings["draft_ready_after_proposal_seconds"] = round(
                     time.monotonic() - proposed_at, 1
@@ -771,6 +787,17 @@ async def test_from_the_agreement_to_the_agreed_change_on_screen(
             )
             agreed_at = time.monotonic()
             assert "acceptance_criteria_revision" in agreed, agreed
+            if skip_proposal:
+                recorded = await _row(
+                    database,
+                    "select prepared_draft_id from public.acceptance_criteria_agreements "
+                    "where product_signal_id = %s",
+                    case.product_signal_id,
+                )
+                assert recorded is not None and recorded["prepared_draft_id"] is not None, (
+                    "the agreement drafted no change"
+                )
+                draft_id = recorded["prepared_draft_id"]
             timings["answered_after_proposal_seconds"] = round(agreed_at - proposed_at, 1)
             clock = await _row(database, "select clock_timestamp() as now")
             assert clock is not None

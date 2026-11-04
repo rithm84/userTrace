@@ -379,28 +379,37 @@ async def _agreed_draft(
     proposal: ProposedChange | None,
     as_proposed: bool,
 ) -> UUID | None:
-    """The open prepared draft this agreement records, discarding every other one.
+    """The prepared draft this agreement records, discarding every other open one.
 
-    Only the session's last proposal can be agreed to: as it stands when
-    `as_proposed`, or when the agreed change is that proposal. With neither, no draft
-    is recorded and the attempt authors the change itself.
+    The session's last proposal is the draft when it is agreed to: as it stands when
+    `as_proposed`, or when the agreed change is that proposal. Otherwise the agreed
+    change is drafted from now (`record_agreed_change_draft`), revising the draft the
+    workspace holds, so the attempt still adopts a draft instead of writing the
+    change from nothing. With no session or no change to draft, none is recorded.
     """
+    session_id = bundle.interview_session_id
     found = None
-    if bundle.interview_session_id is not None and (as_proposed or proposal is not None):
+    if session_id is not None and (as_proposed or proposal is not None):
         found = await draft_for_agreement(
             conn,
             product_signal_id=bundle.product_signal_id,
-            interview_session_id=bundle.interview_session_id,
+            interview_session_id=session_id,
             change=None if as_proposed else proposal,
         )
     draft_id = None if found is None else found[0]
+    drafts_agreed_change = draft_id is None and session_id is not None and proposal is not None
     await discard_open_drafts(
         conn,
         product_signal_id=bundle.product_signal_id,
         keep=draft_id,
         reason="the agreement records a different change",
-        spare_running_intake=draft_id is not None,
+        spare_running_intake=draft_id is not None or drafts_agreed_change,
     )
+    if drafts_agreed_change and proposal is not None:
+        # The drafts module reaches the gate, whose classification imports this one.
+        from app.implementation.drafts import record_agreed_change_draft
+
+        draft_id = await record_agreed_change_draft(conn, bundle=bundle, change=proposal)
     return draft_id
 
 
