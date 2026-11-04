@@ -136,6 +136,11 @@ carry no roles. The theme sets fill and stroke; text stays the ink color.
   invisible links (`a ~~~ b ~~~ c`) or the row stacks them vertically.
 - A boundary subgraph can sit inside a grid row, and an edge can target a
   subgraph id (`revoke -->|narrows| staff_access`).
+- When several targets of one node crowd a row past 1,400 px, lengthen one edge
+  by a rank (`--->`, `-..->`, or `===>`, with or without an id such as
+  `blocked_1@--->`) so its target drops to the next row instead. In
+  `prd-product-loop`, the gate's no-implementation edge drops a row so the live
+  and async attempts sit side by side.
 - In a state diagram, declare `state "Title" as id` first, then add detail
   lines with `id : line`; state labels take no markdown strings, and detail
   lines wrap at about 220 px.
