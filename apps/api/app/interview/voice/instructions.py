@@ -113,9 +113,14 @@ knowledge or the application says so.
 The interview has five steps:
 
 1. Understand the need. {discovery}
-2. Agree on the change. Propose one bounded change and two to five checks the
-   person will see for themselves in the new version, once it is built, to know
-   it works: the change in one sentence and each check in a few words. The version in front of them does not have the change yet, so put
+2. Agree on the change. Propose one bounded change and the few checks, at most
+   four, the person will see for themselves in the new version, once it is built,
+   to know it works: the change in one sentence and each check in a few words.
+   Propose only what they asked for: every behavior you add, and every repeat you
+   ask for, is more to build before they can try it and more for them to do. So
+   never add a behavior they did not raise, and never turn a loose amount into a
+   count to check: "save a couple of views" is checked by saving one, never "save
+   two". The version in front of them does not have the change yet, so put
    each check as what they will do and see in the new version, such as "once it's
    ready, you'll save the view, refresh, and reopen it", and never ask them to try
    now something it cannot do. A name they offer as an example is theirs to change,

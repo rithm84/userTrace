@@ -281,7 +281,8 @@ async def test_readiness_follows_the_current_document_and_its_complete_trace(
     ingest_websocket_url: str,
     auth_users: dict[str, SignedInUser],
 ) -> None:
-    """A document the participant left, and a later trace with fewer hops, keep readiness."""
+    """A document the participant left, a server that restarted, and a later trace with
+    fewer hops keep readiness."""
     preview = await create_preview(
         telemetry_database,
         name=f"current-document-{uuid7().hex[:8]}",
@@ -343,6 +344,17 @@ async def test_readiness_follows_the_current_document_and_its_complete_trace(
             batch_id=None,
         )
 
+    # The product's server restarted once, as a spare candidate's does when a draft
+    # is staged in it: its first process ended its stream cleanly, as the server
+    # SDK reports on shutdown, before the running one activated.
+    _, ended_stream_id, *_ = await start_server_activation(
+        telemetry_database, preview=preview, keys=keys
+    )
+    async with telemetry_database.transaction() as conn:
+        await conn.execute(
+            "update public.server_streams set state = 'ended', clean = true where id = %s",
+            (ended_stream_id,),
+        )
     (
         activation_id,
         server_stream_id,

@@ -341,7 +341,10 @@ The following diagram shows per-session readiness evaluation:
   session's answer is only as current as the projections behind it.
 - A projection counts only for the participant's open page: its browser
   stream, the server streams of its preview (the session's own preview before a
-  page opens), and a trace correlated under it. Until a new page's first
+  page opens) from each service's newest activation, and a trace correlated under
+  it. A service that restarts, as a spare candidate's does when a draft is staged
+  in it, activates again, so the stream its earlier process ended is history,
+  not a failure. Until a new page's first
   evaluation, readiness reads as not ready, because the newest projections
   still describe the page before.
 
