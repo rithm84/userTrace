@@ -236,7 +236,9 @@ async def test_a_draft_written_during_the_proposal_is_what_the_attempt_publishes
     assert draft is not None
     assert draft["state"] == "drafted", draft["failure_detail"]
     assert draft["files"], "the draft changed no file"
-    assert [run["name"] for run in draft["fast_checks"]["runs"]] == ["typecheck"]
+    # The type check runs in the workspace; the production build runs in the spare.
+    assert [run["name"] for run in draft["fast_checks"]["runs"]] == ["typecheck", "build"]
+    assert all(run["exit_code"] == 0 for run in draft["fast_checks"]["runs"])
     # Its version identifier is minted and its large artifacts are stored already.
     assert draft["preview_version_id"] is not None
     assert len(draft["artifacts"]) == 3

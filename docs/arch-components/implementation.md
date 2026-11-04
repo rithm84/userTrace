@@ -204,7 +204,7 @@ gate.
 The control plane prepares the case's workspace beside the base preview, so the
 coding agent can draft a change while the voice agent proposes it:
 
-![A prepared workspace is built when the participant claims the invitation and records its baseline; a proposal drafts in it and a newer proposal adjusts that draft or starts it over; an approved attempt with matching pins claims it, or it is released when its case ends or its one-hour window passes.](../diagrams/svg/implementation-prepared-workspace.svg)
+![A prepared workspace is built when the participant claims the invitation and opens to drafting once its checkout is installed, while its baseline runs beside the draft; a proposal drafts in it and a newer proposal adjusts that draft or starts it over; an approved attempt with matching pins claims it once its baseline is recorded, or it is released when its case ends or its one-hour window passes.](../diagrams/svg/implementation-prepared-workspace.svg)
 
 <details><summary>Diagram key</summary>
 
@@ -215,9 +215,12 @@ coding agent can draft a change while the voice agent proposes it:
 
 It is built from the case's pinned release alone and reaches the OpenAI API only
 for a prepared draft. Preparation also runs the type check in the checkout itself,
-so a draft's type check is incremental. The claim binds the sandbox to the attempt
-and its fencing token in the same row update that takes it, and the first cycle
-starts with the recorded baseline.
+so a draft's type check is incremental. Once the checkout is installed and that
+type check has run, the workspace opens to drafting and the intake draft starts;
+the baseline keeps running in its own copy of the base and is recorded when it
+finishes, because only an attempt reads it. The claim waits for the baseline, binds
+the sandbox to the attempt and its fencing token in the same row update that takes
+it, and the first cycle starts with the recorded baseline.
 
 Each workspace is one generation of the case's, and a case holds at most one open
 generation at a time. An attempt whose version passed its full checks hands its
@@ -231,7 +234,8 @@ that destroys its workspace instead marks the claim `released`.
 
 An attempt claims only a workspace prepared from its own specification's pins:
 template snapshot, clone URL, base revision, install command, required checks,
-and vCPUs. It waits for a preparation still running rather than starting fresh;
+and vCPUs. It waits for a preparation or baseline still running rather than
+starting fresh;
 with none to claim, it prepares its own and authors the first cycle while the
 dependencies install.
 
@@ -244,7 +248,7 @@ within minutes.
 
 A draft is one of two kinds, `intake` or `proposal`, with one record and one Job:
 
-- **Intake draft:** once the case's first workspace is ready, the requested
+- **Intake draft:** once the case's first workspace opens to drafting, the requested
   feature is drafted from the original request and the concern intake recorded,
   so code exists before the call does. It is queued once, before any proposal.
 - **Proposal draft:** when the voice agent proposes a change, its

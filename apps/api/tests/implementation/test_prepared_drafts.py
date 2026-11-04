@@ -13,6 +13,7 @@ from types import SimpleNamespace
 from typing import cast
 from uuid import UUID
 
+import psycopg
 import pytest
 from psycopg.types.json import Jsonb
 from utrace_contracts.domain.lifecycle import (
@@ -28,6 +29,7 @@ from app.db.pool import Database
 from app.db.rows import as_uuid
 from app.ids import uuid7
 from app.implementation import prepared as prepared_module
+from app.implementation.checks import CheckPhase, CheckRun
 from app.implementation.draft_records import ProposedChange, ProposedCriterion
 from app.implementation.drafts import (
     PREPARE_DRAFT,
@@ -629,6 +631,113 @@ async def test_a_proposal_discarded_while_it_waits_leaves_the_workspace_as_it_wa
         bound = await cur.fetchone()
     # The workspace still holds the intake draft, for the newer proposal to revise.
     assert bound is not None and bound["prepared_draft_id"] == intake_id
+
+
+async def test_drafting_starts_before_the_baseline_and_a_claim_waits_for_it(
+    database: Database, auth_users: dict[str, SignedInUser], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    gated = await create_gated_case(
+        database,
+        name="claim-waits-for-baseline",
+        authorizing_auth_user_id=auth_users["owner_a"].auth_user_id,
+        policy=gate_policy(),
+        state=ProductSignalState.IMPLEMENTING,
+    )
+    attempt = await authorize_attempt(
+        database,
+        case=gated,
+        scope=saved_views_scope(checks=SHOPALYTICS_REQUIRED_CHECKS),
+        workspace_snapshot_id=SNAPSHOT,
+    )
+    pins = pins_for_attempt(attempt.specification, build_recipe=SHOPALYTICS_BUILD_RECIPE)
+    workspace_id = uuid7()
+    async with database.transaction() as conn, conn.cursor() as cur:
+        await cur.execute(
+            """
+            insert into public.prepared_workspaces (
+                id, client_id, product_signal_id, state, sandbox_name, pins_digest, expires_at
+            )
+            values (%s, %s, %s, 'preparing', 'ws-baseline-later', %s, now() + interval '1 hour')
+            """,
+            (workspace_id, gated.client_id, gated.product_signal_id, pins.digest()),
+        )
+    # The checkout is installed: drafting may begin while the baseline runs.
+    assert await prepared_module._mark_draftable(
+        database, product_signal_id=gated.product_signal_id
+    )
+    async with database.transaction() as conn, conn.cursor() as cur:
+        await cur.execute(
+            "update public.prepared_workspaces set state = 'drafting', prepared_draft_id = %s "
+            "where id = %s",
+            (uuid7(), workspace_id),
+        )
+    monkeypatch.setattr(prepared_module, "_CLAIM_POLL_SECONDS", 0.05)
+    baseline = (
+        CheckRun(
+            phase=CheckPhase.BASELINE,
+            name="lint",
+            command="npm run lint",
+            exit_code=0,
+            duration_seconds=7.5,
+            log_path=".utrace-checks/lint.log",
+            output_tail="",
+        ),
+    )
+
+    async def baseline_after_a_moment() -> None:
+        await asyncio.sleep(0.3)
+        # Recorded while the draft still holds the workspace.
+        assert await prepared_module._record_baseline(
+            database, product_signal_id=gated.product_signal_id, baseline=baseline
+        )
+
+    recording = asyncio.create_task(baseline_after_a_moment())
+    claimed = await claim_prepared_workspace(
+        database, specification=attempt.specification, pins=pins
+    )
+    await recording
+    # The attempt claimed it only once the baseline it compares against was there.
+    assert claimed is not None and claimed.prepared_workspace_id == workspace_id
+    assert [run.name for run in claimed.baseline] == ["lint"]
+
+    # A claimed workspace without a baseline is refused outright.
+    with pytest.raises(psycopg.errors.CheckViolation):
+        async with database.transaction() as conn, conn.cursor() as cur:
+            await cur.execute(
+                "update public.prepared_workspaces set baseline_checks = null where id = %s",
+                (workspace_id,),
+            )
+
+
+async def test_a_workspace_whose_baseline_never_finishes_is_failed(
+    database: Database, auth_users: dict[str, SignedInUser]
+) -> None:
+    case = await interviewing_case(database, auth_users, "baseline-fails")
+    async with database.transaction() as conn, conn.cursor() as cur:
+        await cur.execute(
+            """
+            insert into public.prepared_workspaces (
+                id, client_id, product_signal_id, state, sandbox_name, pins_digest, expires_at
+            )
+            values (%s, %s, %s, 'ready', 'ws-baseline-fails', 'sha256:pins',
+                    now() + interval '1 hour')
+            """,
+            (uuid7(), case.client_id, case.product_signal_id),
+        )
+    await prepared_module._fail(
+        database, product_signal_id=case.product_signal_id, detail="the baseline timed out"
+    )
+    async with database.connection() as conn, conn.cursor() as cur:
+        await cur.execute(
+            "select state, failure_detail from public.prepared_workspaces "
+            "where product_signal_id = %s",
+            (case.product_signal_id,),
+        )
+        row = await cur.fetchone()
+    assert row is not None and (row["state"], row["failure_detail"]) == (
+        "failed",
+        "the baseline timed out",
+    )
 
 
 async def test_a_claim_waits_for_the_agreed_draft_to_take_the_workspace(

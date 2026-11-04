@@ -7,10 +7,11 @@ stateDiagram-v2
   preparing : Sandbox from pinned template
   preparing : Base revision checked out
   preparing : Client recipe's dependencies
-  preparing : Checks run on the clean base
+  preparing : Type check warmed in the checkout
   state "Prepared" as prepared
   prepared : No lease, data, or authority
   prepared : The base, or a version's files
+  prepared : Baseline recorded, or still running
   state "Drafting" as drafting
   drafting : The request, then the proposal
   drafting : Egress opened to the model
@@ -22,11 +23,11 @@ stateDiagram-v2
   state "Released" as released
   released : Sandbox destroyed
 
-  preparing --> prepared: baseline recorded
+  preparing --> prepared: checkout installed
   prepared --> drafting: the request or a proposal is drafted
   drafting --> drafting: a proposal adjusts it or starts over
-  prepared --> claimed: approved attempt with matching pins
-  drafting --> claimed: approved attempt with matching pins
+  prepared --> claimed: approved attempt, matching pins, baseline recorded
+  drafting --> claimed: approved attempt, matching pins, baseline recorded
   prepared --> released: case ends or one-hour window passes
   drafting --> released: case ends or one-hour window passes
   claimed --> prepared: its version passes its full checks · the next generation
