@@ -42,7 +42,7 @@ CREATE TABLE "public"."prepared_drafts" (
 ALTER TABLE "public"."prepared_drafts"
   ENABLE ROW LEVEL SECURITY;
 
-CREATE UNIQUE INDEX prepared_drafts_one_open_per_case ON public.prepared_drafts USING btree (product_signal_id)
+CREATE UNIQUE INDEX prepared_drafts_one_open_per_kind ON public.prepared_drafts USING btree (product_signal_id, kind)
   WHERE (state = ANY (ARRAY['proposed'::text, 'drafting'::text, 'drafted'::text]));
 
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE "public"."prepared_drafts" TO "service_role";

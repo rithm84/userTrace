@@ -211,6 +211,7 @@ export function enterDoor(params: {
         serviceToken: config.controlPlaneServiceToken,
         timeoutMs: config.controlPlaneTimeoutMs,
         attempts: config.controlPlaneAttempts,
+        retryWindowMs: config.controlPlaneRetryWindowMs,
       }),
     },
   };

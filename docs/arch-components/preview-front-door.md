@@ -126,6 +126,12 @@ state as the session tab. Bounded reconnect permits authorized
 implementation/checks to continue but never validation. An outage does not change
 the kind of work or claim success.
 
+The door retries a control-plane call that fails in transport or with a retryable
+status, with growing pauses, for at least its configured attempts and until a
+retry window of a few seconds ends, so a brief interruption of the control
+plane's ingress, such as one around a route switch, reaches the participant as a
+slower answer rather than an error.
+
 ## Origin compatibility
 
 Client applications receive their preview base URL, allowed origin, cookie

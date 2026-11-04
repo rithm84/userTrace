@@ -16,11 +16,11 @@
 </p>
 
 uTrace is a fleet of forward-deployed agents for product teams. It plugs into
-the community where a product's customers already talk, identifies the Product
-Signals in their feedback, and turns them into validated implementation work: it
+the places where a product's customers already give feedback, identifies the
+Product Signals in it, and turns them into validated implementation work: it
 interviews the customer behind each one while they use the product, builds the
-agreed change live in an isolated preview, and has that same customer validate
-it before a pull request opens.
+agreed change in isolation, live during the interview when it fits, and has that
+same customer validate it before a pull request opens.
 
 ## Why uTrace
 
@@ -38,7 +38,7 @@ on its own, so it scales with the company without adding headcount.
 
 ## How it works
 
-![From a Discord message to a validated GitHub draft PR in seven steps.](docs/diagrams/svg/readme-loop.svg)
+![From a customer's feedback to a validated draft PR in seven steps; a version that falls short goes back through the Implementation Gate when the customer agrees on a change, and otherwise a Case File explains why no PR opens.](docs/diagrams/svg/readme-loop.svg)
 
 <details><summary>Diagram key</summary>
 
@@ -47,19 +47,26 @@ on its own, so it scales with the company without adding headcount.
 </details>
 <p></p>
 
-1. A customer asks for a feature in the client's Discord server.
-2. Intake records the request as a Product Signal and sends the customer, its
-   originating user, a private invitation with an invoice-credit offer.
+1. A customer asks for a feature or reports a problem where they already give
+   feedback, such as the client's Discord server or helpdesk.
+2. Intake records it as a Product Signal and sends the customer, its originating
+   user, a private invitation with a reward offer, such as an invoice credit.
 3. In a voice interview, the agent separates the requested solution from the
    underlying job and pain while the user shows the workflow in a seeded preview
    of the product.
-4. The Implementation Gate decides whether the agreed change can be built live.
-5. A coding agent implements it in an isolated workspace while the conversation
-   continues, and the required checks run.
-6. The same user tries the new version and confirms each agreed check.
-7. Validated work becomes one draft PR and a Case File for the product team, and
-   the user's organization earns an invoice credit for taking part. When no
-   change passes the gate, the Case File explains why, and no PR opens.
+4. The Implementation Gate decides what gets built: the agreed change live during
+   the interview, larger work async after it, or nothing.
+5. A coding agent builds the change in an isolated workspace. It starts drafting
+   as soon as the user claims their invitation, so a live change is ready to try
+   moments after they agree to it; only the gate's approval lets a draft reach
+   them.
+6. The same user tries the new version and confirms each acceptance criterion
+   they agreed on. If it falls short, the agent offers a change, which goes back
+   through the gate while the client's iteration budget allows.
+7. Validated work, once every required check has passed, becomes one draft PR
+   and a Case File for the product team, and the user's customer account earns
+   the reward for taking part. When nothing is built, or a version falls short
+   with no further change, the Case File explains why, and no PR opens.
 
 ## What clients and customers get
 
@@ -68,7 +75,7 @@ on its own, so it scales with the company without adding headcount.
 - A Case File for every case, built from recorded evidence rather than model
   claims: what the customer needs and why, the product behavior observed before
   and after the change, what was built and checked, the risks, and the next
-  action. When nothing passes the Implementation Gate, it explains why.
+  action. When nothing is built, or the change falls short, it explains why.
 - One draft PR, only for validated work, bound to the exact version the customer
   validated. uTrace never merges; production merge stays with the team.
 - A dashboard of cases in progress and Case Files with their PRs.
@@ -77,10 +84,10 @@ on its own, so it scales with the company without adding headcount.
 
 - A short voice interview inside their own workflow, instead of a form or a
   ticket that goes nowhere.
-- The change built while they talk, and the chance to try it before anything
-  ships.
-- An invoice credit for their organization for taking part, whether their
-  feedback is positive or not.
+- The change built while they talk, or soon after, and the chance to try it
+  before anything ships.
+- A reward for taking part, such as an invoice credit on their customer account,
+  whether their feedback is positive or not.
 - Privacy across products: what they share with one client is never visible to
   another.
 
@@ -89,12 +96,14 @@ on its own, so it scales with the company without adding headcount.
 - **SDK integration:** the product commits uTrace's browser and server SDKs to
   its normal branch. They run only in previews; production excludes the active
   runtime.
-- **Autonomy Policy:** allowed and blocked code areas, required checks, and how
-  many Implementation Attempts one Product Signal may use. Each Product Signal
-  keeps the policy it started with.
-- **Outreach Offers:** a budget for fixed invoice credits that reward customers
-  for taking part. uTrace reserves each credit before inviting anyone, the agent
-  can't negotiate it, and earning it never depends on positive feedback.
+- **Autonomy Policy:** which implementation paths uTrace may take, allowed and
+  blocked code areas, required checks, and the iteration budget: how many
+  Implementation Attempts one Product Signal may use. Each case keeps the policy
+  it started with.
+- **Outreach Offers:** a budget for fixed rewards, such as invoice credits, for
+  customers who take part. uTrace reserves each reward before inviting anyone,
+  the agent can't negotiate it, and earning it never depends on positive
+  feedback.
 - **Stopping work:** owners and admins can stop any active case, with a reason.
 
 ## The interview
@@ -117,14 +126,18 @@ through a private return link.
 
 Validation is structured. The same user repeats the workflow on the exact new
 version and dataset, and the outcome is validated, partially validated, not
-validated, or unclear. A dropped connection interrupts validation instead of
-failing it.
+validated, or unclear. Anything short of validated leads the agent to offer a
+change while the iteration budget allows. A dropped connection interrupts
+validation instead of failing it.
 
 ## Isolation and safety
 
 - Each Interview Session gets its own running copy of the product, from
   frontend to seeded database, in Vercel Sandbox, and each new version gets a
   separate one.
+- The user's preview switches to a new version all at once, only after its fast
+  checks pass, so they never see a half-built or broken page. The slower checks
+  finish while they try it, and a PR waits for all of them.
 - The coding workspace can change code but holds no customer data or production
   credentials, and it never becomes the copy the user sees.
 - Previews replace email, payments, webhooks, and other side effects with

@@ -86,12 +86,16 @@ export function configureDoor(params: {
   applicationPort: number;
   routeContextTtlSeconds: number;
   controlPlaneAttempts: number;
+  controlPlaneRetryWindowMs?: number;
 }): void {
   process.env.UTRACE_CONTROL_PLANE_BASE_URL = params.controlPlaneBaseUrl;
   process.env.UTRACE_CONTROL_PLANE_SERVICE_TOKEN = serviceToken;
   process.env.UTRACE_CONTROL_PLANE_TIMEOUT_MS = "2000";
   process.env.UTRACE_CONTROL_PLANE_ATTEMPTS = String(
     params.controlPlaneAttempts,
+  );
+  process.env.UTRACE_CONTROL_PLANE_RETRY_WINDOW_MS = String(
+    params.controlPlaneRetryWindowMs ?? 0,
   );
   process.env.UTRACE_PREVIEW_APEX = previewApex;
   process.env.UTRACE_SESSION_COOKIE_NAME = sessionCookieName;

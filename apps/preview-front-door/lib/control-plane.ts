@@ -28,7 +28,8 @@ import { logDoorWarning } from "./log";
  * The control plane is the authority on handoff codes, session credentials, and route
  * mappings; the door only presents evidence and enforces the answer. Every call carries
  * the door's service token, disables caching, refuses redirects, retries transport and
- * server failures with a warning before raising the last one, and validates the response
+ * server failures with a warning, with growing pauses for at least its attempts and
+ * until its retry window ends, before raising the last one, and validates the response
  * against its published contract. A response that does not match the contract is a
  * failure, never a partially trusted result.
  */
@@ -47,6 +48,7 @@ const retryableStatuses: ReadonlySet<number> = new Set([
 ]);
 
 const backoffStepMs = 100;
+const maxBackoffMs = 1_000;
 
 const delay = (milliseconds: number): Promise<void> =>
   new Promise((resolve) => {
@@ -67,17 +69,20 @@ export class ControlPlaneClient {
   readonly #serviceToken: string;
   readonly #timeoutMs: number;
   readonly #attempts: number;
+  readonly #retryWindowMs: number;
 
   constructor(params: {
     baseUrl: string;
     serviceToken: string;
     timeoutMs: number;
     attempts: number;
+    retryWindowMs: number;
   }) {
     this.#baseUrl = params.baseUrl.replace(/\/+$/, "");
     this.#serviceToken = params.serviceToken;
     this.#timeoutMs = params.timeoutMs;
     this.#attempts = params.attempts;
+    this.#retryWindowMs = params.retryWindowMs;
   }
 
   /** Exchange a one-time front-door handoff code for a session credential. */
@@ -177,7 +182,9 @@ export class ControlPlaneClient {
     request: ControlPlaneRequest<T>,
   ): Promise<ControlPlaneOutcome<T>> {
     let lastFailure: unknown = null;
-    for (let attempt = 1; attempt <= this.#attempts; attempt += 1) {
+    const startedAt = Date.now();
+    let attempt = 1;
+    for (; ; attempt += 1) {
       try {
         const response = await this.#fetchOnce(request);
         if (retryableStatuses.has(response.status)) {
@@ -206,13 +213,16 @@ export class ControlPlaneClient {
           attempts: this.#attempts,
         });
       }
-      if (attempt < this.#attempts) {
-        await delay(attempt * backoffStepMs);
+      const pause = Math.min(backoffStepMs * 2 ** (attempt - 1), maxBackoffMs);
+      const withinWindow = Date.now() - startedAt + pause < this.#retryWindowMs;
+      if (attempt >= this.#attempts && !withinWindow) {
+        break;
       }
+      await delay(pause);
     }
     throw new ControlPlaneUnavailableError({
       endpoint: request.endpoint,
-      attempts: this.#attempts,
+      attempts: attempt,
       cause: lastFailure,
     });
   }

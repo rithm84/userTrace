@@ -24,6 +24,10 @@ const environmentSchema = z.object({
   UTRACE_CONTROL_PLANE_SERVICE_TOKEN: z.string().min(16),
   UTRACE_CONTROL_PLANE_TIMEOUT_MS: integerEnv({ min: 100, max: 30_000 }),
   UTRACE_CONTROL_PLANE_ATTEMPTS: integerEnv({ min: 1, max: 5 }),
+  UTRACE_CONTROL_PLANE_RETRY_WINDOW_MS: integerEnv({
+    min: 0,
+    max: 20_000,
+  }).optional(),
   UTRACE_PREVIEW_APEX: z
     .string()
     .regex(
@@ -41,11 +45,19 @@ const environmentSchema = z.object({
   UTRACE_ROUTE_CONTEXT_TTL_SECONDS: integerEnv({ min: 5, max: 300 }),
 });
 
+/**
+ * How long a call keeps retrying a control plane that stays unavailable: long enough
+ * to ride out a brief ingress interruption, such as the moment a new Preview Version
+ * is swapped in, instead of showing the participant an error.
+ */
+const defaultControlPlaneRetryWindowMs = 8_000;
+
 export interface DoorConfig {
   readonly controlPlaneBaseUrl: string;
   readonly controlPlaneServiceToken: string;
   readonly controlPlaneTimeoutMs: number;
   readonly controlPlaneAttempts: number;
+  readonly controlPlaneRetryWindowMs: number;
   readonly previewApex: string;
   readonly sessionCookieName: string;
   readonly sessionCookieMaxAgeSeconds: number;
@@ -69,6 +81,9 @@ export function readDoorConfig(environment: NodeJS.ProcessEnv): DoorConfig {
     controlPlaneServiceToken: values.UTRACE_CONTROL_PLANE_SERVICE_TOKEN,
     controlPlaneTimeoutMs: values.UTRACE_CONTROL_PLANE_TIMEOUT_MS,
     controlPlaneAttempts: values.UTRACE_CONTROL_PLANE_ATTEMPTS,
+    controlPlaneRetryWindowMs:
+      values.UTRACE_CONTROL_PLANE_RETRY_WINDOW_MS ??
+      defaultControlPlaneRetryWindowMs,
     previewApex: values.UTRACE_PREVIEW_APEX,
     sessionCookieName: values.UTRACE_SESSION_COOKIE_NAME,
     sessionCookieMaxAgeSeconds: values.UTRACE_SESSION_COOKIE_MAX_AGE_SECONDS,

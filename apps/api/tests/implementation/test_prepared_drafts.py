@@ -7,11 +7,13 @@ tests.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from types import SimpleNamespace
 from typing import cast
 from uuid import UUID
 
+import pytest
 from psycopg.types.json import Jsonb
 from utrace_contracts.domain.lifecycle import (
     CriterionObservability,
@@ -23,15 +25,20 @@ from app.clients.shopalytics_release import SHOPALYTICS_BUILD_RECIPE, SHOPALYTIC
 from app.context.bundles import AssembledBundle, assemble_bundle
 from app.context.purposes import BundlePurpose
 from app.db.pool import Database
+from app.db.rows import as_uuid
 from app.ids import uuid7
+from app.implementation import prepared as prepared_module
 from app.implementation.draft_records import ProposedChange, ProposedCriterion
 from app.implementation.drafts import (
     PREPARE_DRAFT,
+    _intake_patch,
+    _take_workspace,
     adoptable_draft,
     files_digest,
     record_intake_draft,
 )
 from app.implementation.prepared import (
+    _agreed_draft_waiting,
     claim_prepared_workspace,
     hand_over_workspace,
     pins_for_attempt,
@@ -405,6 +412,165 @@ async def test_the_original_request_is_drafted_once_and_a_proposal_replaces_it(
     await _propose(await _context(database, case=case, session_id=session_id))
     drafts = await _drafts(database, case)
     assert [draft["state"] for draft in drafts] == ["discarded", "proposed"]
+
+
+async def test_a_proposal_revises_an_intake_draft_still_being_written(
+    database: Database, auth_users: dict[str, SignedInUser]
+) -> None:
+    case = await interviewing_case(database, auth_users, "drafts-running-intake")
+    session_id = await create_live_session(database, case=case, phase=InterviewPhase.DISCOVERY)
+    await _record_concern(database, case)
+    intake_id = await record_intake_draft(
+        database, client_id=case.client_id, product_signal_id=case.product_signal_id
+    )
+    assert intake_id is not None
+    async with database.transaction() as conn, conn.cursor() as cur:
+        await cur.execute(
+            "update public.prepared_drafts set state = 'drafting' where id = %s", (intake_id,)
+        )
+
+    # Proposals and the agreement leave the running intake draft to finish; only the
+    # older proposal goes.
+    await _propose(await _context(database, case=case, session_id=session_id))
+    await _propose(
+        await _context(database, case=case, session_id=session_id),
+        outcome=OUTCOME + ", and rename it",
+    )
+    await execute_tool(
+        await _context(database, case=case, session_id=session_id),
+        name="record_acceptance_criteria",
+        arguments={
+            "agreed_outcome": OUTCOME + ", and rename it",
+            "workflow": "saved_conversion_views",
+            "criteria": CRITERIA,
+            "as_proposed": True,
+        },
+    )
+    drafts = await _drafts(database, case)
+    assert [draft["state"] for draft in drafts] == ["drafting", "discarded", "proposed"]
+    agreed = drafts[2]["id"]
+    assert isinstance(agreed, UUID)
+    # The attempt's claim waits for the agreed draft while it has yet to take the
+    # workspace.
+    assert await _agreed_draft_waiting(database, specification=_approved_for(case, 1)) == agreed
+
+    # The intake draft finishes; the agreed proposal takes the workspace and retires
+    # it, keeping its patch to revise.
+    workspace_id = await _drafted_in_workspace(database, case, intake_id)
+    async with database.connection() as conn, conn.cursor() as cur:
+        await cur.execute("select * from public.prepared_drafts where id = %s", (agreed,))
+        row = await cur.fetchone()
+    assert row is not None
+    taken = await _take_workspace(database, draft_id=agreed, draft=row)
+    assert taken is not None and taken.prepared_workspace_id == workspace_id
+    assert taken.earlier_draft_id == intake_id
+    assert await _intake_patch(database, earlier=intake_id) == "diff"
+    assert [draft["state"] for draft in await _drafts(database, case)] == [
+        "discarded",
+        "discarded",
+        "drafting",
+    ]
+    async with database.connection() as conn, conn.cursor() as cur:
+        await cur.execute(
+            "select prepared_draft_id from public.prepared_workspaces where id = %s",
+            (workspace_id,),
+        )
+        bound = await cur.fetchone()
+    assert bound is not None and bound["prepared_draft_id"] == agreed
+    assert await _agreed_draft_waiting(database, specification=_approved_for(case, 1)) is None
+
+
+async def test_a_proposal_discarded_while_it_waits_leaves_the_workspace_as_it_was(
+    database: Database, auth_users: dict[str, SignedInUser]
+) -> None:
+    case = await interviewing_case(database, auth_users, "drafts-discarded-waiting")
+    session_id = await create_live_session(database, case=case, phase=InterviewPhase.DISCOVERY)
+    await _record_concern(database, case)
+    intake_id = await record_intake_draft(
+        database, client_id=case.client_id, product_signal_id=case.product_signal_id
+    )
+    assert intake_id is not None
+    workspace_id = await _drafted_in_workspace(database, case, intake_id)
+    async with database.transaction() as conn, conn.cursor() as cur:
+        await cur.execute(
+            "update public.prepared_drafts set state = 'drafting' where id = %s", (intake_id,)
+        )
+    await _propose(await _context(database, case=case, session_id=session_id))
+    first = (await _drafts(database, case))[1]
+    async with database.connection() as conn, conn.cursor() as cur:
+        await cur.execute("select * from public.prepared_drafts where id = %s", (first["id"],))
+        row = await cur.fetchone()
+    assert row is not None
+    await _propose(
+        await _context(database, case=case, session_id=session_id),
+        outcome=OUTCOME + ", and rename it",
+    )
+
+    assert await _take_workspace(database, draft_id=as_uuid(row, "id"), draft=row) is None
+    async with database.connection() as conn, conn.cursor() as cur:
+        await cur.execute(
+            "select prepared_draft_id from public.prepared_workspaces where id = %s",
+            (workspace_id,),
+        )
+        bound = await cur.fetchone()
+    # The workspace still holds the intake draft, for the newer proposal to revise.
+    assert bound is not None and bound["prepared_draft_id"] == intake_id
+
+
+async def test_a_claim_waits_for_the_agreed_draft_to_take_the_workspace(
+    database: Database, auth_users: dict[str, SignedInUser], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    gated = await create_gated_case(
+        database,
+        name="claim-waits-for-draft",
+        authorizing_auth_user_id=auth_users["owner_a"].auth_user_id,
+        policy=gate_policy(),
+        state=ProductSignalState.IMPLEMENTING,
+    )
+    attempt = await authorize_attempt(
+        database,
+        case=gated,
+        scope=saved_views_scope(checks=SHOPALYTICS_REQUIRED_CHECKS),
+        workspace_snapshot_id=SNAPSHOT,
+    )
+    pins = pins_for_attempt(attempt.specification, build_recipe=SHOPALYTICS_BUILD_RECIPE)
+    intake_id, agreed_id, workspace_id = uuid7(), uuid7(), uuid7()
+    async with database.transaction() as conn, conn.cursor() as cur:
+        await cur.execute(
+            """
+            insert into public.prepared_workspaces (
+                id, client_id, product_signal_id, state, sandbox_name, pins_digest,
+                baseline_checks, prepared_draft_id, expires_at
+            )
+            values (%s, %s, %s, 'drafting', 'ws-claim-waits', %s, '[]', %s,
+                    now() + interval '1 hour')
+            """,
+            (workspace_id, gated.client_id, gated.product_signal_id, pins.digest(), intake_id),
+        )
+    waiting: list[UUID | None] = [agreed_id]
+
+    async def agreed_waiting(_database: Database, *, specification: object) -> UUID | None:
+        return waiting[0]
+
+    monkeypatch.setattr(prepared_module, "_agreed_draft_waiting", agreed_waiting)
+    monkeypatch.setattr(prepared_module, "_CLAIM_POLL_SECONDS", 0.05)
+
+    async def take_after_a_moment() -> None:
+        await asyncio.sleep(0.3)
+        async with database.transaction() as conn, conn.cursor() as cur:
+            await cur.execute(
+                "update public.prepared_workspaces set prepared_draft_id = %s where id = %s",
+                (agreed_id, workspace_id),
+            )
+        waiting[0] = None
+
+    taking = asyncio.create_task(take_after_a_moment())
+    claimed = await claim_prepared_workspace(
+        database, specification=attempt.specification, pins=pins
+    )
+    await taking
+    # The attempt claims the workspace once the agreed draft is in it, so it adopts it.
+    assert claimed is not None and claimed.prepared_draft_id == agreed_id
 
 
 async def test_a_version_that_passed_its_full_checks_hands_its_workspace_to_the_next_change(

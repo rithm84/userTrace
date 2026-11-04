@@ -117,12 +117,20 @@ async def draft_for_agreement(
 
 
 async def discard_open_drafts(
-    conn: AsyncConnection[DictRow], *, product_signal_id: UUID, keep: UUID | None, reason: str
+    conn: AsyncConnection[DictRow],
+    *,
+    product_signal_id: UUID,
+    keep: UUID | None,
+    reason: str,
+    spare_running_intake: bool = False,
 ) -> int:
     """Discard every open draft of the case but `keep`.
 
     A draft whose Job never touched its workspace is settled at once; one still
-    writing settles when its Job stops.
+    writing settles when its Job stops. With `spare_running_intake`, an intake draft
+    still being written is left to finish, so the proposal that replaces it revises
+    its files instead of starting over; the proposal retires it once it takes the
+    workspace.
     """
     async with conn.cursor() as cur:
         await cur.execute(
@@ -133,8 +141,17 @@ async def discard_open_drafts(
                 updated_at = now()
             where product_signal_id = %s and state = any(%s)
               and (%s::uuid is null or id <> %s::uuid)
+              and not (%s and kind = %s and state = 'drafting')
             """,
-            (reason, product_signal_id, list(OPEN_DRAFT_STATES), keep, keep),
+            (
+                reason,
+                product_signal_id,
+                list(OPEN_DRAFT_STATES),
+                keep,
+                keep,
+                spare_running_intake,
+                DraftKind.INTAKE,
+            ),
         )
         return cur.rowcount
 
