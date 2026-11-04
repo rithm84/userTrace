@@ -25,7 +25,7 @@ context.
 
 import asyncio
 import json
-from collections.abc import Coroutine
+from collections.abc import Coroutine, Mapping
 from datetime import UTC, datetime, timedelta
 from typing import Final
 from uuid import UUID
@@ -95,6 +95,7 @@ from app.interview.voice.pipeline import (
     NearEnd,
     OneSpeculation,
     PlaybackTap,
+    ProposalMarks,
     ResponsesLLM,
     Screen,
     ScreenState,
@@ -278,6 +279,25 @@ async def run_voice_agent(
         # `Answering` decides, once the result is in, whether the agent speaks again.
         await params.result_callback(result)
 
+    async def record_proposal(arguments: Mapping[str, object]) -> None:
+        # The proposal mark the agent wrote in its reply: recorded as `propose_change`
+        # recorded it, while the reply is still spoken. Nothing is said about it.
+        result = json.loads(
+            await execute_tool(
+                await _tool_context(database, interview=interview, subject=subject),
+                name="propose_change",
+                arguments=arguments,
+            )
+        )
+        _log.info(
+            "voice_proposal_recorded",
+            interview_session_id=str(subject.interview_session_id),
+            noted=result.get("noted") is True,
+            refused=refused(result),
+        )
+
+    proposals = ProposalMarks(record=record_proposal)
+
     # A barge-in never cancels a tool: each records what was said or reads what the
     # agent answers from, and its result settles in the answer that called it.
     for tool in TOOL_DEFINITIONS:
@@ -362,6 +382,7 @@ async def run_voice_agent(
             aggregators.user(),
             ScreenState(read=read_screen, view=view),
             llm,
+            proposals,
             Listening(context=context),
             Answering(turn=turn),
             LLMTextProcessor(text_aggregator=WordsAndGestures()),
@@ -398,6 +419,11 @@ async def run_voice_agent(
     async def on_assistant_turn_stopped(
         _aggregator: object, message: AssistantTurnStoppedMessage
     ) -> None:
+        # What the agent proposed in this reply follows its words, as the tool call it
+        # replaces did, so it can record the agreement as proposed.
+        marks = proposals.take_marks()
+        if marks:
+            context.add_message({"role": "assistant", "content": "".join(marks)})
         heard_before_cut_in = strip_marks(message.content)
         if message.interrupted and heard_before_cut_in:
             context.add_message(

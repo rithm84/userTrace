@@ -157,6 +157,31 @@ async def test_a_proposal_queues_its_draft_and_a_newer_one_replaces_it(
     assert (signal["state"], signal["acceptance_criteria_revision"]) == ("interviewing", 0)
 
 
+async def test_the_same_change_proposed_again_keeps_the_draft_under_way(
+    database: Database, auth_users: dict[str, SignedInUser]
+) -> None:
+    """A reply that is withdrawn and written again proposes the same change twice."""
+    case = await interviewing_case(database, auth_users, "drafts-same-proposal")
+    session_id = await create_live_session(database, case=case, phase=InterviewPhase.DISCOVERY)
+    assert await _propose(await _context(database, case=case, session_id=session_id)) == {
+        "noted": True
+    }
+    # Up to case and spacing, it is the same change.
+    assert await _propose(
+        await _context(database, case=case, session_id=session_id),
+        outcome="  Save a conversion VIEW and reopen it later ",
+    ) == {"noted": True}
+
+    drafts = await _drafts(database, case)
+    assert [row["state"] for row in drafts] == ["proposed"]
+    async with database.connection() as conn, conn.cursor() as cur:
+        await cur.execute(
+            "select count(*) as queued from public.jobs where job_type = %s", (PREPARE_DRAFT,)
+        )
+        queued = await cur.fetchone()
+    assert queued is not None and queued["queued"] == 1
+
+
 async def test_an_agreement_as_proposed_records_the_draft_and_a_different_one_drafts_anew(
     database: Database, auth_users: dict[str, SignedInUser]
 ) -> None:

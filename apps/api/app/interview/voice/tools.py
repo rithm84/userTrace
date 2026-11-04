@@ -95,7 +95,7 @@ _AS_PROPOSED_SCHEMA: Final[dict[str, object]] = {
     "type": "boolean",
     "description": (
         "true when they agreed to the change and checks exactly as you last proposed "
-        "them with propose_change."
+        "them in your proposal mark."
     ),
 }
 
@@ -178,31 +178,6 @@ TOOL_DEFINITIONS: tuple[FunctionSchema, ...] = (
             },
         },
         required=["statement", "claim_state"],
-    ),
-    FunctionSchema(
-        name="propose_change",
-        description=(
-            "In the same reply in which you propose a change and its checks, after your "
-            "words, record what you proposed, so it is prepared while the person "
-            "decides; call it again whenever you propose it differently. It agrees "
-            "nothing and the person hears nothing about it."
-        ),
-        properties={
-            "proposed_outcome": {
-                "type": "string",
-                "description": "The change you proposed, in one sentence.",
-            },
-            "workflow": {
-                "type": "string",
-                "pattern": "^[a-z][a-z0-9_]{2,63}$",
-                "description": (
-                    "A short snake_case name for the workflow validation will "
-                    "observe, such as saved_conversion_views."
-                ),
-            },
-            "criteria": _CRITERIA_SCHEMA,
-        },
-        required=["proposed_outcome", "workflow", "criteria"],
     ),
     FunctionSchema(
         name="record_acceptance_criteria",
@@ -348,6 +323,7 @@ async def execute_tool(
     if name == "record_evidence_claim":
         return await _record_evidence_claim(context, parsed)
     if name == "propose_change":
+        # Not offered to the model: the agent's proposal mark carries these arguments.
         return await _propose_change(context, parsed)
     if name == "record_acceptance_criteria":
         return await _record_acceptance_criteria(context, parsed)
