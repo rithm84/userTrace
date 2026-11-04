@@ -5,8 +5,9 @@ change, so while another version can still be made the agent offers one before i
 records anything. Over a real voice call (see `realtime_harness`), the participant
 tries the new version, finds the date range came back fixed instead of rolling, and
 says it is not what they need: the agent must ask whether they would like it
-changed, and record nothing yet. When they decline, the result stands, and the
-agent records it as not fully validated.
+changed, and record nothing yet. When they decline, the result stands: the agent
+asks about any check their report left open, and then records the result as not
+fully validated.
 
 It costs about two minutes of voice, so it runs only when `UTRACE_REALTIME_E2E=1`.
 """
@@ -44,6 +45,10 @@ _REPORT = (
     "isn't the last thirty days anymore. That's not really what I need."
 )
 _DECLINE = "No, that's okay, I'll leave it as it is."
+#: The answer to a check their report left open, such as whether saving kept the name.
+_FOLLOW_UP = "Yes, it saved under the name I gave it."
+#: How many open checks the agent may still ask about before it records.
+_FOLLOW_UPS: Final[int] = 2
 _CHANGE_WORDS: Final[tuple[str, ...]] = ("change", "fix", "adjust", "different", "update")
 _ANSWER_DEADLINE_SECONDS: Final[float] = 10.0
 _RECORD_DEADLINE_SECONDS: Final[float] = 40.0
@@ -65,9 +70,10 @@ async def test_a_version_that_falls_short_gets_a_change_offered_before_any_resul
         "And reopening it.",
     )
     async with AsyncOpenAI(api_key=api_key) as client:
-        answer, decline, *spoken = await asyncio.gather(
+        answer, decline, follow_up, *spoken = await asyncio.gather(
             harness.speech(client, _REPORT),
             harness.speech(client, _DECLINE),
+            harness.speech(client, _FOLLOW_UP),
             *(harness.speech(client, line) for line in lines),
         )
 
@@ -140,8 +146,21 @@ async def test_a_version_that_falls_short_gets_a_change_offered_before_any_resul
         recorded_before_decline = await _recorded_outcome(database, call.case.product_signal_id)
 
         # They want no change: the result stands, recorded as not fully validated.
-        await harness.say(call.microphone, decline)
+        # The agent may first ask about a check their report left open; they answer.
+        _, said_end = await harness.say(call.microphone, decline)
         recorded = None
+        for _ in range(_FOLLOW_UPS + 1):
+            question = await harness.agent_reply(
+                database,
+                session_id=session_id,
+                after=said_end,
+                deadline_seconds=_ANSWER_DEADLINE_SECONDS,
+            )
+            await asyncio.sleep(2.0)
+            recorded = await _recorded_outcome(database, call.case.product_signal_id)
+            if recorded is not None or question is None or "?" not in question[1]:
+                break
+            _, said_end = await harness.say(call.microphone, follow_up)
         deadline = time.monotonic() + _RECORD_DEADLINE_SECONDS
         while recorded is None and time.monotonic() < deadline:
             await asyncio.sleep(1.0)
