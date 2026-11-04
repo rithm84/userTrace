@@ -399,6 +399,7 @@ async def _agreed_draft(
         product_signal_id=bundle.product_signal_id,
         keep=draft_id,
         reason="the agreement records a different change",
+        spare_running_intake=draft_id is not None,
     )
     return draft_id
 

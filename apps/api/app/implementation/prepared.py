@@ -88,6 +88,9 @@ WORKSPACE_WINDOW_SECONDS: Final[int] = 3600
 _CLAIM_WAIT_SECONDS: Final[float] = 300.0
 """How long an attempt waits for a preparation still running before preparing its own."""
 _CLAIM_POLL_SECONDS: Final[float] = 2.0
+_AGREED_DRAFT_WAIT_SECONDS: Final[float] = 90.0
+"""How long a claim waits for the agreed draft to take the workspace; past it the
+attempt claims the workspace and authors the change itself."""
 _CLAIM_MARGIN_SECONDS: Final[int] = 60
 """A workspace this close to its release is not claimed."""
 _GITHUB_TIMEOUT_SECONDS: Final[float] = 30.0
@@ -274,15 +277,19 @@ async def claim_prepared_workspace(
 ) -> ClaimedWorkspace | None:
     """Bind the case's prepared workspace to this attempt's lease, or return `None`.
 
-    A preparation still running is waited for. A workspace prepared from other pins,
+    A preparation still running is waited for, and so is the draft the agreement
+    recorded while it waits for an earlier draft to finish before it takes the
+    workspace, so the attempt can adopt it. A workspace prepared from other pins,
     failed, released, or about to be released is left alone. The sandbox is not
     attached here: what the attempt can do before it needs the sandbox runs while
     the attempt attaches it.
     """
     product_signal_id = specification.product_signal_id
     deadline = time.monotonic() + _CLAIM_WAIT_SECONDS
+    draft_deadline = time.monotonic() + _AGREED_DRAFT_WAIT_SECONDS
     while True:
         refusal: str | None = None
+        agreed_waiting = await _agreed_draft_waiting(database, specification=specification)
         async with database.transaction() as conn, conn.cursor() as cur:
             await cur.execute(
                 """
@@ -299,7 +306,18 @@ async def claim_prepared_workspace(
             )
             row = await cur.fetchone()
             state = None if row is None else as_str(row, "state")
-            waiting = row is not None and state == "preparing" and bool(row["fresh"])
+            waiting = (
+                row is not None
+                and bool(row["fresh"])
+                and (
+                    state == "preparing"
+                    or (
+                        agreed_waiting is not None
+                        and as_optional_uuid(row, "prepared_draft_id") != agreed_waiting
+                        and time.monotonic() < draft_deadline
+                    )
+                )
+            )
             if row is None:
                 refusal = "none was prepared"
             elif waiting:
@@ -355,6 +373,28 @@ async def claim_prepared_workspace(
             starting_tree=as_optional_str(row, "starting_tree"),
             preview_version_id=as_optional_uuid(row, "preview_version_id"),
         )
+
+
+async def _agreed_draft_waiting(
+    database: Database, *, specification: AttemptSpecification
+) -> UUID | None:
+    """The draft the approved agreement recorded, while it has yet to take a workspace."""
+    async with database.connection() as conn, conn.cursor() as cur:
+        await cur.execute(
+            """
+            select drafts.id from public.acceptance_criteria_agreements as agreements
+            join public.prepared_drafts as drafts on drafts.id = agreements.prepared_draft_id
+            where agreements.product_signal_id = %s
+              and agreements.acceptance_criteria_revision = %s
+              and drafts.state = 'proposed'
+            """,
+            (
+                specification.product_signal_id,
+                specification.approved_scope.acceptance_criteria_revision,
+            ),
+        )
+        row = await cur.fetchone()
+    return None if row is None else as_uuid(row, "id")
 
 
 async def release_prepared_workspace(database: Database, claimed: ClaimedJob) -> None:

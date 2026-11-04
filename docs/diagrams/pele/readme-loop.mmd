@@ -3,39 +3,40 @@ title: One customer message → one validated pull request
 ---
 swimlane-beta TB
   subgraph customer [Customer]
-    discord[/"`**1 · Discord**
+    feedback[/"`**1 · Feedback**
     A customer asks for a feature
-    in the client's server`"/]:::people
+    or reports a problem`"/]:::people
     interview["`**3 · Voice interview**
-    Sol asks · the customer demos
-    The agent circles what it names`"]:::observation
-    validate(["`**6 · Same-user validation**
-    The customer tries the new version
-    The agent circles what changed`"]):::people
-    credit["`**7 · Credited**
-    **Stripe** invoice credit
-    for their organization`"]:::outcome
+    The agent asks while
+    the customer shows the workflow`"]:::observation
+    validate(["`**6 · Validation**
+    The same customer
+    tries the new version`"]):::people
+    credit["`**7 · Rewarded**
+    For taking part`"]:::outcome
   end
   subgraph utrace [uTrace]
     intake["`**2 · Intake**
-    **Jev** spots a Product Signal`"]:::reasoning
+    Spots a Product Signal`"]:::reasoning
     gate{{"`**4 · Implementation Gate**
-    **GPT-6.1 Sol** + policy`"}}:::gate
-    build["`**5 · Live build**
-    **Codex** in **Vercel Sandbox**
-    Required checks pass`"]:::runtime
+    Weighs evidence, scope, and policy`"}}:::gate
+    build["`**5 · Build**
+    A coding agent changes the code
+    in an isolated workspace`"]:::runtime
   end
   subgraph team [Product team]
-    delivered@{ shape: doc, label: "**7 · Delivered**<br/>**GitHub** draft PR + Case File" }
-    explained@{ shape: doc, label: "Case File explaining why not<br/>No PR" }
+    explained@{ shape: doc, label: "Case File explaining why<br/>No PR" }
+    delivered@{ shape: doc, label: "**7 · Delivered**<br/>Draft PR + Case File" }
   end
-  discord --> intake
-  intake -->|private invite + Stripe offer| interview
+  feedback --> intake
+  intake -->|private invitation + reward offer| interview
   interview -->|agreed change| gate
-  gate ok_1@-->|build it live · up ~3 s after the yes| build
-  gate blocked_1@-->|explain why not| explained
-  build -->|new preview| validate
-  validate ok_2@-->|validated| delivered
+  gate ok_1@-->|live, or async after the call| build
+  gate blocked_1@-->|no implementation| explained
+  build -->|new version| validate
+  validate blocked_2@-->|falls short · no further change| explained
+  validate async_1@-.->|falls short · change agreed| gate
+  validate ok_2@-->|validated + all checks passed| delivered
   validate -->|participation complete| credit
   class delivered outcome
   class explained neutral

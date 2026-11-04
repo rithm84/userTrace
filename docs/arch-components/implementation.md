@@ -248,16 +248,19 @@ A draft is one of two kinds, `intake` or `proposal`, with one record and one Job
   feature is drafted from the original request and the concern intake recorded,
   so code exists before the call does. It is queued once, before any proposal.
 - **Proposal draft:** when the voice agent proposes a change, its `propose_change`
-  tool records the proposal and queues a draft. It revises a finished intake
-  draft in the workspace into exactly the proposed change, keeping what fits,
-  and starts over from the workspace's starting files otherwise.
+  tool records the proposal and queues a draft. It revises the intake draft in
+  the workspace into exactly the proposed change, keeping what fits, and starts
+  over from the workspace's starting files otherwise. An intake draft still being
+  written when the proposal arrives is left to finish, so the proposal revises it
+  instead of starting over, and retires it once it takes the workspace.
 
 The Job:
 
 1. Takes the case's newest prepared workspace, waiting while it is still being
-   prepared or an attempt still holds it, and resets the checkout to the
-   workspace's starting files when an earlier draft it does not revise wrote in
-   it.
+   prepared, an attempt still holds it, or an earlier draft is still writing in
+   it, and resets the checkout to the workspace's starting files when an earlier
+   draft it does not revise wrote in it. A draft discarded while it waits leaves
+   the workspace with the draft it holds.
 2. Opens the workspace's egress to the model, waits a bounded time for an early
    code investigation still running, and runs one Codex cycle on the
    [draft task](#task), which carries that investigation's findings and the files
@@ -283,13 +286,17 @@ Beside a proposal draft's Codex run, the Implementation Gate
 [prepares its evaluation](#gate-preparation) of the proposed change.
 
 A draft moves `proposed` → `drafting` → `drafted`, or to `failed`; `adopted` and
-`discarded` end it. A newer proposal discards the older draft, and so does an
-agreement that records a different change. The agreement records the draft it
+`discarded` end it. A case holds at most one open draft of each kind. A newer
+proposal discards the older proposal draft, and so does an agreement that records
+a different change; neither discards an intake draft still being written while a
+proposal remains to revise it. The agreement records the draft it
 agreed to when the voice agent records the change as proposed, or the same change
 up to case and spacing, so adoption never judges free text; it never records an
 intake draft. A draft that is discarded while its Codex run is still writing
 finishes that run, so the next holder of the workspace waits until the draft
-settles.
+settles. An approved attempt whose agreed draft has yet to take the workspace
+waits a bounded time for it, so it adopts that draft instead of authoring the
+change again.
 
 Every draft records what it spent, whatever became of it, so a case's drafting
 cost is what its draft records add up to, including the drafts of a case that ends

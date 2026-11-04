@@ -95,6 +95,7 @@ from app.implementation.cycle import (
     staged_files,
 )
 from app.implementation.draft_records import (
+    OPEN_DRAFT_STATES,
     DraftKind,
     ProposedChange,
     ProposedCriterion,
@@ -199,7 +200,8 @@ async def record_change_proposal(
 ) -> UUID:
     """Record the change the voice agent is proposing and queue its draft.
 
-    A newer proposal discards any open draft for the case. Nothing about the case's
+    A newer proposal discards any open draft for the case, except an intake draft
+    still being written, which it revises once that finishes. Nothing about the case's
     lifecycle moves: a proposal is not an agreement.
     """
     interview_session_id = bundle.interview_session_id
@@ -222,6 +224,7 @@ async def record_change_proposal(
             product_signal_id=bundle.product_signal_id,
             keep=None,
             reason="a newer proposal replaced it",
+            spare_running_intake=True,
         )
         draft_id = await _insert_draft(
             conn,
@@ -714,7 +717,8 @@ async def _take_workspace(
     """Bind the case's newest prepared workspace to this draft, waiting until it is open.
 
     The earlier draft that wrote in it, if any, has settled before this one takes it.
-    `None` fails the draft.
+    A proposal that takes over the intake draft retires it: its files stay on record
+    for the proposal to revise. `None` fails the draft.
     """
     product_signal_id = as_uuid(draft, "product_signal_id")
     deadline = time.monotonic() + _WORKSPACE_WAIT_SECONDS
@@ -751,15 +755,16 @@ async def _take_workspace(
     earlier = as_optional_uuid(row, "prepared_draft_id")
     if earlier is not None:
         await wait_until_settled(database, prepared_workspace_id=workspace_id)
+    # The draft is bound before the workspace, so one discarded while it waited
+    # leaves the workspace with the draft it holds, for the next proposal to revise.
     async with database.transaction() as conn, conn.cursor() as cur:
         await cur.execute(
             """
-            update public.prepared_workspaces
-            set state = 'drafting', prepared_draft_id = %s, updated_at = now()
+            select sandbox_name from public.prepared_workspaces
             where id = %s and state in ('ready', 'drafting')
-            returning sandbox_name
+            for update
             """,
-            (draft_id, workspace_id),
+            (workspace_id,),
         )
         taken = await cur.fetchone()
         if taken is not None:
@@ -773,6 +778,24 @@ async def _take_workspace(
             )
             if cur.rowcount != 1:
                 taken = None
+        if taken is not None:
+            await cur.execute(
+                """
+                update public.prepared_workspaces
+                set state = 'drafting', prepared_draft_id = %s, updated_at = now()
+                where id = %s
+                """,
+                (draft_id, workspace_id),
+            )
+            if earlier is not None and as_str(draft, "kind") == DraftKind.PROPOSAL:
+                await cur.execute(
+                    """
+                    update public.prepared_drafts
+                    set state = 'discarded', failure_detail = %s, updated_at = now()
+                    where id = %s and kind = %s and state = any(%s)
+                    """,
+                    ("a proposal revised it", earlier, DraftKind.INTAKE, list(OPEN_DRAFT_STATES)),
+                )
     if taken is None:
         await _fail(database, draft_id=draft_id, detail="the workspace was claimed meanwhile")
         return None

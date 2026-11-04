@@ -196,6 +196,21 @@ describe("interstitials", () => {
     expect(controlPlane.received).toHaveLength(2);
   });
 
+  it("keeps retrying a control plane that stays unavailable for a moment", async () => {
+    process.env.UTRACE_CONTROL_PLANE_RETRY_WINDOW_MS = "3000";
+    controlPlane.transientFailures = 4;
+
+    const response = await get({
+      host: sessionHost,
+      path: "/dashboard",
+      headers: { cookie: sessionCookieHeader(sessionCredential) },
+    });
+
+    // Past the two-attempt budget, growing pauses ride out the outage within the window.
+    expect(response.status).toBe(200);
+    expect(controlPlane.received).toHaveLength(5);
+  });
+
   it("refuses to route when the control plane rejects the door's service token", async () => {
     process.env.UTRACE_CONTROL_PLANE_SERVICE_TOKEN =
       "a-wrong-but-well-formed-service-token";

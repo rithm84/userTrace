@@ -20,6 +20,10 @@ extension then reloads the preview tab; here the projection's row is read every
 `UTRACE_LIVE_ANSWER_AFTER_SECONDS` sets how long after the proposal the agreement
 comes. Unset, it comes once the draft has been proven ready and the gate's
 evaluation prepared, which is when an answer needs no wait at all.
+
+`UTRACE_LIVE_PROPOSE_WHILE_INTAKE_DRAFTS=1` proposes while the intake draft is
+still being written, as a short interview does: the proposal must then revise
+that draft once it finishes rather than start over.
 """
 
 from __future__ import annotations
@@ -465,6 +469,7 @@ async def test_from_the_agreement_to_the_agreed_change_on_screen(
         template_image=template_image,
     )
     answer_after = os.environ.get("UTRACE_LIVE_ANSWER_AFTER_SECONDS")
+    propose_early = os.environ.get("UTRACE_LIVE_PROPOSE_WHILE_INTAKE_DRAFTS") == "1"
     criteria = (
         [*CRITERIA, ADDED_CRITERION]
         if os.environ.get("UTRACE_LIVE_PROPOSAL_ADDS_CRITERION") == "1"
@@ -619,12 +624,24 @@ async def test_from_the_agreement_to_the_agreed_change_on_screen(
             )
             return row
 
-        intake_row = await _until("the intake draft", intake_settled)
-        intake_drafted_at = time.monotonic()
-        assert intake_row["state"] == "drafted", intake_row["failure_detail"]
-        timings["intake_drafted_after_interview_start_seconds"] = round(
-            time.monotonic() - interview_started, 1
-        )
+        async def intake_drafting() -> bool | None:
+            row = await _row(
+                database,
+                "select state from public.prepared_drafts where id = %s",
+                intake["id"],
+            )
+            assert row is not None and row["state"] in ("proposed", "drafting"), row
+            return True if row["state"] == "drafting" else None
+
+        if propose_early:
+            await _until("the intake draft to start", intake_drafting, every=0.5)
+        else:
+            intake_row = await _until("the intake draft", intake_settled)
+            intake_drafted_at = time.monotonic()
+            assert intake_row["state"] == "drafted", intake_row["failure_detail"]
+            timings["intake_drafted_after_interview_start_seconds"] = round(
+                time.monotonic() - interview_started, 1
+            )
         minted = await api.post(
             f"/v1/sessions/{session_id}/preview-handoff",
             headers={"Authorization": f"Bearer {auth_users['participant'].access_token}"},
@@ -664,10 +681,11 @@ async def test_from_the_agreement_to_the_agreed_change_on_screen(
                 )
                 return True if row is not None and row["ready"] else None
 
-            await _until("the standby spare", standby_ready, every=0.5, within=120)
-            timings["standby_ready_after_intake_drafted_seconds"] = round(
-                time.monotonic() - intake_drafted_at, 1
-            )
+            if not propose_early:
+                await _until("the standby spare", standby_ready, every=0.5, within=120)
+                timings["standby_ready_after_intake_drafted_seconds"] = round(
+                    time.monotonic() - intake_drafted_at, 1
+                )
 
             # The voice agent proposes the change, and the draft starts at once.
             proposed = await _tool(
@@ -680,6 +698,12 @@ async def test_from_the_agreement_to_the_agreed_change_on_screen(
             proposed_at = time.monotonic()
             proposed_clock = await _row(database, "select clock_timestamp() as now")
             assert proposed_clock is not None
+            if propose_early:
+                intake_then = await _row(
+                    database, "select state from public.prepared_drafts where id = %s", intake["id"]
+                )
+                assert intake_then is not None
+                timings["intake_state_at_proposal"] = intake_then["state"]
             draft = await _row(
                 database,
                 "select id from public.prepared_drafts where product_signal_id = %s "
@@ -706,6 +730,14 @@ async def test_from_the_agreement_to_the_agreed_change_on_screen(
                     time.monotonic() - proposed_at, 1
                 )
                 assert ready["preview_version_id"] is not None, "the spare was not proven"
+                if propose_early:
+                    revised = await _row(
+                        database,
+                        "select state, failure_detail from public.prepared_drafts where id = %s",
+                        intake["id"],
+                    )
+                    assert revised is not None
+                    timings["intake_after_proposal"] = revised["failure_detail"]
                 timings["gate_prepared"] = ready["gate_prepared"]
                 gate = await _row(
                     database,
