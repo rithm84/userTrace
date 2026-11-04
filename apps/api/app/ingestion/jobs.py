@@ -146,7 +146,9 @@ async def evaluate_readiness(
     navigated away from ended its stream, which is not a readiness failure. Server
     streams count for the current document's preview, or the session's own preview
     before a document opens, because once the participant moves to a candidate the
-    base preview no longer describes what they see. A later trace that needs fewer
+    base preview no longer describes what they see; and only each service's newest
+    activation counts, because a service that restarted, as a spare candidate does
+    when a draft is staged in it, ended its earlier stream. A later trace that needs fewer
     hops, such as a page load, does not undo a complete correlation; an ambiguous
     trace does.
     """
@@ -208,16 +210,22 @@ async def evaluate_readiness(
             (document_activation_id,),
         )
         browser_streams = await cur.fetchall()
+        # A restarted service activates again, so each service's newest activation
+        # is the process that runs; the stream an earlier process ended is history.
         await cur.execute(
             """
             select streams.id, streams.state, streams.service_key,
                    streams.accepted_through_batch_sequence,
                    streams.highest_received_batch_sequence
             from public.server_streams as streams
-            join public.telemetry_activations as activations
-              on activations.id = streams.activation_id
-            where activations.interview_session_id = %s
-              and activations.preview_runtime_allocation_id = %s
+            where streams.activation_id in (
+              select distinct on (activations.service_key) activations.id
+              from public.telemetry_activations as activations
+              where activations.kind = 'server'
+                and activations.interview_session_id = %s
+                and activations.preview_runtime_allocation_id = %s
+              order by activations.service_key, activations.created_at desc
+            )
             """,
             (session_id, preview_allocation_id),
         )
@@ -248,7 +256,7 @@ async def evaluate_readiness(
             select id, probe_id from public.telemetry_activations
             where kind = 'server' and interview_session_id = %s
               and preview_runtime_allocation_id = %s
-            order by created_at limit 1
+            order by created_at desc limit 1
             """,
             (session_id, preview_allocation_id),
         )
