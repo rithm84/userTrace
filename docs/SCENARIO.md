@@ -169,3 +169,30 @@ Maya. The PR must represent the validated source and build, and the Case File mu
 cite that candidate's checks, dataset, and criterion-level evidence. All
 scenario-owned resources must reach their required retained or cleaned state.
 Substituting a different user, dataset, or candidate fails acceptance.
+
+## Success criteria
+
+The demo succeeds when the [acceptance boundary](#acceptance-boundary) passes and
+these hold along the way:
+
+- Intake creates one Product Signal and one private invitation from the canonical request.
+- Conversation remains useful and interruptible while implementation runs, without constant progress narration.
+- The preview switches to the agreed change within seconds of the originating user's agreement, and they never see a partial or failing version.
+- The complete SDK path correlates browser observations and server spans; the required extension presents the synchronized character, controls, cursor, and overlays.
+- Participant setup passes before interviewing; problem discussion can then begin during preview preparation, while observation-dependent probing and validation wait for full readiness.
+- The agent asks context-informed questions without exposing internal code or diagnostics.
+- Agreed scope, acceptance criteria, corrections, observations, and implementation results remain consistent across concurrent agents.
+- Pause, departure, cancellation, disconnection, and blockers produce their specified outcomes.
+- The same originating user validates the exact candidate before any PR is opened; production merge remains human-owned.
+- The Case File explains the validated work, and cancellation retains its separate no-output outcome.
+- The Outreach Offer reserves client-authorized credit allowance and issues an
+  invoice credit to the customer account for completed participation,
+  independently of whether feedback is positive.
+
+## Verification
+
+Automated tests and the demo harness check the whole demo journey: intake, setup,
+observation, conversation, visual guidance, live implementation, validation,
+delivery, Outreach Offers, and cleanup. Test results can never move a case
+forward. The [evaluation and observability contract](./arch-components/evaluation-and-observability.md)
+owns those checks and operational tracing.

@@ -16,7 +16,7 @@ The control plane commits state before it dispatches external work:
 
 ## Control-plane responsibility
 
-Within the [demo scope](../PRD.md#product-scope), the control plane owns durable
+Within the [demo scope](../PRD.md#demo-scope), the control plane owns durable
 authority, revisions, dispatch, reconciliation, and lifecycle transitions. An
 eligible Product Signal owns at most one Case File and at most one draft PR.
 

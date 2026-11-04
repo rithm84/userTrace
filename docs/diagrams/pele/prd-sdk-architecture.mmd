@@ -1,36 +1,26 @@
 ---
-title: Structured observation · SDKs and extension
+title: Structured observation · what the SDKs and extension do
 ---
 flowchart TB
-  subgraph ui [Extension UI]
+  subgraph preview [The user's preview]
     ext["`**Browser extension**
-    Character · controls · cursor
-    Visual overlays`"]:::observation
-  end
-  subgraph instrumentation [Preview instrumentation]
+    Agent character, controls, and cursor`"]:::observation
     sdk["`**Browser SDK**
-    Semantics · redaction
-    Targets + document proof`"]:::observation
+    What the user does on each page
+    Sensitive values redacted in the page`"]:::observation
     server["`**Server SDK**
-    Sole preview OTel provider
-    API, data, downstream spans`"]:::observation
-    shared["`**Shared browser runtime**
-    One coordinator and exporter
-    Baseline + ordered updates`"]:::observation
+    What the backend does in response`"]:::observation
   end
   subgraph utrace [uTrace]
     ingest["`**Telemetry ingestion**
-    Authenticated receipts
-    Normalize + correlate`"]:::runtime
+    Joins browser and server activity`"]:::runtime
     cp["`**Control plane**
-    Readiness + authorized commands
-    Evidence and validation`"]:::runtime
+    Evidence for the agents
+    Authorizes what they show`"]:::runtime
   end
-  cp -->|authorized visuals| ext
-  ext -->|SDK handshake| sdk
-  ext -->|attach| shared
-  sdk -->|trace context| server
-  sdk -->|observe| shared
-  shared -->|observations| ingest
+  ext -->|proves its session to| sdk
+  sdk -->|links each action to| server
+  sdk -->|observations| ingest
   server -->|redacted spans| ingest
   ingest -->|correlated evidence| cp
+  cp -->|cursor and overlays| ext

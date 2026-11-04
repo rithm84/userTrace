@@ -7,29 +7,31 @@ swimlane-beta TB
     Where users already talk`"/]:::people
     interview["`**Interview Session**
     Observe · ask · agree
-    Confirm the classification`"]:::observation
+    Confirm flow classification`"]:::observation
     validate(["`**Validates the exact candidate**
-    Confirmation + observed behavior`"]):::people
+    Tries it and confirms it's what they wanted`"]):::people
   end
   subgraph utrace [uTrace]
     router{Intake Router}:::gate
     noise(["`**Noise**
-    Optional useful pointer
     No interview or Case File`"]):::neutral
     signal["`**Product Signal**
     Source-linked feedback
-    Feature Request Flow`"]:::runtime
+    Bugfix or feature request`"]:::runtime
     gate{{"`**Implementation Gate**
     Scope · policy · budgets`"}}:::gate
-    attempt["`**Implementation Attempt**
-    Adopts the draft prepared during the proposal
-    Isolated files + fast checks`"]:::runtime
+    attempt["`**Live Implementation Attempt**
+    Adopts a speculative draft
+    built before user approval
+    Isolated workspace + fast checks`"]:::runtime
+    later["`**Async Implementation Attempt**
+    Built async after the call ends
+    Reaches back out to validate`"]:::async
     preview["`**Preview Version**
-    Immutable, swapped in whole
-    Full checks while validated`"]:::observation
+    Immutable, swapped in whole`"]:::observation
     none["`**No implementation**
-    Participated, not approved
-    Evidence + reason retained`"]:::external
+    Need and evidence recorded
+    Excessive scope or lack of evidence`"]:::external
   end
   subgraph team [Client product team]
     casefile@{ shape: doc, label: "**Case File**<br/>Explains outcome and risk" }
@@ -41,12 +43,14 @@ swimlane-beta TB
   signal -->|private invitation| interview
   interview -->|evidence| gate
   gate ==>|authorize live| attempt
-  gate blocked_1@-->|no implementation| none
-  attempt -->|ready| preview
-  preview -->|live handoff| validate
-  validate async_1@-.->|change asked in validation| gate
-  validate -->|any outcome| casefile
-  validate ok_1@-->|validated + full checks passed| pr
+  gate async_2@-.->|authorize async| later
+  gate blocked_1@--->|no implementation| none
+  attempt -->|fast checks passed · slow checks continue| preview
+  later async_3@-.->|all checks passed| preview
+  preview -->|handoff to the user| validate
+  validate async_1@-.->|partially validated / not validated / unclear| gate
+  validate -->|validated, or any outcome once iteration ends| casefile
+  validate ok_1@-->|validated + all checks passed| pr
   none -->|no PR| casefile
-  pr -->|links| casefile
+  pr -->|links to| casefile
   class casefile,pr outcome
