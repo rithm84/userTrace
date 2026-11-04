@@ -120,13 +120,16 @@ Each criterion settles as follows:
 </details>
 <p></p>
 
-- **Observable behavior**, what the product does when the user acts, needs
-  structured observed evidence. One coherent workflow may support several
+- **Observable behavior**, what the product does when the user acts as the
+  observation path reports it, such as a view being saved or what a chart
+  displays, needs structured observed evidence. One coherent workflow may support several
   criteria, and one admissible source suffices without separate browser and
   server events.
 - **Subjective criteria** use the user's explicit judgment about an observed
-  workflow: whether a workflow feels easier, and how something looks or where it
-  sits on the page, which the observation path does not report.
+  workflow: whether a workflow feels easier, and how something looks, where it
+  sits on the page, or whether a control is shown, enabled, or disabled, which the
+  observation path does not report. The voice agent marks a check this way when it
+  proposes it, so no agreed check needs an observation the path cannot produce.
 - **Observability is fixed at agreement**, so an unobserved behavior cannot be
   relabeled as subjective to pass validation.
 - **The newest observed run decides.** A contradicting run that a later
