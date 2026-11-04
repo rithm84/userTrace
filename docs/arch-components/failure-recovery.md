@@ -153,10 +153,10 @@ After participation, all of these close in `closed_blocked` under the
 
 An Implementation Gate that cannot decide is a technical blocker, bounded by the
 gate Job's run budget and its fresh-context retries; once no run is left, the
-change cannot start. A case with a ready version keeps it, and the requested
-change is declined (`revision_declined`); any other case commits its blocker
-Case File and closes `closed_blocked` on publication. Either way the live agent
-is told at once, so it never promises a version that is not coming.
+change cannot start. The case commits its blocker Case File and closes
+`closed_blocked` on publication, including a change asked for while the
+participant tried a version. The live agent is told at once, so it never promises
+a version that is not coming.
 
 ## Restart and reconciliation
 

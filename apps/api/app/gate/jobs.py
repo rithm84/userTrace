@@ -74,15 +74,10 @@ from app.implementation.budgets import ConsumedBudgets
 from app.implementation.handlers import RUN_IMPLEMENTATION_ATTEMPT
 from app.implementation.investigation import InvestigationRequest, investigate_repository
 from app.implementation.job_types import INVESTIGATE_CODE
-from app.interview.projection import (
-    advance_phase_on_connection,
-    return_to_validation_on_connection,
-)
+from app.interview.projection import advance_phase_on_connection
 from app.interview.settings import get_jev_settings
 from app.interview.voice.session_changes import wake_voice_agents
 from app.lifecycle.attempts import AttemptRequest, create_implementation_attempt
-from app.lifecycle.product_signal import ProductSignalFacts
-from app.lifecycle.signal_transitions import advance_product_signal_on_connection
 from app.logging import get_logger
 from app.offers.entitlement import CaseStopReason
 from app.outputs.closure_jobs import (
@@ -159,10 +154,6 @@ async def run_gate(database: Database, claimed: ClaimedJob) -> None:
     if outcome.decision is GateDecisionKind.APPROVED_LIVE:
         await _authorize_attempt(
             database, claimed=claimed, signal_row=signal, policy=policy, outcome=outcome
-        )
-    elif await _has_ready_version(database, product_signal_id=product_signal_id):
-        await _decline_change(
-            database, client_id=claimed.client_id, product_signal_id=product_signal_id, outcome=outcome
         )
     else:
         await _close_without_implementation(
@@ -354,12 +345,6 @@ async def _authorize_attempt(
             )
 
 
-async def _has_ready_version(database: Database, *, product_signal_id: UUID) -> bool:
-    """Whether the case already has a ready version, so the gate decided a requested change."""
-    async with database.connection() as conn:
-        return await _has_ready_version_on_connection(conn, product_signal_id=product_signal_id)
-
-
 async def _has_ready_version_on_connection(
     conn: AsyncConnection[DictRow], *, product_signal_id: UUID
 ) -> bool:
@@ -378,98 +363,15 @@ async def _has_ready_version_on_connection(
     return row is not None and bool(row["ready"])
 
 
-async def _decline_change(
-    database: Database, *, client_id: UUID, product_signal_id: UUID, outcome: GateOutcome
-) -> None:
-    """Keep the version the person has after the gate refused the change they asked for.
-
-    The case goes back to validating its ready version against the criteria that
-    version was approved for; the refused decision stays on record, and the session
-    returns to validation, where the agent hears why.
-    """
-    reason = (
-        f"{outcome.blocker.value}: {outcome.blocker_detail}"
-        if outcome.blocker is not None
-        else "the gate chose no implementation"
-    )
-    async with database.transaction() as conn:
-        await _decline_change_on_connection(
-            conn,
-            client_id=client_id,
-            product_signal_id=product_signal_id,
-            gate_decision_id=outcome.gate_decision_id,
-            reason=reason,
-            reason_code=None if outcome.blocker is None else outcome.blocker.value,
-        )
-    _log.info(
-        "gate_declined_change",
-        client_id=str(client_id),
-        product_signal_id=str(product_signal_id),
-        gate_decision_id=str(outcome.gate_decision_id),
-        reason=reason,
-    )
-
-
-async def _decline_change_on_connection(
-    conn: AsyncConnection[DictRow],
-    *,
-    client_id: UUID,
-    product_signal_id: UUID,
-    gate_decision_id: UUID | None,
-    reason: str,
-    reason_code: str | None,
-) -> None:
-    """Return the case to validating its ready version, inside the caller's transaction.
-
-    The version is validated against the criteria it was approved for, and the
-    live session returns to validation.
-    """
-    async with conn.cursor() as cur:
-        await cur.execute(
-            """
-            select (approved_scope ->> 'acceptance_criteria_revision')::int as revision
-            from public.gate_decisions
-            where product_signal_id = %s and decision = %s
-            order by decided_at desc
-            limit 1
-            """,
-            (product_signal_id, GateDecisionKind.APPROVED_LIVE.value),
-        )
-        approved = await cur.fetchone()
-        if approved is None:
-            raise AggregateNotFoundError(table="gate_decisions", row_id=product_signal_id)
-        await cur.execute(
-            "update public.product_signals set acceptance_criteria_revision = %s where id = %s",
-            (as_int(approved, "revision"), product_signal_id),
-        )
-        await cur.execute(
-            "select id from public.interview_sessions where product_signal_id = %s and state = 'live'",
-            (product_signal_id,),
-        )
-        sessions = await cur.fetchall()
-    await advance_product_signal_on_connection(
-        conn,
-        client_id=client_id,
-        product_signal_id=product_signal_id,
-        trigger="revision_declined",
-        facts=ProductSignalFacts(participation_occurred=True, case_file_published=False),
-        actor=_ACTOR,
-        payload={
-            "gate_decision_id": None if gate_decision_id is None else str(gate_decision_id),
-            "reason": reason,
-            "acceptance_criteria_revision": as_int(approved, "revision"),
-        },
-        jobs=(),
-        reason_code=reason_code,
-    )
-    for session in sessions:
-        await return_to_validation_on_connection(conn, interview_session_id=as_uuid(session, "id"))
-
-
 async def _close_without_implementation(
     database: Database, *, client_id: UUID, product_signal_id: UUID, outcome: GateOutcome
 ) -> None:
-    """Commit the explanatory Case File and the entitlement a completed interview earns."""
+    """Commit the explanatory Case File and the entitlement a completed interview earns.
+
+    A change the person asked for while trying a version ends here too: that version
+    did not do what they needed, so the case closes without a PR. Its Case File
+    records the gate's refusal as the blocker, since the case does hold a version.
+    """
     now = datetime.now(tz=UTC)
     reason = (
         f"{outcome.blocker.value}: {outcome.blocker_detail}"
@@ -478,6 +380,9 @@ async def _close_without_implementation(
     )
     stream = StreamRef(kind=AggregateKind.PRODUCT_SIGNAL, id=product_signal_id)
     async with database.transaction() as conn:
+        refused_change = await _has_ready_version_on_connection(
+            conn, product_signal_id=product_signal_id
+        )
         await append_fact(
             conn,
             client_id=client_id,
@@ -505,9 +410,17 @@ async def _close_without_implementation(
                 case_file_assembly_job(
                     product_signal_id=product_signal_id,
                     validation_attempt_id=None,
-                    variant=CaseFileVariant.NO_IMPLEMENTATION,
-                    blocker_reason=reason,
-                    closure_trigger="no_implementation",
+                    variant=(
+                        CaseFileVariant.BLOCKED
+                        if refused_change
+                        else CaseFileVariant.NO_IMPLEMENTATION
+                    ),
+                    blocker_reason=(
+                        f"the Implementation Gate refused the requested change ({reason})"
+                        if refused_change
+                        else reason
+                    ),
+                    closure_trigger="close_blocked" if refused_change else "no_implementation",
                     closure_reason=reason,
                     now=now,
                     deadline_seconds=CASE_FILE_DEADLINE_SECONDS,
@@ -530,11 +443,10 @@ async def settle_failed_gate(
 
     Runs in the transaction that records the Job's terminal failure, so a failed
     gate can never leave its case waiting in `gate_pending`. The change cannot
-    start: a case with a ready version keeps it, the change the person asked for
-    declined, and its validation goes on; any other case closes with its blocker
-    Case File, and the Outreach Offer is evaluated as a technical blocker. The
-    committed fact names which, and the case's open sessions are woken so the
-    voice agent is told at once.
+    start, so the case closes with its blocker Case File, including a change asked
+    for while the person tried a version, and the Outreach Offer is evaluated as a
+    technical blocker. The case's open sessions are woken so the voice agent is
+    told at once.
     """
     product_signal_id = UUID(str(claimed.input["product_signal_id"]))
     async with conn.cursor() as cur:
@@ -557,37 +469,25 @@ async def settle_failed_gate(
         return
     now = datetime.now(tz=UTC)
     blocker = f"the Implementation Gate could not complete ({failure.category}: {failure.code})"
-    jobs: tuple[JobIntent, ...] = ()
-    if await _has_ready_version_on_connection(conn, product_signal_id=product_signal_id):
-        outcome = GateFailureOutcome.CHANGE_DECLINED
-        await _decline_change_on_connection(
-            conn,
-            client_id=claimed.client_id,
+    outcome = GateFailureOutcome.CASE_BLOCKED
+    jobs: tuple[JobIntent, ...] = (
+        case_file_assembly_job(
             product_signal_id=product_signal_id,
-            gate_decision_id=None,
-            reason=blocker,
-            reason_code=_GATE_FAILED,
-        )
-    else:
-        outcome = GateFailureOutcome.CASE_BLOCKED
-        jobs = (
-            case_file_assembly_job(
-                product_signal_id=product_signal_id,
-                validation_attempt_id=None,
-                variant=CaseFileVariant.BLOCKED,
-                blocker_reason=blocker,
-                closure_trigger="close_blocked",
-                closure_reason=_GATE_FAILED,
-                now=now,
-                deadline_seconds=CASE_FILE_DEADLINE_SECONDS,
-            ),
-            entitlement_job(
-                product_signal_id=product_signal_id,
-                stop_reason=CaseStopReason.TECHNICAL_BLOCKER.value,
-                now=now,
-                deadline_seconds=CASE_FILE_DEADLINE_SECONDS,
-            ),
-        )
+            validation_attempt_id=None,
+            variant=CaseFileVariant.BLOCKED,
+            blocker_reason=blocker,
+            closure_trigger="close_blocked",
+            closure_reason=_GATE_FAILED,
+            now=now,
+            deadline_seconds=CASE_FILE_DEADLINE_SECONDS,
+        ),
+        entitlement_job(
+            product_signal_id=product_signal_id,
+            stop_reason=CaseStopReason.TECHNICAL_BLOCKER.value,
+            now=now,
+            deadline_seconds=CASE_FILE_DEADLINE_SECONDS,
+        ),
+    )
     stream = StreamRef(kind=AggregateKind.PRODUCT_SIGNAL, id=product_signal_id)
     detail: dict[str, JsonValue] = {
         "outcome": outcome.value,

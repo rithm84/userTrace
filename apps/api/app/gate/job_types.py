@@ -39,7 +39,8 @@ class GateFailureOutcome(StrEnum):
     CASE_BLOCKED = "case_blocked"
     """No version exists yet, so the case closes with its blocker Case File."""
     CHANGE_DECLINED = "change_declined"
-    """A ready version exists, so validation of it goes on without the asked-for change."""
+    """No longer committed: a failed gate now always closes the case. Kept so facts
+    committed before 2026-11-03 still parse."""
 
 
 def decide_gate_job(

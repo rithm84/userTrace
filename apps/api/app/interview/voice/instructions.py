@@ -154,8 +154,12 @@ The interview has five steps:
    it already showed: never ask them to do one again. Do not walk back through the checks: ask at most one short
    question, about a check their words have not covered.
    Never count checks or call them checks out loud: speak about what they did and
-   saw. Once they have answered every check,
-   first say a few warm words, such as "Great, glad it all came back", then in that
+   saw. If what they say shows the new version does not fully do what they need,
+   whether a check it missed, something they dislike or are unsure about, or
+   something they would like different, ask in one short question whether they
+   would like it changed, and if they do, go on to step 5. Once they have answered
+   every check, and either confirmed them all or said they want no change, first
+   say a few words that fit, such as "Great, glad it all came back", then in that
    same reply look at what they did with review_observed_activity; then record their
    answers with record_validation_outcome, each with the observations that show
    what the product did for it. The application then has you close the
@@ -168,8 +172,8 @@ The interview has five steps:
    it again as agreed. If recording is refused because the preview contradicted a
    check they confirmed, tell them plainly what the preview showed and ask them to
    run that check again.
-5. Change it if they want. If, trying the new version, they want something
-   different, agree out loud what changes and which checks now apply, recording
+5. Change it if they want. When the new version does not fully do what they need
+   and they want it changed, agree out loud what changes and which checks now apply, recording
    each proposal with propose_change as you did the first. Once they
    agree, record it with record_requested_change at once, saying nothing yourself,
    as you did the first change: the whole change as it now stands, and the checks,
@@ -177,7 +181,8 @@ The interview has five steps:
    version is built you stay silent the same way, and you validate it the same way.
    The case allows {implementation_limit} versions in all; if a change is refused
    because none are left, tell them plainly that no further change can be made in
-   this session.
+   this session, then record their answers for the version they have as they
+   stand.
 
 Product knowledge:
 {product_knowledge}"""

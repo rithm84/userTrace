@@ -130,22 +130,15 @@ PRODUCT_SIGNAL_MACHINE: Machine[ProductSignalFacts] = Machine(
             target=ProductSignalState.GATE_PENDING.value,
             guard=_requires_participation,
         ),
-        # The gate refused a requested change: the version they have stays the one
-        # they validate.
-        Transition(
-            trigger="revision_declined",
-            sources=frozenset({ProductSignalState.GATE_PENDING.value}),
-            target=ProductSignalState.AWAITING_VALIDATION.value,
-            guard=None,
-        ),
         Transition(
             trigger="validated",
             sources=frozenset({ProductSignalState.VALIDATING.value}),
             target=ProductSignalState.CLOSED_VALIDATED.value,
             guard=_requires_case_file,
         ),
-        # Partial, negative, or unclear validation closes with an unvalidated Case
-        # File and no PR: changes are asked for while validating, not after a verdict.
+        # Partial, negative, or unclear validation that the person wants no change to,
+        # or that no attempt is left for, closes with an unvalidated Case File and no
+        # PR; a change they want goes back through the gate (`revision_requested`).
         Transition(
             trigger="validation_unsuccessful",
             sources=frozenset({ProductSignalState.VALIDATING.value}),

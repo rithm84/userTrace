@@ -24,7 +24,6 @@ stateDiagram-v2
 
     awaiting_interview --> interviewing: setup ready
     interviewing --> gate_pending: sufficient
-    gate_pending --> awaiting_validation: change refused
     awaiting_validation --> gate_pending: change asked
     validating --> gate_pending: change asked
     gate_pending --> implementing: authorize + check budget
@@ -43,8 +42,9 @@ stateDiagram-v2
   canceled : No Case File
 
   gate_pending --> closed_no_implementation: no implementation
+  gate_pending --> closed_blocked: change refused
   validating --> closed_validated: validated
-  validating --> closed_blocked: not validated
+  validating --> closed_blocked: falls short, no change
   open --> closed_blocked: from any open state
   open --> canceled: from any open state
 
