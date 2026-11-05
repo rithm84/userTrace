@@ -131,7 +131,7 @@ workflow, telemetry, and the code have been weighed.
 
 ## Outreach Offers
 
-Clients can reward users for taking part. The client authorizes a budget for fixed
+Clients can reward users for taking part in interviews. The client authorizes a budget for fixed
 rewards, such as an invoice credit that reduces the user's customer account's
 future bills for the client's product.
 
@@ -207,12 +207,7 @@ budgets, and chooses:
 
 A participant's explicit cancellation is a separate path with no output.
 
-uTrace starts drafting the requested change as soon as the user claims their
-invitation and adjusts the draft while the agent proposes it, and the gate prepares
-its evaluation of the proposal at the same time. Only the gate's decision on what
-the user actually agreed to authorizes work: if what they agree to differs from
-what was prepared, the gate evaluates it again, and a draft the gate never approves
-is discarded.
+uTrace drafts a speculative code change as soon as the user claims their interview invitation, predicting the exact solution the user wants from their original high-level feedback on the Customer Surface. As the interview refines the problem, the coding agent revises the draft to each change the voice agent proposes, so it is often ready by the time or soon after the user agrees. The draft authorizes nothing: only the Implementation Gate’s decision on the change the user actually agreed to does, and the gate prepares that evaluation alongside the draft. If what the user agrees to differs from what was predictively prepared, the gate evaluates it again, and a draft it never approves is discarded.
 
 The Implementation Gate considers:
 
@@ -310,7 +305,7 @@ Captured by the server component:
 - framework handler and controller work
 - calls to downstream services
 - database operation summaries
-- cache and queue operation summaries, where the client's release includes an
+- cache and queue operation summaries, where the client's configuration release includes an
   adapter for that library
 - backend exceptions and error classes
 - product-domain spans the client declares safe for uTrace
@@ -331,7 +326,7 @@ Declared by the client:
 - destructive or side-effecting actions
 - domain-specific severity and priority tags
 
-uTrace never interprets screenshots to understand the product.
+uTrace never interprets screenshots to understand the product in realtime.
 
 ## Session experience
 
@@ -339,7 +334,7 @@ A session is one live encounter for interviewing or validation. A case can span
 several sessions when the originating user leaves and comes back.
 
 An interview starts from a private uTrace Session Link. The originating user signs
-in with the identity the invitation was sent to, which binds the link to them and
+into or creates their uTrace account, which binds the link to them and
 to the client. Claiming the link starts setup and prepares
 the user's preview. Before interviewing, uTrace checks for a supported browser, the
 extension and its permissions, account linking, and voice. If setup is impossible,
@@ -349,7 +344,7 @@ Case File, or reward.
 The interview itself is a voice conversation. The voice agent talks naturally and
 can be interrupted, while other agents investigate and implement in the
 background. It asks useful questions and avoids filler and running commentary.
-Text shows setup and connection status; it never replaces the conversation.
+Text only shows setup and connection status; it never replaces the conversation.
 
 Once setup passes, the greeting and the first discussion of the problem can begin
 while the preview finishes preparing. Questions and claims that depend on what the
@@ -357,11 +352,7 @@ user is doing in the product, and all validation, wait until uTrace can observe
 the product end to end. If that observation drops out, those activities pause,
 but an otherwise healthy conversation can continue.
 
-uTrace keeps the conversation's context and gives the agent the observations and
-implementation findings it needs. The agreed scope, acceptance criteria, open
-questions, and validation evidence are recorded outside the model's memory.
-Transcripts can be incomplete or corrected, so a fragment, a pause, or an isolated
-"yes" never counts as consent, agreed scope, or successful validation.
+uTrace feeds the voice agent what it needs as the conversation unfolds, such as what the user just did in the product and what the code investigation found. What the case depends on, including the agreed change, its acceptance criteria, open questions, and validation evidence, lives in uTrace’s records rather than the model’s memory, so it survives a dropped connection and every part of uTrace works from the same version. Because speech-to-text can drop or correct words, a half sentence, a pause, or a lone “yes” never counts as consent, agreement to a change, or confirmation that something works - only a clear answer to the question asked does.
 
 The agent introduces itself as:
 
@@ -385,7 +376,7 @@ The interview uses two tabs:
 
 - **Session tab:** the voice call, live transcript, connection state, progress,
   and session status.
-- **Preview tab:** the user's private copy of the product, where they do the
+- **Preview tab:** the user's private copy of the client's product, where they do the
   workflow, with the browser extension showing the agent character, controls,
   cursor, and overlays.
 
@@ -395,7 +386,7 @@ disconnection each lead somewhere different, and closing a tab never means the
 user rejected the work; [implementation progress](#user-facing-implementation-progress)
 covers continuing and resuming.
 
-Two tabs keep the call and the product from crowding one page, and avoid the
+The two-tab design keeps the call and the product from crowding one page, and avoids the
 iframe, CSP, and cookie problems many real products would have inside an embedded
 frame.
 
@@ -448,7 +439,7 @@ command authorization, execution, and result reporting.
 
 The agent can move its cursor, point, highlight, circle, label, scroll something
 into view, and clear its overlays. It observes and guides, but it can never click,
-type, submit, or navigate for the user. Users can turn visual guidance off.
+type, submit, or navigate for the user. Users can also turn off visual guidance if they want.
 
 ## Preview Runtime Allocations, implementation workspaces, and session data
 
@@ -480,7 +471,7 @@ the case no longer needs it, never reset and reused.
 
 ### Seed data
 
-A preview is only useful if its data looks like the user's: the same kinds of
+A preview is only useful if its data looks like the originating user's: the same kinds of
 records, with the relationships and properties their workflow depends on. uTrace
 installs a prepared dataset into every preview, and every version in a case uses
 the same dataset, so before and after are compared fairly. uTrace prepares that
@@ -490,10 +481,6 @@ ones, and a synthetic value is never presented as real production evidence. The
 owns installation and verification.
 
 ## Implementation loop
-
-Live implementation uses the [isolated resources](#preview-runtime-allocations-implementation-workspaces-and-session-data)
-above. The [implementation contract](./arch-components/implementation.md) owns
-workspace authority, checks, artifacts, and cleanup.
 
 ### Live implementation
 
@@ -513,7 +500,7 @@ to it, because uTrace works ahead:
 - **Safe swap:** the drafted change runs in a separate copy of the product, with
   its own copy of the data and any new database tables it needs, while the user's
   current preview stays untouched. Fast checks confirm that it type-checks, builds
-  for production, shows the workflow's page with its new controls, and reports
+  for production, renders necessary pages, and reports
   telemetry correctly. Only then does the user's preview link switch to the new
   version, all at once, so they see either the version they had or the complete
   new one, never a half-built or broken page.
@@ -523,40 +510,45 @@ to it, because uTrace works ahead:
   briefly re-checks the fixed version. Validation can succeed, and a PR open, only
   once every check has passed.
 
-If authorized work outgrows the live session, it continues as async
-implementation: uTrace saves its progress, finishes the work after the call, and
-reaches back out to the user to validate it. An outage or departure follows its own
-stopping rule instead.
+### Async implementation
+
+Some agreed work is too large to finish while the user waits. The Implementation
+Gate then chooses async implementation, and live work that turns out larger than
+the session allows continues the same way: uTrace saves its progress and keeps
+building after the call ends.
+
+- **Built without the user waiting:** the coding agent works in the same isolated
+  workspace and separate copy of the product as live work. With no one waiting,
+  every required check, slow ones included, passes before anyone sees the new
+  version.
+- **Coming back to validate:** once the new Preview Version is ready, uTrace
+  reaches back out to the originating user on the Customer Surface
+  they used. A private link brings them back to their preview, on the same
+  dataset, where they validate it with the agent as they would live.
+- **If they don't come back:** after a few reminders, the case closes with a Case
+  File that records the unvalidated work, and no PR opens.
 
 ### Changes during validation
 
 While trying a new Preview Version, the originating user may find it does not fully
 do what they need: they are dissatisfied, unsure, or want something different. That
 makes the result partially validated, not validated, or unclear, and while the
-case's iteration budget allows another attempt, the agent asks whether they would
-like it changed. Once they agree out loud on the change and the checks that now
+case's iteration budget allows another attempt, the agent permits the user to ask for more improvements. Once they agree out loud on the change and the checks that now
 apply, the change goes back through the Implementation Gate, and an approved change
 becomes a new Implementation Attempt that starts from the previous version's files
 while the conversation continues.
 
-The result stands, and the case closes with an explanatory Case File and no PR, when
-the user wants no change or the iteration budget is spent. If the gate refuses the
-change, the case ends with no implementation: a Case File that explains why, and no
-PR.
+When the iteration budget is spent, the result stands and the case closes with an explanatory Case File + no PR. If the gate refuses the change, the case ends with no implementation (and a Case File that explains why).
 
 Each gate approval authorizes one Implementation Attempt, and the client's Autonomy
 Policy sets the iteration budget: how many attempts one Product Signal may use.
-Retries and check fixes stay inside an attempt and its time and cost budgets, and a
-fix made after the user started trying a version is a new Preview Version, which
-the user briefly re-checks.
+Retries and check fixes stay inside an attempt and its time and cost budgets.
 
 ## User-facing implementation progress
 
 While the change is built, the user stays on the session tab, which shows where
 things stand: reproduction captured, making changes, preparing the preview, or
-ready to try. The agent talks about progress only when it helps the user
-understand a meaningful change or answers their question; it never narrates its
-tools or repeats acknowledgements.
+ready to try.
 
 What happens when work stops depends on why it stopped:
 
@@ -592,7 +584,7 @@ resources running. The [failure-recovery contract](./arch-components/failure-rec
 owns deadlines, saved progress, final cleanup, and notifications.
 
 Once validation succeeds, publishing the Case File, delivering the PR, and cleanup
-can finish after the user leaves, unless authority is withdrawn.
+can finish after the user leaves.
 
 ## Structured user validation
 

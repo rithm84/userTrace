@@ -34,7 +34,7 @@ swimlane-beta TB
   gate ok_1@-->|live, or async after the call| build
   gate blocked_1@-->|no implementation| explained
   build -->|new version| validate
-  validate blocked_2@-->|falls short · no further change| explained
+  validate blocked_2@--->|falls short · no further change| explained
   validate async_1@-.->|falls short · change agreed| gate
   validate ok_2@-->|validated + all checks passed| delivered
   validate -->|participation complete| credit
