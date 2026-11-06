@@ -83,7 +83,7 @@ export function Demo(props: Readonly<{ reducedMotion: boolean }>): JSX.Element {
   const onChapter = useCallback((id: ChapterId): void => seek(reducedMotion ? stillOf(id) : CHAPTER_STARTS[CHAPTERS.findIndex((chapter) => chapter.id === id)]), [seek, reducedMotion]);
   const onJoin = useCallback((): void => seek(BEAT_STARTS[JOIN_INDEX]), [seek]);
   return (
-    <section ref={section} id="how-it-works" className="st-demo" data-testid="landing-demo" aria-label="How uTrace works, an illustrative demo">
+    <section ref={section} id="how-it-works" className="st-demo" data-testid="landing-demo" aria-label="How uTrace works, a product demo">
       {zoom !== null ? (
         <div ref={fit} className="st-demo-fit" data-testid="demo-fit" data-playing={running ? "true" : "false"} style={{ width: PAGE.width * zoom, height: PAGE.height * zoom }}>
           <div className="st-demo-zoom" style={{ zoom }}>

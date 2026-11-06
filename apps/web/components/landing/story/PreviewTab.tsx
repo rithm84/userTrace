@@ -141,17 +141,18 @@ function labelWidth(text: string): number {
 }
 
 /** The agent's marks and labels: coral strokes drawn on, and the extension's ink-edged label under its target. */
-function AgentScene(props: Readonly<{ frame: SceneFrame; width: number; height: number }>): JSX.Element {
+export function AgentScene(props: Readonly<{ frame: SceneFrame; width: number; height: number; testPrefix?: string }>): JSX.Element {
+  const prefix = props.testPrefix ?? "story";
   return (
     <>
       <svg className="st-scene" width={props.width} height={props.height} viewBox={`0 0 ${props.width} ${props.height}`} aria-hidden="true">
-        {props.frame.marks.map((mark) => (mark.drawn > 0 ? <path key={mark.key} d={mark.d} pathLength={1} strokeDasharray="1 1" strokeDashoffset={1 - mark.drawn} opacity={mark.opacity} data-testid="story-agent-mark" /> : null))}
+        {props.frame.marks.map((mark) => (mark.drawn > 0 ? <path key={mark.key} d={mark.d} pathLength={1} strokeDasharray="1 1" strokeDashoffset={1 - mark.drawn} opacity={mark.opacity} data-testid={`${prefix}-agent-mark`} /> : null))}
       </svg>
       {props.frame.labels.map((label) => {
         const half = labelWidth(label.text) / 2;
         const centre = centreOf(label.target);
         return (
-          <b key={label.key} className="st-scene-label" data-testid="story-agent-label" style={{ left: Math.min(Math.max(centre.x, half + 8), props.width - half - 8), top: label.target.y + label.target.height + 10 }}>
+          <b key={label.key} className="st-scene-label" data-testid={`${prefix}-agent-label`} style={{ left: Math.min(Math.max(centre.x, half + 8), props.width - half - 8), top: label.target.y + label.target.height + 10 }}>
             {label.text}
           </b>
         );
@@ -161,9 +162,9 @@ function AgentScene(props: Readonly<{ frame: SceneFrame; width: number; height: 
 }
 
 /** The extension's agent cursor: coral with an ink edge, its tip on the point. */
-function AgentCursor(props: Readonly<{ at: Point }>): JSX.Element {
+export function AgentCursor(props: Readonly<{ at: Point; testId?: string }>): JSX.Element {
   return (
-    <svg className="st-agent-cursor" data-testid="story-agent-cursor" width={22} height={22} viewBox="0 0 26 26" aria-hidden="true" style={{ left: props.at.x - 3, top: props.at.y - 2 }}>
+    <svg className="st-agent-cursor" data-testid={props.testId ?? "story-agent-cursor"} width={22} height={22} viewBox="0 0 26 26" aria-hidden="true" style={{ left: props.at.x - 3, top: props.at.y - 2 }}>
       <path d="M3 2 L3 20 L8 15.5 L11.5 23 L15 21.2 L11.6 14 L18.5 13.4 Z" fill="#fcada3" stroke="#000000" strokeWidth="2" strokeLinejoin="round" />
     </svg>
   );

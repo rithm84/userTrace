@@ -23,7 +23,7 @@ type CaseFileSheet = Readonly<{
 }>;
 
 function Summary(props: SheetBodyProps): JSX.Element {
-  return <CaseFileSummary rows={SUMMARY_ROW_COUNT} onView={() => props.show("change")} note />;
+  return <CaseFileSummary rows={SUMMARY_ROW_COUNT} onView={() => props.show("change")} />;
 }
 
 function Evidence(): JSX.Element {

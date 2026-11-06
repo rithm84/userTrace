@@ -1,4 +1,4 @@
-/* Where uTrace helps: the case board, a page cut with slanted gutters. Desktop only. */
+/* Where uTrace helps: the case board, a 1180 x 520 page cut with slanted gutters, fitted to the width with CSS zoom. */
 .helps-section {
   position: relative;
   z-index: 1;
@@ -8,13 +8,14 @@
 }
 
 .helps-section * { box-sizing: border-box; }
-.helps-wrap { width: 1180px; margin: 0 auto; }
+.helps-wrap { width: min(1180px, calc(100% - 112px)); margin: 0 auto; }
 .helps-kicker { margin: 0; }
 .helps-title { margin-top: 12px; font-size: 56px; }
 .helps-lede { max-width: 700px; margin: 20px 0 0; }
 
 /* the page */
-.hp-page { position: relative; margin-top: 44px; background-color: #fff; background-image: radial-gradient(#c9c9c9 0.95px, transparent 1.05px); background-size: 6px 6px; font-family: var(--body); }
+.hp-fit { margin-top: 44px; }
+.hp-page { position: relative; background-color: #fff; background-image: radial-gradient(#c9c9c9 0.95px, transparent 1.05px); background-size: 6px 6px; font-family: var(--body); }
 .hp-borders { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; z-index: 4; }
 .hp-caption { position: absolute; z-index: 3; display: inline-flex; align-items: baseline; gap: 10px; padding: 7px 11px 8px; background: #fff; border: 2px solid #000; font: 700 15px/1.25 var(--body); letter-spacing: -0.005em; color: #000; white-space: nowrap; }
 .hp-caption i { font: 500 13px/1 var(--body); font-style: normal; color: var(--ink-2); }
@@ -27,6 +28,26 @@
 .hp-flow { position: absolute; left: 24px; right: 70px; bottom: 24px; margin: 0; font: 400 15px/1.5 var(--body); color: var(--ink-2); }
 .hp-flow b { color: var(--ink); font-weight: 700; }
 @keyframes hp-pop { 0% { transform: scale(0.97); opacity: 0; } 50% { transform: scale(1.02); opacity: 1; } 100% { transform: none; opacity: 1; } }
+.hp-sr { position: absolute; width: 1px; height: 1px; margin: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* the open case's pause: off its character's top-left, as the demo's sits by its rail's character */
+.hp-play { position: absolute; z-index: 6; left: 640px; top: 24px; width: 36px; height: 36px; display: grid; place-items: center; padding: 0; border: 2px solid #000; border-radius: 50%; background: #fff; color: #000; box-shadow: 2px 2px 0 #000; cursor: pointer; }
+.hp-play:hover { background: var(--coral-tint); }
+.hp-play:focus-visible { outline: 3px solid #000; outline-offset: 2px; }
+
+/* the open case's rail: three stops under the sticker, filled the way the demo's rail fills */
+.hp-steps { position: absolute; left: 606px; top: 200px; margin: 0; padding: 0; list-style: none; }
+.hp-steps li { position: relative; height: 58px; }
+.hp-steps li + li::before { content: ""; position: absolute; left: 11px; top: -34px; width: 2px; height: 34px; background: var(--rule-2); }
+.hp-steps li.is-reached + li.is-reached::before { background: #000; }
+.hp-step { display: flex; align-items: center; gap: 10px; margin: 0; padding: 0; border: 0; background: none; color: var(--ink-3); font: 700 14px/1.2 var(--body); cursor: pointer; }
+.hp-step:hover { color: var(--ink); }
+.hp-step:focus-visible { outline: none; }
+.hp-step:focus-visible .hp-step-dot { outline: 3px solid #000; outline-offset: 2px; }
+.hp-step-dot { flex: none; display: grid; place-items: center; width: 24px; height: 24px; border: 2px solid var(--rule-2); border-radius: 50%; background: #fff; color: #fff; }
+.is-current .hp-step, .is-done .hp-step { color: var(--ink); }
+.is-current .hp-step-dot { border-color: #000; background: conic-gradient(var(--coral-strong) calc(var(--fill, 0) * 1turn), var(--coral-tint) 0); }
+.is-done .hp-step-dot { border-color: #000; background: #000; }
 
 /* the waiting cases */
 .hp-thumb { position: absolute; display: block; margin: 0; padding: 0; border: 0; border-radius: 0; background: #fff; color: var(--ink); font-family: var(--body); text-align: left; cursor: pointer; transition: background-color 160ms ease-out; }
@@ -37,11 +58,10 @@
 .hp-arrow { position: absolute; right: 24px; top: 26px; font-size: 28px; font-weight: 500; line-height: 1; transition: transform 180ms ease-out; }
 .hp-thumb:hover .hp-arrow { transform: translate(2px, -2px); }
 
-/* scenes: real UI inside the open panel */
+/* scenes: real UI inside the open panel, with the agent's cursor and marks and the customer's pointer over it */
+.hp-stage { position: relative; width: 100%; height: 100%; }
 .hp-scene { position: relative; width: 100%; height: 100%; overflow: hidden; background: #fff; border: 2px solid #000; box-shadow: 6px 6px 0 #000; }
 .hp-scene-head { height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; border-bottom: 2px solid #000; font: 700 13px/1 var(--body); }
-.hp-scene-head span:last-child { font: 400 12px/1 var(--body); color: var(--ink-2); }
-.hp-chip { display: inline-flex; align-items: center; min-height: 24px; padding: 2px 7px; border: 2px solid #000; background: var(--coral); font: 600 12px/1.25 var(--body); white-space: nowrap; }
 
 /* the export that fails: a reports list under a dialog */
 .hp-reports { list-style: none; margin: 14px 24px 0; padding: 0; }
@@ -59,11 +79,18 @@
 .hp-progress { height: 8px; border: 1.5px solid #000; background: #fff; }
 .hp-progress i { display: block; height: 100%; background: #111; }
 .hp-progress-note { margin: 4px 0 0; font: 500 11px/1.3 var(--body); color: #777; }
-.hp-error { display: flex; align-items: center; gap: 10px; margin-top: 8px; padding: 7px 10px; border: 2px solid #000; background: var(--coral-tint); font: 500 12.5px/1.3 var(--body); }
-.hp-error > span { display: grid; place-items: center; width: 18px; height: 18px; background: var(--coral); font-weight: 800; }
+.hp-status { display: flex; align-items: center; gap: 10px; height: 34px; margin-top: 8px; padding: 0 10px; border: 2px solid #000; font: 500 12.5px/1.3 var(--body); white-space: nowrap; }
+.hp-status > span { flex: none; display: grid; place-items: center; width: 18px; height: 18px; font-weight: 800; }
+.hp-status.is-error { background: var(--coral-tint); }
+.hp-status.is-error > span { background: var(--coral); }
+.hp-status.is-ready { background: #fff; }
+.hp-status.is-ready > span { background: #000; color: #fff; }
+.hp-status.is-empty { border-color: transparent; }
 .hp-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
 .hp-btn, .hp-btn-ghost { padding: 7px 12px; border: 2px solid #000; font: 700 12px/1 var(--body); }
 .hp-btn { background: var(--coral); }
+.hp-btn.is-disabled { border-color: #bdbdbd; background: #f1f1f1; color: #9a9a9a; }
+.hp-btn.is-pressed { background: var(--coral-strong); translate: 1px 1px; }
 .hp-btn-ghost { background: #fff; }
 
 /* the weekend drop: a KPI card with its fortnight, then the ask */
@@ -72,7 +99,10 @@
 .hp-kpi-head span { font: 400 11.5px/1.3 var(--body); color: #777; }
 .hp-kpi-value { display: flex; align-items: baseline; gap: 10px; margin-top: 4px; font: 800 30px/1.1 var(--display); letter-spacing: -0.02em; }
 .hp-kpi-value em { font: 600 12px/1.3 var(--body); font-style: normal; color: var(--coral-ink); }
-.hp-spark { display: block; width: 100%; height: 88px; margin-top: 8px; overflow: visible; }
+.hp-spark-wrap { position: relative; margin-top: 8px; }
+.hp-spark { display: block; width: 100%; height: 88px; overflow: visible; }
+.hp-spark-threshold { stroke: var(--coral-ink); stroke-width: 1.5; stroke-dasharray: 6 5; vector-effect: non-scaling-stroke; }
+.hp-threshold-tag { position: absolute; left: -6px; translate: 0 -50%; padding: 1px 5px; border: 1.5px solid var(--coral-ink); background: #fff; color: var(--coral-ink); font: 700 10.5px/1.2 var(--body); }
 .hp-spark-weekend { fill: var(--coral-tint); }
 .hp-spark-area { fill: #f1f1f1; }
 .hp-spark-line { fill: none; stroke: #000; stroke-width: 2; vector-effect: non-scaling-stroke; }
@@ -84,6 +114,46 @@
 .hp-days > div.is-weekend { border-color: var(--coral-strong); background: var(--coral-tint); }
 .hp-days dt { font: 500 11px/1.2 var(--body); color: #777; }
 .hp-days dd { margin: 2px 0 0; font: 700 14px/1.2 var(--body); }
+.hp-alert { display: flex; align-items: center; gap: 6px; height: 36px; margin-top: 12px; padding: 0 10px; border: 1.5px solid #000; font: 500 12px/1.2 var(--body); white-space: nowrap; }
+.hp-alert b { font-weight: 700; }
+.hp-field { display: inline-flex; align-items: center; gap: 6px; padding: 3px 7px; border: 1.5px solid #000; background: #fff; font: 600 12px/1.2 var(--body); }
+.hp-toggle { position: relative; flex: none; width: 32px; height: 18px; margin-left: auto; border: 1.5px solid #000; border-radius: 999px; background: #e6e6e6; transition: background-color 160ms ease-out; }
+.hp-toggle i { position: absolute; left: 2px; top: 2px; width: 11px; height: 11px; border: 1.5px solid #000; border-radius: 50%; background: #fff; transition: left 160ms var(--ease-out, ease-out); }
+.hp-toggle.is-on { background: var(--coral-strong); }
+.hp-toggle.is-on i { left: 16px; }
+.hp-toggle.is-pressed { translate: 1px 1px; }
+
+/* the alert's first ping: Slack's desktop dark theme, measured: message pane #1a1d21, text #d1d2d3,
+   muted #ababad, hairlines rgba(232, 232, 232, 0.13). Authored at Slack's own scale (15px messages,
+   36px avatars) and zoomed down into the crop; Noto Sans stands in for Slack's Lato. */
+.hp-slack { position: absolute; z-index: 2; right: 18px; top: 48px; border: 2px solid #000; box-shadow: 4px 4px 0 #000; animation: hp-pop 0.2s steps(2, end) both; }
+.sl { zoom: 0.75; width: 384px; background: #1a1d21; color: #d1d2d3; font: 400 15px/22px "Slack-Lato", Lato, "Noto Sans Variable", "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+.sl p { margin: 0; }
+.sl-head { display: flex; align-items: center; gap: 4px; height: 44px; padding: 0 16px; border-bottom: 1px solid rgba(232, 232, 232, 0.13); color: #d1d2d3; font-size: 17px; font-weight: 800; }
+.sl-head span { color: #ababad; font-weight: 600; }
+.sl-message { display: flex; gap: 8px; padding: 10px 20px 12px; }
+.sl-avatar { flex: none; width: 36px; height: 36px; margin-top: 2px; border-radius: 8px; background: #fff; object-fit: cover; }
+.sl-body { min-width: 0; }
+.sl-meta { display: flex; align-items: baseline; gap: 6px; }
+.sl-meta b { color: #f8f8f8; font-weight: 900; }
+.sl-app { padding: 1px 3px; border-radius: 2px; background: rgba(232, 232, 232, 0.13); color: #ababad; font-size: 10px; font-weight: 700; line-height: 1.25; }
+.sl-time { color: #ababad; font-size: 12px; }
+.sl-text b { color: #d1d2d3; font-weight: 800; }
+.sl-button { display: inline-flex; align-items: center; height: 28px; margin-top: 8px; padding: 0 12px; border: 1px solid rgba(232, 232, 232, 0.36); border-radius: 4px; color: #d1d2d3; font-size: 13px; font-weight: 700; }
+
+/* the comparison, native: a switch on the conversion page */
+.hp-compare { margin: 16px 24px 0; padding: 12px 16px 6px; border: 1.5px solid #000; }
+.hp-compare-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.hp-switch { display: inline-flex; align-items: center; gap: 8px; font: 600 12.5px/1.2 var(--body); }
+.hp-switch .hp-toggle { margin-left: 0; }
+.hp-compare-table { width: 100%; margin-top: 12px; border-collapse: collapse; font: 500 13px/1.3 var(--body); }
+.hp-compare-table th, .hp-compare-table td { padding: 10px 8px; border-bottom: 1px solid #e6e6e6; text-align: right; }
+.hp-compare-table tr:last-child th, .hp-compare-table tr:last-child td { border-bottom: 0; }
+.hp-compare-table thead th { padding-top: 4px; border-bottom: 1.5px solid #000; color: #777; font: 600 11.5px/1.2 var(--body); }
+.hp-compare-table th:first-child { text-align: left; }
+.hp-compare-table tbody th { font-weight: 600; }
+.hp-up { font-weight: 700; }
+.hp-up i { margin-right: 4px; color: var(--coral-ink); font-size: 9px; font-style: normal; }
 
 /* the spreadsheet: formula bar, grid, sheet tabs */
 .hp-sheet-app { margin: 12px 24px 0; border: 1.5px solid #000; }
@@ -100,13 +170,24 @@
 .hp-grid td.hp-typed { background: var(--coral-tint); }
 .hp-grid td.is-selected { background: var(--coral-tint); outline: 2px solid #000; outline-offset: -2px; }
 .hp-sheet-tabs { display: flex; align-items: center; gap: 4px; padding: 6px 8px; border-top: 1.5px solid #000; background: #f6f6f6; font: 500 12px/1 var(--body); }
-.hp-sheet-tabs > span:not(.hp-chip) { padding: 6px 10px; border: 1.5px solid #ccc; background: #fff; color: #555; }
+.hp-sheet-exports { display: inline-flex; gap: 4px; }
+.hp-sheet-tabs > span:not(.hp-sheet-exports), .hp-sheet-exports > span { padding: 6px 10px; border: 1.5px solid #ccc; background: #fff; color: #555; }
 .hp-sheet-tabs > span.is-active { border-color: #000; color: #000; font-weight: 700; }
-.hp-sheet-tabs .hp-chip { margin-left: auto; }
 
 .helps-section[data-reduced-motion="true"] *,
 .helps-section[data-reduced-motion="true"] *::before,
 .helps-section[data-reduced-motion="true"] *::after { transition: none; animation: none; }
+
+@media (max-width: 760px) {
+  .helps-wrap { width: calc(100% - 32px); }
+  .hp-fit { margin-top: 32px; }
+}
+
+@media (max-width: 640px) {
+  .helps-section { padding: 56px 0 72px; }
+  .helps-title { font-size: 40px; }
+  .helps-lede { font-size: 17px; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .helps-section *, .helps-section *::before, .helps-section *::after { transition: none; animation: none; }

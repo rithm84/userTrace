@@ -21,7 +21,7 @@ export function CaseFileWindow(props: Readonly<{ beat: Beat; progress: number }>
   return (
     <div className="st-casefile" data-testid="story-casefile" data-rows={rows}>
       <article className="st-doc">
-        <CaseFileSummary rows={rows} onView={null} note={false} />
+        <CaseFileSummary rows={rows} onView={null} />
       </article>
       <aside className={"st-pr" + (pr ? " is-on" : "")} data-testid="story-pr">
         <div className="st-pr-head">
