@@ -13,7 +13,7 @@ const DUE = offer.invoice.amount - offer.credit;
 
 /** What the reader should take away, one short line each. */
 const PROMISES: readonly string[] = [
-  "They get the change they asked for, and they sign it off.",
+  "They actively contribute towards a version of the product they want.",
   "An honest no earns the same credit as a yes.",
   // naming the plan ties the invoice's credit to its plan row: one plan's reward, not a fixed price
   "Rewards scale with each customer’s plan and size.",
@@ -112,7 +112,6 @@ export function ForYourUsers(): JSX.Element {
               </li>
             ))}
           </ul>
-          <p className="fu-note">Illustrative example.</p>
         </div>
       </div>
     </section>

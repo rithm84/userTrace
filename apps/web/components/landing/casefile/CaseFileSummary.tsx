@@ -11,7 +11,6 @@ import type { ComponentType, JSX, ReactNode } from "react";
 import { SHOPALYTICS } from "../story/shopalyticsFixture";
 
 export const CASE_FILE_TITLE = "Saved conversion views";
-const CASE_FILE_EXAMPLE_NOTE = "Example Case File for the Shopalytics scenario; quotes and counts are illustrative.";
 const USER = SHOPALYTICS.user.handle.charAt(0).toUpperCase() + SHOPALYTICS.user.handle.slice(1);
 const { implementation, validation } = SHOPALYTICS;
 
@@ -69,7 +68,7 @@ const SUMMARY_ROWS: readonly JSX.Element[] = [
 export const SUMMARY_ROW_COUNT = SUMMARY_ROWS.length;
 
 /** `onView` wires the View pull request button; null leaves it out, as in the story, where the PR sits beside the sheet. */
-export function CaseFileSummary(props: Readonly<{ rows: number; onView: (() => void) | null; note: boolean }>): JSX.Element {
+export function CaseFileSummary(props: Readonly<{ rows: number; onView: (() => void) | null }>): JSX.Element {
   return (
     <>
       <header className="cf-sheet-head">
@@ -90,7 +89,6 @@ export function CaseFileSummary(props: Readonly<{ rows: number; onView: (() => v
           View pull request
         </button>
       ) : null}
-      {props.note ? <p className="cf-example-note">{CASE_FILE_EXAMPLE_NOTE}</p> : null}
     </>
   );
 }

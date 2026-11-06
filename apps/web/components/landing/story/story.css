@@ -1,8 +1,13 @@
 /* The demo page: one browser window on white with a 3px ink edge and a hard shadow, the
    narration box over its corner, and six chapter stops beside it. Product UI inside the
    window is real software; the comic register stays on the frame and the cast. */
-[data-landing] .st-demo { position: relative; z-index: 1; display: flex; justify-content: center; padding: 64px 0 48px; background: #fff; scroll-margin-top: 72px; }
-@media (max-width: 760px) { [data-landing] .st-demo { padding: 32px 0; } }
+/* a wide gap under the hero; the navbar's How it works link lands 40px into it (16px on a phone), so the jump frames the demo as before */
+[data-landing] .st-demo { position: relative; z-index: 1; display: flex; justify-content: center; padding: 104px 0 48px; background: #fff; }
+[data-landing] .st-demo[id] { scroll-margin-top: calc(var(--nav-h) - 40px); }
+@media (max-width: 760px) {
+  [data-landing] .st-demo { padding: 48px 0 32px; }
+  [data-landing] .st-demo[id] { scroll-margin-top: calc(var(--nav-h) - 16px); }
+}
 [data-landing] .st-demo-fit { position: relative; }
 [data-landing] .st-demo-zoom { position: absolute; left: 0; top: 0; width: 1200px; height: 800px; }
 [data-landing] .st-note { position: absolute; left: 172px; top: 12px; margin: 0; font: 600 12.5px/1.2 var(--body); color: var(--ink-3); }

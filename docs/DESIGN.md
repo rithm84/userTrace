@@ -79,10 +79,10 @@ Seven agents, one body shape and colour each, the same face: two black oval eyes
 | coral | `#fcada3` | investigates at the city's feedback tower; is Wren, the one product agent in every tab of the demo, and leads its Request chapter on the rail; hangs onto the magnifier's handle in the closing |
 | black | `#111111` | builds at the city's site and hands the build to mint; leads the demo's Build chapter on the rail; peeks over the Case File folder; pulls on the magnifier's rim |
 | mint | `#97d6a4` | ships, riding the build to the city's shop on the delivery trike; leads the demo's Ship chapter on the rail; peeks over the folder; pulls on the rim |
-| sky | `#85cef9` | interviews at the city's café; leads the demo's Interview chapter on the rail; investigates on the case board; pulls on the rim |
-| lilac | `#cdb6f9` | validates at the city's shop; leads the demo's Iterate chapter on the rail; listens to the capability request; pulls on the rim |
+| sky | `#85cef9` | interviews at the city's café; leads the demo's Interview chapter on the rail; works the case board's failing export, from concern through building to done; pulls on the rim |
+| lilac | `#cdb6f9` | validates at the city's shop; leads the demo's Iterate chapter on the rail; takes the case board's capability request from listening to done; pulls on the rim |
 | peach | `#f5b488` | leads the demo's Validate chapter on the rail; peeks over the folder; pulls on the rim |
-| aqua | `#72d8d7` | climbs out of the city's manhole with the pain point; concern on the case board's workaround case; pulls on the rim |
+| aqua | `#72d8d7` | climbs out of the city's manhole with the pain point; takes the case board's workaround from concern to done; pulls on the rim |
 
 Every character is a Rive rig from `packages/utrace-agent-character/assets/`
 (`utrace-agent-<colour>.riv`, artboard `AgentCharacter`, state machine
@@ -177,8 +177,22 @@ Rules for placing a character:
   is a button that takes the demo to its chapter's first beat; keyboard focus rings its
   marker and underlines its label, and a click lets go of focus as the demo plays on. Join interview in the
   invitation is a real button too: it takes the demo on into the interview.
-- **Phones and reduced motion.** The demo's page is fitted to the width at every
-  size, so a phone shows the same demo, smaller. Under reduced motion it does not
+- **The case board plays too.** The open case runs on its own 14-second clock
+  (`helps/caseClock.ts`), in four moves: the problem as the customer meets it,
+  uTrace on it (the extension's coral cursor circles what it asks about, in
+  Shopalytics only: the extension never draws over Slack or a spreadsheet), the
+  build, then the fixed version the customer tries, which holds before the case
+  starts over. Its specialist moves with it: the problem's state, then
+  investigating or listening, `building`, `listening` while the customer tries
+  the fix, and `completion`. Each version swaps in all at once, as a preview
+  does. A three-stop rail under the sticker fills like the demo's rail, and each
+  stop jumps to its step. The case plays while half the board is on screen,
+  stops when it leaves or when the reader pauses it, and opening a thumbnail
+  starts that case from its problem. Under reduced motion nothing plays: the
+  case opens on its first step's still, and each stop shows its step's still.
+- **Phones and reduced motion.** The demo's page and the case board are fitted to
+  the width at every size, so a phone shows the same demo and board, smaller; the
+  board's heading and lede reflow above it. Under reduced motion it does not
   play: it opens on the Request chapter's finished still, and each stop shows that
   chapter's finished still. The hero's city runs while it is on screen; reduced
   motion holds it still and shows the case board and the folder without pops.
@@ -289,9 +303,9 @@ token is the thing to follow; add no prop that competes with it.
 | Hero | `hero/` | settled: "Ship {features / fixes / workflows} your customers actually want." on one rotating word in Bangers; waitlist email bar, flat on desktop with its Join button hanging under it as a small coral triangle ("Join!", shaded with the headline burst's dot screen) pointing down into the city's V at the 30 degree street angle (`landing/waitlist.css`; on a phone the button sits in the bar). The type scales with the width (the headline at 5.6vw up to 100px, the rotating word at 60px from 1440px wide and stepped down below it, the bar 460px wide); past its caps the copy scales as a block, so it keeps its proportion to the city |
 | City | `city/` | the isometric city under the copy (section 5a) |
 | How it works | `story/` | the product demo right under the hero, on a clock (section 5): one browser window that opens on Discord and gains the session and preview tabs when Maya joins, plus the workspace and the Case File as windows; six chapters (Request, Interview, Build, Validate, Iterate, Ship) over sixteen beats; a chapter rail on the left, pause above it, one caption over the frame's corner. Over the frame, one line of context names who is who. Request: Maya's ask in #feedback, uTrace's public reply, which others can second with I'm seeing this too (the Product Signal it records stays private), and the private invitation, which states the Outreach Offer ("Dudulemon gets $250 off its next bill.") above a real Join interview button that becomes Discord's grey "Joined" receipt. Ship opens back in Discord, where uTrace thanks Maya and says the credit Dudulemon earned, a hint that For your users explains |
-| Where uTrace helps | `helps/` | the case board: one open case, two thumbnails, three situations shown as the concrete product moment (a failing export dialog, a weekend conversion drop with the ask it produced, a spreadsheet comparison built by hand), none of them the demo's plot |
+| Where uTrace helps | `helps/` | the case board: one open case, two thumbnails, three situations shown as the concrete product moment and played from problem to fix (section 5): an export that times out past a million rows, then runs the whole report through; a weekend conversion drop, then the Slack alert under 2% and its first ping; a spreadsheet comparison built by hand every Monday, then the same comparison as a switch in Shopalytics. None of them is the demo's plot |
 | Case File | `casefile/` | for your team: a coral folder with seven index dividers and three characters looking over its edge; the summary sheet is the same component the demo's last beat renders |
-| For your users | `users/` | the Case File's counterpart, crop left and copy right, kept to one picture: Dudulemon's Shopalytics invoice on Stripe's hosted invoice page, 1,000 less Maya's 250 interview credit leaving 750 due, with one caption; beside it the headline, one sentence naming Outreach Offers, and four ticked lines (they sign off the change they asked for; an honest no earns the same credit; rewards scale with the customer's plan and size; you set the budget). No stamp: the page's one stamp is the Case File's |
+| For your users | `users/` | the Case File's counterpart, crop left and copy right, kept to one picture: Dudulemon's Shopalytics invoice on Stripe's hosted invoice page, 1,000 less Maya's 250 interview credit leaving 750 due, with one caption; beside it the headline, one sentence naming Outreach Offers, and four ticked lines (they actively contribute towards a version of the product they want; an honest no earns the same credit; rewards scale with the customer's plan and size; you set the budget). No stamp: the page's one stamp is the Case File's |
 | How it fits | `fits/` | the setup checklist in the page's order: four numbered bays of ticked rows. Where your customers talk (the physics pile of tiles), your product (the uTrace SDK, preview-only; code access; the safe preview copy), rewards (Stripe or your own credits, the budget, and a link back to For your users), your rules (what agents may change, accounts only humans interview, required checks) |
 | Closing | `closing/` | the tug of war: coral on the handle, the six on the right of the rim, the glass arriving pulled right so only the end of the headline shows; the reader pulls it to the spot and the waitlist email bar appears inside the rim |
 | Footer | `landing/Footer.tsx` | black; "Forward-deployed agents for product teams."; section links and Contact |
@@ -334,6 +348,11 @@ Every crop is the real thing at its own scale, built from `surfaces/`:
   a view name field, Save view and the saved views beside the page title, where
   Export was; the repaired candidate keeps Export beside them. Numbers
   and the drop-off's shape follow the recorded demo runs, not exactly.
+- **Slack** (`helps/helpsExamples.tsx`): the capability case's first ping in
+  #growth, in Slack's desktop dark theme (message pane `#1a1d21`, text `#d1d2d3`,
+  muted `#ababad`): the channel header, then Shopalytics' message with its APP
+  tag, the time and a View dashboard button, authored at Slack's scale and zoomed
+  into the crop. Noto Sans stands in for Slack's Lato.
 - **Stripe** (`users/ForYourUsers.tsx`): the hosted invoice page (merchant name, an
   amount-due card with To and From, the invoice's lines, Pay, "Powered by stripe")
   in Stripe Checkout's own system type, 90% and 60% ink, 10% rules and grey
@@ -371,8 +390,7 @@ Shopalytics' logo (a shopping bag with a rising line) marks its Discord server,
 its preview tab, its top bar and its invoice; Dudulemon's marks Maya and the
 workspace. Shopalytics, Dudulemon, Maya and every number are fictional and read from one
 fixture (`story/shopalyticsFixture.ts`) so the demo and the Case File never
-disagree. Illustrative crops say so in a small "Illustrative example" label; the
-Case File and For your users each carry one example note. The Outreach Offer's
+disagree. The Outreach Offer's
 amounts (the 250 credit, the 1,000 invoice) live in the same fixture, so the demo's
 invitation and thanks and For your users agree.
 
