@@ -10,8 +10,7 @@
 
 <p align="center">
   <a href="https://utrace.dev">utrace.dev</a> ·
-  <a href="https://youtu.be/tXNdiliB3_Y">DEMO</a> ·
-  <a href="docs/PRD.md">Product spec</a> ·
+  <a href="docs/PRD.md">PRD</a> ·
   <a href="docs/ARCHITECTURE.md">Architecture</a>
 </p>
 
@@ -21,6 +20,10 @@ Product Signals in it, and turns them into validated implementation work: it
 interviews the customer behind each one while they use the product, builds the
 agreed change in isolation, live during the interview when it fits, and has that
 same customer validate it before a pull request opens.
+
+## Demo
+
+https://github.com/user-attachments/assets/0c4e890b-b999-4edf-b782-2b20440cd806
 
 ## Why uTrace
 
