@@ -22,8 +22,11 @@
   --lilac: #cdb6f9;
   --char-black: #111111;
   --display: "Allo", system-ui, sans-serif;
-  /* Allo's roundness axis defaults to 50; the display face is set sharp. Other faces lack the axis. */
-  font-variation-settings: "ROND" 0;
+  /* Allo's roundness axis defaults to 50; the display face is set sharp. Other faces lack
+     the axis. The font shorthand resets font-variation-settings, so every rule that sets
+     the display face with it re-applies --display-axes. */
+  --display-axes: "ROND" 0;
+  font-variation-settings: var(--display-axes);
   --body: "Satoshi", "Helvetica Neue", Arial, sans-serif;
   /* comic lettering: the hero's rotating word only */
   --sfx: "Bangers", Impact, sans-serif;

@@ -4,7 +4,7 @@
 .lp-waitlist-bar:has(input:focus) { --waitlist-field:#fff7f5; --waitlist-field-rule:var(--coral); box-shadow:6px 6px 0 var(--ink), inset 0 -3px var(--waitlist-field-rule); }
 .lp-waitlist-bar input:is(:autofill, :-webkit-autofill) { box-shadow:inset 0 -3px var(--waitlist-field-rule), inset 0 0 0 1000px var(--waitlist-field); -webkit-text-fill-color:var(--ink); caret-color:var(--ink); }
 .lp-waitlist-bar input::placeholder { color:var(--ink-2); opacity:1; }
-.lp-waitlist-submit { position:relative; display:flex; flex:none; width:var(--waitlist-action-width); align-items:center; justify-content:center; gap:7px; appearance:none; padding:0 22px 0 29px; border:0; border-radius:0; background:var(--ink); color:var(--ink); font:800 19px/1 var(--display); white-space:nowrap; clip-path:polygon(14px 0,100% 0,100% 100%,0 100%); cursor:pointer; }
+.lp-waitlist-submit { position:relative; display:flex; flex:none; width:var(--waitlist-action-width); align-items:center; justify-content:center; gap:7px; appearance:none; padding:0 22px 0 29px; border:0; border-radius:0; background:var(--ink); color:var(--ink); font:800 19px/1 var(--display); font-variation-settings: var(--display-axes); white-space:nowrap; clip-path:polygon(14px 0,100% 0,100% 100%,0 100%); cursor:pointer; }
 .lp-waitlist-submit::before { content:""; position:absolute; inset:0 0 0 3px; clip-path:inherit; background:var(--coral); }
 .lp-waitlist-submit > * { position:relative; }
 button.lp-waitlist-submit:hover::before { background:var(--coral-strong); }

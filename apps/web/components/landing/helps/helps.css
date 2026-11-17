@@ -97,7 +97,7 @@
 .hp-kpi { margin: 16px 24px 0; padding: 12px 16px 12px; border: 1.5px solid #000; }
 .hp-kpi-head { display: flex; justify-content: space-between; align-items: baseline; font: 700 13px/1.3 var(--body); }
 .hp-kpi-head span { font: 400 11.5px/1.3 var(--body); color: #777; }
-.hp-kpi-value { display: flex; align-items: baseline; gap: 10px; margin-top: 4px; font: 800 30px/1.1 var(--display); letter-spacing: -0.02em; }
+.hp-kpi-value { display: flex; align-items: baseline; gap: 10px; margin-top: 4px; font: 800 30px/1.1 var(--display); font-variation-settings: var(--display-axes); letter-spacing: -0.02em; }
 .hp-kpi-value em { font: 600 12px/1.3 var(--body); font-style: normal; color: var(--coral-ink); }
 .hp-spark-wrap { position: relative; margin-top: 8px; }
 .hp-spark { display: block; width: 100%; height: 88px; overflow: visible; }
