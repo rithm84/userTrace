@@ -1,5 +1,5 @@
 @import "tailwindcss" source(none);
-@import "@fontsource-variable/bricolage-grotesque/opsz.css";
+@import "allo-font/allo.css";
 @import "@fontsource/bangers/index.css";
 
 @source "../app";

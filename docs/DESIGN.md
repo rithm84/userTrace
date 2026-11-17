@@ -50,9 +50,11 @@ coral, coral-strong or coral-tint; the cast colours belong to the characters and
 to nothing else, with one exception: the hero's city paints its buildings in the
 cast pastels (section 5a).
 
-**Type.** Display is Bricolage Grotesque at weight 800 with tight tracking
-(`--display`); body is Satoshi (`--body`); Bangers (`--sfx`) is comic lettering
-and appears in exactly two places, the hero's rotating word and the one shout.
+**Type.** Display is Allo at weight 800 and roundness 0 (`"ROND" 0`, set on the
+landing and product roots), with tight tracking (`--display`); the wordmark is
+the same cut baked to a path; body is Satoshi (`--body`); Bangers (`--sfx`) is
+comic lettering and appears in exactly two places, the hero's rotating word and
+the one shout.
 Section headings are 54 to 56px; the lede is 17 to 20px regular; captions and
 labels are 13 to 15px bold; product UI inside a frame uses that product's scale.
 Everything is sentence case. No thin, letter-spaced, uppercase or mono labels.

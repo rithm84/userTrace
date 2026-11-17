@@ -26,7 +26,9 @@
   --cast-lilac: #cdb6f9;
   --cast-peach: #f5b488;
   --cast-aqua: #72d8d7;
-  --display: "Bricolage Grotesque Variable", "Bricolage Grotesque", system-ui, sans-serif;
+  --display: "Allo", system-ui, sans-serif;
+  /* Allo's roundness axis defaults to 50; the display face is set sharp. Other faces lack the axis. */
+  font-variation-settings: "ROND" 0;
   --body: "Satoshi", "Helvetica Neue", Arial, sans-serif;
   --ease-out: cubic-bezier(0, 0, 0.2, 1);
   --bar-h: 72px;
@@ -47,8 +49,8 @@
 
 /* ------------------------------------------------------------------ type */
 
-.pr-h1 { font: 800 34px/1.05 var(--display); font-stretch: 92%; letter-spacing: -0.03em; margin: 0; }
-.pr-h2 { font: 800 22px/1.1 var(--display); font-stretch: 94%; letter-spacing: -0.025em; margin: 0; }
+.pr-h1 { font: 800 34px/1.05 var(--display); letter-spacing: -0.03em; margin: 0; }
+.pr-h2 { font: 800 22px/1.1 var(--display); letter-spacing: -0.025em; margin: 0; }
 .pr-lede { font: 400 16px/1.5 var(--body); color: var(--ink-2); margin: 0; }
 .pr-note { font: 400 13px/1.5 var(--body); color: var(--ink-3); margin: 0; }
 .pr-label { font: 700 13px/1.3 var(--body); color: var(--ink-2); margin: 0; }
@@ -103,7 +105,7 @@
 
 .pr-tile { border: 2px solid var(--ink); background: var(--paper); box-shadow: 3px 3px 0 0 var(--ink); padding: 14px 16px; }
 .pr-tile dt { font: 700 13px/1.3 var(--body); color: var(--ink-2); }
-.pr-tile dd { margin: 6px 0 0; font: 800 26px/1 var(--display); font-stretch: 92%; letter-spacing: -0.02em; }
+.pr-tile dd { margin: 6px 0 0; font: 800 26px/1 var(--display); letter-spacing: -0.02em; }
 .pr-tile dd small { display: block; margin-top: 6px; font: 400 13px/1.4 var(--body); color: var(--ink-3); letter-spacing: 0; }
 
 .pr-card { display: block; border: 2px solid var(--ink); background: var(--paper); padding: 16px; text-decoration: none; transition: box-shadow 0.15s var(--ease-out), translate 0.15s var(--ease-out); }
@@ -161,7 +163,7 @@ a.pr-card:hover, a.pr-card:focus-visible { box-shadow: 3px 3px 0 0 var(--ink); t
 
 .ua { display: flex; flex-direction: column; gap: 28px; }
 .ua-head { display: flex; flex-wrap: wrap; align-items: center; gap: 20px 24px; padding-bottom: 28px; border-bottom: 1px solid var(--rule); }
-.ua-avatar { flex: none; display: grid; place-items: center; width: 72px; height: 72px; border: 3px solid var(--ink); border-radius: 50%; background: var(--coral); box-shadow: 3px 3px 0 0 var(--ink); font: 800 32px/1 var(--display); font-stretch: 92%; }
+.ua-avatar { flex: none; display: grid; place-items: center; width: 72px; height: 72px; border: 3px solid var(--ink); border-radius: 50%; background: var(--coral); box-shadow: 3px 3px 0 0 var(--ink); font: 800 32px/1 var(--display); }
 .ua-who { flex: 1 1 360px; display: flex; flex-direction: column; gap: 6px; }
 .ua-who .pr-lede { max-width: 60ch; }
 .ua-count { flex: none; min-width: 150px; margin: 0; }
@@ -213,7 +215,7 @@ a.pr-card:hover, a.pr-card:focus-visible { box-shadow: 3px 3px 0 0 var(--ink); t
 
 .ss-center { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; }
 .ss-figure { display: grid; place-items: center; }
-.ss-status { margin: 4px 0 0; font: 800 40px/1 var(--display); font-stretch: 92%; letter-spacing: -0.03em; }
+.ss-status { margin: 4px 0 0; font: 800 40px/1 var(--display); letter-spacing: -0.03em; }
 .ss-agent { margin: 0; font: 400 16px/1.45 var(--body); color: var(--ink-2); }
 .ss-preview { margin-top: 14px; height: 48px; padding: 0 24px 1px; font-size: 16px; }
 
@@ -249,7 +251,7 @@ a.pr-card:hover, a.pr-card:focus-visible { box-shadow: 3px 3px 0 0 var(--ink); t
 
 .ss-transcript { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; border-left: 3px solid var(--ink); background: var(--paper-2); }
 .ss-transcript-head { padding: 22px 24px 16px; border-bottom: 1px solid var(--rule-2); background: var(--paper); }
-.ss-transcript-title { margin: 0 0 4px; font: 800 22px/1.1 var(--display); font-stretch: 94%; letter-spacing: -0.025em; }
+.ss-transcript-title { margin: 0 0 4px; font: 800 22px/1.1 var(--display); letter-spacing: -0.025em; }
 .ss-transcript-empty { margin: 24px; padding: 20px; border: 1px dashed var(--rule-2); background: var(--paper); font: 400 14px/1.5 var(--body); color: var(--ink-2); }
 .ss-turns { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; list-style: none; display: flex; flex-direction: column; gap: 18px; margin: 0; padding: 20px 24px 76px; }
 .ss-turn-who { display: inline-flex; align-items: center; gap: 8px; font: 700 13px/1.2 var(--body); }

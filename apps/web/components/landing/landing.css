@@ -21,7 +21,9 @@
   --sky: #85cef9;
   --lilac: #cdb6f9;
   --char-black: #111111;
-  --display: "Bricolage Grotesque Variable", "Bricolage Grotesque", system-ui, sans-serif;
+  --display: "Allo", system-ui, sans-serif;
+  /* Allo's roundness axis defaults to 50; the display face is set sharp. Other faces lack the axis. */
+  font-variation-settings: "ROND" 0;
   --body: "Satoshi", "Helvetica Neue", Arial, sans-serif;
   /* comic lettering: the hero's rotating word only */
   --sfx: "Bangers", Impact, sans-serif;
@@ -64,7 +66,6 @@
 .lp-display {
   font-family: var(--display);
   font-weight: 800;
-  font-stretch: 90%;
   letter-spacing: -0.035em;
   line-height: 1.02;
 }
@@ -72,7 +73,6 @@
 .lp-h2 {
   font-family: var(--display);
   font-weight: 800;
-  font-stretch: 92%;
   letter-spacing: -0.03em;
   line-height: 1;
   font-size: 56px;
