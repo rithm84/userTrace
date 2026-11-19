@@ -7,11 +7,31 @@ file is the operational counterpart, not a second copy of it.
 
 ## Current state
 
-The `api` and `worker` computes run in the uTrace Supabase project
-(`gjhxlzeirymgwqqxvzlf`, `us-west-2`), and the API answers `/health` at
-`https://api.utrace.dev/compute/v1/api/health`, the project's active custom
-domain. The `utrace-preview-front-door` production environment is configured;
-`vercel deploy --prod` from a checkout linked to that project releases it.
+Since November 19, 2026, the product is dormant and only the landing is
+deployed. `utrace-web` serves `utrace.dev` with `LANDING_ONLY=1` on Production,
+so every path other than `/` redirects to the landing, and the project holds no
+product settings. Nothing else in the topology below is running:
+
+- The `api` and `worker` computes are deleted from the uTrace Supabase project
+  (`gjhxlzeirymgwqqxvzlf`, `us-west-2`). The project itself stays up, with its
+  database, Storage, Auth, and the `api.utrace.dev` custom domain.
+- The Pipecat Cloud voice agent and its secret set are deleted.
+- The `utrace-preview-front-door` Vercel project and the Vercel Sandbox project
+  are deleted, along with their sandboxes and snapshots.
+- The provider credentials are not kept; reopening needs new ones.
+
+To reopen the product, in order:
+
+1. Issue new provider credentials into `.env.local`.
+2. Create a Vercel Sandbox project and a preview template snapshot (see
+   [`vercel/preview/README.md`](./vercel/preview/README.md)), and recreate the
+   `utrace-preview-front-door` project from `apps/preview-front-door`.
+3. Recreate the computes with `uv run deploy/compute/deploy.py secrets`, then
+   `push`.
+4. Recreate the voice agent with `uv run deploy/pipecat-cloud/deploy.py secrets`,
+   then `push`.
+5. On `utrace-web`, restore the product settings that `apps/web/.env.example`
+   lists, set `LANDING_ONLY=0`, and redeploy.
 
 ## Topology
 
